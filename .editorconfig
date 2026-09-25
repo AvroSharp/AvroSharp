@@ -1,0 +1,86 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{csproj,props,targets,slnx,xml,json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+# Layout and modern syntax
+csharp_style_namespace_declarations = file_scoped:error
+csharp_using_directive_placement = outside_namespace:error
+dotnet_sort_system_directives_first = true
+csharp_prefer_braces = true:error
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_prefer_primary_constructors = true:suggestion
+csharp_style_prefer_collection_expression = true:suggestion
+dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
+dotnet_style_qualification_for_field = false:error
+dotnet_style_qualification_for_property = false:error
+dotnet_style_qualification_for_method = false:error
+dotnet_style_qualification_for_event = false:error
+dotnet_style_predefined_type_for_locals_parameters_members = true:error
+dotnet_style_readonly_field = true:error
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:error
+
+# Naming: private fields _camelCase, static private s_camelCase, constants PascalCase
+dotnet_naming_rule.const_pascal.symbols = const_fields
+dotnet_naming_rule.const_pascal.style = pascal
+dotnet_naming_rule.const_pascal.severity = error
+dotnet_naming_symbols.const_fields.applicable_kinds = field
+dotnet_naming_symbols.const_fields.required_modifiers = const
+dotnet_naming_style.pascal.capitalization = pascal_case
+
+dotnet_naming_rule.static_private_s.symbols = static_private_fields
+dotnet_naming_rule.static_private_s.style = s_camel
+dotnet_naming_rule.static_private_s.severity = error
+dotnet_naming_symbols.static_private_fields.applicable_kinds = field
+dotnet_naming_symbols.static_private_fields.applicable_accessibilities = private
+dotnet_naming_symbols.static_private_fields.required_modifiers = static
+dotnet_naming_style.s_camel.capitalization = camel_case
+dotnet_naming_style.s_camel.required_prefix = s_
+
+dotnet_naming_rule.private_underscore.symbols = private_fields
+dotnet_naming_rule.private_underscore.style = underscore_camel
+dotnet_naming_rule.private_underscore.severity = error
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+dotnet_naming_style.underscore_camel.required_prefix = _
+
+# Analyzer tuning (AnalysisLevel = latest-all, warnings are errors)
+dotnet_diagnostic.IDE0005.severity = error   # unnecessary usings
+dotnet_diagnostic.CA1716.severity = none     # 'Null' etc. are spec names
+dotnet_diagnostic.CA1720.severity = none     # identifiers containing type names (Int, Long) are spec names
+dotnet_diagnostic.CA1062.severity = none     # nullable reference types cover argument validation
+dotnet_diagnostic.CA1303.severity = none     # no localisation of literals
+dotnet_diagnostic.MA0048.severity = none     # file name must match type name (partial/generated files)
+dotnet_diagnostic.RS0026.severity = none     # multiple overloads with optional parameters
+dotnet_diagnostic.RS0027.severity = none
+
+[tests/**.cs]
+dotnet_diagnostic.CA1707.severity = none     # underscores in test names
+dotnet_diagnostic.CA1515.severity = none     # test classes must be public
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.CA2007.severity = none     # ConfigureAwait in tests
+dotnet_diagnostic.MA0004.severity = none     # ConfigureAwait in tests
+dotnet_diagnostic.VSTHRD200.severity = none  # Async suffix on test methods
+dotnet_diagnostic.CA1052.severity = none
+
+[bench/**.cs]
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.CA1812.severity = none

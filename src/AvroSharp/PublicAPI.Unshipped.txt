@@ -1,0 +1,9 @@
+#nullable enable
+AvroSharp.AvroCodecNames
+const AvroSharp.AvroCodecNames.Bzip2 = "bzip2" -> string!
+const AvroSharp.AvroCodecNames.Deflate = "deflate" -> string!
+const AvroSharp.AvroCodecNames.Null = "null" -> string!
+const AvroSharp.AvroCodecNames.Snappy = "snappy" -> string!
+const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
+const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
+static AvroSharp.AvroCodecNames.IsStandard(string? name) -> bool
