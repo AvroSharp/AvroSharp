@@ -1,9 +1,188 @@
 #nullable enable
+abstract AvroSharp.Schemas.AvroLogicalType.IsValidFor(AvroSharp.Schemas.AvroSchema! schema) -> bool
 AvroSharp.AvroCodecNames
+AvroSharp.AvroException
+AvroSharp.AvroException.AvroException() -> void
+AvroSharp.AvroException.AvroException(string! message, System.Exception? innerException) -> void
+AvroSharp.AvroException.AvroException(string! message) -> void
+AvroSharp.Schemas.ArraySchema
+AvroSharp.Schemas.ArraySchema.ArraySchema(AvroSharp.Schemas.AvroSchema! items, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
+AvroSharp.Schemas.ArraySchema.Items.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.AvroLogicalType
+AvroSharp.Schemas.AvroLogicalType.Kind.get -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalType.Name.get -> string!
+AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.BigDecimal = 1 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.Date = 3 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.Decimal = 0 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.Duration = 12 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.LocalTimestampMicros = 10 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.LocalTimestampMillis = 9 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.LocalTimestampNanos = 11 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.TimeMicros = 5 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.TimeMillis = 4 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.TimestampMicros = 7 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.TimestampMillis = 6 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.TimestampNanos = 8 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroLogicalTypeKind.Uuid = 2 -> AvroSharp.Schemas.AvroLogicalTypeKind
+AvroSharp.Schemas.AvroNames
+AvroSharp.Schemas.AvroSchema
+AvroSharp.Schemas.AvroSchema.CanonicalForm.get -> string!
+AvroSharp.Schemas.AvroSchema.Fingerprint64.get -> long
+AvroSharp.Schemas.AvroSchema.LogicalType.get -> AvroSharp.Schemas.AvroLogicalType?
+AvroSharp.Schemas.AvroSchema.Properties.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+AvroSharp.Schemas.AvroSchema.ToJson(bool indented = false) -> string!
+AvroSharp.Schemas.AvroSchema.Type.get -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchema.WriteTo(System.Text.Json.Utf8JsonWriter! writer) -> void
+AvroSharp.Schemas.AvroSchemaException
+AvroSharp.Schemas.AvroSchemaException.AvroSchemaException() -> void
+AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message, string? path, long? lineNumber, long? bytePositionInLine, System.Exception? innerException = null) -> void
+AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message, System.Exception? innerException) -> void
+AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message) -> void
+AvroSharp.Schemas.AvroSchemaException.BytePositionInLine.get -> long?
+AvroSharp.Schemas.AvroSchemaException.LineNumber.get -> long?
+AvroSharp.Schemas.AvroSchemaException.Path.get -> string?
+AvroSharp.Schemas.AvroSchemaException.Reason.get -> string?
+AvroSharp.Schemas.AvroSchemaParseOptions
+AvroSharp.Schemas.AvroSchemaParseOptions.AllowComments.get -> bool
+AvroSharp.Schemas.AvroSchemaParseOptions.AllowComments.init -> void
+AvroSharp.Schemas.AvroSchemaParseOptions.AvroSchemaParseOptions() -> void
+AvroSharp.Schemas.AvroSchemaParseOptions.MaxDepth.get -> int
+AvroSharp.Schemas.AvroSchemaParseOptions.MaxDepth.init -> void
+AvroSharp.Schemas.AvroSchemaParseOptions.ValidateDefaults.get -> bool
+AvroSharp.Schemas.AvroSchemaParseOptions.ValidateDefaults.init -> void
+AvroSharp.Schemas.AvroSchemaParseOptions.ValidateNames.get -> bool
+AvroSharp.Schemas.AvroSchemaParseOptions.ValidateNames.init -> void
+AvroSharp.Schemas.AvroSchemaParser
+AvroSharp.Schemas.AvroSchemaParser.AddNamedSchemas(AvroSharp.Schemas.AvroSchema! schema) -> void
+AvroSharp.Schemas.AvroSchemaParser.AvroSchemaParser(AvroSharp.Schemas.AvroSchemaParseOptions? options = null) -> void
+AvroSharp.Schemas.AvroSchemaParser.NamedSchemas.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Schemas.NamedSchema!>!
+AvroSharp.Schemas.AvroSchemaParser.Options.get -> AvroSharp.Schemas.AvroSchemaParseOptions!
+AvroSharp.Schemas.AvroSchemaParser.Parse(string! json) -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.AvroSchemaParser.Parse(System.ReadOnlySpan<byte> utf8Json) -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.AvroSchemaParser.ParseAsync(System.IO.Stream! utf8Json, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Schemas.AvroSchema!>
+AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Array = 10 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Boolean = 1 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Bytes = 6 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Double = 5 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Enum = 9 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Fixed = 13 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Float = 4 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Int = 2 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Long = 3 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Map = 11 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Null = 0 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Record = 8 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.String = 7 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.AvroSchemaType.Union = 12 -> AvroSharp.Schemas.AvroSchemaType
+AvroSharp.Schemas.DecimalLogicalType
+AvroSharp.Schemas.DecimalLogicalType.Equals(AvroSharp.Schemas.DecimalLogicalType? other) -> bool
+AvroSharp.Schemas.DecimalLogicalType.Precision.get -> int
+AvroSharp.Schemas.DecimalLogicalType.Scale.get -> int
+AvroSharp.Schemas.EnumSchema
+AvroSharp.Schemas.EnumSchema.Default.get -> string?
+AvroSharp.Schemas.EnumSchema.EnumSchema(AvroSharp.Schemas.SchemaName! name, System.Collections.Generic.IEnumerable<string!>! symbols, string? defaultSymbol = null, string? doc = null, System.Collections.Generic.IEnumerable<AvroSharp.Schemas.SchemaName!>? aliases = null, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
+AvroSharp.Schemas.EnumSchema.Symbols.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AvroSharp.Schemas.EnumSchema.TryGetOrdinal(string! symbol, out int ordinal) -> bool
+AvroSharp.Schemas.FieldOrder
+AvroSharp.Schemas.FieldOrder.Ascending = 0 -> AvroSharp.Schemas.FieldOrder
+AvroSharp.Schemas.FieldOrder.Descending = 1 -> AvroSharp.Schemas.FieldOrder
+AvroSharp.Schemas.FieldOrder.Ignore = 2 -> AvroSharp.Schemas.FieldOrder
+AvroSharp.Schemas.FixedSchema
+AvroSharp.Schemas.FixedSchema.FixedSchema(AvroSharp.Schemas.SchemaName! name, int size, AvroSharp.Schemas.AvroLogicalType? logicalType = null, string? doc = null, System.Collections.Generic.IEnumerable<AvroSharp.Schemas.SchemaName!>? aliases = null, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
+AvroSharp.Schemas.FixedSchema.Size.get -> int
+AvroSharp.Schemas.MapSchema
+AvroSharp.Schemas.MapSchema.MapSchema(AvroSharp.Schemas.AvroSchema! values, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
+AvroSharp.Schemas.MapSchema.Values.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.NamedSchema
+AvroSharp.Schemas.NamedSchema.Aliases.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.SchemaName!>!
+AvroSharp.Schemas.NamedSchema.Doc.get -> string?
+AvroSharp.Schemas.NamedSchema.FullName.get -> string!
+AvroSharp.Schemas.NamedSchema.Name.get -> AvroSharp.Schemas.SchemaName!
+AvroSharp.Schemas.PrimitiveSchema
+AvroSharp.Schemas.PrimitiveSchema.PrimitiveSchema(AvroSharp.Schemas.AvroSchemaType type, AvroSharp.Schemas.AvroLogicalType? logicalType = null, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
+AvroSharp.Schemas.PrimitiveSchema.TypeName.get -> string!
+AvroSharp.Schemas.RecordField
+AvroSharp.Schemas.RecordField.Aliases.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AvroSharp.Schemas.RecordField.DefaultValue.get -> System.Text.Json.JsonElement?
+AvroSharp.Schemas.RecordField.Doc.get -> string?
+AvroSharp.Schemas.RecordField.HasDefaultValue.get -> bool
+AvroSharp.Schemas.RecordField.Name.get -> string!
+AvroSharp.Schemas.RecordField.Order.get -> AvroSharp.Schemas.FieldOrder
+AvroSharp.Schemas.RecordField.Position.get -> int
+AvroSharp.Schemas.RecordField.Properties.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>!
+AvroSharp.Schemas.RecordField.Record.get -> AvroSharp.Schemas.RecordSchema?
+AvroSharp.Schemas.RecordField.RecordField(string! name, AvroSharp.Schemas.AvroSchema! schema, System.Text.Json.JsonElement? defaultValue = null, string? doc = null, AvroSharp.Schemas.FieldOrder order = AvroSharp.Schemas.FieldOrder.Ascending, System.Collections.Generic.IEnumerable<string!>? aliases = null, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
+AvroSharp.Schemas.RecordField.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.RecordSchema
+AvroSharp.Schemas.RecordSchema.Fields.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.RecordField!>!
+AvroSharp.Schemas.RecordSchema.GetField(string! name) -> AvroSharp.Schemas.RecordField!
+AvroSharp.Schemas.RecordSchema.IsError.get -> bool
+AvroSharp.Schemas.RecordSchema.RecordSchema(AvroSharp.Schemas.SchemaName! name, System.Collections.Generic.IEnumerable<AvroSharp.Schemas.RecordField!>! fields, string? doc = null, System.Collections.Generic.IEnumerable<AvroSharp.Schemas.SchemaName!>? aliases = null, bool isError = false, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
+AvroSharp.Schemas.RecordSchema.TryGetField(string! name, out AvroSharp.Schemas.RecordField? field) -> bool
+AvroSharp.Schemas.SchemaFingerprint
+AvroSharp.Schemas.SchemaName
+AvroSharp.Schemas.SchemaName.Equals(AvroSharp.Schemas.SchemaName? other) -> bool
+AvroSharp.Schemas.SchemaName.FullName.get -> string!
+AvroSharp.Schemas.SchemaName.Name.get -> string!
+AvroSharp.Schemas.SchemaName.Namespace.get -> string?
+AvroSharp.Schemas.SchemaName.SchemaName(string! name, string? namespace = null) -> void
+AvroSharp.Schemas.UnionSchema
+AvroSharp.Schemas.UnionSchema.Branches.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>!
+AvroSharp.Schemas.UnionSchema.UnionSchema(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! branches) -> void
 const AvroSharp.AvroCodecNames.Bzip2 = "bzip2" -> string!
 const AvroSharp.AvroCodecNames.Deflate = "deflate" -> string!
 const AvroSharp.AvroCodecNames.Null = "null" -> string!
 const AvroSharp.AvroCodecNames.Snappy = "snappy" -> string!
 const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
 const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
+const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
+override AvroSharp.Schemas.AvroLogicalType.ToString() -> string!
+override AvroSharp.Schemas.AvroSchema.ToString() -> string!
+override AvroSharp.Schemas.DecimalLogicalType.Equals(object? obj) -> bool
+override AvroSharp.Schemas.DecimalLogicalType.GetHashCode() -> int
+override AvroSharp.Schemas.DecimalLogicalType.IsValidFor(AvroSharp.Schemas.AvroSchema! schema) -> bool
+override AvroSharp.Schemas.DecimalLogicalType.ToString() -> string!
+override AvroSharp.Schemas.RecordField.ToString() -> string!
+override AvroSharp.Schemas.SchemaName.Equals(object? obj) -> bool
+override AvroSharp.Schemas.SchemaName.GetHashCode() -> int
+override AvroSharp.Schemas.SchemaName.ToString() -> string!
 static AvroSharp.AvroCodecNames.IsStandard(string? name) -> bool
+static AvroSharp.Schemas.AvroLogicalType.BigDecimal.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.Date.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.Decimal(int precision, int scale = 0) -> AvroSharp.Schemas.DecimalLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.Duration.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.LocalTimestampMicros.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.LocalTimestampMillis.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.LocalTimestampNanos.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.TimeMicros.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.TimeMillis.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.TimestampMicros.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.TimestampMillis.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.TimestampNanos.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroLogicalType.Uuid.get -> AvroSharp.Schemas.AvroLogicalType!
+static AvroSharp.Schemas.AvroNames.IsPrimitiveTypeName(string! name) -> bool
+static AvroSharp.Schemas.AvroNames.IsValidName(System.ReadOnlySpan<char> name) -> bool
+static AvroSharp.Schemas.AvroNames.IsValidNamespace(System.ReadOnlySpan<char> value) -> bool
+static AvroSharp.Schemas.AvroSchema.Boolean.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchema.Bytes.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchema.Double.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchema.Float.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchema.Int.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchema.Long.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchema.Null.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchema.Parse(string! json, AvroSharp.Schemas.AvroSchemaParseOptions? options = null) -> AvroSharp.Schemas.AvroSchema!
+static AvroSharp.Schemas.AvroSchema.Parse(System.ReadOnlySpan<byte> utf8Json, AvroSharp.Schemas.AvroSchemaParseOptions? options = null) -> AvroSharp.Schemas.AvroSchema!
+static AvroSharp.Schemas.AvroSchema.ParseAsync(System.IO.Stream! utf8Json, AvroSharp.Schemas.AvroSchemaParseOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Schemas.AvroSchema!>
+static AvroSharp.Schemas.AvroSchema.String.get -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.AvroSchemaParseOptions.Default.get -> AvroSharp.Schemas.AvroSchemaParseOptions!
+static AvroSharp.Schemas.DecimalLogicalType.MaxPrecisionForFixedSize(int size) -> int
+static AvroSharp.Schemas.PrimitiveSchema.Get(AvroSharp.Schemas.AvroSchemaType type) -> AvroSharp.Schemas.PrimitiveSchema!
+static AvroSharp.Schemas.RecordSchema.CreateRecursive(AvroSharp.Schemas.SchemaName! name, System.Func<AvroSharp.Schemas.RecordSchema!, System.Collections.Generic.IEnumerable<AvroSharp.Schemas.RecordField!>!>! fields, string? doc = null, System.Collections.Generic.IEnumerable<AvroSharp.Schemas.SchemaName!>? aliases = null, bool isError = false, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> AvroSharp.Schemas.RecordSchema!
+static AvroSharp.Schemas.SchemaFingerprint.Crc64Avro(AvroSharp.Schemas.AvroSchema! schema) -> long
+static AvroSharp.Schemas.SchemaFingerprint.Crc64Avro(System.ReadOnlySpan<byte> data) -> long
+static AvroSharp.Schemas.SchemaFingerprint.Md5(AvroSharp.Schemas.AvroSchema! schema) -> byte[]!
+static AvroSharp.Schemas.SchemaFingerprint.Sha256(AvroSharp.Schemas.AvroSchema! schema) -> byte[]!
+static AvroSharp.Schemas.SchemaName.operator !=(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
+static AvroSharp.Schemas.SchemaName.operator ==(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool

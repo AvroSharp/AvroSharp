@@ -1,23 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- net481 exercises the netstandard2.0 build of AvroSharp on .NET Framework (Windows only). -->
+  <!-- Cross-checks AvroSharp against the Apache.Avro reference implementation (test-only dependency). -->
   <PropertyGroup>
     <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
-    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
     <OutputType>Exe</OutputType>
+    <!-- Apache.Avro is not strong-name-compatible with our signing requirements in every configuration. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="TUnit" />
+    <PackageReference Include="CsCheck" />
+    <PackageReference Include="Apache.Avro" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="..\TestData\**\*" LinkBase="TestData" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -4,7 +4,11 @@
 
 - **Implement from the specification.** AvroSharp is a clean-room implementation of the Apache Avro™ specification under the MIT license. Apache.Avro (Apache-2.0) may be read for design ideas and used as a test oracle, but its code must not be copied or ported into `src/`. Code derived from Chr.Avro (MIT) must keep its copyright notice in `THIRD-PARTY-NOTICES.md`.
 - **No reflection on serialization paths.** Typed serialization is produced by source generators and must stay Native AOT and trimming compatible.
-- **Performance is a feature.** AvroSharp must be faster than Apache.Avro, with fewer allocations, on every scenario in the benchmark suite. Changes to hot paths come with benchmark results.
+- **Performance is a feature.** AvroSharp must be faster than Apache.Avro, with fewer allocations, on every scenario in the benchmark suite. Benchmarks run locally only, on request, on an idle machine (never in CI):
+
+  ```shell
+  dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory --gate
+  ```
 - **Codecs use fully managed libraries only.** No native binaries and no P/Invoke.
 - **Tests must exercise the product path.** Write the test, revert the fix, and confirm the test fails.
 

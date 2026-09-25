@@ -8,6 +8,10 @@
     <IsPackable>true</IsPackable>
     <EnablePackageValidation>true</EnablePackageValidation>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Polyfill: include the ArgumentNullException/ArgumentOutOfRangeException ThrowIf* helpers. -->
+    <PolyArgumentExceptions>true</PolyArgumentExceptions>
+    <!-- Mark polyfill types [Embedded] so they never leak into, or clash with, consumers' own polyfills. -->
+    <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
   </PropertyGroup>
 
   <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
@@ -23,9 +27,10 @@
     <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
   </ItemGroup>
 
-  <!-- Language-feature polyfills (compile-time only) and BCL polyfills for netstandard. -->
-  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
-    <PackageReference Include="PolySharp" PrivateAssets="all" />
+  <!-- Source-only polyfills for language features and newer BCL APIs; nothing is added where the TFM already has them. -->
+  <ItemGroup>
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
+    <Using Include="Polyfills" />
   </ItemGroup>
 
 </Project>
