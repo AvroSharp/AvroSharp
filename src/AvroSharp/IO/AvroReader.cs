@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 #if NET8_0_OR_GREATER
 using System.Numerics;
+using System.Runtime.Intrinsics;
 #endif
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -294,6 +295,88 @@ public ref struct AvroReader
         }
     }
 
+    /// <summary>
+    /// Reads <paramref name="destination"/>.Length <c>long</c> values, such as the items of an array block.
+    /// </summary>
+    /// <remarks>
+    /// On net8+ with hardware-accelerated vectors, a 16-byte vector check finds runs of one-byte values (small
+    /// numbers, counts, ordinals), which are decoded without varint logic; other values use the scalar path.
+    /// </remarks>
+    /// <param name="destination">Receives the values.</param>
+    public void ReadLongs(scoped Span<long> destination)
+    {
+        var i = 0;
+#if NET8_0_OR_GREATER
+        while (Vector128.IsHardwareAccelerated
+            && destination.Length - i >= Vector128<byte>.Count
+            && _span.Length - _position >= Vector128<byte>.Count)
+        {
+            var chunk = _span.Slice(_position, Vector128<byte>.Count);
+            var run = OneByteRunLength(chunk);
+            for (var k = 0; k < run; k++)
+            {
+                uint b = chunk[k];
+                destination[i + k] = (long)(b >> 1) ^ -(long)(b & 1);
+            }
+
+            _position += run;
+            i += run;
+            if (run < Vector128<byte>.Count)
+            {
+                destination[i++] = ReadLong();
+            }
+        }
+#endif
+        for (; i < destination.Length; i++)
+        {
+            destination[i] = ReadLong();
+        }
+    }
+
+    /// <summary>
+    /// Reads <paramref name="destination"/>.Length <c>int</c> values, such as the items of an array block.
+    /// Uses the same vector check for one-byte values as <see cref="ReadLongs"/>.
+    /// </summary>
+    /// <param name="destination">Receives the values.</param>
+    public void ReadInts(scoped Span<int> destination)
+    {
+        var i = 0;
+#if NET8_0_OR_GREATER
+        while (Vector128.IsHardwareAccelerated
+            && destination.Length - i >= Vector128<byte>.Count
+            && _span.Length - _position >= Vector128<byte>.Count)
+        {
+            var chunk = _span.Slice(_position, Vector128<byte>.Count);
+            var run = OneByteRunLength(chunk);
+            for (var k = 0; k < run; k++)
+            {
+                uint b = chunk[k];
+                destination[i + k] = (int)(b >> 1) ^ -(int)(b & 1);
+            }
+
+            _position += run;
+            i += run;
+            if (run < Vector128<byte>.Count)
+            {
+                destination[i++] = ReadInt();
+            }
+        }
+#endif
+        for (; i < destination.Length; i++)
+        {
+            destination[i] = ReadInt();
+        }
+    }
+
+#if NET8_0_OR_GREATER
+    /// <summary>The number of leading bytes (0 to 16) of <paramref name="chunk"/> that are complete one-byte varints.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int OneByteRunLength(ReadOnlySpan<byte> chunk)
+    {
+        var continuation = Vector128.Create(chunk).ExtractMostSignificantBits();
+        return continuation == 0 ? Vector128<byte>.Count : BitOperations.TrailingZeroCount(continuation);
+    }
+#endif
     /// <summary>Skips a variable-length <c>int</c> or <c>long</c>.</summary>
     public void SkipVarint() => ReadVarint64();
 

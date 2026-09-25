@@ -12,7 +12,7 @@ Legend: **[src]** = verified by reading the reference source/page during this st
 ## 0. TL;DR (recommendations up front)
 
 - **Name**: `AvroSharp` (root namespace `AvroSharp`, package prefix `AvroSharp.*`). The NuGet flat-container lookup for `avrosharp` returned 404 today, i.e. the ID appears unused **[src]** — re-check on nuget.org and push a 0.0.1-alpha reservation in M0.
-- **License**: **MIT (decided by maintainer)**. Apache.Avro is Apache-2.0, Chr.Avro is MIT **[src]**. Clean-room implementation from the spec; see Section 13.
+- **License**: **MIT**. Apache.Avro is Apache-2.0, Chr.Avro is MIT **[src]**. Clean-room implementation from the spec; see Section 13.
 - **Typed-serialization default**: Roslyn incremental **source generator** (AOT/trim-safe, fastest) as the primary path on all TFMs; **runtime expression-tree** compilation as the fallback/"no-generator" path; **reflection-only interpreter** for netstandard2.0/AOT-hostile dynamic scenarios and as the correctness oracle in tests.
 - **Hard release gate**: every scenario in the benchmark matrix (Section 5) must beat Apache.Avro 1.12.x on throughput and be at or below it on allocations; Checked by local benchmark runs, on request (see Section 5.4); not run in CI.
 - **v1 scope**: schema model/parser/canonical form/fingerprints, binary encoding, generic + typed (source-gen and expression-tree) serialization, full writer/reader resolution, object container files (sync + async, null/deflate/snappy/zstd/bzip2/xz via satellite packages), single-object encoding, JSON encoding, schema-from-type, codegen (CLI + build-time generator). IDL (.avdl) and Confluent Schema Registry integration ship in v1.x, not v1.0.
@@ -168,7 +168,7 @@ All three produce the same `AvroSerializer<T>` abstract class so the file/single
 
 ---
 
-### 4.10 Async (added 2026-09-25 at the maintainer's request)
+### 4.10 Async
 
 **Principle: async I/O, synchronous decoding.** `AvroReader` and `AvroWriter` are ref structs and cannot be held across an `await`. Async APIs therefore work a buffer or block at a time: read asynchronously (`PipeReader.ReadAsync`, `Stream.ReadAtLeastAsync` on net8+), decode that buffer synchronously from its `ReadOnlySequence<byte>` with the allocation-free reader, then yield the results. This is the same design as `System.Text.Json`'s async APIs; making each field read async would be far slower.
 
@@ -188,6 +188,18 @@ All three produce the same `AvroSerializer<T>` abstract class so the file/single
 | v1.x | Confluent: async Schema Registry lookups (cached) and Kafka serializers |
 
 **Tests:** async paths are tested through the public APIs with streams that return data in small, uneven chunks, and with cancellation at every await point.
+
+### 4.11 Field-run fusion (future)
+
+Generated serializers (M2.5, M4) and the compiled generic plans know a record's field layout in advance, so they can look ahead for runs of consecutive fields and process each run as one block instead of field by field:
+
+- **Consecutive `int`/`long` fields** (for example six counters in a row): decode them together with the bulk varint reader used for arrays (`AvroReader.ReadLongs`/`ReadInts`), whose vector check decodes a run of one-byte values at once and falls back to scalar decoding for larger values; encode them together the same way.
+- **Consecutive `float`/`double` fields:** fixed-width little-endian values, so the whole run is one bounds check and one 8·N-byte copy (`MemoryMarshal` on little-endian hardware). This should help on every CPU, with or without SIMD.
+- **Other fixed-width runs** (`boolean`, `fixed`, `float`, `double` in any mix): one bounds check for the whole run instead of one per field.
+
+Limits: a union (including a nullable field) ends a run, because the branch is only known at read time; the varint gain depends on the data (small values benefit, 7-8-byte timestamps little). Like every SIMD or bulk path (Section 11, SIMD rules), a fused run ships only where local benchmarks show it beating per-field code, and it is tested against the per-field path for identical results.
+
+Planned for: the M2.5 schema-file generator (emitted code), then the generic plan (a fused node) as a later optimization.
 
 ## 5. Performance plan (release gate)
 
@@ -230,7 +242,7 @@ Scenarios × implementations (AvroSharp-Gen, AvroSharp-Dynamic, AvroSharp-Generi
 - Chr.Avro is a secondary reference: report, do not gate (archived; no container files to compare).
 
 ### 5.4 Enforcement (local runs only)
-- **Decision (maintainer, 2026-09-25): benchmarks never run in CI or on a schedule, and never automatically.** They run locally, on the maintainer's request, on an otherwise idle machine. Every PR description recommends a run, with the exact command, and the maintainer decides whether to run it.
+- **Benchmarks never run in CI, on a schedule, or automatically.** They run locally, on request, on an otherwise idle machine. Every PR description recommends a run, with the exact command.
 - **Comparative gate**: `dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory --gate`. With `--gate`, the process exits non-zero unless, in every group (class, category, parameters, runtime), each `AvroSharp_*` benchmark is faster than the Apache.Avro baseline and allocates no more. Chr.Avro benchmarks are reported but not gated.
 - Nightly full-run on `main`; PR-run uses `ShortRunJob` for the gate and stores results as artifacts.
 - Benchmarks run against pinned Apache.Avro 1.12.2 and Chr.Avro 10.13.1 in `Directory.Packages.props`.
@@ -396,7 +408,7 @@ AvroSharp/
 
 **Analyzers** (all as errors in product code): `Microsoft.CodeAnalysis.NetAnalyzers` (built-in, `AnalysisLevel=latest-all`), `Microsoft.CodeAnalysis.PublicApiAnalyzers`, `Microsoft.CodeAnalysis.BannedApiAnalyzers` (ban `Encoding.UTF8.GetBytes(string)`, `MemoryStream.ToArray`, `Newtonsoft.*`, `System.Reflection.Emit` in core), `Roslynator.Analyzers`, `Meziantou.Analyzer`, `SonarAnalyzer.CSharp` (optional), `Microsoft.VisualStudio.Threading.Analyzers` (async hygiene: VSTHRD), `ErrorProne.NET.Structs` (defensive-copy/`in` misuse — important for ref structs). Generator projects add `Microsoft.CodeAnalysis.Analyzers` (RS rules) and pin `Microsoft.CodeAnalysis.CSharp` 4.x (lowest supported for SDK 8 consumers). StyleCop is not recommended (overlaps IDE rules and fights modern syntax).
 
-**CI (`ci.yml`)**: matrix `os: [ubuntu-latest, ubuntu-24.04-arm]` (the `windows-latest` and `windows-11-arm` entries are commented out since 2026-09-25: slow, and Windows including net481 is tested locally; re-enable before publishing packages), with the 8.0.x, 9.0.x and 10.0.x SDKs installed (`global.json` picks 10). Steps: `dotnet restore` (no NuGet lock files: versions are pinned centrally, packages come only from nuget.org via source mapping, and lock files broke RID-specific publishing), `dotnet build -c Release` (warnings are errors; analyzers and code style are enforced by the build), `dotnet format` is **not** run in CI (maintainer decision 2026-09-25: it took 251 s on `ubuntu-latest`, longer than the build, and is run locally on request), `dotnet test` per TFM (`-f net8.0/net9.0/net10.0`, xunit v3 MTP: `dotnet test --project ... -- --coverage`), Windows-only `net48` test project (netstandard2.0 consumer on .NET Framework 4.8.1), `AotSmoke` publish (`-r linux-x64` and `win-x64`) and run, `dotnet pack`, package validation (`EnablePackageValidation`), `Microsoft.DotNet.ApiCompat` baseline after 1.0. Coverage via `Microsoft.Testing.Extensions.CodeCoverage` (Cobertura) → Codecov, threshold 90 % lines on `src/AvroSharp`. `codeql.yml` weekly. No benchmark workflow: benchmarks run locally on request (Section 5.4).
+**CI (`ci.yml`)**: matrix `os: [ubuntu-latest, ubuntu-24.04-arm]` (the `windows-latest` and `windows-11-arm` entries are commented out since 2026-09-25: slow, and Windows including net481 is tested locally; re-enable before publishing packages), with the 8.0.x, 9.0.x and 10.0.x SDKs installed (`global.json` picks 10). Steps: `dotnet restore` (no NuGet lock files: versions are pinned centrally, packages come only from nuget.org via source mapping, and lock files broke RID-specific publishing), `dotnet build -c Release` (warnings are errors; analyzers and code style are enforced by the build), `dotnet format` is **not** run in CI (it took 251 s on `ubuntu-latest`, longer than the build; it is run locally when needed), `dotnet test` per TFM (`-f net8.0/net9.0/net10.0`, xunit v3 MTP: `dotnet test --project ... -- --coverage`), Windows-only `net48` test project (netstandard2.0 consumer on .NET Framework 4.8.1), `AotSmoke` publish (`-r linux-x64` and `win-x64`) and run, `dotnet pack`, package validation (`EnablePackageValidation`), `Microsoft.DotNet.ApiCompat` baseline after 1.0. Coverage via `Microsoft.Testing.Extensions.CodeCoverage` (Cobertura) → Codecov, threshold 90 % lines on `src/AvroSharp`. `codeql.yml` weekly. No benchmark workflow: benchmarks run locally on request (Section 5.4).
 
 **Versioning/packaging**: **MinVer** (tag `v1.2.3` → version; pre-release `1.3.0-alpha.0.N` from height) — simpler than Nerdbank for a single-line repo; SourceLink via SDK-built-in (`PublishRepositoryUrl`, `EmbedUntrackedSources`), snupkg symbols, README in package, `PackageReadmeFile`, icon, `release.yml` triggered by tag: build → test → pack → `dotnet nuget push` with trusted publishing (OIDC) or API key secret → GitHub Release with changelog section.
 
@@ -438,7 +450,7 @@ AvroSharp/
   - Each SIMD path must beat both our scalar path and Apache.Avro in BenchmarkDotNet on x64 and Arm64, or it is removed.
   - Property tests check that SIMD and scalar paths produce identical results.
   - CI also runs the test suite with `DOTNET_EnableHWIntrinsic=0`, so the scalar fallback is exercised on every run.
-- **M2.5 — Schema-file source generator (moved forward, maintainer decision 2026-09-25)**: the `AvroSharp.CodeGen` engine plus the build-time generator for `.avsc` files passed as `AdditionalFiles`. It emits the C# types and, for each, a serializer and deserializer that call `AvroWriter`/`AvroReader` directly in schema order, with no schema lookups, boxing or virtual calls at runtime. Writer/reader resolution for generated types comes with M3. *Exit*: generated types round-trip and match Apache.Avro C# bytes for the M2 fixtures; snapshot and compile-and-roundtrip tests; incremental-cache generator tests; the generated path is the fastest AvroSharp path in local benchmarks.
+- **M2.5 — Schema-file source generator (moved forward from M6)**: the `AvroSharp.CodeGen` engine plus the build-time generator for `.avsc` files passed as `AdditionalFiles`. It emits the C# types and, for each, a serializer and deserializer that call `AvroWriter`/`AvroReader` directly in schema order, with no schema lookups, boxing or virtual calls at runtime. Writer/reader resolution for generated types comes with M3. *Exit*: generated types round-trip and match Apache.Avro C# bytes for the M2 fixtures; snapshot and compile-and-roundtrip tests; incremental-cache generator tests; the generated path is the fastest AvroSharp path in local benchmarks.
 - **M3 — Resolution (1.5 weeks)**: `ResolvedSchema`, generic reader consumption, aliases, defaults, promotions. *Exit*: spec resolution table tests + Apache oracle property tests pass; E benchmark (generic) beats Apache.
 - **M4 — Attribute-driven generator and `AvroSerializer<T>` API (2 weeks)**: `[AvroSerializable]` on user types generates the schema and the serializer/deserializer; the `AvroSerializer<T>` API over generated code. (The reflection and expression-tree tiers were dropped: no reflection on serialization paths.) *Exit*: typed P/S/N/L/E benchmarks beat Apache Specific and Reflect; zero trim/AOT warnings.
 - **M5 — Container files + codecs + single-object (2 weeks)**: sync/async writer/reader, `PooledBufferWriter`, null/deflate, Snappy/Zstd packages, `Sync/Seek`, single-object encoding. *Exit*: `weather*.avro`, `syncInMeta.avro`, `messageV1` pass; files written are readable by Apache.Avro C# (which Apache's own CI checks against the other languages); container read/write benchmarks beat Apache for all four codecs; AOT smoke runs.

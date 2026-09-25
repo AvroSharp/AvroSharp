@@ -1,0 +1,368 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Runtime.InteropServices;
+using AvroSharp.Schemas;
+
+namespace AvroSharp.Generic;
+
+/// <summary>
+/// Any Avro value in the generic data model, without boxing: primitives are stored inline, and strings, bytes,
+/// records, enums, arrays, maps and fixed values by reference.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The struct is 16 bytes. Primitive values are kept in a 64-bit field and identified by a shared marker object;
+/// for every other kind, the reference itself identifies the kind. An enum stores its schema and ordinal, so
+/// enum values do not allocate.
+/// </para>
+/// <para>
+/// Logical types are represented by their underlying Avro type: a <c>date</c> is an <see cref="AvroValueKind.Int"/>,
+/// a <c>timestamp-micros</c> a <see cref="AvroValueKind.Long"/>, a <c>decimal</c> its <see cref="AvroValueKind.Bytes"/>.
+/// </para>
+/// <para>
+/// Arrays are held as <see cref="IReadOnlyList{T}"/> and maps as <see cref="IReadOnlyDictionary{TKey, TValue}"/>;
+/// the reader creates <see cref="List{T}"/> and <see cref="Dictionary{TKey, TValue}"/> instances.
+/// </para>
+/// </remarks>
+public readonly struct AvroValue : IEquatable<AvroValue>
+{
+    private readonly long _bits;
+    private readonly object? _reference;
+
+    private AvroValue(long bits, object? reference)
+    {
+        _bits = bits;
+        _reference = reference;
+    }
+
+    /// <summary>Gets the Avro <c>null</c> value (the default value of this struct).</summary>
+    public static AvroValue Null => default;
+
+    /// <summary>Gets the kind of value.</summary>
+    public AvroValueKind Kind => _reference switch
+    {
+        null => AvroValueKind.Null,
+        PrimitiveMarker marker => marker.Kind,
+        string => AvroValueKind.String,
+        byte[] => AvroValueKind.Bytes,
+        GenericRecord => AvroValueKind.Record,
+        Schemas.EnumSchema => AvroValueKind.Enum,
+        GenericFixed => AvroValueKind.Fixed,
+        IReadOnlyDictionary<string, AvroValue> => AvroValueKind.Map,
+        _ => AvroValueKind.Array,
+    };
+
+    /// <summary>Gets a value indicating whether this is the Avro <c>null</c> value.</summary>
+    public bool IsNull => _reference is null;
+
+    /// <summary>Gets the enum schema when this is an enum value; otherwise <see langword="null"/>.</summary>
+    public EnumSchema? EnumSchema => _reference as EnumSchema;
+
+    /// <summary>Creates a boolean value.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(bool value) => new(value ? 1 : 0, PrimitiveMarker.Boolean);
+
+    /// <summary>Creates an <c>int</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(int value) => new(value, PrimitiveMarker.Int);
+
+    /// <summary>Creates a <c>long</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(long value) => new(value, PrimitiveMarker.Long);
+
+    /// <summary>Creates a <c>float</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(float value) => new(new FloatBits { Single = value }.Int32, PrimitiveMarker.Float);
+
+    /// <summary>Creates a <c>double</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(double value) => new(BitConverter.DoubleToInt64Bits(value), PrimitiveMarker.Double);
+
+    /// <summary>Creates a <c>string</c> value, or <c>null</c> for a <see langword="null"/> string.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(string? value) => new(0, value);
+
+    /// <summary>Creates a <c>bytes</c> value, or <c>null</c> for a <see langword="null"/> array. The array is not copied.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(byte[]? value) => new(0, value);
+
+    /// <summary>Creates a record value, or <c>null</c>.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(GenericRecord? value) => new(0, value);
+
+    /// <summary>Creates a fixed value, or <c>null</c>.</summary>
+    /// <param name="value">The value.</param>
+    public static implicit operator AvroValue(GenericFixed? value) => new(0, value);
+
+    /// <summary>Compares two values structurally (see <see cref="Equals(AvroValue)"/>).</summary>
+    /// <param name="left">The first value.</param>
+    /// <param name="right">The second value.</param>
+    public static bool operator ==(AvroValue left, AvroValue right) => left.Equals(right);
+
+    /// <summary>Compares two values structurally.</summary>
+    /// <param name="left">The first value.</param>
+    /// <param name="right">The second value.</param>
+    public static bool operator !=(AvroValue left, AvroValue right) => !left.Equals(right);
+
+    /// <summary>Creates a boolean value.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromBoolean(bool value) => value;
+
+    /// <summary>Creates an <c>int</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromInt32(int value) => value;
+
+    /// <summary>Creates a <c>long</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromInt64(long value) => value;
+
+    /// <summary>Creates a <c>float</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromSingle(float value) => value;
+
+    /// <summary>Creates a <c>double</c> value.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromDouble(double value) => value;
+
+    /// <summary>Creates a <c>string</c> value, or <c>null</c>.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromString(string? value) => value;
+
+    /// <summary>Creates a <c>bytes</c> value, or <c>null</c>. The array is not copied.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromByteArray(byte[]? value) => value;
+
+    /// <summary>Creates a record value, or <c>null</c>.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromGenericRecord(GenericRecord? value) => value;
+
+    /// <summary>Creates a fixed value, or <c>null</c>.</summary>
+    /// <param name="value">The value.</param>
+    public static AvroValue FromGenericFixed(GenericFixed? value) => value;
+    /// <summary>Creates an array value from a list (for example a <see cref="List{T}"/> or an array). The list is not copied.</summary>
+    /// <param name="items">The items.</param>
+    public static AvroValue FromArray(IReadOnlyList<AvroValue> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        return new(0, items);
+    }
+
+    /// <summary>Creates a map value from a dictionary (for example a <see cref="Dictionary{TKey, TValue}"/>). The dictionary is not copied.</summary>
+    /// <param name="entries">The entries.</param>
+    public static AvroValue FromMap(IReadOnlyDictionary<string, AvroValue> entries)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        return new(0, entries);
+    }
+
+    /// <summary>Creates an enum value from its ordinal.</summary>
+    /// <param name="schema">The enum schema.</param>
+    /// <param name="ordinal">The zero-based ordinal of the symbol.</param>
+    /// <exception cref="ArgumentOutOfRangeException">The ordinal is not a symbol of the enum.</exception>
+    public static AvroValue FromEnum(EnumSchema schema, int ordinal)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        if ((uint)ordinal >= (uint)schema.Symbols.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ordinal), ordinal, $"Enum '{schema.FullName}' has {schema.Symbols.Count} symbols.");
+        }
+
+        return new(ordinal, schema);
+    }
+
+    /// <summary>Creates an enum value from its symbol.</summary>
+    /// <param name="schema">The enum schema.</param>
+    /// <param name="symbol">The symbol (case-sensitive).</param>
+    /// <exception cref="ArgumentException">The symbol is not defined by the enum.</exception>
+    public static AvroValue FromEnum(EnumSchema schema, string symbol)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        ArgumentNullException.ThrowIfNull(symbol);
+        return schema.TryGetOrdinal(symbol, out var ordinal)
+            ? new(ordinal, schema)
+            : throw new ArgumentException($"'{symbol}' is not a symbol of enum '{schema.FullName}'.", nameof(symbol));
+    }
+
+    /// <summary>Gets the boolean.</summary>
+    /// <exception cref="InvalidOperationException">The value is not a boolean.</exception>
+    public bool AsBoolean() => Kind == AvroValueKind.Boolean ? _bits != 0 : throw WrongKind(AvroValueKind.Boolean);
+
+    /// <summary>Gets the <c>int</c>.</summary>
+    /// <exception cref="InvalidOperationException">The value is not an <c>int</c>.</exception>
+    public int AsInt32() => Kind == AvroValueKind.Int ? (int)_bits : throw WrongKind(AvroValueKind.Int);
+
+    /// <summary>Gets the value as a <c>long</c>; an <c>int</c> is widened.</summary>
+    /// <exception cref="InvalidOperationException">The value is neither an <c>int</c> nor a <c>long</c>.</exception>
+    public long AsInt64() => Kind is AvroValueKind.Long or AvroValueKind.Int ? _bits : throw WrongKind(AvroValueKind.Long);
+
+    /// <summary>Gets the <c>float</c>.</summary>
+    /// <exception cref="InvalidOperationException">The value is not a <c>float</c>.</exception>
+    public float AsSingle() => Kind == AvroValueKind.Float ? new FloatBits { Int32 = (int)_bits }.Single : throw WrongKind(AvroValueKind.Float);
+
+    /// <summary>Gets the value as a <c>double</c>; a <c>float</c> is widened.</summary>
+    /// <exception cref="InvalidOperationException">The value is neither a <c>float</c> nor a <c>double</c>.</exception>
+    public double AsDouble() => Kind switch
+    {
+        AvroValueKind.Double => BitConverter.Int64BitsToDouble(_bits),
+        AvroValueKind.Float => new FloatBits { Int32 = (int)_bits }.Single,
+        _ => throw WrongKind(AvroValueKind.Double),
+    };
+
+    /// <summary>Gets the string.</summary>
+    /// <exception cref="InvalidOperationException">The value is not a string.</exception>
+    public string AsString() => _reference as string ?? throw WrongKind(AvroValueKind.String);
+
+    /// <summary>Gets the bytes (not a copy).</summary>
+    /// <exception cref="InvalidOperationException">The value is not <c>bytes</c>.</exception>
+    public byte[] AsBytes() => _reference as byte[] ?? throw WrongKind(AvroValueKind.Bytes);
+
+    /// <summary>Gets the record.</summary>
+    /// <exception cref="InvalidOperationException">The value is not a record.</exception>
+    public GenericRecord AsRecord() => _reference as GenericRecord ?? throw WrongKind(AvroValueKind.Record);
+
+    /// <summary>Gets the fixed value.</summary>
+    /// <exception cref="InvalidOperationException">The value is not a fixed value.</exception>
+    public GenericFixed AsFixed() => _reference as GenericFixed ?? throw WrongKind(AvroValueKind.Fixed);
+
+    /// <summary>Gets the array items.</summary>
+    /// <exception cref="InvalidOperationException">The value is not an array.</exception>
+    public IReadOnlyList<AvroValue> AsArray() =>
+        Kind == AvroValueKind.Array ? (IReadOnlyList<AvroValue>)_reference! : throw WrongKind(AvroValueKind.Array);
+
+    /// <summary>Gets the map entries.</summary>
+    /// <exception cref="InvalidOperationException">The value is not a map.</exception>
+    public IReadOnlyDictionary<string, AvroValue> AsMap() =>
+        _reference as IReadOnlyDictionary<string, AvroValue> ?? throw WrongKind(AvroValueKind.Map);
+
+    /// <summary>Gets the enum ordinal.</summary>
+    /// <exception cref="InvalidOperationException">The value is not an enum.</exception>
+    public int AsEnumOrdinal() => _reference is EnumSchema ? (int)_bits : throw WrongKind(AvroValueKind.Enum);
+
+    /// <summary>Gets the enum symbol.</summary>
+    /// <exception cref="InvalidOperationException">The value is not an enum.</exception>
+    public string AsEnumSymbol() => _reference is EnumSchema schema ? schema.Symbols[(int)_bits] : throw WrongKind(AvroValueKind.Enum);
+
+    /// <summary>
+    /// Compares structurally: same kind and equal contents. Floating-point values compare by bit pattern (so NaN
+    /// equals NaN), byte arrays and fixed values by content, arrays in order, maps by key, records by schema name
+    /// and field values, enums by schema name and ordinal.
+    /// </summary>
+    /// <param name="other">The other value.</param>
+    public bool Equals(AvroValue other)
+    {
+        var kind = Kind;
+        if (kind != other.Kind)
+        {
+            return false;
+        }
+
+        return kind switch
+        {
+            AvroValueKind.Null => true,
+            AvroValueKind.Boolean or AvroValueKind.Int or AvroValueKind.Long or AvroValueKind.Float or AvroValueKind.Double => _bits == other._bits,
+            AvroValueKind.String => string.Equals((string)_reference!, (string)other._reference!, StringComparison.Ordinal),
+            AvroValueKind.Bytes => ((byte[])_reference!).AsSpan().SequenceEqual((byte[])other._reference!),
+            AvroValueKind.Enum => _bits == other._bits && ((EnumSchema)_reference!).Name == ((EnumSchema)other._reference!).Name,
+            AvroValueKind.Array => AsArray().SequenceEqual(other.AsArray()),
+            AvroValueKind.Map => MapsEqual(AsMap(), other.AsMap()),
+            _ => _reference!.Equals(other._reference),
+        };
+    }
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => obj is AvroValue other && Equals(other);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => Kind switch
+    {
+        AvroValueKind.Null => 0,
+        AvroValueKind.String => StringComparer.Ordinal.GetHashCode((string)_reference!),
+        AvroValueKind.Bytes => ((byte[])_reference!).Length,
+        AvroValueKind.Array => AsArray().Count,
+        AvroValueKind.Map => AsMap().Count,
+        AvroValueKind.Record or AvroValueKind.Fixed => _reference!.GetHashCode(),
+        _ => _bits.GetHashCode(),
+    };
+
+    /// <summary>Returns the value boxed as a CLR object: <see langword="null"/>, a primitive, or the referenced object.</summary>
+    public object? ToObject() => Kind switch
+    {
+        AvroValueKind.Null => null,
+        AvroValueKind.Boolean => AsBoolean(),
+        AvroValueKind.Int => AsInt32(),
+        AvroValueKind.Long => AsInt64(),
+        AvroValueKind.Float => AsSingle(),
+        AvroValueKind.Double => AsDouble(),
+        AvroValueKind.Enum => AsEnumSymbol(),
+        _ => _reference,
+    };
+
+    /// <inheritdoc />
+    public override string ToString() => Kind switch
+    {
+        AvroValueKind.Null => "null",
+        AvroValueKind.Boolean => AsBoolean() ? "true" : "false",
+        AvroValueKind.Bytes => Convert.ToBase64String(AsBytes()),
+        AvroValueKind.Array => "[" + string.Join(", ", AsArray()) + "]",
+        AvroValueKind.Map => "{" + string.Join(", ", AsMap().Select(e => e.Key + ": " + e.Value)) + "}",
+        _ => Convert.ToString(ToObject(), CultureInfo.InvariantCulture) ?? string.Empty,
+    };
+
+    internal long Bits => _bits;
+
+    internal object? Reference => _reference;
+
+    internal static AvroValue FromEnumUnchecked(EnumSchema schema, int ordinal) => new(ordinal, schema);
+
+    private static bool MapsEqual(IReadOnlyDictionary<string, AvroValue> left, IReadOnlyDictionary<string, AvroValue> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (var entry in left)
+        {
+            if (!right.TryGetValue(entry.Key, out var value) || !entry.Value.Equals(value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private InvalidOperationException WrongKind(AvroValueKind expected) =>
+        new($"The value is {Kind}, not {expected}.");
+
+    /// <summary>Reinterprets a float as its bit pattern without unsafe code or allocation, on every target.</summary>
+    [StructLayout(LayoutKind.Explicit)]
+    private struct FloatBits
+    {
+        [FieldOffset(0)]
+        public float Single;
+
+        [FieldOffset(0)]
+        public int Int32;
+    }
+
+    /// <summary>Identifies the kind of an inline primitive value.</summary>
+    private sealed class PrimitiveMarker
+    {
+        private PrimitiveMarker(AvroValueKind kind) => Kind = kind;
+
+        public static PrimitiveMarker Boolean { get; } = new(AvroValueKind.Boolean);
+
+        public static PrimitiveMarker Int { get; } = new(AvroValueKind.Int);
+
+        public static PrimitiveMarker Long { get; } = new(AvroValueKind.Long);
+
+        public static PrimitiveMarker Float { get; } = new(AvroValueKind.Float);
+
+        public static PrimitiveMarker Double { get; } = new(AvroValueKind.Double);
+
+        public AvroValueKind Kind { get; }
+    }
+}

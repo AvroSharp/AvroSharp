@@ -61,6 +61,14 @@ jobs:
       - name: Test
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
+      # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit
+      # tests that way too so the fallbacks are exercised on every build.
+      - name: Test without hardware intrinsics
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          DOTNET_EnableHWIntrinsic: 0
+        run: dotnet test --project tests/AvroSharp.Tests -c Release --no-build -f net10.0
+
       - name: Native AOT smoke test
         shell: bash
         run: |

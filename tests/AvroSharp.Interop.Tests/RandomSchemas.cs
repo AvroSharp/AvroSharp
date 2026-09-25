@@ -31,6 +31,12 @@ internal static class RandomSchemas
     /// </summary>
     public static Gen<string> ApacheCompatibleJson { get; } = ShapeGen(4).Select(shape => new Emitter(apacheCompatible: true).Emit(shape));
 
+    /// <summary>
+    /// Like <see cref="ApacheCompatibleJson"/>, without logical types. Logical types do not change the binary encoding,
+    /// and Apache.Avro's generic reader converts them to .NET types, which would get in the way of data round trips.
+    /// </summary>
+    public static Gen<string> ApacheCompatibleJsonWithoutLogicalTypes { get; } = ShapeGen(4).Select(shape => new Emitter(apacheCompatible: true, logicalTypes: false).Emit(shape));
+
     private static Gen<Shape> ShapeGen(int depth)
     {
         var primitive = Gen.Int[0, s_primitives.Length - 1].Select(i => (Shape)new PrimitiveShape(i));
@@ -70,7 +76,7 @@ internal static class RandomSchemas
     private sealed record UnionShape(Shape[] Branches) : Shape;
 
     /// <summary>Turns a shape into JSON, keeping names unique and unions valid.</summary>
-    private sealed class Emitter(bool apacheCompatible)
+    private sealed class Emitter(bool apacheCompatible, bool logicalTypes = true)
     {
         private readonly StringBuilder _json = new();
         private readonly List<(string FullName, bool InNullNamespace)> _defined = [];
@@ -88,7 +94,7 @@ internal static class RandomSchemas
             switch (shape)
             {
                 case PrimitiveShape p:
-                    WritePrimitive(s_primitives[p.Index]);
+                    WritePrimitive(logicalTypes ? s_primitives[p.Index] : (s_primitives[p.Index].Type, null));
                     break;
                 case ReferenceShape r:
                     _json.Append('"').Append(Resolve(r, enclosingNamespace) ?? "int").Append('"');
