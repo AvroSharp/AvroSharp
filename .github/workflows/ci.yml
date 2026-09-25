@@ -64,9 +64,7 @@ jobs:
       - name: Native AOT smoke test
         shell: bash
         run: |
-          # Publishing for a RID re-restores the library with that RID, which the RID-agnostic
-          # lock file does not describe, so locked mode is relaxed for this step only.
-          dotnet publish tests/AvroSharp.AotSmoke -c Release -r ${{ matrix.rid }} -p:RestoreLockedMode=false
+          dotnet publish tests/AvroSharp.AotSmoke -c Release -r ${{ matrix.rid }}
           ./artifacts/publish/AvroSharp.AotSmoke/release_${{ matrix.rid }}/AvroSharp.AotSmoke
 
       - name: Pack

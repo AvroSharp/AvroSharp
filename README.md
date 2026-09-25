@@ -2,7 +2,7 @@
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
 
-> **Status:** early development (milestone M0, repository skeleton). Nothing is usable yet.
+> **Status:** early development. Schemas (parsing, writing, canonical form, fingerprints) work; binary encoding, container files and code generation are not implemented yet. See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 

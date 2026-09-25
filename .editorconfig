@@ -79,8 +79,13 @@ dotnet_diagnostic.CA2007.severity = none     # ConfigureAwait in tests
 dotnet_diagnostic.MA0004.severity = none     # ConfigureAwait in tests
 dotnet_diagnostic.VSTHRD200.severity = none  # Async suffix on test methods
 dotnet_diagnostic.CA1052.severity = none
+dotnet_diagnostic.CA1806.severity = none     # constructing an object only to assert that the constructor throws
+dotnet_diagnostic.CA1861.severity = none     # constant arrays in assertions
+dotnet_diagnostic.CA5351.severity = none     # tests compare against MD5, which the Avro specification defines
+dotnet_diagnostic.CA1850.severity = none     # ComputeHash also works on net481
 
 [bench/**.cs]
+dotnet_diagnostic.CA1707.severity = none     # Library_Scenario benchmark names are the gate's naming contract
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1822.severity = none
 dotnet_diagnostic.CA1812.severity = none

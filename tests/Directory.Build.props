@@ -4,16 +4,17 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <!-- The target framework set differs per OS (net481 on Windows only), so a single lock file cannot describe it. -->
-    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
     <!-- Documentation file stays on so IDE0005 runs on build; test code need not be documented. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Reference Polyfill once, ourselves, instead of TUnit's compile-only copy. -->
+    <EnableTUnitPolyfills>false</EnableTUnitPolyfills>
+    <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
   </PropertyGroup>
 
   <!-- .NET Framework reference assemblies so net4x targets also build off Windows. -->
   <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" PrivateAssets="all" />
-    <PackageReference Include="PolySharp" PrivateAssets="all" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

@@ -12,6 +12,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AvroSharp.Tests/AvroSharp.Tests.csproj" />
+    <Project Path="tests/AvroSharp.Interop.Tests/AvroSharp.Interop.Tests.csproj" />
     <Project Path="tests/AvroSharp.AotSmoke/AvroSharp.AotSmoke.csproj" />
   </Folder>
   <Folder Name="/bench/">
