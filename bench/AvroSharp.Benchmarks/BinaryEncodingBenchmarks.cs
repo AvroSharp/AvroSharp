@@ -27,8 +27,11 @@ public class BinaryEncodingBenchmarks
     private ArrayBufferWriter<byte> _output = new();
     private MemoryStream _stream = new();
 
-    /// <summary>Longs of mixed magnitudes; ASCII and non-ASCII strings; or a mixture of all value kinds.</summary>
-    [Params("Longs", "Strings", "Mixed")]
+    /// <summary>
+    /// Longs: full-range random values (mostly 5-10 bytes each). RealisticLongs: what records usually hold, mostly
+    /// small values plus timestamps. Strings: ASCII and non-ASCII. Mixed: longs, strings, doubles and bytes.
+    /// </summary>
+    [Params("Longs", "RealisticLongs", "Strings", "Mixed")]
     public string Workload { get; set; } = "Mixed";
 
     [GlobalSetup]
@@ -42,6 +45,17 @@ public class BinaryEncodingBenchmarks
             2 => random.NextInt64(),
             _ => -random.NextInt64(),
         }).ToArray();
+        if (string.Equals(Workload, "RealisticLongs", StringComparison.Ordinal))
+        {
+            // 60% small values (counts, ids, enums, lengths), 25% timestamp-micros around 2026, 15% medium values.
+            _longs = Enumerable.Range(0, Count).Select(i => (i % 20) switch
+            {
+                < 12 => random.Next(-1_000, 1_000),
+                < 17 => 1_790_000_000_000_000L + random.NextInt64(0, 31_536_000_000_000L),
+                _ => random.Next(0, 10_000_000),
+            }).ToArray();
+        }
+
         _strings = Enumerable.Range(0, Count).Select(i => i % 5 == 0
             ? $"Grüße, 日本 {i}"
             : new string((char)('a' + (i % 26)), 8 + (i % 40))).ToArray();
@@ -70,7 +84,7 @@ public class BinaryEncodingBenchmarks
         var encoder = new Avro.IO.BinaryEncoder(_stream);
         switch (Workload)
         {
-            case "Longs":
+            case "Longs" or "RealisticLongs":
                 foreach (var value in _longs)
                 {
                     encoder.WriteLong(value);
@@ -108,7 +122,7 @@ public class BinaryEncodingBenchmarks
         var writer = new AvroWriter(_output);
         switch (Workload)
         {
-            case "Longs":
+            case "Longs" or "RealisticLongs":
                 foreach (var value in _longs)
                 {
                     writer.WriteLong(value);
@@ -147,7 +161,7 @@ public class BinaryEncodingBenchmarks
         long checksum = 0;
         switch (Workload)
         {
-            case "Longs":
+            case "Longs" or "RealisticLongs":
                 for (var i = 0; i < Count; i++)
                 {
                     checksum += decoder.ReadLong();
@@ -184,7 +198,7 @@ public class BinaryEncodingBenchmarks
         long checksum = 0;
         switch (Workload)
         {
-            case "Longs":
+            case "Longs" or "RealisticLongs":
                 for (var i = 0; i < Count; i++)
                 {
                     checksum += reader.ReadLong();

@@ -1,6 +1,9 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+#if NET8_0_OR_GREATER
+using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -354,8 +357,67 @@ public ref struct AvroReader
             }
         }
 
+        return ReadVarint32Multi();
+    }
+
+    /// <summary>A multi-byte <c>int</c>: decoded from one 8-byte read when enough input is contiguous.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private uint ReadVarint32Multi()
+    {
+#if NET8_0_OR_GREATER
+        if (_span.Length - _position >= sizeof(ulong))
+        {
+            var word = BinaryPrimitives.ReadUInt64LittleEndian(_span[_position..]);
+            var stops = ~word & 0x8080808080808080UL;
+            var length = (BitOperations.TrailingZeroCount(stops) >> 3) + 1;
+            if (stops != 0 && length <= MaxVarint32Length)
+            {
+                _position += length;
+
+                // Bits beyond 32 in a fifth byte are dropped, as in the byte-by-byte path (and Java).
+                return (uint)CompactVarint(word, length);
+            }
+        }
+#endif
         return ReadVarint32Slow();
     }
+
+    /// <summary>A multi-byte <c>long</c>: decoded from one 8-byte read when it is at most 8 bytes long.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private ulong ReadVarint64Multi()
+    {
+#if NET8_0_OR_GREATER
+        if (_span.Length - _position >= sizeof(ulong))
+        {
+            var word = BinaryPrimitives.ReadUInt64LittleEndian(_span[_position..]);
+            var stops = ~word & 0x8080808080808080UL;
+            if (stops != 0)
+            {
+                var length = (BitOperations.TrailingZeroCount(stops) >> 3) + 1;
+                _position += length;
+                return CompactVarint(word, length);
+            }
+        }
+#endif
+        return ReadVarint64Slow();
+    }
+
+#if NET8_0_OR_GREATER
+    /// <summary>
+    /// Removes the continuation bits of the first <paramref name="length"/> (1 to 8) bytes of a little-endian word
+    /// and packs their 7-bit groups together, without a loop or data-dependent branches.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong CompactVarint(ulong word, int length)
+    {
+        var keep = length == sizeof(ulong) ? ulong.MaxValue : (1UL << (length * 8)) - 1;
+        var x = word & keep & 0x7F7F7F7F7F7F7F7FUL;
+        x = ((x & 0x7F007F007F007F00UL) >> 1) | (x & 0x007F007F007F007FUL);
+        x = ((x & 0x3FFF00003FFF0000UL) >> 2) | (x & 0x00003FFF00003FFFUL);
+        x = ((x & 0x0FFFFFFF00000000UL) >> 4) | (x & 0x000000000FFFFFFFUL);
+        return x;
+    }
+#endif
 
     private uint ReadVarint32Slow()
     {
@@ -386,7 +448,7 @@ public ref struct AvroReader
             }
         }
 
-        return ReadVarint64Slow();
+        return ReadVarint64Multi();
     }
 
     private ulong ReadVarint64Slow()

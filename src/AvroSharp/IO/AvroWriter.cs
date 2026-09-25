@@ -1,6 +1,9 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+#if NET8_0_OR_GREATER
+using System.Numerics;
+#endif
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -24,7 +27,6 @@ namespace AvroSharp.IO;
 public ref struct AvroWriter
 {
     private const int MinimumBufferSize = 256;
-    private const int MaxVarint32Length = 5;
     private const int MaxVarint64Length = 10;
 
     private readonly IBufferWriter<byte>? _output;
@@ -237,45 +239,78 @@ public ref struct AvroWriter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteVarint32(uint value)
-    {
-        if (_buffer.Length - _buffered < MaxVarint32Length)
-        {
-            Grow(MaxVarint32Length);
-        }
-
-        var buffer = _buffer;
-        var position = _buffered;
-        while (value >= 0x80)
-        {
-            buffer[position++] = (byte)(value | 0x80);
-            value >>= 7;
-        }
-
-        buffer[position++] = (byte)value;
-        _buffered = position;
-    }
+    private void WriteVarint32(uint value) => WriteVarint64(value);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint64(ulong value)
     {
+        // The fast paths need room for a whole 8-byte store; near the end of a fixed span the exact-size path
+        // writes only the bytes the value needs.
         if (_buffer.Length - _buffered < MaxVarint64Length)
         {
-            Grow(MaxVarint64Length);
+            WriteVarintExact(value);
+            return;
         }
 
-        var buffer = _buffer;
-        var position = _buffered;
+        if (value < 0x80)
+        {
+            _buffer[_buffered++] = (byte)value;
+            return;
+        }
+
+#if NET8_0_OR_GREATER
+        if (value < 1UL << 56)
+        {
+            // 2 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the
+            // word in one write. Bytes past the varint are overwritten by the next value.
+            var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
+            var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
+            BinaryPrimitives.WriteUInt64LittleEndian(_buffer[_buffered..], SpreadVarint(value) | continuation);
+            _buffered += length;
+            return;
+        }
+#endif
+
+        _buffered += WriteVarintLoop(_buffer[_buffered..], value);
+    }
+
+#if NET8_0_OR_GREATER
+    /// <summary>Places the 7-bit groups of a value below 2^56 into consecutive bytes, without a loop.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong SpreadVarint(ulong value)
+    {
+        var x = ((value & 0x00FFFFFFF0000000UL) << 4) | (value & 0x000000000FFFFFFFUL);
+        x = ((x & 0x0FFFC0000FFFC000UL) << 2) | (x & 0x00003FFF00003FFFUL);
+        x = ((x & 0x3F803F803F803F80UL) << 1) | (x & 0x007F007F007F007FUL);
+        return x;
+    }
+#endif
+
+    private static int WriteVarintLoop(Span<byte> destination, ulong value)
+    {
+        var position = 0;
         while (value >= 0x80)
         {
-            buffer[position++] = (byte)(value | 0x80);
+            destination[position++] = (byte)(value | 0x80);
             value >>= 7;
         }
 
-        buffer[position++] = (byte)value;
-        _buffered = position;
+        destination[position++] = (byte)value;
+        return position;
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void WriteVarintExact(ulong value)
+    {
+        var length = 1;
+        for (var v = value; v >= 0x80; v >>= 7)
+        {
+            length++;
+        }
+
+        Ensure(length);
+        _buffered += WriteVarintLoop(_buffer[_buffered..], value);
+    }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Ensure(int count)
     {
