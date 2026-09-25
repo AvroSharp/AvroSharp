@@ -397,6 +397,30 @@ public ref struct AvroReader
                 _position += length;
                 return CompactVarint(word, length);
             }
+
+            // No terminator in the first 8 bytes: a 9- or 10-byte value (full-range longs, negative values).
+            // The first 56 bits come from the word; bits 56-62 and 63 from the next two bytes.
+            if (_span.Length - _position >= MaxVarint64Length)
+            {
+                var result = CompactVarint(word, sizeof(ulong));
+                var ninth = _span[_position + 8];
+                result |= (ulong)(ninth & 0x7F) << 56;
+                if (ninth < 0x80)
+                {
+                    _position += 9;
+                    return result;
+                }
+
+                var tenth = _span[_position + 9];
+                if (tenth < 0x80)
+                {
+                    // Only the lowest bit of a tenth byte fits in 64 bits; the rest is dropped, as in the byte loop.
+                    _position += MaxVarint64Length;
+                    return result | ((ulong)tenth << 63);
+                }
+
+                // An eleventh byte would follow: overlong. The byte loop reports it.
+            }
         }
 #endif
         return ReadVarint64Slow();

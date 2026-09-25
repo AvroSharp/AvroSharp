@@ -259,19 +259,44 @@ public ref struct AvroWriter
         }
 
 #if NET8_0_OR_GREATER
+        var buffer = _buffer[_buffered..];
         if (value < 1UL << 56)
         {
             // 2 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the
             // word in one write. Bytes past the varint are overwritten by the next value.
             var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
             var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
-            BinaryPrimitives.WriteUInt64LittleEndian(_buffer[_buffered..], SpreadVarint(value) | continuation);
+            BinaryPrimitives.WriteUInt64LittleEndian(buffer, SpreadVarint(value) | continuation);
             _buffered += length;
             return;
         }
-#endif
 
-        _buffered += WriteVarintLoop(_buffer[_buffered..], value);
+        // 9 or 10 bytes: the low 56 bits as a full word of continued bytes, then bits 56-62 and bit 63.
+        BinaryPrimitives.WriteUInt64LittleEndian(buffer, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
+        var high = value >> 56;
+        if (high < 0x80)
+        {
+            buffer[8] = (byte)high;
+            _buffered += 9;
+        }
+        else
+        {
+            buffer[8] = (byte)(high | 0x80);
+            buffer[9] = (byte)(high >> 7);
+            _buffered += MaxVarint64Length;
+        }
+#else
+        var buffer = _buffer;
+        var position = _buffered;
+        while (value >= 0x80)
+        {
+            buffer[position++] = (byte)(value | 0x80);
+            value >>= 7;
+        }
+
+        buffer[position++] = (byte)value;
+        _buffered = position;
+#endif
     }
 
 #if NET8_0_OR_GREATER
