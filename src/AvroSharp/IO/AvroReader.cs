@@ -376,7 +376,15 @@ public ref struct AvroReader
     /// Reads a three- or four-byte varint with unrolled byte reads, which beats the word path for short values.
     /// The inline path has already seen continuation bits on the first two bytes whenever two bytes were available.
     /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <remarks>
+    /// PERF: candidate for further optimization. Measured 2026-09-25 (VarintBenchmarks, net10): with this path,
+    /// 3/4-byte decode is 0.52x/0.47x of Apache.Avro's time on an i5-3570K and 0.57x/0.53x on an i7-12800H;
+    /// 8- and 10-byte values (word path) are about 0.33x. The remaining cost is mostly the out-of-line call and
+    /// bounds checks, not the arithmetic. Options not yet tried: one 4-byte read instead of four byte reads; BMI2
+    /// PEXT for the word path when Bmi2.X64.IsSupported (slow microcode on AMD Zen 1/2); SIMD batch decoding of
+    /// array blocks (Masked VByte, or runs of one-byte values), which belongs in the array reader. Re-measure on
+    /// both machines before changing: VarintBenchmarks with AVROSHARP_VARINT_BYTES.
+    /// </remarks>    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryReadThreeOrFourByteVarint(out uint value)
     {
         var span = _span;
@@ -514,6 +522,8 @@ public ref struct AvroReader
         throw new AvroDataException($"Invalid int encoding at offset {BytesConsumed - MaxVarint32Length}: more than {MaxVarint32Length} bytes.");
     }
 
+    // PERF: hot path for every int, long, length, index and count. Only the one- and two-byte cases are inlined;
+    // see TryReadThreeOrFourByteVarint for measurements and the options left to try.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ulong ReadVarint64()
     {
