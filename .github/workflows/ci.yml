@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  CI: true
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm]
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+          - os: windows-latest
+            rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # MinVer needs tags and history
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore AvroSharp.slnx
+
+      - name: Check formatting
+        run: dotnet format AvroSharp.slnx --no-restore --verify-no-changes
+
+      - name: Build
+        run: dotnet build AvroSharp.slnx -c Release --no-restore
+
+      # On Windows this includes net481, which runs the netstandard2.0 build on .NET Framework.
+      - name: Test
+        run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
+
+      - name: Native AOT smoke test
+        shell: bash
+        run: |
+          # Publishing for a RID re-restores the library with that RID, which the RID-agnostic
+          # lock file does not describe, so locked mode is relaxed for this step only.
+          dotnet publish tests/AvroSharp.AotSmoke -c Release -r ${{ matrix.rid }} -p:RestoreLockedMode=false
+          ./artifacts/publish/AvroSharp.AotSmoke/release_${{ matrix.rid }}/AvroSharp.AotSmoke
+
+      - name: Pack
+        run: dotnet pack AvroSharp.slnx -c Release --no-build
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: results-${{ matrix.os }}
+          path: |
+            artifacts/bin/**/TestResults/**
+            TestResults/**
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v7
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: packages
+          path: artifacts/package/release/*

@@ -1,0 +1,38 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- Build tooling and analyzers -->
+  <ItemGroup>
+    <PackageVersion Include="MinVer" Version="8.0.0" />
+    <PackageVersion Include="PolySharp" Version="1.16.0" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.290" />
+    <PackageVersion Include="Roslynator.Analyzers" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.7.23" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
+    <PackageVersion Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" />
+  </ItemGroup>
+
+  <!-- netstandard polyfills for shipped libraries -->
+  <ItemGroup>
+    <PackageVersion Include="System.Memory" Version="4.6.3" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.12" />
+    <PackageVersion Include="System.IO.Pipelines" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.12" />
+    <PackageVersion Include="System.Collections.Immutable" Version="10.0.12" />
+  </ItemGroup>
+
+  <!-- Tests and benchmarks only; never referenced from src/ (enforced in Directory.Build.targets). -->
+  <ItemGroup>
+    <PackageVersion Include="TUnit" Version="1.69.16" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Apache.Avro" Version="1.12.2" />
+    <PackageVersion Include="Chr.Avro" Version="10.13.1" />
+  </ItemGroup>
+
+</Project>

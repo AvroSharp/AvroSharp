@@ -1,0 +1,9 @@
+T:Newtonsoft.Json.JsonConvert;Use System.Text.Json
+N:Newtonsoft.Json;Use System.Text.Json
+N:System.Reflection.Emit;Runtime code generation is not AOT compatible; use the source generator
+M:System.IO.MemoryStream.ToArray;Allocates a copy; write to an IBufferWriter<byte> instead
+M:System.Text.Encoding.GetBytes(System.String);Allocates; encode into a Span<byte> instead
+M:System.Type.GetProperties;Reflection on hot paths is not allowed; use the source generator
+M:System.Type.GetFields;Reflection on hot paths is not allowed; use the source generator
+M:System.Reflection.PropertyInfo.GetValue(System.Object);Reflection on hot paths is not allowed; use the source generator
+M:System.Reflection.PropertyInfo.SetValue(System.Object,System.Object);Reflection on hot paths is not allowed; use the source generator

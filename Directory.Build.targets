@@ -1,0 +1,16 @@
+<Project>
+
+  <!-- Provenance guard: the reference implementations may be used by tests and benchmarks only.
+       Shipped (packable) projects must never depend on them. -->
+  <Target Name="AvroSharpForbidReferenceImplementations"
+          BeforeTargets="CollectPackageReferences;Build"
+          Condition="'$(IsPackable)' == 'true'">
+    <ItemGroup>
+      <_AvroSharpForbiddenReference Include="@(PackageReference)"
+                                    Condition="$([System.String]::Copy('%(Identity)').StartsWith('Apache.Avro')) Or $([System.String]::Copy('%(Identity)').StartsWith('Chr.Avro'))" />
+    </ItemGroup>
+    <Error Condition="'@(_AvroSharpForbiddenReference)' != ''"
+           Text="$(MSBuildProjectName) is a shipped project and must not reference @(_AvroSharpForbiddenReference) (reference implementations are test/benchmark-only)." />
+  </Target>
+
+</Project>
