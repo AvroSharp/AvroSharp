@@ -267,11 +267,39 @@ public ref struct AvroWriter
             return;
         }
 
-#if NET8_0_OR_GREATER
+        WriteVarintMulti(value);
+    }
+
+    /// <summary>A varint of 3 or more bytes; kept out of line so the inlined call sites stay small.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void WriteVarintMulti(ulong value)
+    {
         var buffer = _buffer[_buffered..];
+
+        // Three or four bytes: direct stores, cheaper than the word path for short values.
+        if (value < 1UL << 21)
+        {
+            buffer[0] = (byte)(value | 0x80);
+            buffer[1] = (byte)((value >> 7) | 0x80);
+            buffer[2] = (byte)(value >> 14);
+            _buffered += 3;
+            return;
+        }
+
+        if (value < 1UL << 28)
+        {
+            buffer[0] = (byte)(value | 0x80);
+            buffer[1] = (byte)((value >> 7) | 0x80);
+            buffer[2] = (byte)((value >> 14) | 0x80);
+            buffer[3] = (byte)(value >> 21);
+            _buffered += 4;
+            return;
+        }
+
+#if NET8_0_OR_GREATER
         if (value < 1UL << 56)
         {
-            // 2 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the
+            // 5 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the
             // word in one write. Bytes past the varint are overwritten by the next value.
             var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
             var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
@@ -282,19 +310,9 @@ public ref struct AvroWriter
 
         _buffered += WriteLongVarint(buffer, value);
 #else
-        var buffer = _buffer;
-        var position = _buffered;
-        while (value >= 0x80)
-        {
-            buffer[position++] = (byte)(value | 0x80);
-            value >>= 7;
-        }
-
-        buffer[position++] = (byte)value;
-        _buffered = position;
+        _buffered += WriteVarintLoop(buffer, value);
 #endif
     }
-
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Writes a 9- or 10-byte varint (a value of 2^56 or more): the low 56 bits as a full word of continued bytes,

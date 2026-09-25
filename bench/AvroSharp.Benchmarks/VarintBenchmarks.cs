@@ -26,8 +26,22 @@ public class VarintBenchmarks
     private MemoryStream _stream = new();
 
     /// <summary>The encoded length of every value, in bytes.</summary>
-    [Params(1, 2, 3, 4, 5, 8, 10)]
+    [ParamsSource(nameof(ByteLengths))]
     public int Bytes { get; set; } = 1;
+
+    /// <summary>
+    /// The lengths to run: all of them by default, or a comma-separated list from the AVROSHARP_VARINT_BYTES
+    /// environment variable (for example "3,4") to focus a run.
+    /// </summary>
+    public static int[] ByteLengths()
+    {
+        var selected = Environment.GetEnvironmentVariable("AVROSHARP_VARINT_BYTES");
+        return string.IsNullOrWhiteSpace(selected)
+            ? [1, 2, 3, 4, 5, 8, 10]
+            : selected.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => int.Parse(s, System.Globalization.CultureInfo.InvariantCulture))
+                .ToArray();
+    }
 
     [GlobalSetup]
     public void Setup()

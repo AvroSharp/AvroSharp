@@ -372,10 +372,48 @@ public ref struct AvroReader
         return ReadVarint32Multi();
     }
 
-    /// <summary>A multi-byte <c>int</c>: decoded from one 8-byte read when enough input is contiguous.</summary>
-    [MethodImpl(MethodImplOptions.NoInlining)]
+    /// <summary>
+    /// Reads a three- or four-byte varint with unrolled byte reads, which beats the word path for short values.
+    /// The inline path has already seen continuation bits on the first two bytes whenever two bytes were available.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool TryReadThreeOrFourByteVarint(out uint value)
+    {
+        var span = _span;
+        var position = _position;
+        if (span.Length - position >= 4)
+        {
+            uint b0 = span[position];
+            uint b1 = span[position + 1];
+            uint b2 = span[position + 2];
+            if (b2 < 0x80)
+            {
+                _position = position + 3;
+                value = (b0 & 0x7F) | ((b1 & 0x7F) << 7) | (b2 << 14);
+                return true;
+            }
+
+            uint b3 = span[position + 3];
+            if (b3 < 0x80)
+            {
+                _position = position + 4;
+                value = (b0 & 0x7F) | ((b1 & 0x7F) << 7) | ((b2 & 0x7F) << 14) | (b3 << 21);
+                return true;
+            }
+        }
+
+        value = 0;
+        return false;
+    }
+
+    /// <summary>A multi-byte <c>int</c>: decoded from one 8-byte read when enough input is contiguous.</summary>    [MethodImpl(MethodImplOptions.NoInlining)]
     private uint ReadVarint32Multi()
     {
+        if (TryReadThreeOrFourByteVarint(out var shortValue))
+        {
+            return shortValue;
+        }
+
 #if NET8_0_OR_GREATER
         if (_span.Length - _position >= sizeof(ulong))
         {
@@ -398,6 +436,11 @@ public ref struct AvroReader
     [MethodImpl(MethodImplOptions.NoInlining)]
     private ulong ReadVarint64Multi()
     {
+        if (TryReadThreeOrFourByteVarint(out var shortValue))
+        {
+            return shortValue;
+        }
+
 #if NET8_0_OR_GREATER
         if (_span.Length - _position >= sizeof(ulong))
         {
