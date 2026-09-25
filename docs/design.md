@@ -4,7 +4,7 @@
 >
 > - **Tests use TUnit**, not xUnit. One test project covers net8.0/net9.0/net10.0 and, on Windows, net481 (the netstandard2.0 build on .NET Framework).
 > - **No reflection on serialization paths.** The source generator is the typed-serialization path. The expression-tree and reflection tiers in Sections 4.5 and 8 are not part of v1; if a runtime fallback is ever added it ships as a separate opt-in package.
-> - **All specification codecs ship in v1.0**, implemented only with fully managed libraries: deflate, snappy (Snappier, BSD-3-Clause), bzip2 (SharpZipLib, MIT), xz (Lzma.Net, 0BSD), zstandard (ZstdSharp.Port, MIT). Open point: the BCL `DeflateStream` uses the native zlib bundled with the runtime.
+> - **Codecs use fully managed libraries only.** v1.0 ships deflate, snappy (Snappier, BSD-3-Clause), bzip2 (SharpZipLib, MIT) and zstandard (ZstdSharp.Port, MIT). **xz is deferred** until Lzma.Net (0BSD) adds a netstandard2.0 target; it currently targets net8.0+ only. Open point: the BCL `DeflateStream` uses the native zlib bundled with the runtime.
 > - **Name AvroSharp, MIT license** (Section 13).
 
 Legend: **[src]** = verified by reading the reference source/page during this study; **[docs]** = reasoned from documentation/spec text; **[goal]** = unmeasured target, not a claim.
