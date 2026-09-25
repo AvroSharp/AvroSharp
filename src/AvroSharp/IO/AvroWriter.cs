@@ -277,7 +277,8 @@ public ref struct AvroWriter
     /// PERF: candidate for further optimization. Measured 2026-09-25 (VarintBenchmarks, 1,000 values, net10):
     /// 3-byte encode was the thinnest win over Apache.Avro, and the best variant differs by CPU. The word path
     /// (bit spread plus one 8-byte store) gave 0.59x on an i7-12800H but lost 1.27x on an i5-3570K; unrolled
-    /// byte stores gave about 0.93x on both. Current code: one 4-byte store for 3-4 bytes (being measured).
+    /// byte stores (the current code) gave 0.93x/0.71x (3/4 bytes) on the i5-3570K and 0.92x/0.75x on the i7-12800H.
+    /// One 4-byte store for 3-4 bytes was also measured on the i7-12800H: 0.89x/0.79x, not better overall, so reverted.
     /// Options not yet tried: moving the 3-byte case into the inlined call site (bigger call sites); BMI2
     /// PDEP for the spread when Bmi2.X64.IsSupported (slow microcode on AMD Zen 1/2); a batched WriteLongs for
     /// array items. Re-measure on both machines before changing: VarintBenchmarks with AVROSHARP_VARINT_BYTES.
@@ -286,22 +287,22 @@ public ref struct AvroWriter
     private void WriteVarintMulti(ulong value)
     {        var buffer = _buffer[_buffered..];
 
-        // Three or four bytes: assemble the bytes with shifts and write them with one 4-byte store (at least 10
-        // bytes are free here). Cheaper than the word path's bit spreading, and one store instead of several.
+        // Three or four bytes: direct stores, cheaper than the word path for short values.
+        if (value < 1UL << 21)
+        {
+            buffer[0] = (byte)(value | 0x80);
+            buffer[1] = (byte)((value >> 7) | 0x80);
+            buffer[2] = (byte)(value >> 14);
+            _buffered += 3;
+            return;
+        }
+
         if (value < 1UL << 28)
         {
-            var v = (uint)value;
-            var word = (v & 0x7F) | 0x80
-                | ((((v >> 7) & 0x7F) | 0x80) << 8)
-                | (((v >> 14) & 0x7F) << 16);
-            if (v < 1U << 21)
-            {
-                BinaryPrimitives.WriteUInt32LittleEndian(buffer, word);
-                _buffered += 3;
-                return;
-            }
-
-            BinaryPrimitives.WriteUInt32LittleEndian(buffer, word | 0x800000 | ((v >> 21) << 24));
+            buffer[0] = (byte)(value | 0x80);
+            buffer[1] = (byte)((value >> 7) | 0x80);
+            buffer[2] = (byte)((value >> 14) | 0x80);
+            buffer[3] = (byte)(value >> 21);
             _buffered += 4;
             return;
         }
