@@ -31,6 +31,9 @@ public ref struct AvroReader
     private const int MaxVarint32Length = 5;
     private const int MaxVarint64Length = 10;
 
+    // Values decoded one at a time after a multi-byte value, before the bulk readers look for a one-byte run again.
+    private const int ScalarBatchAfterMultiByte = 8;
+
     private readonly ReadOnlySequence<byte> _sequence;
     private readonly long _length;
     private readonly bool _isMultiSegment;
@@ -311,11 +314,17 @@ public ref struct AvroReader
             && destination.Length - i >= Vector128<byte>.Count
             && _span.Length - _position >= Vector128<byte>.Count)
         {
-            // Only look for a run when the next value is a single byte; dense multi-byte data (timestamps, large
-            // ids) then never pays for the vector check.
+            // Only look for a run when the next value is a single byte. After a multi-byte value, decode a small
+            // batch in a tight scalar loop before looking again, so dense multi-byte data (timestamps, large ids)
+            // pays almost nothing for the bulk loop.
             if (_span[_position] >= 0x80)
             {
-                destination[i++] = ReadLong();
+                var end = Math.Min(i + ScalarBatchAfterMultiByte, destination.Length);
+                while (i < end)
+                {
+                    destination[i++] = ReadLong();
+                }
+
                 continue;
             }
 
@@ -354,11 +363,17 @@ public ref struct AvroReader
             && destination.Length - i >= Vector128<byte>.Count
             && _span.Length - _position >= Vector128<byte>.Count)
         {
-            // Only look for a run when the next value is a single byte; dense multi-byte data (timestamps, large
-            // ids) then never pays for the vector check.
+            // Only look for a run when the next value is a single byte. After a multi-byte value, decode a small
+            // batch in a tight scalar loop before looking again, so dense multi-byte data (timestamps, large ids)
+            // pays almost nothing for the bulk loop.
             if (_span[_position] >= 0x80)
             {
-                destination[i++] = ReadInt();
+                var end = Math.Min(i + ScalarBatchAfterMultiByte, destination.Length);
+                while (i < end)
+                {
+                    destination[i++] = ReadInt();
+                }
+
                 continue;
             }
 
