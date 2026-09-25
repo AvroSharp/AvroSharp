@@ -72,6 +72,7 @@ dotnet_diagnostic.RS0026.severity = none     # multiple overloads with optional 
 dotnet_diagnostic.RS0027.severity = none
 
 [tests/**.cs]
+dotnet_diagnostic.CA5394.severity = none     # seeded Random gives reproducible test data
 dotnet_diagnostic.CA1707.severity = none     # underscores in test names
 dotnet_diagnostic.CA1515.severity = none     # test classes must be public
 dotnet_diagnostic.CA1822.severity = none
@@ -85,6 +86,8 @@ dotnet_diagnostic.CA5351.severity = none     # tests compare against MD5, which 
 dotnet_diagnostic.CA1850.severity = none     # ComputeHash also works on net481
 
 [bench/**.cs]
+dotnet_diagnostic.CA1001.severity = none     # benchmark classes must be unsealed; BenchmarkDotNet owns their lifetime ([GlobalCleanup])
+dotnet_diagnostic.CA5394.severity = none     # seeded Random gives deterministic benchmark data
 dotnet_diagnostic.CA1707.severity = none     # Library_Scenario benchmark names are the gate's naming contract
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1822.severity = none

@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Binary encoding (`AvroSharp.IO`): `AvroWriter` writes directly into an `IBufferWriter<byte>` or a `Span<byte>`; `AvroReader` reads from a `ReadOnlySpan<byte>` or a multi-segment `ReadOnlySequence<byte>`, returning slices of the input for `bytes`, `string` and `fixed` when contiguous. Bulk `double`/`float` array items are a single copy on little-endian hardware. Length prefixes are checked against the remaining input before any allocation; malformed data raises `AvroDataException`.
 - Schema model (`AvroSharp.Schemas`): immutable primitive, record, enum, array, map, union and fixed schemas; names, namespaces and aliases; record fields with defaults, order and aliases; custom properties.
 - All Avro 1.12 logical types. Unknown or invalid logical types are ignored and kept as properties, as the specification requires.
 - `AvroSchemaParser` and `AvroSchema.Parse`/`ParseAsync`: `System.Text.Json` parser over UTF-8 with default-value validation, optional comments, and errors that report the JSON path, line and column. A parser keeps named types across calls, so schemas split over several files can refer to each other.

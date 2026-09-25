@@ -15,12 +15,18 @@
 ## Building and testing
 
 ```shell
-dotnet build
-dotnet test --solution AvroSharp.slnx
-dotnet format --verify-no-changes
+dotnet build -c Release -f net10.0
+dotnet test --solution AvroSharp.slnx -c Release -f net10.0
 ```
 
-On Windows the test project also targets `net481`, which runs the `netstandard2.0` build on .NET Framework.
+Locally, net10.0 is enough while working. Before opening or updating a pull request, also run `-f net481`, which tests the `netstandard2.0` build on .NET Framework: CI currently runs on Linux only (net8.0, net9.0, net10.0 on x64 and Arm64), and its Windows runners are disabled until packages are published.
+
+Formatting is not checked in CI. To check or fix it locally:
+
+```shell
+dotnet format AvroSharp.slnx --verify-no-changes   # check
+dotnet format AvroSharp.slnx                       # fix
+```
 
 Native AOT smoke test:
 

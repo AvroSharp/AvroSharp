@@ -168,6 +168,27 @@ All three produce the same `AvroSerializer<T>` abstract class so the file/single
 
 ---
 
+### 4.10 Async (added 2026-09-25 at the maintainer's request)
+
+**Principle: async I/O, synchronous decoding.** `AvroReader` and `AvroWriter` are ref structs and cannot be held across an `await`. Async APIs therefore work a buffer or block at a time: read asynchronously (`PipeReader.ReadAsync`, `Stream.ReadAtLeastAsync` on net8+), decode that buffer synchronously from its `ReadOnlySequence<byte>` with the allocation-free reader, then yield the results. This is the same design as `System.Text.Json`'s async APIs; making each field read async would be far slower.
+
+**Conventions, applied to every async API:**
+- `ValueTask`/`ValueTask<T>` rather than `Task`; `CancellationToken` as the last parameter of every async method; `IAsyncEnumerable<T>` with `[EnumeratorCancellation]`; `IAsyncDisposable` so types work with `await using`.
+- `ConfigureAwait(false)` throughout (already enforced by the analyzers); no sync-over-async anywhere in the library.
+- netstandard2.0/2.1 get `IAsyncEnumerable<T>`/`IAsyncDisposable` from `Microsoft.Bcl.AsyncInterfaces`, added back when the first API uses it.
+
+**Where each piece lands:**
+
+| Milestone | Async API |
+|---|---|
+| M1 (done) | `AvroSchema.ParseAsync(Stream, CancellationToken)` → `ValueTask<AvroSchema>` |
+| M2 / M5 | Reading a stream of datums without a container (a socket, a file of concatenated single-object messages): `ReadAllAsync(PipeReader or Stream, ct)` → `IAsyncEnumerable<T>`; writing datums to a `PipeWriter` with backpressure via `FlushAsync` |
+| M5 | Container files: `AvroFileReader<T>.OpenAsync(Stream or PipeReader, ct)`; `await foreach (var record in reader.ReadAllAsync(ct))`; block-level `ReadBlockAsync` for parallel decoding; `AvroFileWriter<T>` with `WriteAsync`/`FlushAsync` and `await using` |
+| M5 | Pipelined container reading: I/O, decompression and decoding overlap through `System.Threading.Channels`, with one block in flight per stage and bounded memory |
+| v1.x | Confluent: async Schema Registry lookups (cached) and Kafka serializers |
+
+**Tests:** async paths are tested through the public APIs with streams that return data in small, uneven chunks, and with cancellation at every await point.
+
 ## 5. Performance plan (release gate)
 
 ### 5.1 Apache.Avro hot paths and how each is beaten
@@ -375,7 +396,7 @@ AvroSharp/
 
 **Analyzers** (all as errors in product code): `Microsoft.CodeAnalysis.NetAnalyzers` (built-in, `AnalysisLevel=latest-all`), `Microsoft.CodeAnalysis.PublicApiAnalyzers`, `Microsoft.CodeAnalysis.BannedApiAnalyzers` (ban `Encoding.UTF8.GetBytes(string)`, `MemoryStream.ToArray`, `Newtonsoft.*`, `System.Reflection.Emit` in core), `Roslynator.Analyzers`, `Meziantou.Analyzer`, `SonarAnalyzer.CSharp` (optional), `Microsoft.VisualStudio.Threading.Analyzers` (async hygiene: VSTHRD), `ErrorProne.NET.Structs` (defensive-copy/`in` misuse — important for ref structs). Generator projects add `Microsoft.CodeAnalysis.Analyzers` (RS rules) and pin `Microsoft.CodeAnalysis.CSharp` 4.x (lowest supported for SDK 8 consumers). StyleCop is not recommended (overlaps IDE rules and fights modern syntax).
 
-**CI (`ci.yml`)**: matrix `os: [windows-latest, ubuntu-latest]` × `dotnet: setup 8.0.x, 9.0.x, 10.0.x` (all three SDKs installed, `global.json` picks 10). Steps: `dotnet restore` (no NuGet lock files: versions are pinned centrally, packages come only from nuget.org via source mapping, and lock files broke RID-specific publishing), `dotnet format --verify-no-changes`, `dotnet build -c Release -warnaserror`, `dotnet test` per TFM (`-f net8.0/net9.0/net10.0`, xunit v3 MTP: `dotnet test --project ... -- --coverage`), Windows-only `net48` test project (netstandard2.0 consumer on .NET Framework 4.8.1), `AotSmoke` publish (`-r linux-x64` and `win-x64`) and run, `dotnet pack`, package validation (`EnablePackageValidation`), `Microsoft.DotNet.ApiCompat` baseline after 1.0. Coverage via `Microsoft.Testing.Extensions.CodeCoverage` (Cobertura) → Codecov, threshold 90 % lines on `src/AvroSharp`. `codeql.yml` weekly. `benchmark.yml` as in 5.4.
+**CI (`ci.yml`)**: matrix `os: [ubuntu-latest, ubuntu-24.04-arm]` (the `windows-latest` and `windows-11-arm` entries are commented out since 2026-09-25: slow, and Windows including net481 is tested locally; re-enable before publishing packages), with the 8.0.x, 9.0.x and 10.0.x SDKs installed (`global.json` picks 10). Steps: `dotnet restore` (no NuGet lock files: versions are pinned centrally, packages come only from nuget.org via source mapping, and lock files broke RID-specific publishing), `dotnet build -c Release` (warnings are errors; analyzers and code style are enforced by the build), `dotnet format` is **not** run in CI (maintainer decision 2026-09-25: it took 251 s on `ubuntu-latest`, longer than the build, and is run locally on request), `dotnet test` per TFM (`-f net8.0/net9.0/net10.0`, xunit v3 MTP: `dotnet test --project ... -- --coverage`), Windows-only `net48` test project (netstandard2.0 consumer on .NET Framework 4.8.1), `AotSmoke` publish (`-r linux-x64` and `win-x64`) and run, `dotnet pack`, package validation (`EnablePackageValidation`), `Microsoft.DotNet.ApiCompat` baseline after 1.0. Coverage via `Microsoft.Testing.Extensions.CodeCoverage` (Cobertura) → Codecov, threshold 90 % lines on `src/AvroSharp`. `codeql.yml` weekly. No benchmark workflow: benchmarks run locally on request (Section 5.4).
 
 **Versioning/packaging**: **MinVer** (tag `v1.2.3` → version; pre-release `1.3.0-alpha.0.N` from height) — simpler than Nerdbank for a single-line repo; SourceLink via SDK-built-in (`PublishRepositoryUrl`, `EmbedUntrackedSources`), snupkg symbols, README in package, `PackageReadmeFile`, icon, `release.yml` triggered by tag: build → test → pack → `dotnet nuget push` with trusted publishing (OIDC) or API key secret → GitHub Release with changelog section.
 
@@ -417,10 +438,11 @@ AvroSharp/
   - Each SIMD path must beat both our scalar path and Apache.Avro in BenchmarkDotNet on x64 and Arm64, or it is removed.
   - Property tests check that SIMD and scalar paths produce identical results.
   - CI also runs the test suite with `DOTNET_EnableHWIntrinsic=0`, so the scalar fallback is exercised on every run.
+- **M2.5 — Schema-file source generator (moved forward, maintainer decision 2026-09-25)**: the `AvroSharp.CodeGen` engine plus the build-time generator for `.avsc` files passed as `AdditionalFiles`. It emits the C# types and, for each, a serializer and deserializer that call `AvroWriter`/`AvroReader` directly in schema order, with no schema lookups, boxing or virtual calls at runtime. Writer/reader resolution for generated types comes with M3. *Exit*: generated types round-trip and match Apache.Avro C# bytes for the M2 fixtures; snapshot and compile-and-roundtrip tests; incremental-cache generator tests; the generated path is the fastest AvroSharp path in local benchmarks.
 - **M3 — Resolution (1.5 weeks)**: `ResolvedSchema`, generic reader consumption, aliases, defaults, promotions. *Exit*: spec resolution table tests + Apache oracle property tests pass; E benchmark (generic) beats Apache.
-- **M4 — Typed runtime tiers (2 weeks)**: reflection interpreter oracle; expression-tree tier; `AvroSerializer<T>` API; attribute model. *Exit*: typed P/S/N/L/E benchmarks (dynamic tier) beat Apache Specific and Reflect; AOT analyzer warnings only on `[RequiresDynamicCode]` members.
+- **M4 — Attribute-driven generator and `AvroSerializer<T>` API (2 weeks)**: `[AvroSerializable]` on user types generates the schema and the serializer/deserializer; the `AvroSerializer<T>` API over generated code. (The reflection and expression-tree tiers were dropped: no reflection on serialization paths.) *Exit*: typed P/S/N/L/E benchmarks beat Apache Specific and Reflect; zero trim/AOT warnings.
 - **M5 — Container files + codecs + single-object (2 weeks)**: sync/async writer/reader, `PooledBufferWriter`, null/deflate, Snappy/Zstd packages, `Sync/Seek`, single-object encoding. *Exit*: `weather*.avro`, `syncInMeta.avro`, `messageV1` pass; files written are readable by Apache.Avro C# (which Apache's own CI checks against the other languages); container read/write benchmarks beat Apache for all four codecs; AOT smoke runs.
-- **M6 — Code generation (3 weeks)**: `AvroSharp.CodeGen` engine, attribute generator, schema-files generator, CLI tool with `dnx`/AOT packaging, snapshot + compile-roundtrip + generator tests. *Exit*: generated P/S/N/L/E benchmarks beat Apache Specific by the target margins and are the best AvroSharp tier; snapshot suite for ≥ 25 schemas; generator incremental-cache tests green; tool published as hybrid RID package.
+- **M6 — Code generation, remaining (3 weeks)**: protocols (`.avpr`), codegen options, CLI tool with `dnx`/AOT packaging, snapshot + compile-roundtrip + generator tests. *Exit*: generated P/S/N/L/E benchmarks beat Apache Specific by the target margins and are the best AvroSharp tier; snapshot suite for ≥ 25 schemas; generator incremental-cache tests green; tool published as hybrid RID package.
 - **M7 — Hardening → 1.0 (2 weeks)**: docs site (DocFX or mkdocs), samples, API review (freeze `PublicAPI.Shipped.txt`), package validation baseline, fuzz nightly for 2 weeks with no open crashes, coverage ≥ 90 %. *Exit*: **full benchmark matrix gate passes in a local run on x64 and Arm64**, 1.0.0 tagged.
 - **v1.x**: `AvroSharp.Idl` (.avdl → protocol), `AvroSharp.Confluent`, Bzip2/Xz codecs if not in 1.0, parallel block decoding, `SearchValues`/SIMD varint batch decode, `Utf8String`-style zero-copy string views.
 

@@ -5,6 +5,62 @@ AvroSharp.AvroException
 AvroSharp.AvroException.AvroException() -> void
 AvroSharp.AvroException.AvroException(string! message, System.Exception? innerException) -> void
 AvroSharp.AvroException.AvroException(string! message) -> void
+AvroSharp.IO.AvroDataException
+AvroSharp.IO.AvroDataException.AvroDataException() -> void
+AvroSharp.IO.AvroDataException.AvroDataException(string! message, System.Exception? innerException) -> void
+AvroSharp.IO.AvroDataException.AvroDataException(string! message) -> void
+AvroSharp.IO.AvroReader
+AvroSharp.IO.AvroReader.AvroReader() -> void
+AvroSharp.IO.AvroReader.AvroReader(in System.Buffers.ReadOnlySequence<byte> data) -> void
+AvroSharp.IO.AvroReader.AvroReader(System.ReadOnlySpan<byte> data) -> void
+AvroSharp.IO.AvroReader.BytesConsumed.get -> long
+AvroSharp.IO.AvroReader.BytesRemaining.get -> long
+AvroSharp.IO.AvroReader.IsAtEnd.get -> bool
+AvroSharp.IO.AvroReader.ReadBlockCount(out long byteSize) -> long
+AvroSharp.IO.AvroReader.ReadBoolean() -> bool
+AvroSharp.IO.AvroReader.ReadBytes() -> byte[]!
+AvroSharp.IO.AvroReader.ReadBytesSpan() -> System.ReadOnlySpan<byte>
+AvroSharp.IO.AvroReader.ReadDouble() -> double
+AvroSharp.IO.AvroReader.ReadDoubles(scoped System.Span<double> destination) -> void
+AvroSharp.IO.AvroReader.ReadEnum() -> int
+AvroSharp.IO.AvroReader.ReadFixed(scoped System.Span<byte> destination) -> void
+AvroSharp.IO.AvroReader.ReadFixedSpan(int size) -> System.ReadOnlySpan<byte>
+AvroSharp.IO.AvroReader.ReadFloat() -> float
+AvroSharp.IO.AvroReader.ReadFloats(scoped System.Span<float> destination) -> void
+AvroSharp.IO.AvroReader.ReadInt() -> int
+AvroSharp.IO.AvroReader.ReadLong() -> long
+AvroSharp.IO.AvroReader.ReadNull() -> void
+AvroSharp.IO.AvroReader.ReadString() -> string!
+AvroSharp.IO.AvroReader.ReadStringUtf8() -> System.ReadOnlySpan<byte>
+AvroSharp.IO.AvroReader.ReadUnionIndex() -> int
+AvroSharp.IO.AvroReader.Skip(long count) -> void
+AvroSharp.IO.AvroReader.SkipBytes() -> void
+AvroSharp.IO.AvroReader.SkipVarint() -> void
+AvroSharp.IO.AvroWriter
+AvroSharp.IO.AvroWriter.AvroWriter() -> void
+AvroSharp.IO.AvroWriter.AvroWriter(System.Buffers.IBufferWriter<byte>! output) -> void
+AvroSharp.IO.AvroWriter.AvroWriter(System.Span<byte> destination) -> void
+AvroSharp.IO.AvroWriter.BytesPending.get -> int
+AvroSharp.IO.AvroWriter.BytesWritten.get -> long
+AvroSharp.IO.AvroWriter.Flush() -> void
+AvroSharp.IO.AvroWriter.WriteBlockCount(long count) -> void
+AvroSharp.IO.AvroWriter.WriteBlockEnd() -> void
+AvroSharp.IO.AvroWriter.WriteBoolean(bool value) -> void
+AvroSharp.IO.AvroWriter.WriteBytes(scoped System.ReadOnlySpan<byte> value) -> void
+AvroSharp.IO.AvroWriter.WriteDouble(double value) -> void
+AvroSharp.IO.AvroWriter.WriteDoubles(scoped System.ReadOnlySpan<double> values) -> void
+AvroSharp.IO.AvroWriter.WriteEnum(int ordinal) -> void
+AvroSharp.IO.AvroWriter.WriteFixed(scoped System.ReadOnlySpan<byte> value) -> void
+AvroSharp.IO.AvroWriter.WriteFloat(float value) -> void
+AvroSharp.IO.AvroWriter.WriteFloats(scoped System.ReadOnlySpan<float> values) -> void
+AvroSharp.IO.AvroWriter.WriteInt(int value) -> void
+AvroSharp.IO.AvroWriter.WriteLong(long value) -> void
+AvroSharp.IO.AvroWriter.WriteNull() -> void
+AvroSharp.IO.AvroWriter.WriteRaw(scoped System.ReadOnlySpan<byte> value) -> void
+AvroSharp.IO.AvroWriter.WriteString(scoped System.ReadOnlySpan<char> value) -> void
+AvroSharp.IO.AvroWriter.WriteString(string! value) -> void
+AvroSharp.IO.AvroWriter.WriteStringUtf8(scoped System.ReadOnlySpan<byte> utf8) -> void
+AvroSharp.IO.AvroWriter.WriteUnionIndex(int index) -> void
 AvroSharp.Schemas.ArraySchema
 AvroSharp.Schemas.ArraySchema.ArraySchema(AvroSharp.Schemas.AvroSchema! items, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
 AvroSharp.Schemas.ArraySchema.Items.get -> AvroSharp.Schemas.AvroSchema!
