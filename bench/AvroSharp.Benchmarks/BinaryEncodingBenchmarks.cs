@@ -15,7 +15,7 @@ namespace AvroSharp.Benchmarks;
 [MemoryDiagnoser]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
-public sealed class BinaryEncodingBenchmarks : IDisposable
+public class BinaryEncodingBenchmarks
 {
     private const int Count = 1_000;
 
@@ -59,7 +59,8 @@ public sealed class BinaryEncodingBenchmarks : IDisposable
         _encoded = _output.WrittenSpan.ToArray();
     }
 
-    public void Dispose() => _stream.Dispose();
+    [GlobalCleanup]
+    public void Cleanup() => _stream.Dispose();
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Encode")]
