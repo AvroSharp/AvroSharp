@@ -25,12 +25,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, windows-11-arm]
         include:
           - os: ubuntu-latest
             rid: linux-x64
           - os: windows-latest
             rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
 
     steps:
       - uses: actions/checkout@v7
