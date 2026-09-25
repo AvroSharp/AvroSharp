@@ -311,6 +311,14 @@ public ref struct AvroReader
             && destination.Length - i >= Vector128<byte>.Count
             && _span.Length - _position >= Vector128<byte>.Count)
         {
+            // Only look for a run when the next value is a single byte; dense multi-byte data (timestamps, large
+            // ids) then never pays for the vector check.
+            if (_span[_position] >= 0x80)
+            {
+                destination[i++] = ReadLong();
+                continue;
+            }
+
             var chunk = _span.Slice(_position, Vector128<byte>.Count);
             var run = OneByteRunLength(chunk);
             for (var k = 0; k < run; k++)
@@ -346,6 +354,14 @@ public ref struct AvroReader
             && destination.Length - i >= Vector128<byte>.Count
             && _span.Length - _position >= Vector128<byte>.Count)
         {
+            // Only look for a run when the next value is a single byte; dense multi-byte data (timestamps, large
+            // ids) then never pays for the vector check.
+            if (_span[_position] >= 0x80)
+            {
+                destination[i++] = ReadInt();
+                continue;
+            }
+
             var chunk = _span.Slice(_position, Vector128<byte>.Count);
             var run = OneByteRunLength(chunk);
             for (var k = 0; k < run; k++)

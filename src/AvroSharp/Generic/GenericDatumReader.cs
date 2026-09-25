@@ -2,6 +2,9 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+#if NET8_0_OR_GREATER
+using System.Runtime.InteropServices;
+#endif
 using AvroSharp.IO;
 using AvroSharp.Schemas;
 
@@ -273,11 +276,7 @@ public sealed class GenericDatumReader
                 {
                     var chunk = buffer.AsSpan(0, Math.Min(count, buffer.Length));
                     reader.ReadLongs(chunk);
-                    foreach (var value in chunk)
-                    {
-                        list.Add(value);
-                    }
-
+                    AddRange(list, chunk);
                     count -= chunk.Length;
                 }
             }
@@ -285,6 +284,82 @@ public sealed class GenericDatumReader
             {
                 ArrayPool<long>.Shared.Return(buffer);
             }
+        }
+
+        private static void AddRange(List<AvroValue> list, ReadOnlySpan<long> values)
+        {
+#if NET8_0_OR_GREATER
+            // Grow the list once and write straight into its backing array.
+            var start = list.Count;
+            CollectionsMarshal.SetCount(list, start + values.Length);
+            var target = CollectionsMarshal.AsSpan(list).Slice(start, values.Length);
+            for (var i = 0; i < values.Length; i++)
+            {
+                target[i] = values[i];
+            }
+#else
+            foreach (var value in values)
+            {
+                list.Add(value);
+            }
+#endif
+        }
+
+        private static void AddRange(List<AvroValue> list, ReadOnlySpan<int> values)
+        {
+#if NET8_0_OR_GREATER
+            // Grow the list once and write straight into its backing array.
+            var start = list.Count;
+            CollectionsMarshal.SetCount(list, start + values.Length);
+            var target = CollectionsMarshal.AsSpan(list).Slice(start, values.Length);
+            for (var i = 0; i < values.Length; i++)
+            {
+                target[i] = values[i];
+            }
+#else
+            foreach (var value in values)
+            {
+                list.Add(value);
+            }
+#endif
+        }
+
+        private static void AddRange(List<AvroValue> list, ReadOnlySpan<double> values)
+        {
+#if NET8_0_OR_GREATER
+            // Grow the list once and write straight into its backing array.
+            var start = list.Count;
+            CollectionsMarshal.SetCount(list, start + values.Length);
+            var target = CollectionsMarshal.AsSpan(list).Slice(start, values.Length);
+            for (var i = 0; i < values.Length; i++)
+            {
+                target[i] = values[i];
+            }
+#else
+            foreach (var value in values)
+            {
+                list.Add(value);
+            }
+#endif
+        }
+
+        private static void AddRange(List<AvroValue> list, ReadOnlySpan<float> values)
+        {
+#if NET8_0_OR_GREATER
+            // Grow the list once and write straight into its backing array.
+            var start = list.Count;
+            CollectionsMarshal.SetCount(list, start + values.Length);
+            var target = CollectionsMarshal.AsSpan(list).Slice(start, values.Length);
+            for (var i = 0; i < values.Length; i++)
+            {
+                target[i] = values[i];
+            }
+#else
+            foreach (var value in values)
+            {
+                list.Add(value);
+            }
+#endif
         }
 
         // Fixed-width items: one bounds check and, on little-endian hardware, one copy per chunk.
@@ -297,11 +372,7 @@ public sealed class GenericDatumReader
                 {
                     var chunk = buffer.AsSpan(0, Math.Min(count, buffer.Length));
                     reader.ReadDoubles(chunk);
-                    foreach (var value in chunk)
-                    {
-                        list.Add(value);
-                    }
-
+                    AddRange(list, chunk);
                     count -= chunk.Length;
                 }
             }
@@ -320,11 +391,7 @@ public sealed class GenericDatumReader
                 {
                     var chunk = buffer.AsSpan(0, Math.Min(count, buffer.Length));
                     reader.ReadFloats(chunk);
-                    foreach (var value in chunk)
-                    {
-                        list.Add(value);
-                    }
-
+                    AddRange(list, chunk);
                     count -= chunk.Length;
                 }
             }
@@ -342,11 +409,7 @@ public sealed class GenericDatumReader
                 {
                     var chunk = buffer.AsSpan(0, Math.Min(count, buffer.Length));
                     reader.ReadInts(chunk);
-                    foreach (var value in chunk)
-                    {
-                        list.Add(value);
-                    }
-
+                    AddRange(list, chunk);
                     count -= chunk.Length;
                 }
             }
