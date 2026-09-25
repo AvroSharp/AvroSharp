@@ -26,7 +26,7 @@ public class VarintBenchmarks
     private MemoryStream _stream = new();
 
     /// <summary>The encoded length of every value, in bytes.</summary>
-    [Params(1, 2, 5, 8, 9, 10)]
+    [Params(1, 2, 3, 4, 5, 8, 10)]
     public int Bytes { get; set; } = 1;
 
     [GlobalSetup]

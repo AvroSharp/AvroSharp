@@ -258,6 +258,15 @@ public ref struct AvroWriter
             return;
         }
 
+        if (value < 0x4000)
+        {
+            // Two bytes: common enough (64 to 8191 in magnitude) to deserve direct stores.
+            _buffer[_buffered] = (byte)(value | 0x80);
+            _buffer[_buffered + 1] = (byte)(value >> 7);
+            _buffered += 2;
+            return;
+        }
+
 #if NET8_0_OR_GREATER
         var buffer = _buffer[_buffered..];
         if (value < 1UL << 56)
@@ -271,20 +280,7 @@ public ref struct AvroWriter
             return;
         }
 
-        // 9 or 10 bytes: the low 56 bits as a full word of continued bytes, then bits 56-62 and bit 63.
-        BinaryPrimitives.WriteUInt64LittleEndian(buffer, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
-        var high = value >> 56;
-        if (high < 0x80)
-        {
-            buffer[8] = (byte)high;
-            _buffered += 9;
-        }
-        else
-        {
-            buffer[8] = (byte)(high | 0x80);
-            buffer[9] = (byte)(high >> 7);
-            _buffered += MaxVarint64Length;
-        }
+        _buffered += WriteLongVarint(buffer, value);
 #else
         var buffer = _buffer;
         var position = _buffered;
@@ -300,8 +296,26 @@ public ref struct AvroWriter
     }
 
 #if NET8_0_OR_GREATER
-    /// <summary>Places the 7-bit groups of a value below 2^56 into consecutive bytes, without a loop.</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>
+    /// Writes a 9- or 10-byte varint (a value of 2^56 or more): the low 56 bits as a full word of continued bytes,
+    /// then bits 56-62 and bit 63. Returns the number of bytes written.
+    /// </summary>
+    private static int WriteLongVarint(Span<byte> buffer, ulong value)
+    {
+        BinaryPrimitives.WriteUInt64LittleEndian(buffer, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
+        var high = value >> 56;
+        if (high < 0x80)
+        {
+            buffer[8] = (byte)high;
+            return 9;
+        }
+
+        buffer[8] = (byte)(high | 0x80);
+        buffer[9] = (byte)(high >> 7);
+        return MaxVarint64Length;
+    }
+
+    /// <summary>Places the 7-bit groups of a value below 2^56 into consecutive bytes, without a loop.</summary>    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong SpreadVarint(ulong value)
     {
         var x = ((value & 0x00FFFFFFF0000000UL) << 4) | (value & 0x000000000FFFFFFFUL);

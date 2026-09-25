@@ -346,14 +346,26 @@ public ref struct AvroReader
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint ReadVarint32()
     {
-        // Fast path: one byte, the common case for small values, lengths, indexes and ordinals.
-        if (_position < _span.Length)
+        // Inline fast paths for one- and two-byte values: small numbers, lengths, indexes and ordinals.
+        var span = _span;
+        var position = _position;
+        if ((uint)position < (uint)span.Length)
         {
-            var first = _span[_position];
+            uint first = span[position];
             if (first < 0x80)
             {
-                _position++;
+                _position = position + 1;
                 return first;
+            }
+
+            if ((uint)(position + 1) < (uint)span.Length)
+            {
+                uint second = span[position + 1];
+                if (second < 0x80)
+                {
+                    _position = position + 2;
+                    return (first & 0x7F) | (second << 7);
+                }
             }
         }
 
@@ -462,13 +474,26 @@ public ref struct AvroReader
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ulong ReadVarint64()
     {
-        if (_position < _span.Length)
+        // Inline fast paths for one- and two-byte values: small numbers, lengths, indexes and ordinals.
+        var span = _span;
+        var position = _position;
+        if ((uint)position < (uint)span.Length)
         {
-            var first = _span[_position];
+            ulong first = span[position];
             if (first < 0x80)
             {
-                _position++;
+                _position = position + 1;
                 return first;
+            }
+
+            if ((uint)(position + 1) < (uint)span.Length)
+            {
+                ulong second = span[position + 1];
+                if (second < 0x80)
+                {
+                    _position = position + 2;
+                    return (first & 0x7F) | (second << 7);
+                }
             }
         }
 
