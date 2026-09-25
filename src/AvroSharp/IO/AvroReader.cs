@@ -1,0 +1,487 @@
+using System;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace AvroSharp.IO;
+
+/// <summary>
+/// Reads Avro binary encoding from a <see cref="ReadOnlySpan{T}"/> or a (possibly multi-segment)
+/// <see cref="ReadOnlySequence{T}"/>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Reads from contiguous data never copy or allocate: <see cref="ReadBytesSpan"/> and <see cref="ReadFixedSpan"/> return
+/// slices of the input. Only a value that straddles two segments of a sequence is copied.
+/// </para>
+/// <para>
+/// Every length prefix is checked against the remaining input before anything is allocated, so malformed or
+/// hostile input cannot trigger large allocations. Errors are reported as <see cref="AvroDataException"/>.
+/// </para>
+/// <para>This type is a <see langword="ref struct"/>: pass it by <see langword="ref"/> to methods that read values.</para>
+/// </remarks>
+public ref struct AvroReader
+{
+    private const int MaxVarint32Length = 5;
+    private const int MaxVarint64Length = 10;
+
+    private readonly ReadOnlySequence<byte> _sequence;
+    private readonly long _length;
+    private readonly bool _isMultiSegment;
+    private ReadOnlySpan<byte> _span;
+    private int _position;
+    private long _consumedBefore;
+    private SequencePosition _nextSegment;
+
+    /// <summary>Initializes a reader over contiguous data.</summary>
+    /// <param name="data">The Avro binary data.</param>
+    public AvroReader(ReadOnlySpan<byte> data)
+    {
+        _sequence = default;
+        _length = data.Length;
+        _isMultiSegment = false;
+        _span = data;
+        _position = 0;
+        _consumedBefore = 0;
+        _nextSegment = default;
+    }
+
+    /// <summary>Initializes a reader over a sequence of buffers, such as the result of a <c>PipeReader</c> read.</summary>
+    /// <param name="data">The Avro binary data.</param>
+    public AvroReader(in ReadOnlySequence<byte> data)
+    {
+        _length = data.Length;
+        _position = 0;
+        _consumedBefore = 0;
+        if (data.IsSingleSegment)
+        {
+            _sequence = default;
+            _isMultiSegment = false;
+            _span = data.First.Span;
+            _nextSegment = default;
+        }
+        else
+        {
+            _sequence = data;
+            _isMultiSegment = true;
+            _span = default;
+            _nextSegment = data.Start;
+            MoveToNextSegment();
+        }
+    }
+
+    /// <summary>Gets the number of bytes read so far.</summary>
+    public readonly long BytesConsumed => _consumedBefore + _position;
+
+    /// <summary>Gets the number of bytes left to read.</summary>
+    public readonly long BytesRemaining => _length - BytesConsumed;
+
+    /// <summary>Gets a value indicating whether all input has been read.</summary>
+    public readonly bool IsAtEnd => BytesRemaining == 0;
+
+    /// <summary>Reads <c>null</c>, which is encoded as zero bytes.</summary>
+#pragma warning disable CA1822 // Part of the decoding API for symmetry with the other types.
+    public readonly void ReadNull()
+#pragma warning restore CA1822
+    {
+    }
+
+    /// <summary>Reads a boolean encoded as one byte, 0 or 1.</summary>
+    /// <exception cref="AvroDataException">The byte is neither 0 nor 1, or the input ended.</exception>
+    public bool ReadBoolean() => ReadByte() switch
+    {
+        0 => false,
+        1 => true,
+        var b => throw new AvroDataException($"Invalid boolean byte 0x{b:X2} at offset {BytesConsumed - 1}; expected 0 or 1."),
+    };
+
+    /// <summary>Reads a zig-zag variable-length <c>int</c>.</summary>
+    /// <exception cref="AvroDataException">The encoding is longer than 5 bytes, or the input ended.</exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int ReadInt()
+    {
+        var value = ReadVarint32();
+        return (int)(value >> 1) ^ -(int)(value & 1);
+    }
+
+    /// <summary>Reads a zig-zag variable-length <c>long</c>.</summary>
+    /// <exception cref="AvroDataException">The encoding is longer than 10 bytes, or the input ended.</exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public long ReadLong()
+    {
+        var value = ReadVarint64();
+        return (long)(value >> 1) ^ -(long)(value & 1);
+    }
+
+    /// <summary>Reads a <c>float</c> from 4 little-endian bytes.</summary>
+    public float ReadFloat()
+    {
+        if (_span.Length - _position >= sizeof(float))
+        {
+            var value = BinaryPrimitives.ReadSingleLittleEndian(_span[_position..]);
+            _position += sizeof(float);
+            return value;
+        }
+
+        Span<byte> bytes = stackalloc byte[sizeof(float)];
+        ReadExactSlow(bytes);
+        return BinaryPrimitives.ReadSingleLittleEndian(bytes);
+    }
+
+    /// <summary>Reads a <c>double</c> from 8 little-endian bytes.</summary>
+    public double ReadDouble()
+    {
+        if (_span.Length - _position >= sizeof(double))
+        {
+            var value = BinaryPrimitives.ReadDoubleLittleEndian(_span[_position..]);
+            _position += sizeof(double);
+            return value;
+        }
+
+        Span<byte> bytes = stackalloc byte[sizeof(double)];
+        ReadExactSlow(bytes);
+        return BinaryPrimitives.ReadDoubleLittleEndian(bytes);
+    }
+
+    /// <summary>
+    /// Reads <c>bytes</c> and returns them without copying when they are contiguous in the input
+    /// (always, for span input). A value that straddles sequence segments is copied into a new array.
+    /// </summary>
+    public ReadOnlySpan<byte> ReadBytesSpan() => ReadSpan(ReadLength("bytes"));
+
+    /// <summary>Reads <c>bytes</c> into a new array.</summary>
+    public byte[] ReadBytes() => ReadBytesSpan().ToArray();
+
+    /// <summary>Reads a <c>string</c> and decodes it from UTF-8. Invalid UTF-8 is replaced with U+FFFD.</summary>
+    public string ReadString()
+    {
+        var length = ReadLength("string");
+        if (length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (_span.Length - _position >= length)
+        {
+            var value = Encoding.UTF8.GetString(_span.Slice(_position, length));
+            _position += length;
+            return value;
+        }
+
+        var rented = ArrayPool<byte>.Shared.Rent(length);
+        try
+        {
+            var bytes = rented.AsSpan(0, length);
+            ReadExactSlow(bytes);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
+    }
+
+    /// <summary>Reads a <c>string</c> as UTF-8 bytes, without decoding and, when contiguous, without copying.</summary>
+    public ReadOnlySpan<byte> ReadStringUtf8() => ReadSpan(ReadLength("string"));
+
+    /// <summary>Reads a <c>fixed</c> value of <paramref name="size"/> bytes, without copying when contiguous.</summary>
+    /// <param name="size">The schema's fixed size.</param>
+    public ReadOnlySpan<byte> ReadFixedSpan(int size)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(size);
+        EnsureRemaining(size, "fixed");
+        return ReadSpan(size);
+    }
+
+    /// <summary>Reads a <c>fixed</c> value into <paramref name="destination"/>, whose length is the schema's size.</summary>
+    /// <param name="destination">Receives the bytes.</param>
+    public void ReadFixed(scoped Span<byte> destination)
+    {
+        EnsureRemaining(destination.Length, "fixed");
+        if (_span.Length - _position >= destination.Length)
+        {
+            _span.Slice(_position, destination.Length).CopyTo(destination);
+            _position += destination.Length;
+            return;
+        }
+
+        ReadExactSlow(destination);
+    }
+
+    /// <summary>Reads an enum symbol's zero-based ordinal.</summary>
+    public int ReadEnum() => ReadInt();
+
+    /// <summary>Reads the zero-based index of a union branch.</summary>
+    public int ReadUnionIndex() => ReadInt();
+
+    /// <summary>
+    /// Reads the header of an array or map block: the number of items, or 0 at the end of the array or map.
+    /// </summary>
+    /// <param name="byteSize">
+    /// The size in bytes of the block's items when the writer recorded it (a negative count on the wire), which
+    /// allows the block to be skipped; otherwise -1.
+    /// </param>
+    /// <exception cref="AvroDataException">The count or size is invalid.</exception>
+    public long ReadBlockCount(out long byteSize)
+    {
+        var count = ReadLong();
+        if (count >= 0)
+        {
+            byteSize = -1;
+            return count;
+        }
+
+        if (count == long.MinValue)
+        {
+            throw new AvroDataException($"Invalid block count {count}.");
+        }
+
+        byteSize = ReadLong();
+        if (byteSize < 0 || byteSize > BytesRemaining)
+        {
+            throw new AvroDataException($"Invalid block size {byteSize}: {BytesRemaining} byte(s) remain.");
+        }
+
+        return -count;
+    }
+
+    /// <summary>
+    /// Reads <c>double</c> array items into <paramref name="destination"/>. On little-endian hardware, contiguous
+    /// input is a single copy.
+    /// </summary>
+    /// <param name="destination">Receives one value per element.</param>
+    public void ReadDoubles(scoped Span<double> destination)
+    {
+        var byteCount = (long)destination.Length * sizeof(double);
+        EnsureRemaining(byteCount, "double");
+        if (BitConverter.IsLittleEndian && _span.Length - _position >= byteCount)
+        {
+            _span.Slice(_position, (int)byteCount).CopyTo(MemoryMarshal.AsBytes(destination));
+            _position += (int)byteCount;
+            return;
+        }
+
+        for (var i = 0; i < destination.Length; i++)
+        {
+            destination[i] = ReadDouble();
+        }
+    }
+
+    /// <summary>
+    /// Reads <c>float</c> array items into <paramref name="destination"/>. On little-endian hardware, contiguous
+    /// input is a single copy.
+    /// </summary>
+    /// <param name="destination">Receives one value per element.</param>
+    public void ReadFloats(scoped Span<float> destination)
+    {
+        var byteCount = (long)destination.Length * sizeof(float);
+        EnsureRemaining(byteCount, "float");
+        if (BitConverter.IsLittleEndian && _span.Length - _position >= byteCount)
+        {
+            _span.Slice(_position, (int)byteCount).CopyTo(MemoryMarshal.AsBytes(destination));
+            _position += (int)byteCount;
+            return;
+        }
+
+        for (var i = 0; i < destination.Length; i++)
+        {
+            destination[i] = ReadFloat();
+        }
+    }
+
+    /// <summary>Skips a variable-length <c>int</c> or <c>long</c>.</summary>
+    public void SkipVarint() => ReadVarint64();
+
+    /// <summary>Skips a <c>bytes</c> or <c>string</c> value.</summary>
+    public void SkipBytes() => Skip(ReadLength("bytes"));
+
+    /// <summary>Skips <paramref name="count"/> bytes, for example a <c>fixed</c> value or a sized array block.</summary>
+    /// <param name="count">The number of bytes to skip.</param>
+    public void Skip(long count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        EnsureRemaining(count, "skipped");
+        while (count > 0)
+        {
+            var available = _span.Length - _position;
+            if (available == 0)
+            {
+                MoveToNextSegment();
+                continue;
+            }
+
+            var step = (int)Math.Min(available, count);
+            _position += step;
+            count -= step;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private byte ReadByte()
+    {
+        if (_position < _span.Length)
+        {
+            return _span[_position++];
+        }
+
+        return ReadByteSlow();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private byte ReadByteSlow()
+    {
+        if (!MoveToNextSegment())
+        {
+            throw EndOfData();
+        }
+
+        return _span[_position++];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private uint ReadVarint32()
+    {
+        // Fast path: one byte, the common case for small values, lengths, indexes and ordinals.
+        if (_position < _span.Length)
+        {
+            var first = _span[_position];
+            if (first < 0x80)
+            {
+                _position++;
+                return first;
+            }
+        }
+
+        return ReadVarint32Slow();
+    }
+
+    private uint ReadVarint32Slow()
+    {
+        uint result = 0;
+        for (var shift = 0; shift < 7 * MaxVarint32Length; shift += 7)
+        {
+            var b = ReadByte();
+            result |= (uint)(b & 0x7F) << shift;
+            if (b < 0x80)
+            {
+                return result;
+            }
+        }
+
+        throw new AvroDataException($"Invalid int encoding at offset {BytesConsumed - MaxVarint32Length}: more than {MaxVarint32Length} bytes.");
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ulong ReadVarint64()
+    {
+        if (_position < _span.Length)
+        {
+            var first = _span[_position];
+            if (first < 0x80)
+            {
+                _position++;
+                return first;
+            }
+        }
+
+        return ReadVarint64Slow();
+    }
+
+    private ulong ReadVarint64Slow()
+    {
+        ulong result = 0;
+        for (var shift = 0; shift < 7 * MaxVarint64Length; shift += 7)
+        {
+            var b = ReadByte();
+            result |= (ulong)(b & 0x7F) << shift;
+            if (b < 0x80)
+            {
+                return result;
+            }
+        }
+
+        throw new AvroDataException($"Invalid long encoding at offset {BytesConsumed - MaxVarint64Length}: more than {MaxVarint64Length} bytes.");
+    }
+
+    private int ReadLength(string what)
+    {
+        var length = ReadLong();
+        if (length < 0 || length > int.MaxValue)
+        {
+            throw new AvroDataException($"Invalid {what} length {length} at offset {BytesConsumed}.");
+        }
+
+        EnsureRemaining(length, what);
+        return (int)length;
+    }
+
+    private readonly void EnsureRemaining(long count, string what)
+    {
+        if (count > BytesRemaining)
+        {
+            throw new AvroDataException($"Unexpected end of Avro data: {what} value needs {count} byte(s) at offset {BytesConsumed}, {BytesRemaining} remain.");
+        }
+    }
+
+    private ReadOnlySpan<byte> ReadSpan(int length)
+    {
+        if (_span.Length - _position >= length)
+        {
+            var slice = _span.Slice(_position, length);
+            _position += length;
+            return slice;
+        }
+
+        var copy = new byte[length];
+        ReadExactSlow(copy);
+        return copy;
+    }
+
+    private void ReadExactSlow(scoped Span<byte> destination)
+    {
+        while (!destination.IsEmpty)
+        {
+            var available = _span.Length - _position;
+            if (available == 0)
+            {
+                if (!MoveToNextSegment())
+                {
+                    throw EndOfData();
+                }
+
+                continue;
+            }
+
+            var step = Math.Min(available, destination.Length);
+            _span.Slice(_position, step).CopyTo(destination);
+            _position += step;
+            destination = destination[step..];
+        }
+    }
+
+    private bool MoveToNextSegment()
+    {
+        if (!_isMultiSegment)
+        {
+            return false;
+        }
+
+        while (_sequence.TryGet(ref _nextSegment, out var memory, advance: true))
+        {
+            _consumedBefore += _span.Length;
+            _span = memory.Span;
+            _position = 0;
+            if (!_span.IsEmpty)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private readonly AvroDataException EndOfData() =>
+        new($"Unexpected end of Avro data at offset {BytesConsumed}.");
+}
