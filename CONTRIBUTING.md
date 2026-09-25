@@ -19,7 +19,7 @@ dotnet build -c Release -f net10.0
 dotnet test --solution AvroSharp.slnx -c Release -f net10.0
 ```
 
-Locally, net10.0 is enough for most changes; CI builds and tests every target (net8.0, net9.0, net10.0 and, on Windows, net481, which runs the `netstandard2.0` build on .NET Framework). Run `-f net481` locally as well when a change touches netstandard-only code.
+Locally, net10.0 is enough while working. Before opening or updating a pull request, also run `-f net481`, which tests the `netstandard2.0` build on .NET Framework: CI currently runs on Linux only (net8.0, net9.0, net10.0 on x64 and Arm64), and its Windows runners are disabled until packages are published.
 
 Formatting is not checked in CI. To check or fix it locally:
 
