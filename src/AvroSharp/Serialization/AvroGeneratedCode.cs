@@ -115,6 +115,20 @@ public static class AvroGeneratedCode
     public static AvroException NullValue(string field) =>
         new($"Field '{field}' is null, but its schema does not allow null.");
 
+    /// <summary>Creates the error for a field position that a record does not have.</summary>
+    /// <param name="fieldPos">The position.</param>
+    /// <param name="fieldCount">The record's number of fields.</param>
+    /// <param name="recordName">The record's full name.</param>
+    public static AvroException InvalidFieldPosition(int fieldPos, int fieldCount, string recordName) =>
+        new($"Record '{recordName}' has no field at position {fieldPos} ({fieldCount} fields).");
+
+    /// <summary>Creates the error for a value whose type does not match the field it is put into.</summary>
+    /// <param name="value">The value.</param>
+    /// <param name="field">The field, as <c>Record.field</c>.</param>
+    /// <param name="expectedType">The field's C# type.</param>
+    public static AvroException PutTypeMismatch(object? value, string field, string expectedType) =>
+        new($"Field '{field}' holds {expectedType}; a {(value is null ? "null" : "value of type " + value.GetType().FullName)} cannot be put into it.");
+
     /// <summary>Creates the error for records nested deeper than <see cref="MaxDepth"/> while writing.</summary>
     public static AvroException WriteTooDeep() =>
         new($"Records are nested more than {MaxDepth} levels deep; a record may contain itself.");

@@ -114,7 +114,7 @@ public static class CSharpCodeGenerator
     private static void EmitRecord(CodeWriter w, RecordSchema record, string name, CSharpNames names, TypeMapper types)
     {
         var properties = PropertyNames(record, name);
-        w.Open($"public sealed partial class {name}");
+        w.Open($"public sealed partial class {name} : global::AvroSharp.Serialization.IAvroSpecificRecord");
         EmitSchemaMembers(w, record);
 
         for (var i = 0; i < record.Fields.Count; i++)
@@ -127,6 +127,7 @@ public static class CSharpCodeGenerator
         }
 
         EmitRecordApi(w, name);
+        EmitRecordAccess(w, record, properties, types);
         EmitRecordCore(w, record, name, properties, new SerializerEmitter(names, types));
         w.Close();
     }
@@ -158,6 +159,92 @@ public static class CSharpCodeGenerator
         w.Line($"var reader = new {Reader}(data);");
         w.Line("return ReadCore(ref reader, 0);");
         w.Close();
+    }
+
+    /// <summary>
+    /// <c>IAvroSpecificRecord</c>: field access by position, like Apache.Avro's <c>ISpecificRecord</c>. <c>Put</c> checks
+    /// the value's type and names the field in its error. Uses only C# 7.3 syntax.
+    /// </summary>
+    private static void EmitRecordAccess(CodeWriter w, RecordSchema record, string[] properties, TypeMapper types)
+    {
+        const string Interface = "global::AvroSharp.Serialization.IAvroSpecificRecord";
+        var count = record.Fields.Count.ToString(CultureInfo.InvariantCulture);
+        var invalid = $"throw {Support}.InvalidFieldPosition(fieldPos, {count}, {CSharpNames.Literal(record.FullName)});";
+
+        w.Line();
+        w.Line($"global::AvroSharp.Schemas.RecordSchema {Interface}.Schema => (global::AvroSharp.Schemas.RecordSchema)Schema;");
+
+        w.Line();
+        w.Line("/// <summary>Gets the value of the field at a position in the schema, boxed.</summary>");
+        w.Open("public object? Get(int fieldPos)");
+        w.Open("switch (fieldPos)");
+        for (var i = 0; i < properties.Length; i++)
+        {
+            w.Line($"case {i.ToString(CultureInfo.InvariantCulture)}:");
+            w.Indent();
+            w.Line($"return {properties[i]};");
+            w.Outdent();
+        }
+
+        w.Line("default:");
+        w.Indent();
+        w.Line(invalid);
+        w.Outdent();
+        w.Close();
+        w.Close();
+
+        w.Line();
+        w.Line("/// <summary>Sets the value of the field at a position in the schema; the value must have the field's C# type.</summary>");
+        w.Open("public void Put(int fieldPos, object? fieldValue)");
+        w.Open("switch (fieldPos)");
+        for (var i = 0; i < properties.Length; i++)
+        {
+            var field = record.FullName + "." + record.Fields[i].Name;
+            w.Line($"case {i.ToString(CultureInfo.InvariantCulture)}:");
+            w.Indent();
+            w.Line($"{properties[i]} = {PutValue(record.Fields[i].Schema, types, field, "v" + i.ToString(CultureInfo.InvariantCulture))};");
+            w.Line("break;");
+            w.Outdent();
+        }
+
+        w.Line("default:");
+        w.Indent();
+        w.Line(invalid);
+        w.Outdent();
+        w.Close();
+        w.Close();
+    }
+
+    /// <summary>The expression that converts <c>fieldValue</c> to a field's type, or throws naming the field.</summary>
+    private static string PutValue(AvroSchema schema, TypeMapper types, string field, string variable)
+    {
+        var nullable = false;
+        if (schema is UnionSchema union)
+        {
+            var (nullIndex, others) = TypeMapper.Classify(union);
+            if (others.Count != 1)
+            {
+                // object?: any value; the union branch is checked when writing.
+                return "fieldValue";
+            }
+
+            nullable = nullIndex >= 0;
+            schema = union.Branches[others[0]];
+        }
+        else if (schema.Type == AvroSchemaType.Null)
+        {
+            return "fieldValue";
+        }
+
+        var type = types.TypeOf(schema);
+        var display = type.Replace("global::", string.Empty) + (nullable ? "?" : string.Empty);
+        var mismatch = $"throw {Support}.PutTypeMismatch(fieldValue, {CSharpNames.Literal(field)}, {CSharpNames.Literal(display)})";
+        var converted = TypeMapper.IsValueType(schema)
+            ? $"fieldValue is {type} {variable} ? {variable} : {mismatch}"
+            : $"fieldValue as {type} ?? {mismatch}";
+        return nullable
+            ? $"fieldValue == null ? ({type}?)null : {converted}"
+            : converted;
     }
 
     /// <summary>The serializers: each field in schema order, with the record depth checked on entry.</summary>
@@ -257,7 +344,7 @@ public static class CSharpCodeGenerator
         var used = new HashSet<string>(StringComparer.Ordinal)
         {
             typeName.TrimStart('@'), "SchemaJson", "Schema", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
-            "FromAvroBytes", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
+            "FromAvroBytes", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
         };
         var result = new string[record.Fields.Count];
         for (var i = 0; i < result.Length; i++)

@@ -24,7 +24,7 @@ public class GeneratedCodeTests
     [Test]
     public async Task EveryType_RoundTrips_AndMatchesTheGenericWriter()
     {
-        var order = CreateOrder();
+        var order = TestData.CreateOrder();
 
         var bytes = order.ToAvroBytes();
         var back = shop.Order.FromAvroBytes(bytes);
@@ -50,7 +50,7 @@ public class GeneratedCodeTests
     [Test]
     public async Task ApacheAvro_ReadsGeneratedBytes_AndWritesThemBackIdentically()
     {
-        var bytes = CreateOrder().ToAvroBytes();
+        var bytes = TestData.CreateOrder().ToAvroBytes();
 
         var apacheSchema = ApacheSchema.Parse(shop.Order.SchemaJson);
         using var input = new MemoryStream(bytes);
@@ -101,7 +101,7 @@ public class GeneratedCodeTests
     [Test]
     public async Task TruncatedInput_IsReportedAsAvroDataException()
     {
-        var bytes = CreateOrder().ToAvroBytes();
+        var bytes = TestData.CreateOrder().ToAvroBytes();
         for (var length = 0; length < bytes.Length; length++)
         {
             var prefix = bytes.AsSpan(0, length).ToArray();
@@ -150,7 +150,7 @@ public class GeneratedCodeTests
     [Test]
     public async Task NullInANonNullField_NamesTheField()
     {
-        var order = CreateOrder();
+        var order = TestData.CreateOrder();
         order.CustomerName = null!;
 
         var ex = Assert.Throws<AvroException>(() => order.ToAvroBytes());
@@ -161,7 +161,7 @@ public class GeneratedCodeTests
     [Test]
     public async Task UnionValueOfAnotherType_IsRejected()
     {
-        var order = CreateOrder();
+        var order = TestData.CreateOrder();
         order.Extra = 3.5;
 
         var ex = Assert.Throws<AvroException>(() => order.ToAvroBytes());
@@ -184,43 +184,6 @@ public class GeneratedCodeTests
 
         await Assert.That(graph.Node.Schema.CanonicalForm).IsEqualTo(fromFile.CanonicalForm);
         await Assert.That(((RecordSchema)crm.Customer.Schema).GetField("last_status").Schema).IsTypeOf<EnumSchema>();
-    }
-
-    private static shop.Order CreateOrder()
-    {
-        var sku = new shop.Sku([0xDE, 0xAD, 0xBE, 0xEF]);
-        return new shop.Order
-        {
-            Id = 1_790_000_000_123L,
-            Active = true,
-            Count = -5,
-            Ratio = 0.25f,
-            Total = 1234.5,
-            Payload = [0, 1, 255],
-            CustomerName = "Ada",
-            Status = shop.Status.@class,
-            Sku = sku,
-            Counters = [.. Enumerable.Range(0, 64).Select(i => (long)(i * i * 1000))],
-            Small = [1, -1, 1000, int.MinValue],
-            Weights = [1.5, -2.25, double.MaxValue],
-            Ratios = [0.5f, float.Epsilon],
-            Tags = ["a", "日本", ""],
-            Lines = [new shop.Line { Sku = sku, Qty = 1 }, new shop.Line { Sku = sku, Qty = 2, Note = "fragile" }],
-            Attributes = new() { ["x"] = 1, ["y"] = -2 },
-            Groups = new() { ["g"] = ["x", "y"], ["empty"] = [] },
-            Note = "leave at the door",
-            Discount = null,
-            Priority = 7,
-            Shipping = new shop.Line { Sku = sku, Qty = 3 },
-            Extra = new List<long> { 1, 2, 3 },
-            Only = "only",
-            Created = 1_790_000_000_000_000L,
-            Day = 20_000,
-            Ref = "7f1e2d3c-0000-4000-8000-000000000001",
-            Amount = [0x01, 0x86, 0xA0],
-            Order_ = 99,
-            Schema_ = "s",
-        };
     }
 
     /// <summary>A chain of <paramref name="depth"/> nodes, each linking to the next through the <c>next</c> union.</summary>
