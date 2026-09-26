@@ -183,6 +183,8 @@ AvroSharp.Schemas.AvroSchemaException.Reason.get -> string?
 AvroSharp.Schemas.AvroSchemaParseOptions
 AvroSharp.Schemas.AvroSchemaParseOptions.AllowComments.get -> bool
 AvroSharp.Schemas.AvroSchemaParseOptions.AllowComments.init -> void
+AvroSharp.Schemas.AvroSchemaParseOptions.AllowIdenticalRedefinitions.get -> bool
+AvroSharp.Schemas.AvroSchemaParseOptions.AllowIdenticalRedefinitions.init -> void
 AvroSharp.Schemas.AvroSchemaParseOptions.AvroSchemaParseOptions() -> void
 AvroSharp.Schemas.AvroSchemaParseOptions.MaxDepth.get -> int
 AvroSharp.Schemas.AvroSchemaParseOptions.MaxDepth.init -> void

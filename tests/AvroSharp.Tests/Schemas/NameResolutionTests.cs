@@ -111,6 +111,61 @@ public class NameResolutionTests
         await Assert.That(ex.Path).IsEqualTo("$.fields[1].type");
     }
 
+    private const string Address = """{"type":"record","name":"Address","namespace":"geo","doc":"first","fields":[{"name":"city","type":"string"}]}""";
+
+    private const string AddressWithOtherDoc = """{"type":"record","name":"Address","namespace":"geo","doc":"second","fields":[{"name":"city","type":"string"}]}""";
+
+    [Test]
+    public async Task IdenticalRedefinitionInALaterParse_IsRejectedByDefault()
+    {
+        var parser = new AvroSchemaParser();
+        parser.Parse(Address);
+
+        var ex = Assert.Throws<AvroSchemaException>(() => parser.Parse("""{"type":"record","name":"Holder","fields":[{"name":"a","type":""" + Address + "}]}"));
+
+        await Assert.That(ex.Reason!).Contains("'geo.Address' is already defined");
+    }
+
+    [Test]
+    public async Task IdenticalRedefinitionInALaterParse_IsAcceptedWhenAllowed_AndTheFirstDefinitionStays()
+    {
+        var parser = new AvroSchemaParser(new AvroSchemaParseOptions { AllowIdenticalRedefinitions = true });
+        var first = (RecordSchema)parser.Parse(Address);
+
+        // Docs may differ: the canonical form is what must match.
+        var holder = (RecordSchema)parser.Parse("""{"type":"record","name":"Holder","fields":[{"name":"a","type":""" + AddressWithOtherDoc + """},{"name":"b","type":"geo.Address"}]}""");
+
+        await Assert.That(holder.Fields[1].Schema.CanonicalForm).IsEqualTo(first.CanonicalForm);
+        await Assert.That(ReferenceEquals(parser.NamedSchemas["geo.Address"], first)).IsTrue();
+    }
+
+    [Test]
+    public async Task DifferentRedefinitionInALaterParse_IsRejectedEvenWhenAllowed()
+    {
+        var parser = new AvroSchemaParser(new AvroSchemaParseOptions { AllowIdenticalRedefinitions = true });
+        parser.Parse(Address);
+
+        var ex = Assert.Throws<AvroSchemaException>(() => parser.Parse("""{"type":"record","name":"Address","namespace":"geo","fields":[{"name":"zip","type":"int"}]}"""));
+
+        await Assert.That(ex.Reason!).Contains("'geo.Address' is already defined differently");
+        await Assert.That(parser.NamedSchemas["geo.Address"].CanonicalForm).Contains("city");
+    }
+
+    [Test]
+    public async Task RedefinitionWithinOneSchema_IsRejectedEvenWhenAllowed()
+    {
+        var parser = new AvroSchemaParser(new AvroSchemaParseOptions { AllowIdenticalRedefinitions = true });
+
+        var ex = Assert.Throws<AvroSchemaException>(() => parser.Parse("""
+            {"type":"record","name":"R","fields":[
+              {"name":"a","type":{"type":"fixed","name":"F","size":1}},
+              {"name":"b","type":{"type":"fixed","name":"F","size":1}}
+            ]}
+            """));
+
+        await Assert.That(ex.Reason!).Contains("'F' is already defined");
+    }
+
     [Test]
     [Arguments("int")]
     [Arguments("string")]

@@ -16,6 +16,9 @@ internal sealed class SchemaJsonReader
     private readonly List<JsonPathSegment> _path = [];
     private readonly List<PendingDefault> _defaults = [];
 
+    // Names that an earlier parse committed and this schema defines again (AllowIdenticalRedefinitions).
+    private readonly List<(NamedSchema Definition, NamedSchema Existing, JsonPathSegment[] Path)> _redefinitions = [];
+
     public SchemaJsonReader(AvroSchemaParseOptions options, Dictionary<string, NamedSchema> committed)
     {
         _options = options;
@@ -25,6 +28,17 @@ internal sealed class SchemaJsonReader
     public AvroSchema Read(JsonElement root)
     {
         var schema = ReadSchema(root, enclosingNamespace: null);
+
+        // A repeated definition must describe the same type; compared once the whole schema exists.
+        foreach (var (definition, existing, path) in _redefinitions)
+        {
+            if (!string.Equals(definition.CanonicalForm, existing.CanonicalForm, StringComparison.Ordinal))
+            {
+                throw new ParseError(
+                    $"The name '{definition.FullName}' is already defined differently: {existing.CanonicalForm}, not {definition.CanonicalForm}.",
+                    path);
+            }
+        }
 
         // Defaults are checked once the whole schema exists, so a default may use a record that is still
         // being defined where the default appears (recursive types).
@@ -48,7 +62,11 @@ internal sealed class SchemaJsonReader
     {
         foreach (var pair in _pending)
         {
-            _committed.Add(pair.Key, pair.Value);
+            // A repeated identical definition keeps the first one.
+            if (!_committed.ContainsKey(pair.Key))
+            {
+                _committed.Add(pair.Key, pair.Value);
+            }
         }
     }
 
@@ -674,9 +692,20 @@ internal sealed class SchemaJsonReader
 
     private void Register(NamedSchema schema)
     {
-        if (TryGetNamed(schema.FullName, out _))
+        if (_pending.ContainsKey(schema.FullName))
         {
             throw Error($"The name '{schema.FullName}' is already defined.");
+        }
+
+        if (_committed.TryGetValue(schema.FullName, out var existing))
+        {
+            if (!_options.AllowIdenticalRedefinitions)
+            {
+                throw Error($"The name '{schema.FullName}' is already defined.");
+            }
+
+            // Checked against the existing definition once this schema is complete (see Read).
+            _redefinitions.Add((schema, existing, [.. _path]));
         }
 
         _pending.Add(schema.FullName, schema);

@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- `AvroSchemaParseOptions.AllowIdenticalRedefinitions`: a parser may accept a named type that an earlier `Parse` call defined, when both definitions have the same canonical form; the first definition stays in use. The source generator turns it on, so schema sets that inline shared types in every file (as Apache's one-file-at-a-time tooling requires) generate each type once. Different definitions are still an error that names both files.
 - Generator option `AvroSharpPropertyNames=avro` (`CodeGenOptions.PropertyNaming`): keep the Avro field names as property names, as Apache's `avrogen` does, so code written against avrogen classes compiles unchanged. C# keywords are escaped.
 - Apache.Avro compatibility mode for generated code (`AvroSharpApacheCompatible=true`, requires a reference to Apache.Avro): records also implement `Avro.Specific.ISpecificRecord`, fixed types derive from `Avro.Specific.SpecificFixed`, and logical types use Apache's .NET types, so Apache's `SpecificDatumWriter<T>`/`SpecificDatumReader<T>` and AvroSharp's serializers work on the same classes and produce the same bytes. `Put` also accepts what Apache's reader passes: an enum's ordinal, and an `AvroDecimal` for a decimal on fixed. The generator reports `AVROGEN004` when the property is set without the reference.
 - Logical types in generated code:
