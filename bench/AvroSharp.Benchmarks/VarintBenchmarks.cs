@@ -1,7 +1,9 @@
 using System;
 using System.Buffers;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using AvroSharp.IO;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
@@ -9,60 +11,51 @@ using BenchmarkDotNet.Configs;
 namespace AvroSharp.Benchmarks;
 
 /// <summary>
-/// Focused varint benchmark: 1,000 longs whose zig-zag encoding is exactly <see cref="Bytes"/> bytes long,
-/// encoded and decoded by AvroSharp and by Apache.Avro. Isolates each varint path (one byte, one word,
-/// word plus one or two bytes).
+/// Focused varint benchmark: 64K random longs per operation, encoded and decoded by AvroSharp and by Apache.Avro.
+/// A number selects values of exactly that encoded length (1 to 10 bytes); "Mixed1-10" and "Mixed1-2" draw each
+/// value's length at random, so value lengths cannot be predicted.
 /// </summary>
 [MemoryDiagnoser]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
 public class VarintBenchmarks
 {
-    private const int Count = 1_000;
-
     private long[] _values = [];
     private byte[] _encoded = [];
     private ArrayBufferWriter<byte> _output = new();
     private MemoryStream _stream = new();
 
-    /// <summary>The encoded length of every value, in bytes.</summary>
-    [ParamsSource(nameof(ByteLengths))]
-    public int Bytes { get; set; } = 1;
+    /// <summary>The encoded length of the values, or a mixed-length workload.</summary>
+    [ParamsSource(nameof(Lengths))]
+    public string Bytes { get; set; } = "1";
 
     /// <summary>
-    /// The lengths to run: all of them by default, or a comma-separated list from the AVROSHARP_VARINT_BYTES
-    /// environment variable (for example "3,4") to focus a run.
+    /// The workloads to run: all by default, or a comma-separated list from the AVROSHARP_VARINT_BYTES environment
+    /// variable (for example "3,4" or "Mixed1-10") to focus a run.
     /// </summary>
-    public static int[] ByteLengths()
+    public static string[] Lengths()
     {
         var selected = Environment.GetEnvironmentVariable("AVROSHARP_VARINT_BYTES");
         return string.IsNullOrWhiteSpace(selected)
-            ? [1, 2, 3, 4, 5, 8, 10]
-            : selected.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(s => int.Parse(s, System.Globalization.CultureInfo.InvariantCulture))
-                .ToArray();
+            ? ["1", "2", "3", "4", "5", "8", "10", "Mixed1-10", "Mixed1-2"]
+            : selected.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     [GlobalSetup]
     public void Setup()
     {
         var random = new Random(7);
-        var low = Bytes == 1 ? 0UL : 1UL << (7 * (Bytes - 1));
-        var high = Bytes == 10 ? ulong.MaxValue : (1UL << (7 * Bytes)) - 1;
-        _values = Enumerable.Range(0, Count).Select(_ =>
+        _values = Enumerable.Range(0, BenchmarkData.ValueCount).Select(_ => Bytes switch
         {
-            var zigZag = low + (ulong)(random.NextDouble() * (high - low));
-            return (long)(zigZag >> 1) ^ -(long)(zigZag & 1);
+            "Mixed1-10" => BenchmarkData.LongOfEncodedLength(random, random.Next(1, 11)),
+            "Mixed1-2" => BenchmarkData.LongOfEncodedLength(random, random.Next(1, 3)),
+            _ => BenchmarkData.LongOfEncodedLength(random, int.Parse(Bytes, CultureInfo.InvariantCulture)),
         }).ToArray();
 
-        _output = new ArrayBufferWriter<byte>(16 * 1024);
-        _stream = new MemoryStream(16 * 1024);
+        _output = new ArrayBufferWriter<byte>(BenchmarkData.ValueCount * 10);
+        _stream = new MemoryStream(BenchmarkData.ValueCount * 10);
         AvroSharp_Encode();
         _encoded = _output.WrittenSpan.ToArray();
-        if (_encoded.Length != Count * Bytes)
-        {
-            throw new InvalidOperationException($"Expected {Count * Bytes} encoded bytes, got {_encoded.Length}.");
-        }
     }
 
     [GlobalCleanup]
@@ -89,11 +82,7 @@ public class VarintBenchmarks
     {
         _output.ResetWrittenCount();
         var writer = new AvroWriter(_output);
-        foreach (var value in _values)
-        {
-            writer.WriteLong(value);
-        }
-
+        EncodeAll(ref writer, _values);
         writer.Flush();
         return writer.BytesWritten;
     }
@@ -105,7 +94,7 @@ public class VarintBenchmarks
         using var stream = new MemoryStream(_encoded, writable: false);
         var decoder = new Avro.IO.BinaryDecoder(stream);
         long checksum = 0;
-        for (var i = 0; i < Count; i++)
+        for (var i = 0; i < _values.Length; i++)
         {
             checksum += decoder.ReadLong();
         }
@@ -118,12 +107,29 @@ public class VarintBenchmarks
     public long AvroSharp_Decode()
     {
         var reader = new AvroReader(_encoded);
+        return DecodeAll(ref reader, _values.Length);
+    }
+
+    // Through a ref parameter, as record code uses the reader and writer: a local reader or writer could be kept
+    // in registers, which hides the cost of storing and reloading its position.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static long DecodeAll(ref AvroReader reader, int count)
+    {
         long checksum = 0;
-        for (var i = 0; i < Count; i++)
+        for (var i = 0; i < count; i++)
         {
             checksum += reader.ReadLong();
         }
 
         return checksum;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void EncodeAll(ref AvroWriter writer, long[] values)
+    {
+        foreach (var value in values)
+        {
+            writer.WriteLong(value);
+        }
     }
 }

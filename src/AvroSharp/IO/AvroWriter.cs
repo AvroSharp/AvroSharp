@@ -282,6 +282,8 @@ public ref struct AvroWriter
     /// Options not yet tried: moving the 3-byte case into the inlined call site (bigger call sites); BMI2
     /// PDEP for the spread when Bmi2.X64.IsSupported (slow microcode on AMD Zen 1/2); a batched WriteLongs for
     /// array items. Re-measure on both machines before changing: VarintBenchmarks with AVROSHARP_VARINT_BYTES.
+    /// Caution: these numbers came from 1,000-value datasets that the branch predictor can learn (see
+    /// docs/reviews/2026-09-25-performance.md, §1.2); re-measure with the 64K random-value benchmarks before relying on them.
     /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void WriteVarintMulti(ulong value)
