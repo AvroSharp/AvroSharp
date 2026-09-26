@@ -6,9 +6,10 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - schemas (parsing, writing, canonical form, fingerprints);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files;
-> - object container files with the `null` and `deflate` codecs.
+> - object container files with the `null` and `deflate` codecs;
+> - single-object encoding.
 >
-> Not implemented yet: the other codecs, async container I/O and single-object encoding. See [the design](docs/design.md) for the roadmap.
+> Not implemented yet: the other codecs and async container I/O. See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 
@@ -30,6 +31,15 @@ foreach (var value in reader.ReadAll()) { ... }
 ```
 
 Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound. Other codecs can be plugged in by subclassing `AvroCodec`.
+
+## Single-object encoding
+
+```csharp
+byte[] message = AvroMessage.ToArray(order, Order.Schema, Order.Write);   // C3 01, fingerprint, data
+
+var reader = AvroMessageReader.CreateGeneric(new AvroSchemaStore(v1, v2), readerSchema: v2);
+AvroValue value = reader.Read(message);      // the fingerprint selects the writer schema
+```
 
 ## Code generation from schema files
 
