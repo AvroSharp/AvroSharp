@@ -9,6 +9,8 @@ AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.get -> AvroSharp.CodeGen.LogicalTy
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.init -> void
 AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.init -> void
+AvroSharp.CodeGen.CodeGenOptions.PropertyNaming.get -> AvroSharp.CodeGen.PropertyNaming
+AvroSharp.CodeGen.CodeGenOptions.PropertyNaming.init -> void
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.init -> void
 AvroSharp.CodeGen.CSharpCodeGenerator
@@ -20,6 +22,9 @@ AvroSharp.CodeGen.GeneratedSource.Text.get -> string!
 AvroSharp.CodeGen.LogicalTypeMapping
 AvroSharp.CodeGen.LogicalTypeMapping.Native = 0 -> AvroSharp.CodeGen.LogicalTypeMapping
 AvroSharp.CodeGen.LogicalTypeMapping.Raw = 1 -> AvroSharp.CodeGen.LogicalTypeMapping
+AvroSharp.CodeGen.PropertyNaming
+AvroSharp.CodeGen.PropertyNaming.Avro = 1 -> AvroSharp.CodeGen.PropertyNaming
+AvroSharp.CodeGen.PropertyNaming.PascalCase = 0 -> AvroSharp.CodeGen.PropertyNaming
 override AvroSharp.CodeGen.GeneratedSource.Equals(object? obj) -> bool
 override AvroSharp.CodeGen.GeneratedSource.GetHashCode() -> int
 override AvroSharp.CodeGen.GeneratedSource.ToString() -> string!

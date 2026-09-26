@@ -228,6 +228,52 @@ public class SchemaFileGeneratorTests
         await Assert.That(compileDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString())).IsEmpty();
     }
 
+    private const string NamingSchema = """
+        {"type":"record","name":"Named","namespace":"naming","fields":[
+          {"name":"customer_name","type":"string"},
+          {"name":"class","type":"int"},
+          {"name":"fieldValue","type":"string"},
+          {"name":"fieldPos","type":"int"},
+          {"name":"Schema","type":"string"}
+        ]}
+        """;
+
+    [Test]
+    [Arguments(null, "public string CustomerName { get; set; }", "public int Class { get; set; }")]
+    [Arguments("avro", "public string customer_name { get; set; }", "public int @class { get; set; }")]
+    [Arguments("AVRO", "public string customer_name { get; set; }", "public int @class { get; set; }")]
+    public async Task AvroSharpPropertyNames_SelectsPascalCaseOrAvroNames(string? setting, string name, string keyword)
+    {
+        var (sources, _, compileDiagnostics) = GeneratorHarness.Run([("n.avsc", NamingSchema)], propertyNames: setting);
+
+        var text = sources.Single().SourceText.ToString();
+        await Assert.That(text).Contains(name);
+        await Assert.That(text).Contains(keyword);
+        await Assert.That(text).Contains("Schema_ { get; set; }"); // clashes with the generated Schema property either way
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
+    /// <summary>
+    /// With Avro names, a field can be called like Put's parameters (fieldValue, fieldPos). The generated Get/Put
+    /// qualify properties with <c>this.</c>, so the values land in the properties, not in the parameters.
+    /// </summary>
+    [Test]
+    [Arguments(null)]
+    [Arguments("avro")]
+    public async Task GetAndPut_ReachTheProperties_EvenWhenFieldsAreNamedLikeTheParameters(string? setting)
+    {
+        var assembly = GeneratorHarness.GenerateAndLoad([("n.avsc", NamingSchema)], setting);
+        var record = (AvroSharp.Serialization.IAvroSpecificRecord)Activator.CreateInstance(assembly.GetType("naming.Named")!)!;
+
+        record.Put(2, "stored");
+        record.Put(3, 42);
+
+        await Assert.That(record.Get(2)).IsEqualTo((object)"stored");
+        await Assert.That(record.Get(3)).IsEqualTo((object)42);
+        var fieldValue = record.GetType().GetProperty(setting is null ? "FieldValue" : "fieldValue")!.GetValue(record);
+        await Assert.That(fieldValue).IsEqualTo((object)"stored");
+    }
+
     [Test]
     public async Task EditingCSharpCode_ReusesTheCachedGeneration()
     {

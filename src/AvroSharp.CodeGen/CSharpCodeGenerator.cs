@@ -124,7 +124,7 @@ public static class CSharpCodeGenerator
 
     private static void EmitRecord(CodeWriter w, RecordSchema record, string name, CSharpNames names, TypeMapper types, bool apache)
     {
-        var properties = PropertyNames(record, name);
+        var properties = PropertyNames(record, name, types.Naming);
         w.Open($"public sealed partial class {name} : global::AvroSharp.Serialization.IAvroSpecificRecord{(apache ? ", " + ApacheSupport.SpecificRecord : string.Empty)}");
         EmitSchemaMembers(w, record, "Schema", apache, types);
 
@@ -198,7 +198,7 @@ public static class CSharpCodeGenerator
         {
             w.Line($"case {i.ToString(CultureInfo.InvariantCulture)}:");
             w.Indent();
-            w.Line($"return {properties[i]};");
+            w.Line($"return this.{properties[i]};");
             w.Outdent();
         }
 
@@ -218,7 +218,7 @@ public static class CSharpCodeGenerator
             var field = record.FullName + "." + record.Fields[i].Name;
             w.Line($"case {i.ToString(CultureInfo.InvariantCulture)}:");
             w.Indent();
-            w.Line($"{properties[i]} = {PutValue(record.Fields[i].Schema, types, field, "v" + i.ToString(CultureInfo.InvariantCulture), apache)};");
+            w.Line($"this.{properties[i]} = {PutValue(record.Fields[i].Schema, types, field, "v" + i.ToString(CultureInfo.InvariantCulture), apache)};");
             w.Line("break;");
             w.Outdent();
         }
@@ -387,7 +387,7 @@ public static class CSharpCodeGenerator
     /// PascalCase property names, made unique: a name may not repeat the type's name (CS0542), a generated member, or
     /// another field's name after case conversion.
     /// </summary>
-    private static string[] PropertyNames(RecordSchema record, string typeName)
+    private static string[] PropertyNames(RecordSchema record, string typeName, PropertyNaming naming)
     {
         var used = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -397,13 +397,14 @@ public static class CSharpCodeGenerator
         var result = new string[record.Fields.Count];
         for (var i = 0; i < result.Length; i++)
         {
-            var candidate = CSharpNames.Pascal(record.Fields[i].Name);
+            var candidate = naming == PropertyNaming.Avro ? record.Fields[i].Name : CSharpNames.Pascal(record.Fields[i].Name);
             while (!used.Add(candidate))
             {
                 candidate += "_";
             }
 
-            result[i] = candidate;
+            // Avro names are valid C# identifiers except for keywords, which are escaped.
+            result[i] = CSharpNames.Identifier(candidate);
         }
 
         return result;

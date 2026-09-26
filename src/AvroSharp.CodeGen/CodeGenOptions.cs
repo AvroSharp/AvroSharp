@@ -36,4 +36,7 @@ public sealed class CodeGenOptions
     /// Framework projects. Defaults to <see langword="true"/>.
     /// </summary>
     public bool NullableAnnotations { get; init; } = true;
+
+    /// <summary>Gets how record fields become property names. Defaults to <see cref="PropertyNaming.PascalCase"/>.</summary>
+    public PropertyNaming PropertyNaming { get; init; } = PropertyNaming.PascalCase;
 }
