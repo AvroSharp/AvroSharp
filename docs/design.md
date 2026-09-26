@@ -466,7 +466,7 @@ AvroSharp/
     - Roslyn driver tests for diagnostics, snapshots and incremental caching;
     - a consumer project built by the SDK for round trips, byte equality with the generic writer and Apache.Avro, random generic data through every generated type, and hostile input;
     - net481 compiles the generated code against the netstandard2.0 build.
-  - **Benchmarks:** `GenericRecordBenchmarks` has `AvroSharp_Generated_*` rows. They have not been run yet, so the "fastest path" exit criterion is unmeasured.
+  - **Benchmarks:** measured on 2026-09-26 on an i5-3570K and a Ryzen 5 3500U (docs/reviews/2026-09-26-generated-code.md). Generated code is the fastest AvroSharp path: 1.5-1.9× faster than the generic model for reading and 1.3-1.5× for writing, and 3.7-6.0× faster than Apache.Avro. The exit criterion is met.
   - **Deferred:**
     - logical types map to their underlying type (a follow-up maps them to `DateOnly`, `DateTimeOffset`, `Guid`, `decimal`);
     - generated union classes for multi-branch unions;
