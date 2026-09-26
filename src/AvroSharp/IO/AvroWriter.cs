@@ -266,8 +266,8 @@ public ref struct AvroWriter
     /// length branch. In records each field's length is usually stable, so these branches predict well. A
     /// branchless one- and two-byte store (57c987c) was slower for uniform lengths on every machine measured, and
     /// won only on randomly mixed lengths (docs/reviews/2026-09-26-branchless-varints.md).</item>
-    /// <item>Five to eight bytes (net8+) are one 8-byte store; the 7-bit groups are spread with BMI2 PDEP when
-    /// available, or with shifts and masks otherwise.</item>
+    /// <item>Five to eight bytes (net8+) are one 8-byte store; the 7-bit groups are spread with BMI2 PDEP where it is
+    /// fast (see <c>FastBmi2</c>), or with shifts and masks otherwise.</item>
     /// <item>Nine and ten bytes add one or two bytes after the word.</item>
     /// </list>
     /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
@@ -387,10 +387,11 @@ public ref struct AvroWriter
         return MaxVarint64Length;
     }
 
-    /// <summary>Places the 7-bit groups of a value below 2^56 into consecutive bytes, without a loop.</summary>    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Places the 7-bit groups of a value below 2^56 into consecutive bytes, without a loop.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong SpreadVarint(ulong value)
     {
-        if (Bmi2.X64.IsSupported)
+        if (FastBmi2.IsSupported)
         {
             return Bmi2.X64.ParallelBitDeposit(value, 0x7F7F7F7F7F7F7F7FUL);
         }

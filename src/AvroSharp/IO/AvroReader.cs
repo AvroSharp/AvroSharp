@@ -527,8 +527,8 @@ public ref struct AvroReader
     /// before the current value is decoded. A branchless one- and two-byte decode (57c987c) made every value wait
     /// for the previous one: about 2.7 ns per 1-byte value against 0.6 ns on an i7-12800H, winning only on randomly
     /// mixed lengths (docs/reviews/2026-09-26-branchless-varints.md).</item>
-    /// <item>Five to eight bytes (net8+) take one 8-byte read; the 7-bit groups are packed with BMI2 PEXT when
-    /// available, or with shifts and masks otherwise, without branching on the length.</item>
+    /// <item>Five to eight bytes (net8+) take one 8-byte read; the 7-bit groups are packed with BMI2 PEXT where it is
+    /// fast (see <c>FastBmi2</c>), or with shifts and masks otherwise, without branching on the length.</item>
     /// <item>Nine and ten bytes complete the word with one or two more bytes.</item>
     /// </list>
     /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
@@ -686,7 +686,7 @@ public ref struct AvroReader
         // Keep the bytes up to and including the terminator (all eight when it is the last byte).
         var keep = ((stops & (0UL - stops)) << 1) - 1;
         var bytes = word & keep;
-        return Bmi2.X64.IsSupported
+        return FastBmi2.IsSupported
             ? Bmi2.X64.ParallelBitExtract(bytes, 0x7F7F7F7F7F7F7F7FUL)
             : PackVarintGroups(bytes & 0x7F7F7F7F7F7F7F7FUL);
     }
