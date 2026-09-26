@@ -3,8 +3,8 @@ abstract AvroSharp.Schemas.AvroLogicalType.IsValidFor(AvroSharp.Schemas.AvroSche
 AvroSharp.AvroCodecNames
 AvroSharp.AvroException
 AvroSharp.AvroException.AvroException() -> void
-AvroSharp.AvroException.AvroException(string! message, System.Exception? innerException) -> void
 AvroSharp.AvroException.AvroException(string! message) -> void
+AvroSharp.AvroException.AvroException(string! message, System.Exception? innerException) -> void
 AvroSharp.Generic.AvroValue
 AvroSharp.Generic.AvroValue.AsArray() -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.Generic.AvroValue.AsBoolean() -> bool
@@ -39,6 +39,16 @@ AvroSharp.Generic.AvroValueKind.Map = 11 -> AvroSharp.Generic.AvroValueKind
 AvroSharp.Generic.AvroValueKind.Null = 0 -> AvroSharp.Generic.AvroValueKind
 AvroSharp.Generic.AvroValueKind.Record = 8 -> AvroSharp.Generic.AvroValueKind
 AvroSharp.Generic.AvroValueKind.String = 7 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.GenericDatumJsonReader
+AvroSharp.Generic.GenericDatumJsonReader.Read(ref System.Text.Json.Utf8JsonReader reader) -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericDatumJsonReader.Read(string! json) -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericDatumJsonReader.Read(System.ReadOnlySpan<byte> utf8Json) -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericDatumJsonReader.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumJsonWriter
+AvroSharp.Generic.GenericDatumJsonWriter.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumJsonWriter.Write(System.Text.Json.Utf8JsonWriter! writer, in AvroSharp.Generic.AvroValue value) -> void
+AvroSharp.Generic.GenericDatumJsonWriter.WriteToString(in AvroSharp.Generic.AvroValue value, bool indented = false) -> string!
+AvroSharp.Generic.GenericDatumJsonWriter.WriteToUtf8Bytes(in AvroSharp.Generic.AvroValue value, bool indented = false) -> byte[]!
 AvroSharp.Generic.GenericDatumReader
 AvroSharp.Generic.GenericDatumReader.Read(ref AvroSharp.IO.AvroReader reader) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumReader.Read(System.ReadOnlySpan<byte> data) -> AvroSharp.Generic.AvroValue
@@ -76,8 +86,8 @@ AvroSharp.Generic.GenericRecord.TryGetValue(string! name, out AvroSharp.Generic.
 AvroSharp.Generic.GenericRecord.Values.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.IO.AvroDataException
 AvroSharp.IO.AvroDataException.AvroDataException() -> void
-AvroSharp.IO.AvroDataException.AvroDataException(string! message, System.Exception? innerException) -> void
 AvroSharp.IO.AvroDataException.AvroDataException(string! message) -> void
+AvroSharp.IO.AvroDataException.AvroDataException(string! message, System.Exception? innerException) -> void
 AvroSharp.IO.AvroReader
 AvroSharp.IO.AvroReader.AvroReader() -> void
 AvroSharp.IO.AvroReader.AvroReader(in System.Buffers.ReadOnlySequence<byte> data) -> void
@@ -163,9 +173,9 @@ AvroSharp.Schemas.AvroSchema.Type.get -> AvroSharp.Schemas.AvroSchemaType
 AvroSharp.Schemas.AvroSchema.WriteTo(System.Text.Json.Utf8JsonWriter! writer) -> void
 AvroSharp.Schemas.AvroSchemaException
 AvroSharp.Schemas.AvroSchemaException.AvroSchemaException() -> void
+AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message) -> void
 AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message, string? path, long? lineNumber, long? bytePositionInLine, System.Exception? innerException = null) -> void
 AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message, System.Exception? innerException) -> void
-AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message) -> void
 AvroSharp.Schemas.AvroSchemaException.BytePositionInLine.get -> long?
 AvroSharp.Schemas.AvroSchemaException.LineNumber.get -> long?
 AvroSharp.Schemas.AvroSchemaException.Path.get -> string?
@@ -310,6 +320,8 @@ static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.Null.get -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.operator !=(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
 static AvroSharp.Generic.AvroValue.operator ==(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
+static AvroSharp.Generic.GenericDatumJsonReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumJsonReader!
+static AvroSharp.Generic.GenericDatumJsonWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumJsonWriter!
 static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumReader!
 static AvroSharp.Generic.GenericDatumReaderOptions.Default.get -> AvroSharp.Generic.GenericDatumReaderOptions!
 static AvroSharp.Generic.GenericDatumWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumWriter!

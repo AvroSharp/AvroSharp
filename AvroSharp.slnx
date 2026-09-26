@@ -15,6 +15,9 @@
     <Project Path="tests/AvroSharp.Interop.Tests/AvroSharp.Interop.Tests.csproj" />
     <Project Path="tests/AvroSharp.AotSmoke/AvroSharp.AotSmoke.csproj" />
   </Folder>
+  <Folder Name="/fuzz/">
+    <Project Path="fuzz/AvroSharp.Fuzz/AvroSharp.Fuzz.csproj" />
+  </Folder>
   <Folder Name="/bench/">
     <Project Path="bench/AvroSharp.Benchmarks/AvroSharp.Benchmarks.csproj" />
   </Folder>

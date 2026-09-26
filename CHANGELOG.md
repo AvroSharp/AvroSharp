@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- JSON encoding for the generic model: `GenericDatumJsonWriter` and `GenericDatumJsonReader`, following the specification (wrapped union values, byte strings for `bytes` and `fixed`, enum symbols). Record fields may appear in any order and missing fields take their defaults; NaN and infinities are written as strings, as Apache.Avro C# does. Checked both ways against Apache.Avro's `JsonEncoder`/`JsonDecoder`.
+- Fuzz targets (`fuzz/AvroSharp.Fuzz`, SharpFuzz/libFuzzer) for schema parsing and generic binary and JSON data, each also checking round trips. They run on every build as a seeded mutation smoke test.
 - Generic data model (`AvroSharp.Generic`): `AvroValue`, a 16-byte struct holding any Avro value without boxing (primitives inline, enums as schema plus ordinal), `GenericRecord` and `GenericFixed`. `GenericDatumWriter` and `GenericDatumReader` compile a schema once into a cached, thread-safe plan of typed nodes; union branches are selected from the value's kind or schema name. Arrays of `int`/`long`/`float`/`double` are read in bulk. Hostile input is bounded: block counts are checked against the remaining input (using each record's minimum encoded size), pre-allocation is capped, zero-size items draw from a per-read budget, and record nesting is limited when reading and writing (`GenericDatumReaderOptions`, `GenericDatumWriterOptions`).
 - `AvroReader.ReadLongs`/`ReadInts`: bulk varint reads; on net8+ a `Vector128` check decodes runs of one-byte values 16 at a time.
 - Binary encoding (`AvroSharp.IO`): `AvroWriter` writes directly into an `IBufferWriter<byte>` or a `Span<byte>`; `AvroReader` reads from a `ReadOnlySpan<byte>` or a multi-segment `ReadOnlySequence<byte>`, returning slices of the input for `bytes`, `string` and `fixed` when contiguous. Bulk `double`/`float` array items are a single copy on little-endian hardware. Length prefixes are checked against the remaining input before any allocation; malformed data raises `AvroDataException`.
@@ -16,3 +18,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Tests against Apache Avro's `schema-tests.txt` vectors, property-based interop tests against Apache.Avro (C#), a Native AOT smoke test, and schema-parse benchmarks gated against Apache.Avro.
 - Repository skeleton: build settings, analyzers, public API tracking, strong naming, TUnit tests on .NET 8/9/10 and .NET Framework 4.8.1, and CI on Linux and Windows (x64 and Arm64).
 - `AvroCodecNames`: the codec names defined by the specification.
+
+### Fixed
+
+- Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.

@@ -93,3 +93,8 @@ dotnet_diagnostic.CA1707.severity = none     # Library_Scenario benchmark names 
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1822.severity = none
 dotnet_diagnostic.CA1812.severity = none
+
+[fuzz/**.cs]
+dotnet_diagnostic.CA5394.severity = none     # seeded Random gives reproducible seed inputs
+dotnet_diagnostic.CA1515.severity = none     # FuzzTargets is shared with the test project
+dotnet_diagnostic.MA0002.severity = none

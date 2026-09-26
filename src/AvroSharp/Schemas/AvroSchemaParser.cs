@@ -134,6 +134,11 @@ public sealed class AvroSchemaParser
             MaxDepth = Options.MaxDepth,
         };
 
+        if (!Utf8Validation.IsValid(utf8Json))
+        {
+            throw new AvroSchemaException("The schema JSON is not valid UTF-8.", path: null, lineNumber: null, bytePositionInLine: null);
+        }
+
         JsonElement root;
         try
         {

@@ -20,4 +20,9 @@
     <None Include="..\TestData\**\*" LinkBase="TestData" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The fuzz targets, run by FuzzSmokeTests with seeded mutations. -->
+  <ItemGroup>
+    <Compile Include="..\..\fuzz\AvroSharp.Fuzz\FuzzTargets.cs" Link="Fuzz\FuzzTargets.cs" />
+  </ItemGroup>
+
 </Project>
