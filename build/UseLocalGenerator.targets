@@ -12,6 +12,7 @@
                       GlobalPropertiesToRemove="OutDir;OutputPath" />
     <CompilerVisibleProperty Include="AvroSharpNamespace" />
     <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
+    <CompilerVisibleProperty Include="AvroSharpApacheCompatible" />
   </ItemGroup>
 
   <Target Name="AvroSharpAddGeneratorDependencies" AfterTargets="ResolveProjectReferences">

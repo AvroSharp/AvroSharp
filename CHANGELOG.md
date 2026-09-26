@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Apache.Avro compatibility mode for generated code (`AvroSharpApacheCompatible=true`, requires a reference to Apache.Avro): records also implement `Avro.Specific.ISpecificRecord`, fixed types derive from `Avro.Specific.SpecificFixed`, and logical types use Apache's .NET types, so Apache's `SpecificDatumWriter<T>`/`SpecificDatumReader<T>` and AvroSharp's serializers work on the same classes and produce the same bytes. `Put` also accepts what Apache's reader passes: an enum's ordinal, and an `AvroDecimal` for a decimal on fixed. The generator reports `AVROGEN004` when the property is set without the reference.
 - Logical types in generated code:
   - `date` becomes `DateOnly` and `time-millis`/`time-micros` become `TimeOnly` (`DateTime`/`TimeSpan` where those types don't exist);
   - `timestamp-millis`/`timestamp-micros` become `DateTimeOffset`, and the `local-timestamp` variants become `DateTime`;

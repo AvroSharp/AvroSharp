@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The generator's Apache.Avro compatibility mode: the same schemas as the consumer tests, generated with
+       AvroSharpApacheCompatible, and used through Apache.Avro's own specific reader and writer. -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+  <ItemGroup>
+    <AdditionalFiles Include="..\AvroSharp.Generators.Consumer.Tests\Schemas\*.avsc" Link="Schemas\%(Filename)%(Extension)" />
+    <Compile Include="..\AvroSharp.Interop.Tests\RandomValues.cs" Link="RandomValues.cs" />
+  </ItemGroup>
+
+</Project>

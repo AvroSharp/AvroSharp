@@ -4,6 +4,7 @@
   <ItemGroup>
     <CompilerVisibleProperty Include="AvroSharpNamespace" />
     <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
+    <CompilerVisibleProperty Include="AvroSharpApacheCompatible" />
   </ItemGroup>
 
 </Project>

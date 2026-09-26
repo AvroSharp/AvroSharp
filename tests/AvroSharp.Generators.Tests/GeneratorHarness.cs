@@ -20,12 +20,19 @@ internal static class GeneratorHarness
             .Where(path => Path.GetFileName(path).StartsWith("System", StringComparison.Ordinal) || Path.GetFileName(path) is "mscorlib.dll" or "netstandard.dll")
             .Select(path => MetadataReference.CreateFromFile(path))]);
 
-    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp = true, params string[] sources)
+    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp = true, params string[] sources) => CreateCompilation(referenceAvroSharp, referenceApache: false, sources);
+
+    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp, bool referenceApache, params string[] sources)
     {
         IEnumerable<MetadataReference> references = s_frameworkReferences.Value;
         if (referenceAvroSharp)
         {
             references = references.Append(MetadataReference.CreateFromFile(typeof(AvroSharp.IO.AvroWriter).Assembly.Location));
+        }
+
+        if (referenceApache)
+        {
+            references = references.Append(MetadataReference.CreateFromFile(typeof(Avro.Schema).Assembly.Location));
         }
 
         return CSharpCompilation.Create(
@@ -35,20 +42,20 @@ internal static class GeneratorHarness
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
 
-    public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, string? logicalTypes = null) =>
+    public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, string? logicalTypes = null, bool apacheCompatible = false) =>
         CSharpGeneratorDriver.Create(
             [new SchemaFileGenerator().AsSourceGenerator()],
             files.Select(f => (AdditionalText)new InMemoryText(f.Path, f.Text)),
             new CSharpParseOptions(LanguageVersion.Latest),
-            new Options(Properties(avroSharpNamespace, logicalTypes)),
+            new Options(Properties(avroSharpNamespace, logicalTypes, apacheCompatible)),
             new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
 
     /// <summary>Runs the generator; returns the generated sources, the generator's diagnostics and the compiler's.</summary>
     public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
-        Run(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, bool referenceAvroSharp = true, string? logicalTypes = null)
+        Run(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, bool referenceAvroSharp = true, string? logicalTypes = null, bool apacheCompatible = false, bool referenceApache = false)
     {
-        var compilation = CreateCompilation(referenceAvroSharp, "internal static class Placeholder { }");
-        var driver = CreateDriver(files, avroSharpNamespace, logicalTypes).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+        var compilation = CreateCompilation(referenceAvroSharp, referenceApache, "internal static class Placeholder { }");
+        var driver = CreateDriver(files, avroSharpNamespace, logicalTypes, apacheCompatible).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
         var result = driver.GetRunResult().Results.Single();
         return (result.GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
     }
@@ -56,7 +63,7 @@ internal static class GeneratorHarness
     public static AdditionalText Text(string path, string text) => new InMemoryText(path, text);
 
     /// <summary>The MSBuild properties the generator reads, as the compiler exposes them (build_property.*).</summary>
-    private static Dictionary<string, string> Properties(string? avroSharpNamespace, string? logicalTypes)
+    private static Dictionary<string, string> Properties(string? avroSharpNamespace, string? logicalTypes, bool apacheCompatible)
     {
         var properties = new Dictionary<string, string>(StringComparer.Ordinal);
         if (avroSharpNamespace is not null)
@@ -67,6 +74,11 @@ internal static class GeneratorHarness
         if (logicalTypes is not null)
         {
             properties["build_property.AvroSharpLogicalTypes"] = logicalTypes;
+        }
+
+        if (apacheCompatible)
+        {
+            properties["build_property.AvroSharpApacheCompatible"] = "true";
         }
 
         return properties;

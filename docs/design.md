@@ -468,7 +468,7 @@ AvroSharp/
     - net481 compiles the generated code against the netstandard2.0 build.
   - **Benchmarks:** measured on 2026-09-26 on an i5-3570K and a Ryzen 5 3500U (docs/reviews/2026-09-26-generated-code.md). Generated code is the fastest AvroSharp path: 1.5-1.9× faster than the generic model for reading and 1.3-1.5× for writing, and 3.7-6.0× faster than Apache.Avro. The exit criterion is met.
   - **Deferred:**
-    - rich logical types are done (#11); the Apache-compatible mapping (with Apache's `AvroDecimal`) comes with the compatibility mode (#12);
+    - rich logical types (#11), field access by position through `IAvroSpecificRecord` (#10), and the opt-in Apache.Avro compatibility mode (#12, `ISpecificRecord`/`SpecificFixed` with Apache's logical types) are done;
     - generated union classes for multi-branch unions;
     - `required`/`init` members and records;
     - field-run fusion (§4.11).

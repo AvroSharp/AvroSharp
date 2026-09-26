@@ -1,5 +1,7 @@
 #nullable enable
 AvroSharp.CodeGen.CodeGenOptions
+AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.get -> bool
+AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.init -> void
 AvroSharp.CodeGen.CodeGenOptions.CodeGenOptions() -> void
 AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.get -> string?
 AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.init -> void
