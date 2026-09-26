@@ -16,7 +16,7 @@ public class FuzzSmokeTests
     private const int MutationsPerSeed = 300;
 
     public static IEnumerable<string> Targets() =>
-        [nameof(FuzzTargets.GenericBinary), nameof(FuzzTargets.GenericJson), nameof(FuzzTargets.SchemaParse)];
+        [nameof(FuzzTargets.GenericBinary), nameof(FuzzTargets.GenericJson), nameof(FuzzTargets.SchemaParse), nameof(FuzzTargets.ContainerFile), nameof(FuzzTargets.SingleObject), nameof(FuzzTargets.Resolution)];
 
     [Test]
     [MethodDataSource(nameof(Targets))]
@@ -26,6 +26,9 @@ public class FuzzSmokeTests
         {
             nameof(FuzzTargets.GenericBinary) => FuzzTargets.GenericBinary,
             nameof(FuzzTargets.GenericJson) => FuzzTargets.GenericJson,
+            nameof(FuzzTargets.ContainerFile) => FuzzTargets.ContainerFile,
+            nameof(FuzzTargets.SingleObject) => FuzzTargets.SingleObject,
+            nameof(FuzzTargets.Resolution) => FuzzTargets.Resolution,
             _ => FuzzTargets.SchemaParse,
         };
 

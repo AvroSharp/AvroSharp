@@ -1,3 +1,6 @@
+| `ContainerFile` | An object container file (read with a 1 MiB block limit) | Only `AvroException` escapes; every object read round-trips like `GenericBinary` |
+| `SingleObject` | A single-object encoded message of one of the schemas | Only `AvroException` escapes; the object round-trips |
+| `Resolution` | First byte picks a writer/reader schema pair; the rest is writer data | The resolving reader and the transcoder that generated types use either both fail or give equal values |
 # Fuzzing
 
 `AvroSharp.Fuzz` holds coverage-guided fuzz targets for [SharpFuzz](https://github.com/Metalnem/sharpfuzz) and libFuzzer. The targets are in [`FuzzTargets.cs`](AvroSharp.Fuzz/FuzzTargets.cs):
@@ -7,6 +10,9 @@
 | `SchemaParse` | Schema JSON | Only `AvroException` escapes; a parsed schema writes and parses back to the same canonical form |
 | `GenericBinary` | First byte picks a schema; the rest is binary data | Only `AvroException` escapes; an accepted value round-trips through binary (exactly) and JSON |
 | `GenericJson` | First byte picks a schema; the rest is JSON data | Same as `GenericBinary` |
+| `ContainerFile` | An object container file, read with a 1 MiB block limit | Only `AvroException` escapes; every object read round-trips like `GenericBinary` |
+| `SingleObject` | A single-object encoded message of one of the schemas | Only `AvroException` escapes; the object round-trips |
+| `Resolution` | First byte picks a writer/reader schema pair; the rest is writer data | The resolving reader and the transcoder that generated types use either both fail or give equal values |
 
 The same targets run on every build as a seeded mutation smoke test (`tests/AvroSharp.Tests/Fuzz/FuzzSmokeTests.cs`). That catches crashes close to valid input but is not coverage-guided; use libFuzzer for longer runs.
 
