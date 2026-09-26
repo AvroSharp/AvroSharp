@@ -13,10 +13,11 @@ namespace AvroSharp.Generic;
 /// typed reader nodes, so reading does not inspect the schema; instances are cached per schema and are thread-safe.
 /// </summary>
 /// <remarks>
-/// This reader expects data written with the same schema. Reading data written with a different schema version
-/// (schema resolution) arrives in milestone M3.
+/// <see cref="Create(AvroSchema, GenericDatumReaderOptions?)"/> reads data with the schema it was written with.
+/// <see cref="Create(AvroSchema, AvroSchema, GenericDatumReaderOptions?)"/> reads data written with one schema version
+/// as another (schema resolution), following the specification's rules.
 /// </remarks>
-public sealed class GenericDatumReader
+public sealed partial class GenericDatumReader
 {
     // Items pre-allocated for an array or map before any are read; larger blocks grow as items arrive, so a block
     // count alone never causes a large allocation.
@@ -30,12 +31,16 @@ public sealed class GenericDatumReader
     private GenericDatumReader(AvroSchema schema, GenericDatumReaderOptions options)
     {
         Schema = schema;
+        ReaderSchema = schema;
         _options = options;
         _root = new Builder().Build(schema);
     }
 
     /// <summary>Gets the schema the data was written with.</summary>
     public AvroSchema Schema { get; }
+
+    /// <summary>Gets the schema that values are read as: the same as <see cref="Schema"/> unless resolving between versions.</summary>
+    public AvroSchema ReaderSchema { get; }
 
     /// <summary>
     /// Gets the reader for <paramref name="schema"/>, compiling it on first use. Readers with the default options are
