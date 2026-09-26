@@ -237,6 +237,19 @@ public class SchemaResolutionTests
         await Assert.That(read["next"].AsRecord()["next"].IsNull).IsTrue();
     }
 
+    /// <summary>Apache.Avro 1.12.2's resolving reader overflows the stack building a skip for a recursive record.</summary>
+    [Test]
+    public async Task WriterOnlyRecursiveFields_AreSkipped()
+    {
+        var writer = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"v","type":"int"},{"name":"child","type":["null","Node"]}]}""");
+        var reader = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"v","type":"int"}]}""");
+        var value = new GenericRecord(writer) { ["v"] = 1, ["child"] = new GenericRecord(writer) { ["v"] = 2, ["child"] = new GenericRecord(writer) { ["v"] = 3, ["child"] = AvroValue.Null } } };
+
+        var read = Resolve(writer, reader, value).AsRecord();
+
+        await Assert.That(read["v"].AsInt32()).IsEqualTo(1);
+    }
+
     [Test]
     public async Task WriterOnlyArrays_WithRecordedBlockSizes_AreSkippedInOneStep()
     {

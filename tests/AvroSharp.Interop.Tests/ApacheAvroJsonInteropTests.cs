@@ -27,7 +27,7 @@ public class ApacheAvroJsonInteropTests
             (json, seed) =>
             {
                 var schema = AvroSchema.Parse(json);
-                if (IsRecursive(schema) || new RandomValues(seed).TryCreate(schema) is not { } value)
+                if (SchemaShapes.IsRecursive(schema) || new RandomValues(seed).TryCreate(schema) is not { } value)
                 {
                     return;
                 }
@@ -76,7 +76,7 @@ public class ApacheAvroJsonInteropTests
             (json, seed) =>
             {
                 var schema = AvroSchema.Parse(json);
-                if (IsRecursive(schema) || HasEmptyRecord(schema) || new RandomValues(seed).TryCreate(schema) is not { } value)
+                if (SchemaShapes.IsRecursive(schema) || HasEmptyRecord(schema) || new RandomValues(seed).TryCreate(schema) is not { } value)
                 {
                     return;
                 }
@@ -132,36 +132,4 @@ public class ApacheAvroJsonInteropTests
         };
     }
 
-    /// <summary>
-    /// Apache.Avro 1.12.2's JSON grammar generator recurses without end on a record that contains itself (a stack
-    /// overflow in <c>Symbol.FlattenedSize</c>, which kills the test process), so such schemas are left out here.
-    /// AvroSharp's own JSON tests cover recursive records.
-    /// </summary>
-    private static bool IsRecursive(AvroSharp.Schemas.AvroSchema schema)
-    {
-        return Visit(schema, []);
-
-        static bool Visit(AvroSharp.Schemas.AvroSchema schema, System.Collections.Generic.HashSet<AvroSharp.Schemas.RecordSchema> open) => schema switch
-        {
-            AvroSharp.Schemas.RecordSchema record => !open.Add(record) || VisitFields(record, open),
-            AvroSharp.Schemas.ArraySchema array => Visit(array.Items, open),
-            AvroSharp.Schemas.MapSchema map => Visit(map.Values, open),
-            AvroSharp.Schemas.UnionSchema union => System.Linq.Enumerable.Any(union.Branches, b => Visit(b, open)),
-            _ => false,
-        };
-
-        static bool VisitFields(AvroSharp.Schemas.RecordSchema record, System.Collections.Generic.HashSet<AvroSharp.Schemas.RecordSchema> open)
-        {
-            foreach (var field in record.Fields)
-            {
-                if (Visit(field.Schema, open))
-                {
-                    return true;
-                }
-            }
-
-            open.Remove(record);
-            return false;
-        }
-    }
 }
