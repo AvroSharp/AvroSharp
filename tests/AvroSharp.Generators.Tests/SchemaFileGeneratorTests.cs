@@ -127,6 +127,26 @@ public class SchemaFileGeneratorTests
         await Assert.That(sources.Select(s => s.HintName).ToArray()).IsEquivalentTo(new[] { "x.Color.g.cs" });
     }
 
+    /// <summary>
+    /// Schema sets written for Apache's one-file-at-a-time tooling inline shared types in every file (#45). Identical
+    /// inlined definitions are accepted and generated once.
+    /// </summary>
+    [Test]
+    public async Task ATypeInlinedIdenticallyInSeveralFiles_IsGeneratedOnce()
+    {
+        const string Address = """{"type":"record","name":"Address","namespace":"geo","fields":[{"name":"city","type":"string"}]}""";
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run(
+        [
+            ("customer.avsc", """{"type":"record","name":"Customer","namespace":"crm","fields":[{"name":"home","type":""" + Address + "}]}"),
+            ("shop.avsc", """{"type":"record","name":"Shop","namespace":"retail","fields":[{"name":"site","type":""" + Address + "}]}"),
+        ]);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(sources.Select(s => s.HintName).OrderBy(h => h, StringComparer.Ordinal).ToArray())
+            .IsEquivalentTo(new[] { "crm.Customer.g.cs", "geo.Address.g.cs", "retail.Shop.g.cs" });
+        await Assert.That(compileDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)).IsEmpty();
+    }
+
     [Test]
     public async Task ATypeSharedByManyFiles_IsGeneratedOnce_AndEachRecordSchemaStandsAlone()
     {

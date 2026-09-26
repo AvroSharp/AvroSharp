@@ -133,7 +133,8 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
     /// </summary>
     private static GenerationResult Generate(ImmutableArray<SchemaFile> files, CodeGenOptions options, CancellationToken cancellationToken)
     {
-        var parser = new AvroSchemaParser();
+        // Schema sets written for Apache's one-file-at-a-time tooling repeat shared types in every file.
+        var parser = new AvroSchemaParser(new AvroSchemaParseOptions { AllowIdenticalRedefinitions = true });
         var parsed = new List<AvroSchema>();
         var pending = files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
         var errors = new Dictionary<SchemaFile, AvroSchemaException>();

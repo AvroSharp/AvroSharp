@@ -27,4 +27,13 @@ public sealed class AvroSchemaParseOptions
 
     /// <summary>Gets the maximum JSON nesting depth. Defaults to 256.</summary>
     public int MaxDepth { get; init; } = 256;
+
+    /// <summary>
+    /// Gets whether a named type that an earlier <see cref="AvroSchemaParser.Parse(string)"/> call on the same parser
+    /// defined may be defined again, provided both definitions have the same Parsing Canonical Form (docs, aliases
+    /// and defaults may differ). Schema sets written for tools that read one file at a time often repeat shared types
+    /// in every file. The first definition stays the one that later schemas refer to. A name defined twice within one
+    /// schema is always an error. Defaults to <see langword="false"/>.
+    /// </summary>
+    public bool AllowIdenticalRedefinitions { get; init; }
 }
