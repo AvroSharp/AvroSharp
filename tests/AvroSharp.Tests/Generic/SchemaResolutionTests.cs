@@ -274,6 +274,31 @@ public class SchemaResolutionTests
         var ex = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer, reader).Read(bytes));
 
         await Assert.That(ex.Message).Contains("larger than the remaining input");
+        await Assert.That(TranscodeFails(writer, reader, bytes).Message).Contains("larger than the remaining input");
+    }
+
+    [Test]
+    public async Task Transcoding_LimitsRecordDepth()
+    {
+        var writer = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"v","type":"int"},{"name":"next","type":["null","Node"]}]}""");
+        var reader = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"v","type":"long"},{"name":"next","type":["null","Node"]}]}""");
+
+        // 200 nested nodes: v = 0 and the union's record branch, then a null to end.
+        var bytes = Enumerable.Repeat(new byte[] { 0x00, 0x02 }, 200).SelectMany(b => b).Concat(new byte[] { 0x00, 0x00 }).ToArray();
+
+        await Assert.That(TranscodeFails(writer, reader, bytes).Message).Contains("nested more than 128");
+        await Assert.That(Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer, reader).Read(bytes)).Message).Contains("nested more than 128");
+    }
+
+    [Test]
+    public async Task Transcoding_RejectsImpossibleBlockCounts_InKeptArrays()
+    {
+        var writer = AvroSchema.Parse("""{"type":"array","items":"int"}""");
+        var reader = AvroSchema.Parse("""{"type":"array","items":"long"}""");
+
+        byte[] bytes = [0x80, 0xA8, 0xD6, 0xB9, 0x07, 0x02, 0x00];
+
+        await Assert.That(TranscodeFails(writer, reader, bytes).Message).Contains("larger than the remaining input");
     }
 
     [Test]
@@ -287,6 +312,29 @@ public class SchemaResolutionTests
         await Assert.That(GenericDatumReader.Create(writer, writer).ReaderSchema).IsSameReferenceAs(writer);
     }
 
-    private static AvroValue Resolve(AvroSchema writer, AvroSchema reader, AvroValue value) =>
-        GenericDatumReader.Create(writer, reader).Read(GenericDatumWriter.Create(writer).WriteToArray(value));
+    /// <summary>
+    /// Resolves with the generic reader, and checks that the transcoder generated types use (which writes the reader's
+    /// encoding directly) gives the same bytes as the resolved value written again.
+    /// </summary>
+    private static AvroValue Resolve(AvroSchema writer, AvroSchema reader, AvroValue value)
+    {
+        var bytes = GenericDatumWriter.Create(writer).WriteToArray(value);
+        var resolved = GenericDatumReader.Create(writer, reader).Read(bytes);
+        var input = new AvroReader(bytes);
+        var transcoded = AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader).ToArray();
+        var expected = GenericDatumWriter.Create(reader).WriteToArray(resolved);
+        if (!transcoded.AsSpan().SequenceEqual(expected) || !input.IsAtEnd)
+        {
+            throw new InvalidOperationException($"Transcoded {Convert.ToHexString(transcoded)}, resolved {Convert.ToHexString(expected)}.");
+        }
+
+        return resolved;
+    }
+
+    private static AvroDataException TranscodeFails(AvroSchema writer, AvroSchema reader, byte[] bytes) =>
+        Assert.Throws<AvroDataException>(() =>
+        {
+            var input = new AvroReader(bytes);
+            AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
+        });
 }

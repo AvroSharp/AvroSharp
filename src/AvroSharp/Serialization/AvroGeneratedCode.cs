@@ -160,17 +160,36 @@ public static class AvroGeneratedCode
     }
 
     /// <summary>
-    /// Reads one value written with <paramref name="writerSchema"/>, resolves it to <paramref name="readerSchema"/>
-    /// with the generic model, and returns it in the reader schema's encoding, for the generated reader to read.
+    /// Reads one value written with <paramref name="writerSchema"/> and returns it in <paramref name="readerSchema"/>'s
+    /// encoding, resolved as the specification says, for the generated reader to read. No generic values are created.
     /// </summary>
+    /// <remarks>
+    /// The result is a per-thread buffer that the next call on the thread overwrites: read it before calling again.
+    /// </remarks>
     /// <param name="reader">The source.</param>
     /// <param name="writerSchema">The schema the data was written with.</param>
     /// <param name="readerSchema">The generated type's schema.</param>
-    public static byte[] ResolveToReaderEncoding(ref AvroReader reader, AvroSchema writerSchema, AvroSchema readerSchema)
+    public static ReadOnlySpan<byte> ResolveToReaderEncoding(ref AvroReader reader, AvroSchema writerSchema, AvroSchema readerSchema)
     {
-        var value = GenericDatumReader.Create(writerSchema, readerSchema).Read(ref reader);
-        return GenericDatumWriter.Create(readerSchema).WriteToArray(value);
+        ArgumentNullException.ThrowIfNull(writerSchema);
+        ArgumentNullException.ThrowIfNull(readerSchema);
+        var buffer = t_resolved;
+        if (buffer is null || buffer.Capacity > MaxRetainedResolvedBuffer)
+        {
+            buffer?.Dispose();
+            buffer = t_resolved = new PooledBufferWriter(1024);
+        }
+
+        buffer.Clear();
+        GenericDatumReader.GetTranscoder(writerSchema, readerSchema).Transcode(ref reader, buffer);
+        return buffer.WrittenSpan;
     }
+
+    // A buffer grown past this by one large value is replaced on the next call instead of being kept by the thread.
+    private const int MaxRetainedResolvedBuffer = 1024 * 1024;
+
+    [ThreadStatic]
+    private static PooledBufferWriter? t_resolved;
 
     /// <summary>Checks the length of a fixed value's bytes.</summary>
     /// <param name="value">The bytes.</param>

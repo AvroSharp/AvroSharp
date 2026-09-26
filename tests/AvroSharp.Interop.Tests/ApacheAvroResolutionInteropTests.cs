@@ -62,6 +62,15 @@ public class ApacheAvroResolutionInteropTests
                     throw new InvalidOperationException(
                         $"Resolved values differ.\nWriter: {writerJson}\nReader: {readerJson}\nAvroSharp: {Convert.ToHexString(ours)}\nApache:    {Convert.ToHexString(output.ToArray())}");
                 }
+
+                // The transcoder that generated types use must produce the same reader encoding directly.
+                var bytesReader = new AvroSharp.IO.AvroReader(bytes);
+                var transcoded = AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref bytesReader, writer, reader).ToArray();
+                if (!transcoded.AsSpan().SequenceEqual(ours) || !bytesReader.IsAtEnd)
+                {
+                    throw new InvalidOperationException(
+                        $"Transcoding differs.\nWriter: {writerJson}\nReader: {readerJson}\nResolved:   {Convert.ToHexString(ours)}\nTranscoded: {Convert.ToHexString(transcoded)}");
+                }
             },
             iter: Iterations);
 
