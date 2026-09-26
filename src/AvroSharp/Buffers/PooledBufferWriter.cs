@@ -22,6 +22,8 @@ internal sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
 
     public ReadOnlyMemory<byte> WrittenMemory => _buffer.AsMemory(0, _written);
 
+    public ArraySegment<byte> WrittenSegment => new(_buffer, 0, _written);
+
     /// <summary>Discards everything written; the buffer is kept for reuse.</summary>
     public void Clear() => _written = 0;
 

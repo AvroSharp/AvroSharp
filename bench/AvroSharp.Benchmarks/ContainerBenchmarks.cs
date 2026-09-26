@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
 using BenchmarkDotNet.Attributes;
@@ -120,6 +121,25 @@ public class ContainerBenchmarks
         return _output.Length;
     }
 
+    // The asynchronous path: blocks are written with WriteAsync on a MemoryStream (which completes synchronously), so
+    // this measures the async machinery's overhead, not I/O overlap.
+    [Benchmark]
+    [BenchmarkCategory("Write")]
+    public async Task<long> AvroSharp_WriteAsync()
+    {
+        _output.SetLength(0);
+        var writer = AvroFileWriter.CreateGeneric(_output, _schema, Options());
+        await using (writer.ConfigureAwait(false))
+        {
+            foreach (var record in _records)
+            {
+                await writer.WriteAsync(record).ConfigureAwait(false);
+            }
+        }
+
+        return _output.Length;
+    }
+
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Read")]
     public int ApacheAvro_Read()
@@ -156,6 +176,21 @@ public class ContainerBenchmarks
         using var reader = AvroFileReader.Open<bench.generated.Order>(new MemoryStream(_file, writable: false), _ => bench.generated.Order.Read);
         var count = 0;
         while (reader.TryRead(out _))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Read")]
+    public async Task<int> AvroSharp_ReadAsync()
+    {
+        var reader = await AvroFileReader.OpenGenericAsync(new MemoryStream(_file, writable: false)).ConfigureAwait(false);
+        await using var disposeReader = reader.ConfigureAwait(false);
+        var count = 0;
+        await foreach (var _ in reader.ReadAllAsync().ConfigureAwait(false))
         {
             count++;
         }

@@ -14,9 +14,11 @@ AvroSharp.Containers.AvroFileReader
 AvroSharp.Containers.AvroFileReader<T>
 AvroSharp.Containers.AvroFileReader<T>.Codec.get -> string!
 AvroSharp.Containers.AvroFileReader<T>.Dispose() -> void
+AvroSharp.Containers.AvroFileReader<T>.DisposeAsync() -> System.Threading.Tasks.ValueTask
 AvroSharp.Containers.AvroFileReader<T>.GetMetadataString(string! key) -> string?
 AvroSharp.Containers.AvroFileReader<T>.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.ReadOnlyMemory<byte>>!
 AvroSharp.Containers.AvroFileReader<T>.ReadAll() -> System.Collections.Generic.IEnumerable<T>!
+AvroSharp.Containers.AvroFileReader<T>.ReadAllAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<T>!
 AvroSharp.Containers.AvroFileReader<T>.TryRead(out T value) -> bool
 AvroSharp.Containers.AvroFileReader<T>.WriterSchema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Containers.AvroFileReaderOptions
@@ -30,9 +32,12 @@ AvroSharp.Containers.AvroFileReaderOptions.MaxBlockLength.init -> void
 AvroSharp.Containers.AvroFileWriter
 AvroSharp.Containers.AvroFileWriter<T>
 AvroSharp.Containers.AvroFileWriter<T>.Dispose() -> void
+AvroSharp.Containers.AvroFileWriter<T>.DisposeAsync() -> System.Threading.Tasks.ValueTask
 AvroSharp.Containers.AvroFileWriter<T>.Flush() -> void
+AvroSharp.Containers.AvroFileWriter<T>.FlushAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AvroSharp.Containers.AvroFileWriter<T>.Schema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Containers.AvroFileWriter<T>.Write(T value) -> void
+AvroSharp.Containers.AvroFileWriter<T>.WriteAsync(T value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AvroSharp.Containers.AvroFileWriterOptions
 AvroSharp.Containers.AvroFileWriterOptions.AvroFileWriterOptions() -> void
 AvroSharp.Containers.AvroFileWriterOptions.Codec.get -> AvroSharp.Containers.AvroCodec!
@@ -364,7 +369,9 @@ static AvroSharp.Containers.AvroCodec.CreateDeflate(System.IO.Compression.Compre
 static AvroSharp.Containers.AvroCodec.Deflate.get -> AvroSharp.Containers.AvroCodec!
 static AvroSharp.Containers.AvroCodec.Null.get -> AvroSharp.Containers.AvroCodec!
 static AvroSharp.Containers.AvroFileReader.Open<T>(System.IO.Stream! stream, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>! createReader, AvroSharp.Containers.AvroFileReaderOptions? options = null) -> AvroSharp.Containers.AvroFileReader<T>!
+static AvroSharp.Containers.AvroFileReader.OpenAsync<T>(System.IO.Stream! stream, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>! createReader, AvroSharp.Containers.AvroFileReaderOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Containers.AvroFileReader<T>!>
 static AvroSharp.Containers.AvroFileReader.OpenGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema? readerSchema = null, AvroSharp.Containers.AvroFileReaderOptions? options = null, AvroSharp.Generic.GenericDatumReaderOptions? readerOptions = null) -> AvroSharp.Containers.AvroFileReader<AvroSharp.Generic.AvroValue>!
+static AvroSharp.Containers.AvroFileReader.OpenGenericAsync(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema? readerSchema = null, AvroSharp.Containers.AvroFileReaderOptions? options = null, AvroSharp.Generic.GenericDatumReaderOptions? readerOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Containers.AvroFileReader<AvroSharp.Generic.AvroValue>!>
 static AvroSharp.Containers.AvroFileReaderOptions.Default.get -> AvroSharp.Containers.AvroFileReaderOptions!
 static AvroSharp.Containers.AvroFileWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Containers.AvroFileWriterOptions? options = null) -> AvroSharp.Containers.AvroFileWriter<T>!
 static AvroSharp.Containers.AvroFileWriter.CreateGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Containers.AvroFileWriterOptions? options = null, AvroSharp.Generic.GenericDatumWriterOptions? writerOptions = null) -> AvroSharp.Containers.AvroFileWriter<AvroSharp.Generic.AvroValue>!
