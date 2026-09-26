@@ -6,10 +6,10 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - schemas (parsing, writing, canonical form, fingerprints);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files;
-> - object container files with the `null` and `deflate` codecs;
+> - object container files (synchronous and asynchronous) with the `null` and `deflate` codecs;
 > - single-object encoding.
 >
-> Not implemented yet: the other codecs and async container I/O. See [the design](docs/design.md) for the roadmap.
+> Not implemented yet: the codecs besides `null` and `deflate`. See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 
@@ -28,6 +28,10 @@ writer.Write(record);                        // an AvroValue or GenericRecord
 
 using var reader = AvroFileReader.OpenGeneric(stream, readerSchema);  // readerSchema is optional
 foreach (var value in reader.ReadAll()) { ... }
+
+// Asynchronous: no synchronous I/O; each block is decoded synchronously once it is in memory.
+await using var asyncReader = await AvroFileReader.OpenGenericAsync(stream);
+await foreach (var value in asyncReader.ReadAllAsync(cancellationToken)) { ... }
 ```
 
 Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound. Other codecs can be plugged in by subclassing `AvroCodec`.

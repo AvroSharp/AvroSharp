@@ -22,6 +22,7 @@
   <ItemGroup>
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.12" />
   </ItemGroup>
 
   <!-- Tests and benchmarks only; never referenced from src/ (enforced in Directory.Build.targets). -->

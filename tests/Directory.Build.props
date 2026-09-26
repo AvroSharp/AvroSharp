@@ -6,6 +6,8 @@
     <IsPackable>false</IsPackable>
     <!-- Documentation file stays on so IDE0005 runs on build; test code need not be documented. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Tests call synchronous APIs from async test methods on purpose: both paths are under test. -->
+    <NoWarn>$(NoWarn);CA1849;VSTHRD103</NoWarn>
     <!-- Reference Polyfill once, ourselves, instead of TUnit's compile-only copy. -->
     <EnableTUnitPolyfills>false</EnableTUnitPolyfills>
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>

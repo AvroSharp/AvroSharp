@@ -1,0 +1,396 @@
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using AvroSharp.Buffers;
+using AvroSharp.IO;
+using AvroSharp.Schemas;
+using AvroSharp.Serialization;
+
+namespace AvroSharp.Containers;
+
+/// <summary>
+/// Parsing and buffering. The header and block prefixes are parsed from the buffered input; when it ends too soon,
+/// the caller fills more (synchronously or asynchronously) and parsing starts again, so both paths share one parser.
+/// </summary>
+public sealed partial class AvroFileReader<T>
+{
+    private const string MagicPart = "magic";
+
+    private bool TryParseHeader(out string needed)
+    {
+        var cursor = new Cursor(_input.AsSpan(_inputStart, Buffered));
+        needed = MagicPart;
+        if (!cursor.TrySlice(AvroContainerFormat.Magic.Length, out var magic))
+        {
+            return false;
+        }
+
+        if (!magic.SequenceEqual(AvroContainerFormat.Magic))
+        {
+            throw NotAContainer();
+        }
+
+        var metadata = new Dictionary<string, ReadOnlyMemory<byte>>(StringComparer.Ordinal);
+        while (true)
+        {
+            needed = "metadata block count";
+            if (!cursor.TryReadLong(needed, out var count))
+            {
+                return false;
+            }
+
+            if (count == 0)
+            {
+                break;
+            }
+
+            if (count < 0)
+            {
+                count = -count;
+                needed = "metadata block size";
+                if (!cursor.TryReadLong(needed, out _))
+                {
+                    return false;
+                }
+            }
+
+            for (var i = 0L; i < count; i++)
+            {
+                if (!TryReadLengthPrefixed(ref cursor, "metadata key", out var key, out needed)
+                    || !TryReadLengthPrefixed(ref cursor, "metadata value", out var value, out needed))
+                {
+                    return false;
+                }
+
+                metadata[Encoding.UTF8.GetString(key)] = value.ToArray();
+            }
+        }
+
+        needed = "sync marker";
+        if (!cursor.TrySlice(AvroContainerFormat.SyncSize, out var sync))
+        {
+            return false;
+        }
+
+        sync.CopyTo(_sync);
+        _inputStart += cursor.Position;
+        SetHeader(metadata);
+        return true;
+    }
+
+    private bool TryReadLengthPrefixed(ref Cursor cursor, string what, out ReadOnlySpan<byte> bytes, out string needed)
+    {
+        bytes = default;
+        needed = what + " length";
+        if (!cursor.TryReadLong(needed, out var length))
+        {
+            return false;
+        }
+
+        if (length < 0 || length > _maxBlockLength)
+        {
+            throw new AvroDataException($"A {what} declares {length} bytes.");
+        }
+
+        needed = what;
+        return cursor.TrySlice((int)length, out bytes);
+    }
+
+    private void SetHeader(Dictionary<string, ReadOnlyMemory<byte>> metadata)
+    {
+        if (!metadata.TryGetValue(AvroContainerFormat.SchemaKey, out var schemaJson))
+        {
+            throw new AvroDataException("The file header has no 'avro.schema' entry.");
+        }
+
+        try
+        {
+            WriterSchema = AvroSchema.Parse(schemaJson.Span);
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw new AvroDataException($"The file's schema is invalid: {ex.Message}", ex);
+        }
+
+        Metadata = metadata;
+        var codecName = GetMetadataString(AvroContainerFormat.CodecKey) ?? AvroCodecNames.Null;
+        _codec = FindCodec(codecName, _codecs)
+            ?? throw new AvroException($"The file is compressed with the '{codecName}' codec, which is not available; add it to AvroFileReaderOptions.Codecs.");
+    }
+
+    // The header is parsed again after each fill, so the buffered amount grows geometrically, up to the limit.
+    private int NextHeaderFill()
+    {
+        if (Buffered >= _maxBlockLength)
+        {
+            throw new AvroDataException($"The file header is larger than the limit of {_maxBlockLength} bytes (AvroFileReaderOptions.MaxBlockLength).");
+        }
+
+        return (int)Math.Min((long)Buffered + Math.Max(Buffered, 256), _maxBlockLength);
+    }
+
+    private static AvroDataException HeaderTruncated(string needed) =>
+        ReferenceEquals(needed, MagicPart) ? NotAContainer() : Truncated(needed);
+
+    private static AvroDataException NotAContainer() =>
+        new("The data is not an Avro object container file: it does not start with 'Obj' and version 1.");
+
+    private bool TryParseBlockPrefix(out long count, out long size)
+    {
+        var cursor = new Cursor(_input.AsSpan(_inputStart, Buffered));
+        size = 0;
+        if (!cursor.TryReadLong("block count", out count) || !cursor.TryReadLong("block size", out size))
+        {
+            return false;
+        }
+
+        _inputStart += cursor.Position;
+        return true;
+    }
+
+    // Checks the block's prefix, rents its buffer and copies what is already buffered; returns the bytes copied.
+    private int StartBlock(long count, long size)
+    {
+        if (count < 0 || size < 0)
+        {
+            throw new AvroDataException($"A block declares {count} objects in {size} bytes.");
+        }
+
+        if (size > _maxBlockLength)
+        {
+            throw new AvroDataException($"A block of {size} bytes is larger than the limit of {_maxBlockLength} bytes (AvroFileReaderOptions.MaxBlockLength).");
+        }
+
+        ReturnRaw();
+        _raw = ArrayPool<byte>.Shared.Rent(Math.Max((int)size, 1));
+        var copied = Math.Min(Buffered, (int)size);
+        _input.AsSpan(_inputStart, copied).CopyTo(_raw);
+        _inputStart += copied;
+        return copied;
+    }
+
+    // Checks the sync marker (buffered by the caller) and prepares the block's objects for decoding.
+    private void FinishBlock(long count, int size)
+    {
+        if (!_input.AsSpan(_inputStart, AvroContainerFormat.SyncSize).SequenceEqual(_sync))
+        {
+            throw new AvroDataException("A block is not followed by the file's sync marker; the file is corrupt.");
+        }
+
+        _inputStart += AvroContainerFormat.SyncSize;
+        _blockData = Decompress(_raw.AsMemory(0, size));
+
+        // Every object takes at least one byte except zero-size ones (null, empty records), which input cannot bound.
+        if (count > _blockData.Length && count > AvroGeneratedCode.MaxZeroSizeItems)
+        {
+            throw new AvroDataException($"A block declares {count} objects in {_blockData.Length} bytes.");
+        }
+
+        if (count == 0 && _blockData.Length != 0)
+        {
+            throw new AvroDataException($"A block declares no objects but holds {_blockData.Length} bytes.");
+        }
+
+        _position = 0;
+        _objectsLeft = count;
+    }
+
+    private ReadOnlyMemory<byte> Decompress(ReadOnlyMemory<byte> raw)
+    {
+        if (ReferenceEquals(_codec, AvroCodec.Null))
+        {
+            return raw;
+        }
+
+        _decompressed ??= new PooledBufferWriter(Math.Max(raw.Length * 4, 256));
+        _decompressed.Clear();
+        try
+        {
+            _codec.Decompress(raw, new LimitedBufferWriter(_decompressed, _maxBlockLength));
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new AvroDataException($"A block cannot be decompressed with the '{_codec.Name}' codec: {ex.Message}", ex);
+        }
+
+        return _decompressed.WrittenMemory;
+    }
+
+    private static AvroCodec? FindCodec(string name, IReadOnlyList<AvroCodec> extra)
+    {
+        foreach (var codec in extra)
+        {
+            if (codec is not null && string.Equals(codec.Name, name, StringComparison.Ordinal))
+            {
+                return codec;
+            }
+        }
+
+        return name switch
+        {
+            AvroCodecNames.Null => AvroCodec.Null,
+            AvroCodecNames.Deflate => AvroCodec.Deflate,
+            _ => null,
+        };
+    }
+
+    private void ReturnRaw()
+    {
+        if (_raw.Length > 0)
+        {
+            ArrayPool<byte>.Shared.Return(_raw);
+            _raw = [];
+        }
+    }
+
+    // Reads until at least `count` bytes are buffered; false if the stream ends first.
+    private bool FillAtLeast(int count)
+    {
+        PrepareFill(count);
+        while (_inputEnd - _inputStart < count)
+        {
+            var read = _stream.Read(_input, _inputEnd, _input.Length - _inputEnd);
+            if (read == 0)
+            {
+                return false;
+            }
+
+            _inputEnd += read;
+        }
+
+        return true;
+    }
+
+    private async ValueTask<bool> FillAtLeastAsync(int count, CancellationToken cancellationToken)
+    {
+        PrepareFill(count);
+        while (_inputEnd - _inputStart < count)
+        {
+#if NETSTANDARD2_0
+            var read = await _stream.ReadAsync(_input, _inputEnd, _input.Length - _inputEnd, cancellationToken).ConfigureAwait(false);
+#else
+            var read = await _stream.ReadAsync(_input.AsMemory(_inputEnd), cancellationToken).ConfigureAwait(false);
+#endif
+            if (read == 0)
+            {
+                return false;
+            }
+
+            _inputEnd += read;
+        }
+
+        return true;
+    }
+
+    // Moves the unread bytes to the start of the buffer, growing it when `count` bytes would not fit.
+    private void PrepareFill(int count)
+    {
+        if (Buffered >= count)
+        {
+            return;
+        }
+
+        var target = _input;
+        if (count > _input.Length)
+        {
+            target = ArrayPool<byte>.Shared.Rent(count);
+        }
+
+        _input.AsSpan(_inputStart, Buffered).CopyTo(target);
+        _inputEnd = Buffered;
+        _inputStart = 0;
+        if (!ReferenceEquals(target, _input))
+        {
+            ArrayPool<byte>.Shared.Return(_input);
+            _input = target;
+        }
+    }
+
+    private bool ReadDirect(byte[] destination, int offset, int count)
+    {
+        while (count > 0)
+        {
+            var read = _stream.Read(destination, offset, count);
+            if (read == 0)
+            {
+                return false;
+            }
+
+            offset += read;
+            count -= read;
+        }
+
+        return true;
+    }
+
+    private async ValueTask<bool> ReadDirectAsync(byte[] destination, int offset, int count, CancellationToken cancellationToken)
+    {
+        while (count > 0)
+        {
+#if NETSTANDARD2_0
+            var read = await _stream.ReadAsync(destination, offset, count, cancellationToken).ConfigureAwait(false);
+#else
+            var read = await _stream.ReadAsync(destination.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
+#endif
+            if (read == 0)
+            {
+                return false;
+            }
+
+            offset += read;
+            count -= read;
+        }
+
+        return true;
+    }
+
+    /// <summary>Reads varints and slices from buffered bytes; reports incomplete data instead of throwing.</summary>
+    private ref struct Cursor(ReadOnlySpan<byte> data)
+    {
+        private readonly ReadOnlySpan<byte> _data = data;
+
+        public int Position { get; private set; }
+
+        public bool TryReadLong(string what, out long value)
+        {
+            ulong result = 0;
+            var position = Position;
+            for (var shift = 0; shift < 64; shift += 7)
+            {
+                if (position == _data.Length)
+                {
+                    value = 0;
+                    return false;
+                }
+
+                var b = _data[position++];
+                result |= (ulong)(b & 0x7F) << shift;
+                if (b < 0x80)
+                {
+                    Position = position;
+                    value = (long)(result >> 1) ^ -(long)(result & 1);
+                    return true;
+                }
+            }
+
+            throw new AvroDataException($"The {what} is a varint longer than 10 bytes.");
+        }
+
+        public bool TrySlice(int length, out ReadOnlySpan<byte> slice)
+        {
+            if (_data.Length - Position < length)
+            {
+                slice = default;
+                return false;
+            }
+
+            slice = _data.Slice(Position, length);
+            Position += length;
+            return true;
+        }
+    }
+}
