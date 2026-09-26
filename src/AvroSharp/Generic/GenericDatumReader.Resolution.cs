@@ -124,7 +124,7 @@ public sealed partial class GenericDatumReader
             }
         }
 
-        private static ReaderNode? Promote(AvroSchemaType writer, AvroSchemaType reader) => (writer, reader) switch
+        public static ReaderNode? Promote(AvroSchemaType writer, AvroSchemaType reader) => (writer, reader) switch
         {
             _ when writer == reader => reader switch
             {
@@ -198,7 +198,7 @@ public sealed partial class GenericDatumReader
             return node;
         }
 
-        private static RecordField? FindField(RecordSchema reader, string writerName)
+        public static RecordField? FindField(RecordSchema reader, string writerName)
         {
             if (reader.TryGetField(writerName, out var field))
             {
@@ -209,7 +209,10 @@ public sealed partial class GenericDatumReader
             return reader.Fields.FirstOrDefault(f => f.Aliases.Contains(writerName, StringComparer.Ordinal));
         }
 
-        private static EnumRemapNode BuildEnum(EnumSchema writer, EnumSchema reader)
+        private static EnumRemapNode BuildEnum(EnumSchema writer, EnumSchema reader) => new(writer, reader, EnumMap(writer, reader));
+
+        /// <summary>Maps each writer symbol to the reader's ordinal, the reader's default, or -1.</summary>
+        public static int[] EnumMap(EnumSchema writer, EnumSchema reader)
         {
             var map = new int[writer.Symbols.Count];
             var readerDefault = reader.Default is { } symbol && reader.TryGetOrdinal(symbol, out var d) ? d : -1;
@@ -218,14 +221,14 @@ public sealed partial class GenericDatumReader
                 map[i] = reader.TryGetOrdinal(writer.Symbols[i], out var ordinal) ? ordinal : readerDefault;
             }
 
-            return new EnumRemapNode(writer, reader, map);
+            return map;
         }
 
         /// <summary>
         /// The reader union's branch for a writer schema: first a branch of the same type (or name), then one the writer
         /// type promotes to, as the Java implementation chooses.
         /// </summary>
-        private static AvroSchema? BestBranch(AvroSchema writer, UnionSchema reader)
+        public static AvroSchema? BestBranch(AvroSchema writer, UnionSchema reader)
         {
             foreach (var branch in reader.Branches)
             {
@@ -246,10 +249,12 @@ public sealed partial class GenericDatumReader
             return null;
         }
 
-        private static bool NamesMatch(NamedSchema writer, NamedSchema reader) =>
+        public static bool NamesMatch(NamedSchema writer, NamedSchema reader) =>
             string.Equals(writer.FullName, reader.FullName, StringComparison.Ordinal)
             || string.Equals(writer.Name.Name, reader.Name.Name, StringComparison.Ordinal)
             || reader.Aliases.Any(alias => string.Equals(alias.FullName, writer.FullName, StringComparison.Ordinal));
+
+        public ReaderNode BuildSkipNode(AvroSchema writer) => BuildSkip(writer);
 
         private ReaderNode BuildSkip(AvroSchema writer) => writer switch
         {
@@ -287,7 +292,7 @@ public sealed partial class GenericDatumReader
         // The writer's encoding decides how many bytes a value takes, whatever it is read as.
         private int MinimumSizeOf(AvroSchema writer) => _identity.Build(writer).MinimumSize;
 
-        private static AvroSchemaException Incompatible(AvroSchema writer, AvroSchema reader, string path, string reason) =>
+        public static AvroSchemaException Incompatible(AvroSchema writer, AvroSchema reader, string path, string reason) =>
             new($"At {path}: data written as {writer.CanonicalForm} cannot be read as {reader.CanonicalForm}: {reason}.");
     }
 

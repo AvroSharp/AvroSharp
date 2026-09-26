@@ -455,7 +455,7 @@ static AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(object? value, 
 static AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref AvroSharp.IO.AvroReader reader, int minimumItemSize, int itemsSoFar) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref AvroSharp.IO.AvroReader reader, int symbolCount, string! enumName) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.AvroDataException!
-static AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> byte[]!
+static AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> System.ReadOnlySpan<byte>
 static AvroSharp.Serialization.AvroGeneratedCode.SerializeToArray<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write) -> byte[]!
 static AvroSharp.Serialization.AvroGeneratedCode.UnionValueMismatch(object? value, string! field) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.WriteTooDeep() -> AvroSharp.AvroException!

@@ -16,6 +16,8 @@ internal sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
 
     public int WrittenCount => _written;
 
+    public int Capacity => _buffer.Length;
+
     public ReadOnlySpan<byte> WrittenSpan => _buffer.AsSpan(0, _written);
 
     public ReadOnlyMemory<byte> WrittenMemory => _buffer.AsMemory(0, _written);
