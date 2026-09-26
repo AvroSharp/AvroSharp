@@ -270,6 +270,10 @@ AvroSharp.Schemas.UnionSchema.Branches.get -> System.Collections.Generic.IReadOn
 AvroSharp.Schemas.UnionSchema.UnionSchema(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! branches) -> void
 AvroSharp.Serialization.AvroGeneratedCode
 AvroSharp.Serialization.AvroWriteAction<T>
+AvroSharp.Serialization.IAvroSpecificRecord
+AvroSharp.Serialization.IAvroSpecificRecord.Get(int fieldPos) -> object?
+AvroSharp.Serialization.IAvroSpecificRecord.Put(int fieldPos, object? fieldValue) -> void
+AvroSharp.Serialization.IAvroSpecificRecord.Schema.get -> AvroSharp.Schemas.RecordSchema!
 const AvroSharp.AvroCodecNames.Bzip2 = "bzip2" -> string!
 const AvroSharp.AvroCodecNames.Deflate = "deflate" -> string!
 const AvroSharp.AvroCodecNames.Null = "null" -> string!
@@ -369,8 +373,10 @@ static AvroSharp.Schemas.SchemaName.operator !=(AvroSharp.Schemas.SchemaName? le
 static AvroSharp.Schemas.SchemaName.operator ==(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
 static AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(byte[]! value, int size, string! typeName) -> byte[]!
 static AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(int count) -> int
+static AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(int fieldPos, int fieldCount, string! recordName) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.IO.AvroDataException!
 static AvroSharp.Serialization.AvroGeneratedCode.NullValue(string! field) -> AvroSharp.AvroException!
+static AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(object? value, string! field, string! expectedType) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref AvroSharp.IO.AvroReader reader, int minimumItemSize, int itemsSoFar) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref AvroSharp.IO.AvroReader reader, int symbolCount, string! enumName) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.AvroDataException!

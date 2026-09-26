@@ -9,7 +9,7 @@ namespace app.events
     /// Something that happened.
     /// </summary>
     [global::System.CodeDom.Compiler.GeneratedCode("AvroSharp.CodeGen", "0.0.0.0")]
-    public sealed partial class Event
+    public sealed partial class Event : global::AvroSharp.Serialization.IAvroSpecificRecord
     {
         /// <summary>The Avro schema of this type, as JSON.</summary>
         public const string SchemaJson = "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"app.events\",\"doc\":\"Something that happened.\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"kind\",\"type\":{\"type\":\"enum\",\"name\":\"Kind\",\"symbols\":[\"CREATED\",\"DELETED\"]}},{\"name\":\"hash\",\"type\":{\"type\":\"fixed\",\"name\":\"Hash\",\"size\":2}},{\"name\":\"tags\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"scores\",\"type\":{\"type\":\"map\",\"values\":\"double\"}},{\"name\":\"parent\",\"type\":[\"null\",\"Event\"]},{\"name\":\"payload\",\"type\":[\"null\",\"int\",\"string\"]}]}";
@@ -55,6 +55,63 @@ namespace app.events
         {
             var reader = new global::AvroSharp.IO.AvroReader(data);
             return ReadCore(ref reader, 0);
+        }
+
+        global::AvroSharp.Schemas.RecordSchema global::AvroSharp.Serialization.IAvroSpecificRecord.Schema => (global::AvroSharp.Schemas.RecordSchema)Schema;
+
+        /// <summary>Gets the value of the field at a position in the schema, boxed.</summary>
+        public object? Get(int fieldPos)
+        {
+            switch (fieldPos)
+            {
+                case 0:
+                    return Id;
+                case 1:
+                    return Kind;
+                case 2:
+                    return Hash;
+                case 3:
+                    return Tags;
+                case 4:
+                    return Scores;
+                case 5:
+                    return Parent;
+                case 6:
+                    return Payload;
+                default:
+                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(fieldPos, 7, "app.events.Event");
+            }
+        }
+
+        /// <summary>Sets the value of the field at a position in the schema; the value must have the field's C# type.</summary>
+        public void Put(int fieldPos, object? fieldValue)
+        {
+            switch (fieldPos)
+            {
+                case 0:
+                    Id = fieldValue is long v0 ? v0 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.id", "long");
+                    break;
+                case 1:
+                    Kind = fieldValue is global::app.events.Kind v1 ? v1 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.kind", "app.events.Kind");
+                    break;
+                case 2:
+                    Hash = fieldValue as global::app.events.Hash ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.hash", "app.events.Hash");
+                    break;
+                case 3:
+                    Tags = fieldValue as global::System.Collections.Generic.List<string> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.tags", "System.Collections.Generic.List<string>");
+                    break;
+                case 4:
+                    Scores = fieldValue as global::System.Collections.Generic.Dictionary<string, double> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.scores", "System.Collections.Generic.Dictionary<string, double>");
+                    break;
+                case 5:
+                    Parent = fieldValue == null ? (global::app.events.Event?)null : fieldValue as global::app.events.Event ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.parent", "app.events.Event?");
+                    break;
+                case 6:
+                    Payload = fieldValue;
+                    break;
+                default:
+                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(fieldPos, 7, "app.events.Event");
+            }
         }
 
         internal static void WriteCore(ref global::AvroSharp.IO.AvroWriter writer, Event value, int depth)
