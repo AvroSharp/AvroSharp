@@ -36,6 +36,30 @@ Times are per value (÷ 65,536). The numbers in brackets are the fully branchles
 | Read | 920 → 801 ns (13% faster) | 1,046 → 1,000 ns | 2.0× / 2.6× |
 | Write | 339 → 335 ns | 540 → 526 ns | 4.0× / 4.4× |
 
+## i5-3570K (no BMI2, shift-and-mask fallback)
+
+Same commit, DefaultJob. "Before" is the `ad53209` 64K run on the same machine. The comparison against Apache passed on every row.
+
+| Case | Before → `825f114` | vs Apache |
+|---|---|---|
+| Decode 1 / 2 bytes | 1.85 / 2.06 → 1.85 / 2.06 ns | 0.43 / 0.31 |
+| Decode 3 / 4 bytes | 3.62 / – → 4.28 / 4.11 | 0.47 / 0.35 |
+| Decode 5 / 8 bytes | 7.41 / 7.64 (no i5 baseline) | 0.53 / 0.37 |
+| Decode mixed 1–10 | 12.92 → **11.16** (14% faster) | 0.52 |
+| Decode mixed 1–2 | 4.93 → 4.93 | 0.52 |
+| Encode 1 / 2 bytes | 2.04 / 2.13 → 2.03 / 2.13 | 0.83 / 0.47 |
+| Encode 3 / 4 bytes | 4.89 / – → 4.77 / 5.30 | 0.70 / 0.60 |
+| Encode 5 / 8 bytes | 7.62 / 7.72 (no i5 baseline) | 0.70 / 0.45 |
+| Encode mixed 1–10 | 10.77 → **9.89** (8% faster) | 0.59 |
+| Encode mixed 1–2 | 4.62 → 4.62 | 0.64 |
+
+GenericRecord: read 1,474 ns (0.43× Apache, 0.68× the allocation), write 678 ns (0.22×, no allocation). There is no earlier i5 GenericRecord run on the 64K benchmarks to compare with.
+
+- The i5 has no mixed 1–2 encode regression, and neither does the i7. That points at the EPYC comparison rather than the code (see below).
+- 3-byte decode reads 18% slower than the `ad53209` run, and slower than 4 bytes (4.28 vs 4.11 ns). The 3- and 4-byte code is the same as in `8e4a4a7`, so this is code layout or noise in one of the two runs. It is still 0.47× Apache. Unverified.
+
+**On the EPYC mixed 1–2 encode regression (finding 3):** the EPYC baseline is the earlier 64K run, whose code was unknown and probably predates `ad53209` (see [2026-09-26-benchmarks-64k.md](2026-09-26-benchmarks-64k.md)). The one- and two-byte write path in `825f114` is the same source as in `8e4a4a7`. So the 3.72 → 4.24 ns change may come from `ad53209` or from run-to-run variation, not from this commit. An A/B run of `8e4a4a7` against `825f114` on the EPYC, limited to `Mixed1-2`, would settle it.
+
 ## Findings
 
 1. **This is a good trade overall.**
