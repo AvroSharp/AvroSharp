@@ -96,6 +96,11 @@ foreach (var codec in new[] { AvroSharp.Containers.AvroCodec.Null, AvroSharp.Con
     Check(count == 10 && Same(reader.Codec, codec.Name), $"container file with the {codec.Name} codec");
 }
 
+// Single-object encoding.
+var message = AvroSharp.Messages.AvroMessage.ToArray(alice, AvroSharp.Generic.GenericDatumWriter.Create(person));
+var fromMessage = AvroSharp.Messages.AvroMessageReader.CreateGeneric(new AvroSharp.Messages.AvroSchemaStore(person)).Read(message);
+Check(fromMessage.Equals((AvroSharp.Generic.AvroValue)alice) && message.Length == encoded.Length + AvroSharp.Messages.AvroMessage.HeaderLength, "single-object encoding");
+
 static bool Same(string? a, string? b) => string.Equals(a, b, StringComparison.Ordinal);
 
 Console.WriteLine(failures == 0 ? "AOT smoke test passed" : $"AOT smoke test failed ({failures})");

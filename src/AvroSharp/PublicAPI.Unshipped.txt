@@ -181,6 +181,16 @@ AvroSharp.IO.AvroWriter.WriteString(scoped System.ReadOnlySpan<char> value) -> v
 AvroSharp.IO.AvroWriter.WriteString(string! value) -> void
 AvroSharp.IO.AvroWriter.WriteStringUtf8(scoped System.ReadOnlySpan<byte> utf8) -> void
 AvroSharp.IO.AvroWriter.WriteUnionIndex(int index) -> void
+AvroSharp.Messages.AvroMessage
+AvroSharp.Messages.AvroMessageReader
+AvroSharp.Messages.AvroMessageReader<T>
+AvroSharp.Messages.AvroMessageReader<T>.Read(System.ReadOnlySpan<byte> message) -> T
+AvroSharp.Messages.AvroSchemaStore
+AvroSharp.Messages.AvroSchemaStore.Add(AvroSharp.Schemas.AvroSchema! schema) -> void
+AvroSharp.Messages.AvroSchemaStore.AvroSchemaStore(params AvroSharp.Schemas.AvroSchema![]! schemas) -> void
+AvroSharp.Messages.AvroSchemaStore.GetSchema(long fingerprint) -> AvroSharp.Schemas.AvroSchema?
+AvroSharp.Messages.IAvroSchemaStore
+AvroSharp.Messages.IAvroSchemaStore.GetSchema(long fingerprint) -> AvroSharp.Schemas.AvroSchema?
 AvroSharp.Schemas.ArraySchema
 AvroSharp.Schemas.ArraySchema.ArraySchema(AvroSharp.Schemas.AvroSchema! items, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
 AvroSharp.Schemas.ArraySchema.Items.get -> AvroSharp.Schemas.AvroSchema!
@@ -325,6 +335,7 @@ const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
 const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
 const AvroSharp.Containers.AvroFileReaderOptions.DefaultMaxBlockLength = 67108864 -> int
 const AvroSharp.Containers.AvroFileWriterOptions.DefaultSyncInterval = 65536 -> int
+const AvroSharp.Messages.AvroMessage.HeaderLength = 10 -> int
 const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
 const AvroSharp.Serialization.AvroGeneratedCode.MaxDepth = 128 -> int
 const AvroSharp.Serialization.AvroGeneratedCode.MaxZeroSizeItems = 65536 -> int
@@ -390,6 +401,13 @@ static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema!
 static AvroSharp.Generic.GenericDatumReaderOptions.Default.get -> AvroSharp.Generic.GenericDatumReaderOptions!
 static AvroSharp.Generic.GenericDatumWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumWriter!
 static AvroSharp.Generic.GenericDatumWriterOptions.Default.get -> AvroSharp.Generic.GenericDatumWriterOptions!
+static AvroSharp.Messages.AvroMessage.ToArray(in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.GenericDatumWriter! writer) -> byte[]!
+static AvroSharp.Messages.AvroMessage.ToArray<T>(T value, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroWriteAction<T>! write) -> byte[]!
+static AvroSharp.Messages.AvroMessage.TryReadHeader(System.ReadOnlySpan<byte> message, out long fingerprint) -> bool
+static AvroSharp.Messages.AvroMessage.Write<T>(System.Buffers.IBufferWriter<byte>! output, T value, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroWriteAction<T>! write) -> void
+static AvroSharp.Messages.AvroMessage.WriteHeader(System.Span<byte> destination, AvroSharp.Schemas.AvroSchema! schema) -> void
+static AvroSharp.Messages.AvroMessageReader.Create<T>(AvroSharp.Messages.IAvroSchemaStore! store, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>! createReader) -> AvroSharp.Messages.AvroMessageReader<T>!
+static AvroSharp.Messages.AvroMessageReader.CreateGeneric(AvroSharp.Messages.IAvroSchemaStore! store, AvroSharp.Schemas.AvroSchema? readerSchema = null, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Messages.AvroMessageReader<AvroSharp.Generic.AvroValue>!
 static AvroSharp.Schemas.AvroLogicalType.BigDecimal.get -> AvroSharp.Schemas.AvroLogicalType!
 static AvroSharp.Schemas.AvroLogicalType.Date.get -> AvroSharp.Schemas.AvroLogicalType!
 static AvroSharp.Schemas.AvroLogicalType.Decimal(int precision, int scale = 0) -> AvroSharp.Schemas.DecimalLogicalType!
