@@ -93,6 +93,7 @@ _position += run; i += run;
 - **Arm64:** `ExtractMostSignificantBits` takes 6–8 instructions there, so re-measure on Arm64.
 
 ### 1.4 Code that stops the JIT from inlining (cheap, helps broadly)
+**Status: done in the cheap-perf-wins PR** (throw helpers, out-of-line float/double/string slow paths, unchecked stores and reads after capacity checks, one slice for 3/4-byte varints).
 - `EnsureRemaining` (`AvroReader.cs:683-689`) and `ReadLength` (`:671-681`) build interpolated error strings inline, so the JIT does not inline them. Move the throws into `[DoesNotReturn][MethodImpl(NoInlining)] static` helpers. Do the same in `ReadBoolean` (`:97-102`).
 - `ReadFloat`/`ReadDouble` (`:123-150`) contain `stackalloc`, and the JIT never inlines a method that uses `stackalloc`. Move the multi-segment path into a `NoInlining` slow method. The `try/finally` in `ReadString`'s pooled path has the same problem.
 - The fast paths still carry redundant bounds checks:
@@ -115,6 +116,7 @@ _position += run; i += run;
 - **Float/double arrays** are already a single memcpy on little-endian.
 
 ### 1.7 Buffer management (mostly fine)
+**Status: the `WriteVarintExact` point is done** (an `IBufferWriter` destination grows instead); the others remain.
 - `PooledBufferWriter` doubles on growth and returns the whole free tail. That is good.
 - `AvroWriter.cs:251-255, 371-381`: when fewer than 10 bytes remain, every varint takes the slow `WriteVarintExact` path. With an `IBufferWriter` destination, grow the buffer and retake the fast path instead.
 - `WriteBytes` (`:123-127`) checks capacity twice. For small values, one `Ensure(10 + value.Length)` is enough.
@@ -150,14 +152,17 @@ Measured: dispatch per field costs only about 10% of a read, so turning the node
 - **Risk:** `AvroValue.cs:25-27` promises `List<T>` instances. Before 1.0, document `IReadOnlyList<AvroValue>` as the only contract.
 
 ### 2.2 Write arrays and maps without interface calls
+**Status: done in the cheap-perf-wins PR** (span writes for `List`/arrays, struct enumerator for `Dictionary`, reference checks instead of `Kind`). The `WriteDoubles` copy for primitive arrays comes with §2.1.
 `GenericDatumWriter.cs:219-226`. Write from `CollectionsMarshal.AsSpan(list)` or from `AvroValue[]` directly. Writing a double array is 1.9× faster this way; copying the values into a `double[]` and calling `WriteDoubles` is 2.2× faster.
 
 `value.Kind` is evaluated twice per array, and each evaluation checks types one by one, ending in an interface cast. Test `value.Reference` directly instead.
 
 ### 2.3 Union writes of named types do a dictionary lookup per value
+**Status: done in the cheap-perf-wins PR.**
 `GenericDatumWriter.cs:288-294, 319`. Every record, enum or fixed inside a union hashes its full name on every write. Compare against the 1–3 named branches with `ReferenceEquals` first, and fall back to the name lookup. A `[null, Inner]` write goes from 54.7 ns to about 13 ns.
 
 ### 2.4 Record field loop
+**Status: partly done** (schema reference check, internal field count, values passed by reference, no try/catch per field; op-codes and `ReadInto` remain).
 - **Write** (`GenericDatumWriter.cs:177-196`): 86 → 66 ns with a flattened loop.
   - Check `ReferenceEquals(record.Schema, schema)` before comparing names.
   - Add an internal `FieldCount` to avoid interface `Count` calls.
@@ -188,6 +193,7 @@ There is no skip path yet. The writer never emits size-prefixed blocks, although
 - Update `design.md` to match.
 
 ### 2.8 JIT notes
+**Status: done in the cheap-perf-wins PR.**
 - The primitive writer nodes should compare `ReferenceEquals(value.Reference, PrimitiveMarker.X)` instead of calling `Kind`, which checks up to seven types.
 - In `Kind`, check exact types (`List<AvroValue>`, `AvroValue[]`, `Dictionary<string,AvroValue>`) before the interface check.
 

@@ -50,6 +50,10 @@ public readonly struct AvroValue : IEquatable<AvroValue>
         GenericRecord => AvroValueKind.Record,
         Schemas.EnumSchema => AvroValueKind.Enum,
         GenericFixed => AvroValueKind.Fixed,
+
+        // The concrete types the reader creates first, then any other list or dictionary.
+        List<AvroValue> or AvroValue[] => AvroValueKind.Array,
+        Dictionary<string, AvroValue> => AvroValueKind.Map,
         IReadOnlyDictionary<string, AvroValue> => AvroValueKind.Map,
         _ => AvroValueKind.Array,
     };
@@ -311,6 +315,21 @@ public readonly struct AvroValue : IEquatable<AvroValue>
     };
 
     internal long Bits => _bits;
+
+    // Kind tests for the writer's hot path: one reference comparison each, instead of the type checks in Kind.
+    internal bool IsBoolean => ReferenceEquals(_reference, PrimitiveMarker.Boolean);
+
+    internal bool IsInt => ReferenceEquals(_reference, PrimitiveMarker.Int);
+
+    internal bool IsLong => ReferenceEquals(_reference, PrimitiveMarker.Long);
+
+    internal bool IsFloat => ReferenceEquals(_reference, PrimitiveMarker.Float);
+
+    internal bool IsDouble => ReferenceEquals(_reference, PrimitiveMarker.Double);
+
+    internal float SingleUnchecked => new FloatBits { Int32 = (int)_bits }.Single;
+
+    internal double DoubleUnchecked => BitConverter.Int64BitsToDouble(_bits);
 
     internal object? Reference => _reference;
 

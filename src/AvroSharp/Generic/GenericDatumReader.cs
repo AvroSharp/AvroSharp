@@ -223,11 +223,11 @@ public sealed class GenericDatumReader
                 throw new AvroDataException($"Records are nested more than {state.MaxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
             }
 
-            var record = new GenericRecord(schema);
             var fields = Fields;
+            var record = new GenericRecord(schema, fields.Length);
             for (var i = 0; i < fields.Length; i++)
             {
-                record[i] = fields[i].Read(ref reader, ref state);
+                record.ValueAt(i) = fields[i].Read(ref reader, ref state);
             }
 
             state.Depth--;

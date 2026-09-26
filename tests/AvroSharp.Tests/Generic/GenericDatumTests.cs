@@ -92,6 +92,18 @@ public class GenericDatumTests
     }
 
     [Test]
+    public async Task Union_MatchesNamedBranchesByNameWhenTheSchemaInstanceDiffers()
+    {
+        // The value's record schema is a separate instance with the same full name as the union branch.
+        var union = AvroSchema.Parse("""["null",{"type":"record","name":"A","fields":[{"name":"x","type":"int"}]}]""");
+        var separate = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"A","fields":[{"name":"x","type":"int"}]}""");
+        var value = new GenericRecord(separate) { ["x"] = 7 };
+
+        var bytes = GenericDatumWriter.Create(union).WriteToArray(value);
+        await Assert.That(Convert.ToHexString(bytes)).IsEqualTo("020E");
+    }
+
+    [Test]
     public async Task Union_WidensNumbersWhenTheExactKindIsMissing()
     {
         var schema = AvroSchema.Parse("""["null","long","double"]""");
