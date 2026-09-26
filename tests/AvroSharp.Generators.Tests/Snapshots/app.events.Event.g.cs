@@ -65,19 +65,19 @@ namespace app.events
             switch (fieldPos)
             {
                 case 0:
-                    return Id;
+                    return this.Id;
                 case 1:
-                    return Kind;
+                    return this.Kind;
                 case 2:
-                    return Hash;
+                    return this.Hash;
                 case 3:
-                    return Tags;
+                    return this.Tags;
                 case 4:
-                    return Scores;
+                    return this.Scores;
                 case 5:
-                    return Parent;
+                    return this.Parent;
                 case 6:
-                    return Payload;
+                    return this.Payload;
                 default:
                     throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(fieldPos, 7, "app.events.Event");
             }
@@ -89,25 +89,25 @@ namespace app.events
             switch (fieldPos)
             {
                 case 0:
-                    Id = fieldValue is long v0 ? v0 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.id", "long");
+                    this.Id = fieldValue is long v0 ? v0 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.id", "long");
                     break;
                 case 1:
-                    Kind = fieldValue is global::app.events.Kind v1 ? v1 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.kind", "app.events.Kind");
+                    this.Kind = fieldValue is global::app.events.Kind v1 ? v1 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.kind", "app.events.Kind");
                     break;
                 case 2:
-                    Hash = fieldValue as global::app.events.Hash ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.hash", "app.events.Hash");
+                    this.Hash = fieldValue as global::app.events.Hash ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.hash", "app.events.Hash");
                     break;
                 case 3:
-                    Tags = fieldValue as global::System.Collections.Generic.List<string> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.tags", "System.Collections.Generic.List<string>");
+                    this.Tags = fieldValue as global::System.Collections.Generic.List<string> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.tags", "System.Collections.Generic.List<string>");
                     break;
                 case 4:
-                    Scores = fieldValue as global::System.Collections.Generic.Dictionary<string, double> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.scores", "System.Collections.Generic.Dictionary<string, double>");
+                    this.Scores = fieldValue as global::System.Collections.Generic.Dictionary<string, double> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.scores", "System.Collections.Generic.Dictionary<string, double>");
                     break;
                 case 5:
-                    Parent = fieldValue == null ? (global::app.events.Event?)null : fieldValue as global::app.events.Event ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.parent", "app.events.Event?");
+                    this.Parent = fieldValue == null ? (global::app.events.Event?)null : fieldValue as global::app.events.Event ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.parent", "app.events.Event?");
                     break;
                 case 6:
-                    Payload = fieldValue;
+                    this.Payload = fieldValue;
                     break;
                 default:
                     throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(fieldPos, 7, "app.events.Event");

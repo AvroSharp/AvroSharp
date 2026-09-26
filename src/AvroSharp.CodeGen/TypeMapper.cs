@@ -18,6 +18,9 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// <summary>Makes a reference type nullable: <c>T?</c> with nullable annotations (C# 8 and later), otherwise <c>T</c>.</summary>
     public string Nullable(string referenceType) => options.NullableAnnotations ? referenceType + "?" : referenceType;
 
+    /// <summary>Gets how record fields become property names.</summary>
+    public PropertyNaming Naming => options.PropertyNaming;
+
     /// <summary>Gets whether nullable reference type annotations are emitted (C# 8 and later).</summary>
     public bool Annotations => options.NullableAnnotations;
 

@@ -59,7 +59,9 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             Raw: options.GlobalOptions.TryGetValue("build_property.AvroSharpLogicalTypes", out var logical)
                 && string.Equals(logical.Trim(), "raw", StringComparison.OrdinalIgnoreCase),
             Apache: options.GlobalOptions.TryGetValue("build_property.AvroSharpApacheCompatible", out var apache)
-                && string.Equals(apache.Trim(), "true", StringComparison.OrdinalIgnoreCase)));
+                && string.Equals(apache.Trim(), "true", StringComparison.OrdinalIgnoreCase),
+            AvroNames: options.GlobalOptions.TryGetValue("build_property.AvroSharpPropertyNames", out var naming)
+                && string.Equals(naming.Trim(), "avro", StringComparison.OrdinalIgnoreCase)));
 
         var hasRuntime = context.CompilationProvider.Select(static (compilation, _) =>
             compilation.GetTypeByMetadataName("AvroSharp.Serialization.AvroGeneratedCode") is not null);
@@ -84,6 +86,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                     TargetHasDateOnly = input.Left.Right.HasDateOnly,
                     ApacheCompatible = input.Left.Left.Right.Apache && input.Left.Right.HasApache,
                     NullableAnnotations = input.Right,
+                    PropertyNaming = input.Left.Left.Right.AvroNames ? PropertyNaming.Avro : PropertyNaming.PascalCase,
                 },
                 cancellationToken))
             .WithTrackingName("Generate");
