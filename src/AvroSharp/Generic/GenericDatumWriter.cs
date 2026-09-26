@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 #if NET8_0_OR_GREATER
 using System.Runtime.InteropServices;
@@ -19,8 +18,6 @@ namespace AvroSharp.Generic;
 public sealed class GenericDatumWriter
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumWriter> s_cache = new();
-
-    private const string FieldPathKey = "AvroSharp.FieldPath";
 
     private readonly WriterNode _root;
 
@@ -57,11 +54,10 @@ public sealed class GenericDatumWriter
         {
             _root.Write(ref writer, value, 0);
         }
-        catch (AvroException ex) when (ex is not AvroDataException && ex.Data[FieldPathKey] is List<string> path)
+        catch (AvroException ex) when (ex is not AvroDataException && ErrorPath.Get(ex) is { } path)
         {
-            // Record nodes add their field to the path from exception filters, which never catch. Catching and
-            // rethrowing at every level instead nests exception handling, which overflows the stack on .NET Framework.
-            throw new AvroException(DescribePath(path) + ex.Message, ex);
+            // Record nodes add their field to the path from exception filters (see ErrorPath).
+            throw new AvroException(ErrorPath.DescribeFields(path) + ex.Message, ex);
         }
     }
 
@@ -87,32 +83,9 @@ public sealed class GenericDatumWriter
     private static AvroException Mismatch(AvroSchema schema, in AvroValue value) =>
         new($"A {value.Kind} value cannot be written as {schema.CanonicalForm}.");
 
-    /// <summary>Formats the field path collected while the exception propagated (innermost field first).</summary>
-    private static string DescribePath(List<string> innermostFirst)
-    {
-        const int Shown = 8;
-        var outermostFirst = Enumerable.Reverse(innermostFirst).ToList();
-        var parts = outermostFirst.Count <= Shown
-            ? outermostFirst
-            : [.. outermostFirst.Take(Shown / 2), "...", .. outermostFirst.Skip(outermostFirst.Count - (Shown / 2))];
-        return "Field '" + string.Join("' > '", parts) + "': ";
-    }
-
     /// <summary>Exception filter: adds a field to the path and returns false, so the exception keeps propagating.</summary>
-    private static bool AddToPath(AvroException ex, RecordSchema schema, int field)
-    {
-        if (ex is not AvroDataException)
-        {
-            if (ex.Data[FieldPathKey] is not List<string> path)
-            {
-                ex.Data[FieldPathKey] = path = [];
-            }
-
-            path.Add(schema.FullName + "." + schema.Fields[field].Name);
-        }
-
-        return false;
-    }
+    private static bool AddToPath(AvroException ex, RecordSchema schema, int field) =>
+        ex is not AvroDataException && ErrorPath.Add(ex, schema.FullName + "." + schema.Fields[field].Name);
 
     private abstract class WriterNode
     {
@@ -355,108 +328,20 @@ public sealed class GenericDatumWriter
         }
     }
 
-    /// <summary>Selects the branch from the value's kind (or, for named types, its schema's full name).</summary>
-    private sealed class UnionNode : WriterNode
+    private sealed class UnionNode(UnionSchema schema, WriterNode[] branches) : WriterNode
     {
-        private readonly UnionSchema _schema;
-        private readonly WriterNode[] _branches;
-        private readonly int[] _byKind;
-        private readonly Dictionary<string, int> _byName = new(StringComparer.Ordinal);
-        private readonly NamedSchema[] _namedBranches;
-        private readonly int[] _namedIndexes;
-
-        public UnionNode(UnionSchema schema, WriterNode[] branches)
-        {
-            _schema = schema;
-            _branches = branches;
-            _byKind = new int[(int)AvroValueKind.Fixed + 1];
-            _byKind.AsSpan().Fill(-1);
-            for (var i = 0; i < schema.Branches.Count; i++)
-            {
-                var branch = schema.Branches[i];
-                if (branch is NamedSchema named)
-                {
-                    _byName[named.FullName] = i;
-                }
-                else
-                {
-                    _byKind[(int)KindOf(branch.Type)] = i;
-                }
-            }
-
-            _namedBranches = [.. schema.Branches.OfType<NamedSchema>()];
-            _namedIndexes = [.. _namedBranches.Select(b => _byName[b.FullName])];
-
-            // Widening, used only when the union has no branch of the value's own kind.
-            Widen(AvroValueKind.Int, AvroValueKind.Long, AvroValueKind.Float, AvroValueKind.Double);
-            Widen(AvroValueKind.Long, AvroValueKind.Float, AvroValueKind.Double);
-            Widen(AvroValueKind.Float, AvroValueKind.Double);
-        }
+        private readonly UnionBranchSelector _selector = new(schema);
 
         public override void Write(ref AvroWriter writer, in AvroValue value, int depth)
         {
-            var kind = value.Kind;
-            var index = kind switch
-            {
-                AvroValueKind.Record => IndexOfNamed(value.AsRecord().Schema),
-                AvroValueKind.Enum => IndexOfNamed(value.EnumSchema!),
-                AvroValueKind.Fixed => IndexOfNamed(value.AsFixed().Schema),
-                _ => _byKind[(int)kind],
-            };
-
+            var index = _selector.IndexOf(value);
             if (index < 0)
             {
-                throw Mismatch(_schema, value);
+                throw Mismatch(schema, value);
             }
 
             writer.WriteUnionIndex(index);
-            _branches[index].Write(ref writer, value, depth);
-        }
-
-        private static AvroValueKind KindOf(AvroSchemaType type) => type switch
-        {
-            AvroSchemaType.Null => AvroValueKind.Null,
-            AvroSchemaType.Boolean => AvroValueKind.Boolean,
-            AvroSchemaType.Int => AvroValueKind.Int,
-            AvroSchemaType.Long => AvroValueKind.Long,
-            AvroSchemaType.Float => AvroValueKind.Float,
-            AvroSchemaType.Double => AvroValueKind.Double,
-            AvroSchemaType.Bytes => AvroValueKind.Bytes,
-            AvroSchemaType.String => AvroValueKind.String,
-            AvroSchemaType.Array => AvroValueKind.Array,
-            _ => AvroValueKind.Map,
-        };
-
-        // Values usually carry the very schema instance of the branch, so compare references before hashing the name.
-        private int IndexOfNamed(NamedSchema schema)
-        {
-            var named = _namedBranches;
-            for (var i = 0; i < named.Length; i++)
-            {
-                if (ReferenceEquals(named[i], schema))
-                {
-                    return _namedIndexes[i];
-                }
-            }
-
-            return _byName.TryGetValue(schema.FullName, out var index) ? index : -1;
-        }
-
-        private void Widen(AvroValueKind from, params AvroValueKind[] targets)
-        {
-            if (_byKind[(int)from] >= 0)
-            {
-                return;
-            }
-
-            foreach (var target in targets)
-            {
-                if (_byKind[(int)target] >= 0)
-                {
-                    _byKind[(int)from] = _byKind[(int)target];
-                    return;
-                }
-            }
+            branches[index].Write(ref writer, value, depth);
         }
     }
 }
