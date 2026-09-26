@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -35,10 +36,14 @@ internal static class TestData
             Shipping = new shop.Line { Sku = sku, Qty = 3 },
             Extra = new List<long> { 1, 2, 3 },
             Only = "only",
-            Created = 1_790_000_000_000_000L,
-            Day = 20_000,
-            Ref = "7f1e2d3c-0000-4000-8000-000000000001",
-            Amount = [0x01, 0x86, 0xA0],
+            Created = DateTimeOffset.FromUnixTimeMilliseconds(1_790_000_000_000).AddTicks(1230),
+#if NET6_0_OR_GREATER
+            Day = new DateOnly(2024, 10, 3),
+#else
+            Day = new DateTime(2024, 10, 3),
+#endif
+            Ref = new Guid("7f1e2d3c-0000-4000-8000-000000000001"),
+            Amount = 1000.00m,
             Order_ = 99,
             Schema_ = "s",
         };

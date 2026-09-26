@@ -47,7 +47,9 @@ internal sealed class RandomValues(int seed)
             case EnumSchema enumSchema:
                 return AvroValue.FromEnum(enumSchema, _random.Next(enumSchema.Symbols.Count));
             case FixedSchema fixedSchema:
-                return new GenericFixed(fixedSchema, Bytes(fixedSchema.Size));
+                return new GenericFixed(fixedSchema, fixedSchema.LogicalType is DecimalLogicalType dec ? DecimalBytes(dec, fixedSchema.Size) : Bytes(fixedSchema.Size));
+            case PrimitiveSchema { LogicalType: { } logical } when LogicalValue(schema.Type, logical) is { } logicalValue:
+                return logicalValue;
             case ArraySchema array:
                 return AvroValue.FromArray(Enumerable.Range(0, depth > MaxDepth ? 0 : _random.Next(0, 6)).Select(_ => Create(array.Items, depth + 1)).ToList());
             case MapSchema map:
@@ -92,6 +94,60 @@ internal sealed class RandomValues(int seed)
         }
 
         return Create(candidates[_random.Next(candidates.Count)], depth + 1);
+    }
+
+    /// <summary>
+    /// A value inside the range of the .NET type that generated code maps the logical type to (for example DateOnly
+    /// covers years 1 to 9999), or <see langword="null"/> for logical types whose underlying values are all valid.
+    /// </summary>
+    private AvroValue? LogicalValue(AvroSchemaType type, AvroLogicalType logical)
+    {
+        const long MinMilliseconds = -62_135_596_800_000; // 0001-01-01T00:00:00
+        const long MaxMilliseconds = 253_402_300_799_999; // 9999-12-31T23:59:59.999
+        return logical.Kind switch
+        {
+            AvroLogicalTypeKind.Date when type == AvroSchemaType.Int => _random.Next(-719_162, 2_932_897),
+            AvroLogicalTypeKind.TimeMillis when type == AvroSchemaType.Int => _random.Next(0, 86_400_000),
+            AvroLogicalTypeKind.TimeMicros when type == AvroSchemaType.Long => _random.NextInt64(0, 86_400_000_000),
+            AvroLogicalTypeKind.TimestampMillis or AvroLogicalTypeKind.LocalTimestampMillis when type == AvroSchemaType.Long =>
+                _random.NextInt64(MinMilliseconds, MaxMilliseconds + 1),
+            AvroLogicalTypeKind.TimestampMicros or AvroLogicalTypeKind.LocalTimestampMicros when type == AvroSchemaType.Long =>
+                _random.NextInt64(MinMilliseconds * 1000, (MaxMilliseconds * 1000) + 1000),
+            AvroLogicalTypeKind.Uuid when type == AvroSchemaType.String => new Guid(Bytes(16)).ToString("D"),
+            AvroLogicalTypeKind.Decimal when type == AvroSchemaType.Bytes && logical is DecimalLogicalType dec => DecimalBytes(dec, size: -1),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// A random unscaled decimal with at most the schema's precision in digits, as minimal two's-complement big-endian
+    /// bytes, or sign-extended to <paramref name="size"/> bytes for a fixed type.
+    /// </summary>
+    private byte[] DecimalBytes(DecimalLogicalType dec, int size)
+    {
+        var digits = new StringBuilder();
+        for (var i = _random.Next(1, dec.Precision + 1); i > 0; i--)
+        {
+            digits.Append((char)('0' + _random.Next(10)));
+        }
+
+        var unscaled = System.Numerics.BigInteger.Parse(digits.ToString(), System.Globalization.CultureInfo.InvariantCulture);
+        if (_random.Next(2) == 1)
+        {
+            unscaled = -unscaled;
+        }
+
+        var bytes = unscaled.ToByteArray(); // minimal two's complement, little-endian
+        Array.Reverse(bytes);
+        if (size < 0 || bytes.Length == size)
+        {
+            return bytes;
+        }
+
+        var padded = new byte[size];
+        padded.AsSpan().Fill(unscaled.Sign < 0 ? (byte)0xFF : (byte)0);
+        bytes.CopyTo(padded, size - bytes.Length);
+        return padded;
     }
 
     private int Magnitude() => _random.Next(3);

@@ -115,6 +115,22 @@ public class SchemaFileGeneratorTests
     }
 
     [Test]
+    [Arguments(null, "public global::System.DateOnly Day { get; set; }", "public global::System.Guid Id { get; set; }")]
+    [Arguments("raw", "public int Day { get; set; }", "public string Id { get; set; } = \"\";")]
+    [Arguments("RAW", "public int Day { get; set; }", "public string Id { get; set; } = \"\";")]
+    public async Task AvroSharpLogicalTypes_SelectsNativeOrRawMapping(string? setting, string day, string id)
+    {
+        var (sources, _, compileDiagnostics) = GeneratorHarness.Run(
+            [("t.avsc", """{"type":"record","name":"T","fields":[{"name":"day","type":{"type":"int","logicalType":"date"}},{"name":"id","type":{"type":"string","logicalType":"uuid"}}]}""")],
+            logicalTypes: setting);
+
+        var text = sources.Single().SourceText.ToString();
+        await Assert.That(text).Contains(day);
+        await Assert.That(text).Contains(id);
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
+    [Test]
     public async Task EditingCSharpCode_ReusesTheCachedGeneration()
     {
         var compilation = GeneratorHarness.CreateCompilation(true, "class A { }");

@@ -23,7 +23,7 @@ public static class CSharpCodeGenerator
         ArgumentNullException.ThrowIfNull(schemas);
         options ??= CodeGenOptions.Default;
         var names = new CSharpNames(options);
-        var types = new TypeMapper(names);
+        var types = new TypeMapper(names, options);
 
         var named = new SortedDictionary<string, NamedSchema>(StringComparer.Ordinal);
         foreach (var schema in schemas)
@@ -122,7 +122,7 @@ public static class CSharpCodeGenerator
             var field = record.Fields[i];
             w.Line();
             Doc(w, field.Doc);
-            var initializer = TypeMapper.Initializer(field.Schema);
+            var initializer = types.Initializer(field.Schema);
             w.Line($"public {types.TypeOf(field.Schema)} {properties[i]} {{ get; set; }}{(initializer is null ? string.Empty : " = " + initializer + ";")}");
         }
 
@@ -239,7 +239,7 @@ public static class CSharpCodeGenerator
         var type = types.TypeOf(schema);
         var display = type.Replace("global::", string.Empty) + (nullable ? "?" : string.Empty);
         var mismatch = $"throw {Support}.PutTypeMismatch(fieldValue, {CSharpNames.Literal(field)}, {CSharpNames.Literal(display)})";
-        var converted = TypeMapper.IsValueType(schema)
+        var converted = types.IsValueType(schema)
             ? $"fieldValue is {type} {variable} ? {variable} : {mismatch}"
             : $"fieldValue as {type} ?? {mismatch}";
         return nullable

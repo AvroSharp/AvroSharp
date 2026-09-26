@@ -44,16 +44,29 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             .Select(static (file, cancellationToken) => new SchemaFile(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Collect();
 
-        var defaultNamespace = context.AnalyzerConfigOptionsProvider.Select(static (options, _) =>
-            options.GlobalOptions.TryGetValue("build_property.AvroSharpNamespace", out var value) && !string.IsNullOrWhiteSpace(value)
-                ? value.Trim()
-                : null);
+        var properties = context.AnalyzerConfigOptionsProvider.Select(static (options, _) =>
+        (
+            Namespace: options.GlobalOptions.TryGetValue("build_property.AvroSharpNamespace", out var ns) && !string.IsNullOrWhiteSpace(ns) ? ns.Trim() : null,
+            Raw: options.GlobalOptions.TryGetValue("build_property.AvroSharpLogicalTypes", out var logical)
+                && string.Equals(logical.Trim(), "raw", StringComparison.OrdinalIgnoreCase)));
 
         var hasRuntime = context.CompilationProvider.Select(static (compilation, _) =>
             compilation.GetTypeByMetadataName("AvroSharp.Serialization.AvroGeneratedCode") is not null);
 
-        var results = files.Combine(defaultNamespace)
-            .Select(static (input, cancellationToken) => Generate(input.Left, input.Right, cancellationToken))
+        // A multi-targeted project runs the generator once per framework: DateOnly/TimeOnly exist from .NET 6.
+        var hasDateOnly = context.CompilationProvider.Select(static (compilation, _) =>
+            compilation.GetTypeByMetadataName("System.DateOnly") is not null);
+
+        var results = files.Combine(properties).Combine(hasDateOnly)
+            .Select(static (input, cancellationToken) => Generate(
+                input.Left.Left,
+                new CodeGenOptions
+                {
+                    DefaultNamespace = input.Left.Right.Namespace,
+                    LogicalTypes = input.Left.Right.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
+                    TargetHasDateOnly = input.Right,
+                },
+                cancellationToken))
             .WithTrackingName("Generate");
 
         context.RegisterSourceOutput(results.Combine(hasRuntime), static (output, input) =>
@@ -86,7 +99,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
     /// Parses every file with one parser, retrying files whose references are not defined yet, then generates code
     /// for all of them together.
     /// </summary>
-    private static GenerationResult Generate(ImmutableArray<SchemaFile> files, string? defaultNamespace, CancellationToken cancellationToken)
+    private static GenerationResult Generate(ImmutableArray<SchemaFile> files, CodeGenOptions options, CancellationToken cancellationToken)
     {
         var parser = new AvroSchemaParser();
         var parsed = new List<AvroSchema>();
@@ -116,7 +129,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         IReadOnlyList<GeneratedSource> sources = [];
         try
         {
-            sources = CSharpCodeGenerator.Generate(parsed, new CodeGenOptions { DefaultNamespace = defaultNamespace });
+            sources = CSharpCodeGenerator.Generate(parsed, options);
         }
         catch (Exception ex) when (ex is AvroException or ArgumentException or InvalidOperationException)
         {

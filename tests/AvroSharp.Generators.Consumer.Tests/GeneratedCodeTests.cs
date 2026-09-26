@@ -62,7 +62,7 @@ public class GeneratedCodeTests
         await Assert.That(output.ToArray().AsSpan().SequenceEqual(bytes)).IsTrue();
     }
 
-    public static IEnumerable<string> GeneratedTypes() => ["shop.Order", "graph.Node", "crm.Customer", "Unnamespaced"];
+    public static IEnumerable<string> GeneratedTypes() => ["shop.Order", "graph.Node", "crm.Customer", "Unnamespaced", "logical.Moments"];
 
     [Test]
     [MethodDataSource(nameof(GeneratedTypes))]
@@ -73,6 +73,7 @@ public class GeneratedCodeTests
             "shop.Order" => (shop.Order.Schema, (Func<byte[], byte[]>)(b => shop.Order.FromAvroBytes(b).ToAvroBytes())),
             "graph.Node" => (graph.Node.Schema, b => graph.Node.FromAvroBytes(b).ToAvroBytes()),
             "crm.Customer" => (crm.Customer.Schema, b => crm.Customer.FromAvroBytes(b).ToAvroBytes()),
+            "logical.Moments" => (logical.Moments.Schema, b => logical.Moments.FromAvroBytes(b).ToAvroBytes()),
             _ => (Generated.Default.Unnamespaced.Schema, b => Generated.Default.Unnamespaced.FromAvroBytes(b).ToAvroBytes()),
         };
 

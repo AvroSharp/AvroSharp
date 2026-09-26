@@ -6,16 +6,45 @@ namespace AvroSharp.CodeGen;
 
 /// <summary>Maps schemas to C# types.</summary>
 /// <remarks>
-/// Logical types map to their underlying type for now (a <c>date</c> is an <c>int</c>). A union of <c>null</c> and one
-/// other type maps to that type made nullable; any other union with more than one type maps to <c>object?</c>.
+/// Logical types map as <see cref="CodeGenOptions.LogicalTypes"/> says (see <see cref="LogicalTypes"/>). A union of
+/// <c>null</c> and one other type maps to that type made nullable; any other union with more than one type maps to
+/// <c>object?</c>.
 /// </remarks>
-internal sealed class TypeMapper(CSharpNames names)
+internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
 {
     public const string ListType = "global::System.Collections.Generic.List";
     public const string DictionaryType = "global::System.Collections.Generic.Dictionary";
 
+    /// <summary>Gets the logical-type mapping of <paramref name="schema"/>, or <see langword="null"/> when it keeps its underlying type.</summary>
+    public LogicalValue? Logical(AvroSchema schema) => LogicalTypes.For(schema, options);
+
     /// <summary>Gets the C# type of a value of <paramref name="schema"/>.</summary>
-    public string TypeOf(AvroSchema schema) => schema switch
+    public string TypeOf(AvroSchema schema) => Logical(schema)?.Type ?? UnderlyingType(schema);
+
+    /// <summary>Gets whether values of <paramref name="schema"/> are C# value types.</summary>
+    public bool IsValueType(AvroSchema schema) =>
+        Logical(schema) is not null
+        || schema is EnumSchema
+        || schema.Type is AvroSchemaType.Boolean or AvroSchemaType.Int or AvroSchemaType.Long or AvroSchemaType.Float or AvroSchemaType.Double;
+
+    /// <summary>
+    /// Gets the initializer that keeps a non-nullable property valid before it is set, or <see langword="null"/>
+    /// when the type's default value is already valid (every logical-type mapping is a value type).
+    /// </summary>
+    public string? Initializer(AvroSchema schema) => Logical(schema) is not null ? null : schema switch
+    {
+        ArraySchema or MapSchema => "new()",
+        RecordSchema or FixedSchema => "null!",
+        UnionSchema union when Classify(union) is { NullIndex: < 0, Others.Count: 1 } single => Initializer(union.Branches[single.Others[0]]),
+        _ => schema.Type switch
+        {
+            AvroSchemaType.Bytes => "global::System.Array.Empty<byte>()",
+            AvroSchemaType.String => "\"\"",
+            _ => null,
+        },
+    };
+
+    private string UnderlyingType(AvroSchema schema) => schema switch
     {
         NamedSchema named => names.TypeName(named),
         ArraySchema array => $"{ListType}<{TypeOf(array.Items)}>",
@@ -33,11 +62,6 @@ internal sealed class TypeMapper(CSharpNames names)
             _ => "string",
         },
     };
-
-    /// <summary>Gets whether values of <paramref name="schema"/> are C# value types.</summary>
-    public static bool IsValueType(AvroSchema schema) =>
-        schema is EnumSchema
-        || schema.Type is AvroSchemaType.Boolean or AvroSchemaType.Int or AvroSchemaType.Long or AvroSchemaType.Float or AvroSchemaType.Double;
 
     /// <summary>Classifies a union: its null branch (or -1) and its other branches.</summary>
     public static (int NullIndex, List<int> Others) Classify(UnionSchema union)
@@ -58,23 +82,6 @@ internal sealed class TypeMapper(CSharpNames names)
 
         return (nullIndex, others);
     }
-
-    /// <summary>
-    /// Gets the initializer that keeps a non-nullable property valid before it is set, or <see langword="null"/>
-    /// when the type's default value is already valid.
-    /// </summary>
-    public static string? Initializer(AvroSchema schema) => schema switch
-    {
-        ArraySchema or MapSchema => "new()",
-        RecordSchema or FixedSchema => "null!",
-        UnionSchema union when Classify(union) is { NullIndex: < 0, Others.Count: 1 } single => Initializer(union.Branches[single.Others[0]]),
-        _ => schema.Type switch
-        {
-            AvroSchemaType.Bytes => "global::System.Array.Empty<byte>()",
-            AvroSchemaType.String => "\"\"",
-            _ => null,
-        },
-    };
 
     /// <summary>
     /// Gets the smallest number of bytes a value can occupy, used to bound block counts before allocating. A record
