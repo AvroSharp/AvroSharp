@@ -278,6 +278,22 @@ public class SchemaResolutionTests
     }
 
     [Test]
+    public async Task Transcoding_ReadsAPromotedIntAsAnInt_EvenWhenItsVarintIsTooLong()
+    {
+        // A 5-byte varint beyond the int range: an int reader keeps the low 32 bits, so the promoted long must too.
+        // Found by the Resolution fuzz target.
+        var writer = AvroSchema.Parse("\"int\"");
+        var reader = AvroSchema.Parse("\"long\"");
+        byte[] bytes = [0xD2, 0x94, 0xF0, 0xBE, 0x19];
+
+        var resolved = GenericDatumReader.Create(writer, reader).Read(bytes);
+        var input = new AvroReader(bytes);
+        var transcoded = GenericDatumReader.Create(reader).Read(AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader));
+
+        await Assert.That(transcoded.AsInt64()).IsEqualTo(resolved.AsInt64());
+    }
+
+    [Test]
     public async Task Transcoding_LimitsRecordDepth()
     {
         var writer = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"v","type":"int"},{"name":"next","type":["null","Node"]}]}""");

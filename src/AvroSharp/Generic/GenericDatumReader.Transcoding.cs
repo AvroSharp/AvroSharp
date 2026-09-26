@@ -144,8 +144,9 @@ public sealed partial class GenericDatumReader
             (AvroSchemaType.Null, AvroSchemaType.Null) => PrimitiveTranscodeNode.Null,
             (AvroSchemaType.Boolean, AvroSchemaType.Boolean) => PrimitiveTranscodeNode.Boolean,
             (AvroSchemaType.Int, AvroSchemaType.Int) => PrimitiveTranscodeNode.Int,
-            // A long's varint is the same as an int's for every int value.
-            (AvroSchemaType.Int or AvroSchemaType.Long, AvroSchemaType.Long) => PrimitiveTranscodeNode.Long,
+            // Read as an int, as the resolving reader does: an int's varint is decoded to 32 bits.
+            (AvroSchemaType.Int, AvroSchemaType.Long) => PrimitiveTranscodeNode.IntToLong,
+            (AvroSchemaType.Long, AvroSchemaType.Long) => PrimitiveTranscodeNode.Long,
             (AvroSchemaType.Int, AvroSchemaType.Float) => PrimitiveTranscodeNode.IntToFloat,
             (AvroSchemaType.Int, AvroSchemaType.Double) => PrimitiveTranscodeNode.IntToDouble,
             (AvroSchemaType.Long, AvroSchemaType.Float) => PrimitiveTranscodeNode.LongToFloat,
@@ -235,6 +236,8 @@ public sealed partial class GenericDatumReader
         public static PrimitiveTranscodeNode Int { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteInt(r.ReadInt()));
 
         public static PrimitiveTranscodeNode Long { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteLong(r.ReadLong()));
+
+        public static PrimitiveTranscodeNode IntToLong { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteLong(r.ReadInt()));
 
         public static PrimitiveTranscodeNode IntToFloat { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteFloat(r.ReadInt()));
 

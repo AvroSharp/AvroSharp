@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using AvroSharp.Containers;
 using AvroSharp.Generic;
+using AvroSharp.IO;
+using AvroSharp.Messages;
 using AvroSharp.Schemas;
+using AvroSharp.Serialization;
 
 namespace AvroSharp.Fuzz;
 
@@ -102,6 +107,109 @@ public static class FuzzTargets
         }
     }
 
+    /// <summary>
+    /// Writer and reader schema pairs for <see cref="Resolution"/>: promotions, a dropped and an added field, reordered
+    /// fields, an enum with a symbol the reader lacks, unions on both sides, and a recursive record.
+    /// </summary>
+    public static IReadOnlyList<(AvroSchema Writer, AvroSchema Reader)> ResolutionPairs { get; } =
+    [
+        (AvroSchema.Parse("""
+            {"type":"record","name":"R","fields":[
+              {"name":"i","type":"int"},{"name":"drop","type":{"type":"array","items":"string"}},
+              {"name":"f","type":"float"},{"name":"s","type":"string"},
+              {"name":"e","type":{"type":"enum","name":"E","symbols":["A","B","C"]}},
+              {"name":"u","type":["null","int","string"]},
+              {"name":"m","type":{"type":"map","values":"int"}}]}
+            """),
+         AvroSchema.Parse("""
+            {"type":"record","name":"R","fields":[
+              {"name":"m","type":{"type":"map","values":"double"}},
+              {"name":"s","type":"bytes"},{"name":"i","type":"long"},
+              {"name":"added","type":["null","string"],"default":null},
+              {"name":"e","type":{"type":"enum","name":"E","symbols":["B","A"],"default":"A"}},
+              {"name":"u","type":["null","long","string"]},
+              {"name":"f","type":"double"}]}
+            """)),
+        (AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"v","type":"int"},{"name":"next","type":["null","Node"]}]}"""),
+         AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"next","type":["null","Node"]},{"name":"v","type":"long"},{"name":"w","type":"int","default":7}]}""")),
+    ];
+
+    /// <summary>
+    /// Resolution: data of a writer schema read as a reader schema by the resolving reader and by the transcoder that
+    /// generated types use; both must fail, or both must give the same value of the reader schema.
+    /// </summary>
+    public static void Resolution(ReadOnlySpan<byte> data)
+    {
+        if (data.Length == 0)
+        {
+            return;
+        }
+
+        var (writer, reader) = ResolutionPairs[data[0] % ResolutionPairs.Count];
+        AvroValue? resolved;
+        try
+        {
+            resolved = GenericDatumReader.Create(writer, reader).Read(data[1..]);
+        }
+        catch (AvroException)
+        {
+            resolved = null;
+        }
+
+        AvroValue? transcoded;
+        try
+        {
+            var input = new AvroReader(data[1..]);
+            transcoded = GenericDatumReader.Create(reader).Read(AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader));
+        }
+        catch (AvroException)
+        {
+            transcoded = null;
+        }
+
+        // Values, not bytes: the transcoder copies string bytes and invalid UTF-8 is decoded when the result is read,
+        // as the resolving reader decodes it while reading.
+        if (resolved.HasValue != transcoded.HasValue || (resolved is { } a && transcoded is { } b && !a.Equals(b)))
+        {
+            throw new InvalidOperationException($"The transcoder disagrees with the resolving reader: {transcoded?.ToString() ?? "failed"} vs {resolved?.ToString() ?? "failed"}.");
+        }
+    }
+
+    /// <summary>An object container file: every object read (with a small block limit) must round-trip.</summary>
+    public static void ContainerFile(ReadOnlySpan<byte> data)
+    {
+        try
+        {
+            using var reader = AvroFileReader.OpenGeneric(new MemoryStream(data.ToArray(), writable: false), options: new AvroFileReaderOptions { MaxBlockLength = 1 << 20 });
+            foreach (var value in reader.ReadAll())
+            {
+                CheckRoundTrips(reader.WriterSchema, value);
+            }
+        }
+        catch (AvroException)
+        {
+        }
+    }
+
+    /// <summary>A single-object encoded message of one of <see cref="Schemas"/>: the object must round-trip.</summary>
+    public static void SingleObject(ReadOnlySpan<byte> data)
+    {
+        AvroValue value;
+        try
+        {
+            value = s_messages.Read(data);
+        }
+        catch (AvroException)
+        {
+            return;
+        }
+
+        AvroMessage.TryReadHeader(data, out var fingerprint);
+        CheckRoundTrips(Schemas.First(s => s.Fingerprint64 == fingerprint), value);
+    }
+
+    private static readonly AvroMessageReader<AvroValue> s_messages = AvroMessageReader.CreateGeneric(new AvroSchemaStore([.. Schemas]));
+
     /// <summary>Valid inputs to start fuzzing from, per target: encodings of sample values for every schema.</summary>
     public static IEnumerable<(string Target, byte[] Input)> Seeds()
     {
@@ -116,7 +224,37 @@ public static class FuzzTargets
             }
 
             yield return (nameof(SchemaParse), Encoding.UTF8.GetBytes(Schemas[i].ToJson()));
+
+            var values = Enumerable.Range(0, 5).Select(_ => new SampleValues(random).Create(Schemas[i], 0)).ToList();
+            yield return (nameof(SingleObject), AvroMessage.ToArray(values[0], GenericDatumWriter.Create(Schemas[i])));
+            foreach (var codec in new[] { AvroCodec.Null, AvroCodec.Deflate })
+            {
+                yield return (nameof(ContainerFile), ContainerFileOf(Schemas[i], values, codec));
+            }
         }
+
+        for (var i = 0; i < ResolutionPairs.Count; i++)
+        {
+            for (var sample = 0; sample < 4; sample++)
+            {
+                var writer = ResolutionPairs[i].Writer;
+                yield return (nameof(Resolution), [(byte)i, .. GenericDatumWriter.Create(writer).WriteToArray(new SampleValues(random).Create(writer, 0))]);
+            }
+        }
+    }
+
+    private static byte[] ContainerFileOf(AvroSchema schema, List<AvroValue> values, AvroCodec codec)
+    {
+        using var output = new MemoryStream();
+        using (var writer = AvroFileWriter.CreateGeneric(output, schema, new AvroFileWriterOptions { Codec = codec, SyncInterval = 64, LeaveOpen = true }))
+        {
+            foreach (var value in values)
+            {
+                writer.Write(value);
+            }
+        }
+
+        return output.ToArray();
     }
 
     private static void CheckRoundTrips(AvroSchema schema, AvroValue value)
