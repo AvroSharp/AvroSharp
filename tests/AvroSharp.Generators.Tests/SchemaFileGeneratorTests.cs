@@ -76,6 +76,48 @@ public class SchemaFileGeneratorTests
     }
 
     [Test]
+    public async Task ATypeDefinedInTwoFiles_IsReported_NamingTheOtherFile()
+    {
+        var (sources, generatorDiagnostics, _) = GeneratorHarness.Run(
+        [
+            ("a.avsc", """{"type":"enum","name":"Color","namespace":"x","symbols":["RED"]}"""),
+            ("b.avsc", """{"type":"enum","name":"Color","namespace":"x","symbols":["GREEN"]}"""),
+        ]);
+
+        var diagnostic = generatorDiagnostics.Single();
+        await Assert.That(diagnostic.Id).IsEqualTo("AVROGEN001");
+        await Assert.That(diagnostic.Location.GetLineSpan().Path).IsEqualTo("b.avsc");
+        var message = diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
+        await Assert.That(message).Contains("'x.Color' is already defined");
+        await Assert.That(message).EndsWith("It is also defined in a.avsc.");
+        await Assert.That(sources.Select(s => s.HintName).ToArray()).IsEquivalentTo(new[] { "x.Color.g.cs" });
+    }
+
+    [Test]
+    public async Task ATypeSharedByManyFiles_IsGeneratedOnce_AndEachRecordSchemaStandsAlone()
+    {
+        const string Address = """{"type":"record","name":"Address","namespace":"geo","fields":[{"name":"city","type":"string"}]}""";
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run(
+        [
+            ("address.avsc", Address),
+            ("customer.avsc", """{"type":"record","name":"Customer","namespace":"crm","fields":[{"name":"home","type":"geo.Address"}]}"""),
+            ("shop.avsc", """{"type":"record","name":"Shop","namespace":"retail","fields":[{"name":"site","type":"geo.Address"},{"name":"other","type":["null","geo.Address"]}]}"""),
+            ("warehouse.avsc", """{"type":"record","name":"Warehouse","namespace":"ops","fields":[{"name":"docks","type":{"type":"array","items":"geo.Address"}}]}"""),
+        ]);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(sources.Count(s => string.Equals(s.HintName, "geo.Address.g.cs", StringComparison.Ordinal))).IsEqualTo(1);
+        await Assert.That(sources.Length).IsEqualTo(4);
+        await Assert.That(compileDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)).IsEmpty();
+
+        // The embedded schema of every record that uses Address carries its definition, so it parses on its own.
+        foreach (var record in new[] { "crm.Customer.g.cs", "retail.Shop.g.cs", "ops.Warehouse.g.cs" })
+        {
+            await Assert.That(sources.Single(s => string.Equals(s.HintName, record, StringComparison.Ordinal)).SourceText.ToString()).Contains("{\\\"type\\\":\\\"record\\\",\\\"name\\\":\\\"Address\\\"");
+        }
+    }
+
+    [Test]
     public async Task InvalidSchema_IsReportedAtItsLineAndColumn()
     {
         var (sources, generatorDiagnostics, _) = GeneratorHarness.Run(
