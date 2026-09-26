@@ -128,6 +128,9 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         var parsed = new List<AvroSchema>();
         var pending = files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
         var errors = new Dictionary<SchemaFile, AvroSchemaException>();
+
+        // Which file defined each named type, to name it when another file defines the type again.
+        var definedIn = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var progress = true; progress && pending.Count > 0;)
         {
             progress = false;
@@ -137,6 +140,11 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                 try
                 {
                     parsed.Add(parser.Parse(file.Text));
+                    foreach (var name in parser.NamedSchemas.Keys.Where(name => !definedIn.ContainsKey(name)).ToList())
+                    {
+                        definedIn[name] = file.Path;
+                    }
+
                     pending.Remove(file);
                     errors.Remove(file);
                     progress = true;
@@ -148,7 +156,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             }
         }
 
-        var diagnostics = pending.Select(file => DiagnosticInfo.InvalidSchema(file.Path, errors[file])).ToList();
+        var diagnostics = pending.Select(file => DiagnosticInfo.InvalidSchema(file.Path, errors[file], definedIn)).ToList();
         IReadOnlyList<GeneratedSource> sources = [];
         try
         {
@@ -202,8 +210,18 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
 
         public long Column { get; } = column;
 
-        public static DiagnosticInfo InvalidSchema(string path, AvroSchemaException ex) =>
-            new(s_invalidSchema.Id, ex.Message, path, ex.LineNumber ?? 1, ex.BytePositionInLine ?? 1);
+        public static DiagnosticInfo InvalidSchema(string path, AvroSchemaException ex, Dictionary<string, string> definedIn)
+        {
+            // A name defined again: say where the first definition is.
+            var message = ex.Message;
+            var other = definedIn.FirstOrDefault(pair => message.IndexOf("'" + pair.Key + "' is already defined", StringComparison.Ordinal) >= 0 && !string.Equals(pair.Value, path, StringComparison.Ordinal));
+            if (other.Key is not null)
+            {
+                message += $" It is also defined in {other.Value}.";
+            }
+
+            return new(s_invalidSchema.Id, message, path, ex.LineNumber ?? 1, ex.BytePositionInLine ?? 1);
+        }
 
         public Diagnostic ToDiagnostic()
         {
