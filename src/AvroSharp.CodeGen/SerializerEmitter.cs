@@ -17,6 +17,13 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
     /// <summary>Writes <paramref name="expression"/>. <paramref name="field"/> (<c>Record.field</c>) names it in errors.</summary>
     public void Write(CodeWriter w, AvroSchema schema, string expression, string field)
     {
+        // Logical types convert at the edge (AvroLogicalValues); every mapping is a non-nullable value type.
+        if (types.Logical(schema) is { } logical)
+        {
+            w.Line(logical.Write(expression));
+            return;
+        }
+
         switch (schema)
         {
             case RecordSchema record:
@@ -46,6 +53,12 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
     /// <summary>Reads a value and assigns it to <paramref name="target"/>.</summary>
     public void Read(CodeWriter w, AvroSchema schema, string target)
     {
+        if (types.Logical(schema) is { } logical)
+        {
+            w.Line($"{target} = {logical.Read};");
+            return;
+        }
+
         switch (schema)
         {
             case RecordSchema record:
@@ -120,10 +133,10 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         _ => "reader.ReadString()",
     };
 
-    /// <summary>The bulk reader for arrays of a fixed-width or varint primitive, or <see langword="null"/>.</summary>
-    private static string? BulkReader(AvroSchema items) => items.Type switch
+    /// <summary>The bulk reader for arrays of a fixed-width or varint primitive, or <see langword="null"/> (also for mapped logical types).</summary>
+    private string? BulkReader(AvroSchema items) => items.Type switch
     {
-        _ when items is not PrimitiveSchema => null,
+        _ when items is not PrimitiveSchema || types.Logical(items) is not null => null,
         AvroSchemaType.Int => "ReadInts",
         AvroSchemaType.Long => "ReadLongs",
         AvroSchemaType.Float => "ReadFloats",
@@ -138,7 +151,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         w.Line($"var items{n} = {NotNull(expression, field)};");
         w.Open($"if (items{n}.Count > 0)");
         w.Line($"writer.WriteBlockCount(items{n}.Count);");
-        if (array.Items is PrimitiveSchema && array.Items.Type is AvroSchemaType.Double or AvroSchemaType.Float)
+        if (array.Items is PrimitiveSchema && types.Logical(array.Items) is null && array.Items.Type is AvroSchemaType.Double or AvroSchemaType.Float)
         {
             // Fixed-width items are one copy on little-endian hardware.
             var bulk = array.Items.Type == AvroSchemaType.Double ? "WriteDoubles" : "WriteFloats";

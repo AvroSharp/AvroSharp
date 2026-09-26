@@ -1,0 +1,19 @@
+{"type": "record", "name": "Moments", "namespace": "logical", "fields": [
+  {"name": "day", "type": {"type": "int", "logicalType": "date"}},
+  {"name": "clock_millis", "type": {"type": "int", "logicalType": "time-millis"}},
+  {"name": "clock_micros", "type": {"type": "long", "logicalType": "time-micros"}},
+  {"name": "at_millis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+  {"name": "at_micros", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+  {"name": "at_nanos", "type": {"type": "long", "logicalType": "timestamp-nanos"}},
+  {"name": "local_millis", "type": {"type": "long", "logicalType": "local-timestamp-millis"}},
+  {"name": "local_micros", "type": {"type": "long", "logicalType": "local-timestamp-micros"}},
+  {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+  {"name": "id_fixed", "type": {"type": "fixed", "name": "Uuid16", "size": 16, "logicalType": "uuid"}},
+  {"name": "price", "type": {"type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 4}},
+  {"name": "price_fixed", "type": {"type": "fixed", "name": "Money", "size": 8, "logicalType": "decimal", "precision": 18, "scale": 2}},
+  {"name": "huge", "type": {"type": "bytes", "logicalType": "decimal", "precision": 30, "scale": 0}},
+  {"name": "elapsed", "type": {"type": "fixed", "name": "Elapsed", "size": 12, "logicalType": "duration"}},
+  {"name": "maybe_day", "type": ["null", {"type": "int", "logicalType": "date"}]},
+  {"name": "days", "type": {"type": "array", "items": {"type": "int", "logicalType": "date"}}},
+  {"name": "stamps", "type": {"type": "map", "values": {"type": "long", "logicalType": "timestamp-millis"}}}
+]}

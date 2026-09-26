@@ -26,6 +26,17 @@ public class ApacheAvroKnownDeviationTests
     }
 
     [Test]
+    public async Task UuidOnFixed_ApacheRejectsIt()
+    {
+        // Specification (1.12): "uuid" annotates a string, or a fixed of size 16.
+        const string json = """{"type":"fixed","name":"Id","size":16,"logicalType":"uuid"}""";
+
+        await Assert.That(AvroSchema.Parse(json).LogicalType?.Name).IsEqualTo("uuid");
+        var ex = Assert.Throws<Avro.AvroTypeException>(() => ApacheSchema.Parse(json));
+        await Assert.That(ex.Message).Contains("underlying string type");
+    }
+
+    [Test]
     public async Task EmptyNamespace_ApacheInheritsTheEnclosingNamespaceInstead()
     {
         // Specification: "The empty string may also be used as a namespace to indicate the null namespace."

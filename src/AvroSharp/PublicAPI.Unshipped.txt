@@ -269,6 +269,7 @@ AvroSharp.Schemas.UnionSchema
 AvroSharp.Schemas.UnionSchema.Branches.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>!
 AvroSharp.Schemas.UnionSchema.UnionSchema(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! branches) -> void
 AvroSharp.Serialization.AvroGeneratedCode
+AvroSharp.Serialization.AvroLogicalValues
 AvroSharp.Serialization.AvroWriteAction<T>
 AvroSharp.Serialization.IAvroSpecificRecord
 AvroSharp.Serialization.IAvroSpecificRecord.Get(int fieldPos) -> object?
@@ -383,4 +384,26 @@ static AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.A
 static AvroSharp.Serialization.AvroGeneratedCode.SerializeToArray<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write) -> byte[]!
 static AvroSharp.Serialization.AvroGeneratedCode.UnionValueMismatch(object? value, string! field) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.WriteTooDeep() -> AvroSharp.AvroException!
+static AvroSharp.Serialization.AvroLogicalValues.DateFromDays(int days) -> System.DateTime
+static AvroSharp.Serialization.AvroLogicalValues.DaysFromDate(System.DateTime date) -> int
+static AvroSharp.Serialization.AvroLogicalValues.LocalTimestampFromMicroseconds(long microseconds) -> System.DateTime
+static AvroSharp.Serialization.AvroLogicalValues.LocalTimestampFromMilliseconds(long milliseconds) -> System.DateTime
+static AvroSharp.Serialization.AvroLogicalValues.MicrosecondsFromLocalTimestamp(System.DateTime timestamp) -> long
+static AvroSharp.Serialization.AvroLogicalValues.MicrosecondsFromTime(System.TimeSpan time) -> long
+static AvroSharp.Serialization.AvroLogicalValues.MicrosecondsFromTimestamp(System.DateTimeOffset timestamp) -> long
+static AvroSharp.Serialization.AvroLogicalValues.MillisecondsFromLocalTimestamp(System.DateTime timestamp) -> long
+static AvroSharp.Serialization.AvroLogicalValues.MillisecondsFromTime(System.TimeSpan time) -> int
+static AvroSharp.Serialization.AvroLogicalValues.MillisecondsFromTimestamp(System.DateTimeOffset timestamp) -> long
+static AvroSharp.Serialization.AvroLogicalValues.ReadDecimalBytes(ref AvroSharp.IO.AvroReader reader, int scale) -> decimal
+static AvroSharp.Serialization.AvroLogicalValues.ReadDecimalFixed(ref AvroSharp.IO.AvroReader reader, int scale, int size) -> decimal
+static AvroSharp.Serialization.AvroLogicalValues.ReadUuidFixed(ref AvroSharp.IO.AvroReader reader) -> System.Guid
+static AvroSharp.Serialization.AvroLogicalValues.ReadUuidString(ref AvroSharp.IO.AvroReader reader) -> System.Guid
+static AvroSharp.Serialization.AvroLogicalValues.TimeFromMicroseconds(long microseconds) -> System.TimeSpan
+static AvroSharp.Serialization.AvroLogicalValues.TimeFromMilliseconds(int milliseconds) -> System.TimeSpan
+static AvroSharp.Serialization.AvroLogicalValues.TimestampFromMicroseconds(long microseconds) -> System.DateTimeOffset
+static AvroSharp.Serialization.AvroLogicalValues.TimestampFromMilliseconds(long milliseconds) -> System.DateTimeOffset
+static AvroSharp.Serialization.AvroLogicalValues.WriteDecimalBytes(ref AvroSharp.IO.AvroWriter writer, decimal value, int scale, int precision) -> void
+static AvroSharp.Serialization.AvroLogicalValues.WriteDecimalFixed(ref AvroSharp.IO.AvroWriter writer, decimal value, int scale, int precision, int size) -> void
+static AvroSharp.Serialization.AvroLogicalValues.WriteUuidFixed(ref AvroSharp.IO.AvroWriter writer, System.Guid uuid) -> void
+static AvroSharp.Serialization.AvroLogicalValues.WriteUuidString(ref AvroSharp.IO.AvroWriter writer, System.Guid uuid) -> void
 virtual AvroSharp.Serialization.AvroWriteAction<T>.Invoke(ref AvroSharp.IO.AvroWriter writer, T value) -> void

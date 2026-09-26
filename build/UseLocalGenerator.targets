@@ -11,6 +11,7 @@
                       ReferenceOutputAssembly="false"
                       GlobalPropertiesToRemove="OutDir;OutputPath" />
     <CompilerVisibleProperty Include="AvroSharpNamespace" />
+    <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
   </ItemGroup>
 
   <Target Name="AvroSharpAddGeneratorDependencies" AfterTargets="ResolveProjectReferences">

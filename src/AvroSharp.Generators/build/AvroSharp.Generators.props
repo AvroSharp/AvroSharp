@@ -3,6 +3,7 @@
   <!-- Lets the generator read the AvroSharpNamespace property: the C# namespace for Avro types without a namespace. -->
   <ItemGroup>
     <CompilerVisibleProperty Include="AvroSharpNamespace" />
+    <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
   </ItemGroup>
 
 </Project>

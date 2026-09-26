@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- Logical types in generated code:
+  - `date` becomes `DateOnly` and `time-millis`/`time-micros` become `TimeOnly` (`DateTime`/`TimeSpan` where those types don't exist);
+  - `timestamp-millis`/`timestamp-micros` become `DateTimeOffset`, and the `local-timestamp` variants become `DateTime`;
+  - `uuid` (on `string` or `fixed(16)`) becomes `Guid`;
+  - `decimal` with a precision up to 28 becomes `decimal`.
+  - Set the MSBuild property `AvroSharpLogicalTypes=raw` to keep the underlying types.
+  - The conversions are public in `AvroLogicalValues`:
+    - decimals are exact, raising an error instead of rounding;
+    - times and timestamps are truncated towards negative infinity to the logical type's precision;
+    - out-of-range data raises `AvroDataException`.
 - Generated records implement `IAvroSpecificRecord`: `Schema`, `Get(int)` and `Put(int, object?)`, field access by position following the contract of Apache.Avro's `ISpecificRecord` without depending on it. `Put` checks the value's type (no implicit widening, as with Apache's casts) and names the field in errors.
 - Code generation from schema files: the `AvroSharp.Generators` source generator (an incremental generator for `.avsc` files passed as `AdditionalFiles`) and the `AvroSharp.CodeGen` engine it uses. Records become partial classes with static `Write`/`Read` methods (plus `ToAvroBytes`/`FromAvroBytes`) that call `AvroWriter`/`AvroReader` directly in schema order; enums become C# enums; fixed types become size-checked wrappers. Schema files may refer to each other's named types; errors are reported at the file, line and column. Generated readers enforce the same hostile-input limits as the generic reader. The generator needs the .NET 10 SDK or Visual Studio 2026.
 - JSON encoding for the generic model: `GenericDatumJsonWriter` and `GenericDatumJsonReader`, following the specification (wrapped union values, byte strings for `bytes` and `fixed`, enum symbols). Record fields may appear in any order and missing fields take their defaults; NaN and infinities are written as strings, as Apache.Avro C# does. Checked both ways against Apache.Avro's `JsonEncoder`/`JsonDecoder`.

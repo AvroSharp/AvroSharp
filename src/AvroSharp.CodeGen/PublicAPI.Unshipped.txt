@@ -3,12 +3,19 @@ AvroSharp.CodeGen.CodeGenOptions
 AvroSharp.CodeGen.CodeGenOptions.CodeGenOptions() -> void
 AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.get -> string?
 AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.init -> void
+AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.get -> AvroSharp.CodeGen.LogicalTypeMapping
+AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.init -> void
+AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.get -> bool
+AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.init -> void
 AvroSharp.CodeGen.CSharpCodeGenerator
 AvroSharp.CodeGen.GeneratedSource
 AvroSharp.CodeGen.GeneratedSource.Equals(AvroSharp.CodeGen.GeneratedSource? other) -> bool
 AvroSharp.CodeGen.GeneratedSource.GeneratedSource(string! hintName, string! text) -> void
 AvroSharp.CodeGen.GeneratedSource.HintName.get -> string!
 AvroSharp.CodeGen.GeneratedSource.Text.get -> string!
+AvroSharp.CodeGen.LogicalTypeMapping
+AvroSharp.CodeGen.LogicalTypeMapping.Native = 0 -> AvroSharp.CodeGen.LogicalTypeMapping
+AvroSharp.CodeGen.LogicalTypeMapping.Raw = 1 -> AvroSharp.CodeGen.LogicalTypeMapping
 override AvroSharp.CodeGen.GeneratedSource.Equals(object? obj) -> bool
 override AvroSharp.CodeGen.GeneratedSource.GetHashCode() -> int
 override AvroSharp.CodeGen.GeneratedSource.ToString() -> string!

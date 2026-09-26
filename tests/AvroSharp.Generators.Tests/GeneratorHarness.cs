@@ -35,25 +35,42 @@ internal static class GeneratorHarness
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
     }
 
-    public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null) =>
+    public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, string? logicalTypes = null) =>
         CSharpGeneratorDriver.Create(
             [new SchemaFileGenerator().AsSourceGenerator()],
             files.Select(f => (AdditionalText)new InMemoryText(f.Path, f.Text)),
             new CSharpParseOptions(LanguageVersion.Latest),
-            new Options(avroSharpNamespace),
+            new Options(Properties(avroSharpNamespace, logicalTypes)),
             new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
 
     /// <summary>Runs the generator; returns the generated sources, the generator's diagnostics and the compiler's.</summary>
     public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
-        Run(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, bool referenceAvroSharp = true)
+        Run(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, bool referenceAvroSharp = true, string? logicalTypes = null)
     {
         var compilation = CreateCompilation(referenceAvroSharp, "internal static class Placeholder { }");
-        var driver = CreateDriver(files, avroSharpNamespace).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+        var driver = CreateDriver(files, avroSharpNamespace, logicalTypes).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
         var result = driver.GetRunResult().Results.Single();
         return (result.GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
     }
 
     public static AdditionalText Text(string path, string text) => new InMemoryText(path, text);
+
+    /// <summary>The MSBuild properties the generator reads, as the compiler exposes them (build_property.*).</summary>
+    private static Dictionary<string, string> Properties(string? avroSharpNamespace, string? logicalTypes)
+    {
+        var properties = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (avroSharpNamespace is not null)
+        {
+            properties["build_property.AvroSharpNamespace"] = avroSharpNamespace;
+        }
+
+        if (logicalTypes is not null)
+        {
+            properties["build_property.AvroSharpLogicalTypes"] = logicalTypes;
+        }
+
+        return properties;
+    }
 
     private sealed class InMemoryText(string path, string text) : AdditionalText
     {
@@ -62,23 +79,20 @@ internal static class GeneratorHarness
         public override SourceText GetText(CancellationToken cancellationToken = default) => SourceText.From(text);
     }
 
-    private sealed class Options(string? avroSharpNamespace) : AnalyzerConfigOptionsProvider
+    private sealed class Options(Dictionary<string, string> properties) : AnalyzerConfigOptionsProvider
     {
-        public override AnalyzerConfigOptions GlobalOptions { get; } = new Values(avroSharpNamespace);
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new Values(properties);
 
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => Values.Empty;
 
         public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => Values.Empty;
 
-        private sealed class Values(string? avroSharpNamespace) : AnalyzerConfigOptions
+        private sealed class Values(Dictionary<string, string> properties) : AnalyzerConfigOptions
         {
-            public static Values Empty { get; } = new(null);
+            public static Values Empty { get; } = new([]);
 
-            public override bool TryGetValue(string key, out string value)
-            {
-                value = avroSharpNamespace ?? string.Empty;
-                return string.Equals(key, "build_property.AvroSharpNamespace", StringComparison.Ordinal) && avroSharpNamespace is not null;
-            }
+            public override bool TryGetValue(string key, out string value) =>
+                properties.TryGetValue(key, out value!);
         }
     }
 }
