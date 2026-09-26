@@ -45,6 +45,11 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     private ReadOnlyMemory<byte> _blockData;
     private int _position;
     private long _objectsLeft;
+
+    // Stream positions, when the stream can seek: the first block's start (just after the header), and the start of
+    // the block most recently read (just after the previous sync marker).
+    private long _firstBlockStart = -1;
+    private long _blockStart = -1;
     private bool _disposed;
 
     internal AvroFileReader(Stream stream, AvroFileReaderOptions options)
@@ -163,6 +168,8 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
                 throw HeaderTruncated(needed);
             }
         }
+
+        MarkFirstBlock();
     }
 
     internal async ValueTask ReadHeaderAsync(CancellationToken cancellationToken)
@@ -177,10 +184,13 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
                 throw HeaderTruncated(needed);
             }
         }
+
+        MarkFirstBlock();
     }
 
     private bool ReadBlock()
     {
+        MarkBlockStart();
         long count;
         long size;
         while (!TryParseBlockPrefix(out count, out size))
@@ -210,6 +220,7 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     {
         // Blocks already buffered are read without awaiting, so cancellation is checked here too.
         cancellationToken.ThrowIfCancellationRequested();
+        MarkBlockStart();
         long count;
         long size;
         while (!TryParseBlockPrefix(out count, out size))
