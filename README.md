@@ -4,10 +4,10 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 
 > **Status:** early development, not yet released. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
-> - binary and JSON encoding of the generic data model;
+> - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files.
 >
-> Not implemented yet: schema resolution, container files and codecs. See [the design](docs/design.md) for the roadmap.
+> Not implemented yet: schema resolution for generated types, container files and codecs. See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 

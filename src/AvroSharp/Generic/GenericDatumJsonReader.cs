@@ -136,6 +136,13 @@ public sealed class GenericDatumJsonReader
         }
     }
 
+    /// <summary>
+    /// Converts a field's default value, as written in the schema, to an <see cref="AvroValue"/>. Defaults use the JSON
+    /// encoding with one difference: a union default is not wrapped, and takes the first branch it matches.
+    /// </summary>
+    internal static AvroValue ReadDefault(AvroSchema schema, JsonElement value) =>
+        new Converter(GenericDatumReaderOptions.Default.MaxDepth, wrappedUnions: false).Convert(schema, value);
+
     private AvroValue Convert(JsonElement root)
     {
         try

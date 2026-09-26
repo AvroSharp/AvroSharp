@@ -52,6 +52,7 @@ AvroSharp.Generic.GenericDatumJsonWriter.WriteToUtf8Bytes(in AvroSharp.Generic.A
 AvroSharp.Generic.GenericDatumReader
 AvroSharp.Generic.GenericDatumReader.Read(ref AvroSharp.IO.AvroReader reader) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumReader.Read(System.ReadOnlySpan<byte> data) -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericDatumReader.ReaderSchema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Generic.GenericDatumReader.Schema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Generic.GenericDatumReaderOptions
 AvroSharp.Generic.GenericDatumReaderOptions.GenericDatumReaderOptions() -> void
@@ -334,6 +335,7 @@ static AvroSharp.Generic.AvroValue.operator ==(AvroSharp.Generic.AvroValue left,
 static AvroSharp.Generic.GenericDatumJsonReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumJsonReader!
 static AvroSharp.Generic.GenericDatumJsonWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumJsonWriter!
 static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumReader!
+static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumReader!
 static AvroSharp.Generic.GenericDatumReaderOptions.Default.get -> AvroSharp.Generic.GenericDatumReaderOptions!
 static AvroSharp.Generic.GenericDatumWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumWriter!
 static AvroSharp.Generic.GenericDatumWriterOptions.Default.get -> AvroSharp.Generic.GenericDatumWriterOptions!
