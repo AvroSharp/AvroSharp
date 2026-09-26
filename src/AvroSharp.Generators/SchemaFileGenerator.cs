@@ -6,6 +6,7 @@ using System.Threading;
 using AvroSharp.CodeGen;
 using AvroSharp.Schemas;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 
 namespace AvroSharp.Generators;
@@ -69,15 +70,20 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             HasDateOnly: compilation.GetTypeByMetadataName("System.DateOnly") is not null,
             HasApache: compilation.GetTypeByMetadataName("Avro.Specific.ISpecificRecord") is not null));
 
-        var results = files.Combine(properties).Combine(target)
+        // Nullable annotations need C# 8; netstandard2.0 and .NET Framework projects default to C# 7.3.
+        var annotations = context.ParseOptionsProvider.Select(static (options, _) =>
+            options is CSharpParseOptions csharp && csharp.LanguageVersion >= LanguageVersion.CSharp8);
+
+        var results = files.Combine(properties).Combine(target).Combine(annotations)
             .Select(static (input, cancellationToken) => Generate(
-                input.Left.Left,
+                input.Left.Left.Left,
                 new CodeGenOptions
                 {
-                    DefaultNamespace = input.Left.Right.Namespace,
-                    LogicalTypes = input.Left.Right.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
-                    TargetHasDateOnly = input.Right.HasDateOnly,
-                    ApacheCompatible = input.Left.Right.Apache && input.Right.HasApache,
+                    DefaultNamespace = input.Left.Left.Right.Namespace,
+                    LogicalTypes = input.Left.Left.Right.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
+                    TargetHasDateOnly = input.Left.Right.HasDateOnly,
+                    ApacheCompatible = input.Left.Left.Right.Apache && input.Left.Right.HasApache,
+                    NullableAnnotations = input.Right,
                 },
                 cancellationToken))
             .WithTrackingName("Generate");

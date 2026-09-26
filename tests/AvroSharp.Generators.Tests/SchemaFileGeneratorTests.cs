@@ -60,6 +60,40 @@ public class SchemaFileGeneratorTests
         }
     }
 
+    /// <summary>
+    /// netstandard2.0 and .NET Framework projects default to C# 7.3; the generated code must compile there (#41),
+    /// including every construct the generator emits (unions, collections, logical types, fixed, Get/Put, and the
+    /// Apache compatibility mode).
+    /// </summary>
+    [Test]
+    [Arguments(LanguageVersion.CSharp7_3, false)]
+    [Arguments(LanguageVersion.CSharp7_3, true)]
+    [Arguments(LanguageVersion.CSharp8, false)]
+    [Arguments(LanguageVersion.CSharp8, true)]
+    public async Task Output_CompilesWithOlderLanguageVersions(LanguageVersion version, bool apache)
+    {
+        const string Everything = """
+            {"type":"record","name":"All","namespace":"old","fields":[
+              {"name":"s","type":"string"},{"name":"b","type":"bytes"},
+              {"name":"note","type":["null","string"]},{"name":"count","type":["null","int"]},
+              {"name":"any","type":["null","int","string"]},
+              {"name":"list","type":{"type":"array","items":"long"}},{"name":"map","type":{"type":"map","values":"string"}},
+              {"name":"day","type":{"type":"int","logicalType":"date"}},
+              {"name":"money","type":{"type":"bytes","logicalType":"decimal","precision":10,"scale":2}},
+              {"name":"hash","type":{"type":"fixed","name":"Hash","size":2}},
+              {"name":"kind","type":{"type":"enum","name":"Kind","symbols":["A","B"]}},
+              {"name":"next","type":["null","All"]}
+            ]}
+            """;
+
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run(
+            [("all.avsc", Everything)], apacheCompatible: apache, referenceApache: apache, languageVersion: version);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(sources.Length).IsGreaterThanOrEqualTo(3);
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
     [Test]
     public async Task NamedTypesFromOtherFiles_ResolveInAnyFileOrder()
     {

@@ -17,7 +17,7 @@ namespace app.events
         private static global::AvroSharp.Schemas.AvroSchema? s_schema;
 
         /// <summary>Gets the Avro schema of this type.</summary>
-        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ??= global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson);
+        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? (s_schema = global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
 
         public long Id { get; set; }
 
@@ -25,9 +25,9 @@ namespace app.events
 
         public global::app.events.Hash Hash { get; set; } = null!;
 
-        public global::System.Collections.Generic.List<string> Tags { get; set; } = new();
+        public global::System.Collections.Generic.List<string> Tags { get; set; } = new global::System.Collections.Generic.List<string>();
 
-        public global::System.Collections.Generic.Dictionary<string, double> Scores { get; set; } = new();
+        public global::System.Collections.Generic.Dictionary<string, double> Scores { get; set; } = new global::System.Collections.Generic.Dictionary<string, double>();
 
         public global::app.events.Event? Parent { get; set; }
 
@@ -158,7 +158,7 @@ namespace app.events
                 writer.WriteBlockEnd();
             }
 
-            if (value.Parent is { } value2)
+            if (value.Parent is global::app.events.Event value2)
             {
                 writer.WriteUnionIndex(1);
                 global::app.events.Event.WriteCore(ref writer, (value2 ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.parent")), depth + 1);

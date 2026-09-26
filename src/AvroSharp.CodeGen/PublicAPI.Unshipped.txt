@@ -7,6 +7,8 @@ AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.get -> string?
 AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.init -> void
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.get -> AvroSharp.CodeGen.LogicalTypeMapping
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.init -> void
+AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.get -> bool
+AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.init -> void
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.init -> void
 AvroSharp.CodeGen.CSharpCodeGenerator

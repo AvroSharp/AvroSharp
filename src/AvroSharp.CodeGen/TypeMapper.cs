@@ -15,6 +15,15 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     public const string ListType = "global::System.Collections.Generic.List";
     public const string DictionaryType = "global::System.Collections.Generic.Dictionary";
 
+    /// <summary>Makes a reference type nullable: <c>T?</c> with nullable annotations (C# 8 and later), otherwise <c>T</c>.</summary>
+    public string Nullable(string referenceType) => options.NullableAnnotations ? referenceType + "?" : referenceType;
+
+    /// <summary>Gets whether nullable reference type annotations are emitted (C# 8 and later).</summary>
+    public bool Annotations => options.NullableAnnotations;
+
+    /// <summary>Gets the null-forgiving operator when annotations are on, otherwise nothing.</summary>
+    public string NullForgiving => options.NullableAnnotations ? "!" : string.Empty;
+
     /// <summary>Gets the logical-type mapping of <paramref name="schema"/>, or <see langword="null"/> when it keeps its underlying type.</summary>
     public LogicalValue? Logical(AvroSchema schema) => LogicalTypes.For(schema, options);
 
@@ -33,8 +42,8 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// </summary>
     public string? Initializer(AvroSchema schema) => Logical(schema) is not null ? null : schema switch
     {
-        ArraySchema or MapSchema => "new()",
-        RecordSchema or FixedSchema => "null!",
+        ArraySchema or MapSchema => $"new {TypeOf(schema)}()",
+        RecordSchema or FixedSchema => "null" + NullForgiving,
         UnionSchema union when Classify(union) is { NullIndex: < 0, Others.Count: 1 } single => Initializer(union.Branches[single.Others[0]]),
         _ => schema.Type switch
         {
@@ -52,7 +61,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         UnionSchema union => UnionType(union),
         _ => schema.Type switch
         {
-            AvroSchemaType.Null => "object?",
+            AvroSchemaType.Null => Nullable("object"),
             AvroSchemaType.Boolean => "bool",
             AvroSchemaType.Int => "int",
             AvroSchemaType.Long => "long",
@@ -114,10 +123,17 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         var (nullIndex, others) = Classify(union);
         if (others.Count == 1)
         {
-            var type = TypeOf(union.Branches[others[0]]);
-            return nullIndex >= 0 ? type + "?" : type;
+            var branch = union.Branches[others[0]];
+            var type = TypeOf(branch);
+            if (nullIndex < 0)
+            {
+                return type;
+            }
+
+            // Nullable<T> for value types exists in every C# version; reference types need annotations (C# 8).
+            return IsValueType(branch) ? type + "?" : Nullable(type);
         }
 
-        return "object?";
+        return Nullable("object");
     }
 }

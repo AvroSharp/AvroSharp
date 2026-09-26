@@ -211,7 +211,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         }
         else if (others.Count == 1)
         {
-            w.Open($"if ({expression} is {{ }} value{n})");
+            w.Open($"if ({expression} is {types.TypeOf(union.Branches[others[0]])} value{n})");
             w.Line($"writer.WriteUnionIndex({Int(others[0])});");
             Write(w, union.Branches[others[0]], $"value{n}", field);
             w.Close();

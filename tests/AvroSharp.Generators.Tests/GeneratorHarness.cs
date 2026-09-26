@@ -20,9 +20,9 @@ internal static class GeneratorHarness
             .Where(path => Path.GetFileName(path).StartsWith("System", StringComparison.Ordinal) || Path.GetFileName(path) is "mscorlib.dll" or "netstandard.dll")
             .Select(path => MetadataReference.CreateFromFile(path))]);
 
-    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp = true, params string[] sources) => CreateCompilation(referenceAvroSharp, referenceApache: false, sources);
+    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp = true, params string[] sources) => CreateCompilation(referenceAvroSharp, referenceApache: false, LanguageVersion.Latest, sources);
 
-    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp, bool referenceApache, params string[] sources)
+    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp, bool referenceApache, LanguageVersion languageVersion, params string[] sources)
     {
         IEnumerable<MetadataReference> references = s_frameworkReferences.Value;
         if (referenceAvroSharp)
@@ -37,25 +37,25 @@ internal static class GeneratorHarness
 
         return CSharpCompilation.Create(
             "Consumer",
-            sources.Select(s => CSharpSyntaxTree.ParseText(s, new CSharpParseOptions(LanguageVersion.Latest))),
+            sources.Select(s => CSharpSyntaxTree.ParseText(s, new CSharpParseOptions(languageVersion))),
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: languageVersion >= LanguageVersion.CSharp8 ? NullableContextOptions.Enable : NullableContextOptions.Disable));
     }
 
-    public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, string? logicalTypes = null, bool apacheCompatible = false) =>
+    public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, string? logicalTypes = null, bool apacheCompatible = false, LanguageVersion languageVersion = LanguageVersion.Latest) =>
         CSharpGeneratorDriver.Create(
             [new SchemaFileGenerator().AsSourceGenerator()],
             files.Select(f => (AdditionalText)new InMemoryText(f.Path, f.Text)),
-            new CSharpParseOptions(LanguageVersion.Latest),
+            new CSharpParseOptions(languageVersion),
             new Options(Properties(avroSharpNamespace, logicalTypes, apacheCompatible)),
             new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
 
     /// <summary>Runs the generator; returns the generated sources, the generator's diagnostics and the compiler's.</summary>
     public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
-        Run(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, bool referenceAvroSharp = true, string? logicalTypes = null, bool apacheCompatible = false, bool referenceApache = false)
+        Run(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, bool referenceAvroSharp = true, string? logicalTypes = null, bool apacheCompatible = false, bool referenceApache = false, LanguageVersion languageVersion = LanguageVersion.Latest)
     {
-        var compilation = CreateCompilation(referenceAvroSharp, referenceApache, "internal static class Placeholder { }");
-        var driver = CreateDriver(files, avroSharpNamespace, logicalTypes, apacheCompatible).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+        var compilation = CreateCompilation(referenceAvroSharp, referenceApache, languageVersion, "internal static class Placeholder { }");
+        var driver = CreateDriver(files, avroSharpNamespace, logicalTypes, apacheCompatible, languageVersion).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
         var result = driver.GetRunResult().Results.Single();
         return (result.GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
     }
