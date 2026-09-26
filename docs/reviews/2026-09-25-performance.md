@@ -76,6 +76,7 @@ The PERF comments that chose branchy code (`AvroReader.cs:479-485`, `AvroWriter.
 - Use at least 64K values, or a new random dataset per iteration.
 - Add a workload with truly mixed lengths.
 - Benchmark through a `ref AvroReader` parameter. A local reader gets promoted to registers, which hides the cost of storing and reloading its position field.
+- **Fixed in the benchmark-fixes PR:** VarintBenchmarks, BinaryEncodingBenchmarks and BulkReadBenchmarks use 64K random values with no repeating pattern, VarintBenchmarks adds Mixed1-10 and Mixed1-2, and AvroSharp is called through non-inlined `ref` helpers. The PERF comments are marked for re-measurement.
 
 ### 1.3 Decode one-byte runs with SIMD, not just detect them (net8+, `Vector128`)
 `AvroReader.cs:322-335, 365-378`. `OneByteRunLength` already uses SIMD to find a run of 1-byte values, but decoding the run is a scalar loop of 16 with two bounds checks per element. Decode all 16 bytes at once instead and store all 16 results unconditionally. This is safe because `destination.Length - i >= 16` is already checked, and every slot past the run is overwritten later.

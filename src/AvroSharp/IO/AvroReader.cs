@@ -500,6 +500,8 @@ public ref struct AvroReader
     /// PEXT for the word path when Bmi2.X64.IsSupported (slow microcode on AMD Zen 1/2); SIMD batch decoding of
     /// array blocks (Masked VByte, or runs of one-byte values), which belongs in the array reader. Re-measure on
     /// both machines before changing: VarintBenchmarks with AVROSHARP_VARINT_BYTES.
+    /// Caution: these numbers came from 1,000-value datasets that the branch predictor can learn (see
+    /// docs/reviews/2026-09-25-performance.md, §1.2); re-measure with the 64K random-value benchmarks before relying on them.
     /// </remarks>    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryReadThreeOrFourByteVarint(out uint value)
     {
