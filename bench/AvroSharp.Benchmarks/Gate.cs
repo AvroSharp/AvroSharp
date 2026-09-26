@@ -44,30 +44,39 @@ internal static class Gate
                     checkedCount++;
                     failures += Compare(group.Key, candidate, baseline) ? 0 : 1;
                 }
+
+                // Reference implementations such as AvroSharpScalar_* are reported next to the baseline but not gated.
+                foreach (var reference in group.Where(r => r.BenchmarkCase.Descriptor.WorkloadMethod.Name.StartsWith("AvroSharpScalar_", StringComparison.Ordinal)))
+                {
+                    Report("INFO", group.Key, reference, baseline);
+                }
             }
         }
 
         Console.WriteLine(checkedCount == 0
             ? "GATE FAILED: no AvroSharp benchmark was compared against a baseline."
-            : $"Gate: {checkedCount - failures}/{checkedCount} comparisons passed.");
+            : $"Gate: {checkedCount - failures}/{checkedCount} comparisons passed ({BuildInfo.Version}).");
         return checkedCount == 0 || failures > 0 ? 1 : 0;
     }
 
     private static bool Compare(string group, BenchmarkReport candidate, BenchmarkReport baseline)
     {
+        var passed = candidate.ResultStatistics!.Mean < baseline.ResultStatistics!.Mean && Allocated(candidate) <= Allocated(baseline);
+        Report(passed ? "PASS" : "FAIL", group, candidate, baseline);
+        return passed;
+    }
+
+    private static void Report(string verdict, string group, BenchmarkReport candidate, BenchmarkReport baseline)
+    {
         var mean = candidate.ResultStatistics!.Mean;
         var baselineMean = baseline.ResultStatistics!.Mean;
-        var allocated = candidate.GcStats.GetBytesAllocatedPerOperation(candidate.BenchmarkCase) ?? 0;
-        var baselineAllocated = baseline.GcStats.GetBytesAllocatedPerOperation(baseline.BenchmarkCase) ?? 0;
-
-        var faster = mean < baselineMean;
-        var leaner = allocated <= baselineAllocated;
-        var verdict = faster && leaner ? "PASS" : "FAIL";
         Console.WriteLine(string.Create(
             CultureInfo.InvariantCulture,
             $"{verdict} {group} {candidate.BenchmarkCase.Descriptor.WorkloadMethod.Name}: " +
             $"time {mean:N0} ns vs {baselineMean:N0} ns ({baselineMean / mean:N2}x), " +
-            $"allocated {allocated:N0} B vs {baselineAllocated:N0} B"));
-        return faster && leaner;
+            $"allocated {Allocated(candidate):N0} B vs {Allocated(baseline):N0} B"));
     }
+
+    private static long Allocated(BenchmarkReport report) =>
+        report.GcStats.GetBytesAllocatedPerOperation(report.BenchmarkCase) ?? 0;
 }

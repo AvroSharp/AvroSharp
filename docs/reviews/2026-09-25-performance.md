@@ -30,6 +30,7 @@ These three are confirmed in the code. **Status: all three fixed in PR #4** (tes
 ## 1. Binary primitives (`AvroReader` / `AvroWriter`)
 
 ### 1.1 Branchless PEXT/PDEP varint paths (biggest win on realistic data)
+**Status: implemented in the branchless-varints PR, awaiting measurement.** One and two bytes are also handled branchlessly (inline), because the mixed 1-2 byte case is the most common and the "1-byte check then PEXT" variant was slower there.
 `AvroReader.cs:446-653`, `AvroWriter.cs:247-326`. Today a chain of length checks (1, 2, 3/4, 5-8 and 9/10 bytes) handles each varint. That is fast when value lengths are predictable and slow when they are not.
 
 Time per value, in ns, measured over 200,000 values:

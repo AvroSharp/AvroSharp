@@ -5,6 +5,7 @@ using BenchmarkDotNet.Running;
 
 // Usage: dotnet run -c Release -- [BenchmarkDotNet arguments] [--gate]
 // With --gate, the process exits non-zero unless AvroSharp beats the Apache.Avro baseline in every group.
+System.Console.WriteLine(BuildInfo.Version);
 var gate = args.Contains("--gate", StringComparer.Ordinal);
 var summaries = BenchmarkSwitcher
     .FromAssembly(typeof(Gate).Assembly)
