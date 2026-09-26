@@ -380,11 +380,13 @@ static AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(byte[]! value, i
 static AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(int count) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(int fieldPos, int fieldCount, string! recordName) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.IO.AvroDataException!
+static AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> bool
 static AvroSharp.Serialization.AvroGeneratedCode.NullValue(string! field) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(object? value, string! field, string! expectedType) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref AvroSharp.IO.AvroReader reader, int minimumItemSize, int itemsSoFar) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref AvroSharp.IO.AvroReader reader, int symbolCount, string! enumName) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.AvroDataException!
+static AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> byte[]!
 static AvroSharp.Serialization.AvroGeneratedCode.SerializeToArray<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write) -> byte[]!
 static AvroSharp.Serialization.AvroGeneratedCode.UnionValueMismatch(object? value, string! field) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.WriteTooDeep() -> AvroSharp.AvroException!

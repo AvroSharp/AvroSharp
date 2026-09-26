@@ -1,7 +1,9 @@
 using System;
 using System.ComponentModel;
 using AvroSharp.Buffers;
+using AvroSharp.Generic;
 using AvroSharp.IO;
+using AvroSharp.Schemas;
 
 namespace AvroSharp.Serialization;
 
@@ -136,6 +138,34 @@ public static class AvroGeneratedCode
     /// <summary>Creates the error for records nested deeper than <see cref="MaxDepth"/> while reading.</summary>
     public static AvroDataException ReadTooDeep() =>
         new($"Records are nested more than {MaxDepth} levels deep.");
+
+    /// <summary>
+    /// Gets whether data written with <paramref name="writerSchema"/> can be read as <paramref name="readerSchema"/>
+    /// without resolution: the same instance, or the same Parsing Canonical Form (identical encoding).
+    /// </summary>
+    /// <param name="writerSchema">The schema the data was written with.</param>
+    /// <param name="readerSchema">The generated type's schema.</param>
+    public static bool IsSameSchema(AvroSchema writerSchema, AvroSchema readerSchema)
+    {
+        ArgumentNullException.ThrowIfNull(writerSchema);
+        ArgumentNullException.ThrowIfNull(readerSchema);
+        return ReferenceEquals(writerSchema, readerSchema)
+            || (writerSchema.Fingerprint64 == readerSchema.Fingerprint64
+                && string.Equals(writerSchema.CanonicalForm, readerSchema.CanonicalForm, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Reads one value written with <paramref name="writerSchema"/>, resolves it to <paramref name="readerSchema"/>
+    /// with the generic model, and returns it in the reader schema's encoding, for the generated reader to read.
+    /// </summary>
+    /// <param name="reader">The source.</param>
+    /// <param name="writerSchema">The schema the data was written with.</param>
+    /// <param name="readerSchema">The generated type's schema.</param>
+    public static byte[] ResolveToReaderEncoding(ref AvroReader reader, AvroSchema writerSchema, AvroSchema readerSchema)
+    {
+        var value = GenericDatumReader.Create(writerSchema, readerSchema).Read(ref reader);
+        return GenericDatumWriter.Create(readerSchema).WriteToArray(value);
+    }
 
     /// <summary>Checks the length of a fixed value's bytes.</summary>
     /// <param name="value">The bytes.</param>
