@@ -5,6 +5,7 @@ using System.Buffers.Binary;
 using System.Numerics;
 using System.Runtime.Intrinsics;
 #endif
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -99,12 +100,16 @@ public ref struct AvroReader
 
     /// <summary>Reads a boolean encoded as one byte, 0 or 1.</summary>
     /// <exception cref="AvroDataException">The byte is neither 0 nor 1, or the input ended.</exception>
-    public bool ReadBoolean() => ReadByte() switch
+    public bool ReadBoolean()
     {
-        0 => false,
-        1 => true,
-        var b => throw new AvroDataException($"Invalid boolean byte 0x{b:X2} at offset {BytesConsumed - 1}; expected 0 or 1."),
-    };
+        var b = ReadByte();
+        if (b > 1)
+        {
+            ThrowInvalidBoolean(b, BytesConsumed - 1);
+        }
+
+        return b != 0;
+    }
 
     /// <summary>Reads a zig-zag variable-length <c>int</c>.</summary>
     /// <exception cref="AvroDataException">The encoding is longer than 5 bytes, or the input ended.</exception>
@@ -127,28 +132,42 @@ public ref struct AvroReader
     /// <summary>Reads a <c>float</c> from 4 little-endian bytes.</summary>
     public float ReadFloat()
     {
-        if (_span.Length - _position >= sizeof(float))
+        var position = _position;
+        if (BitConverter.IsLittleEndian && _span.Length - position >= sizeof(float))
         {
-            var value = BinaryPrimitives.ReadSingleLittleEndian(_span[_position..]);
-            _position += sizeof(float);
-            return value;
+            // One length check, no slice: the value is read straight from the input.
+            _position = position + sizeof(float);
+            return Unsafe.ReadUnaligned<float>(ref Unsafe.Add(ref MemoryMarshal.GetReference(_span), position));
         }
 
-        Span<byte> bytes = stackalloc byte[sizeof(float)];
-        ReadExactSlow(bytes);
-        return BinaryPrimitives.ReadSingleLittleEndian(bytes);
+        return ReadFloatSlow();
     }
 
     /// <summary>Reads a <c>double</c> from 8 little-endian bytes.</summary>
     public double ReadDouble()
     {
-        if (_span.Length - _position >= sizeof(double))
+        var position = _position;
+        if (BitConverter.IsLittleEndian && _span.Length - position >= sizeof(double))
         {
-            var value = BinaryPrimitives.ReadDoubleLittleEndian(_span[_position..]);
-            _position += sizeof(double);
-            return value;
+            _position = position + sizeof(double);
+            return Unsafe.ReadUnaligned<double>(ref Unsafe.Add(ref MemoryMarshal.GetReference(_span), position));
         }
 
+        return ReadDoubleSlow();
+    }
+
+    // Out of line: stackalloc prevents inlining, and this path only runs across segments or on big-endian hardware.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private float ReadFloatSlow()
+    {
+        Span<byte> bytes = stackalloc byte[sizeof(float)];
+        ReadExactSlow(bytes);
+        return BinaryPrimitives.ReadSingleLittleEndian(bytes);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private double ReadDoubleSlow()
+    {
         Span<byte> bytes = stackalloc byte[sizeof(double)];
         ReadExactSlow(bytes);
         return BinaryPrimitives.ReadDoubleLittleEndian(bytes);
@@ -179,6 +198,13 @@ public ref struct AvroReader
             return value;
         }
 
+        return ReadStringSlow(length);
+    }
+
+    // Out of line: try/finally prevents inlining, and this path only runs for strings that straddle segments.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private string ReadStringSlow(int length)
+    {
         var rented = ArrayPool<byte>.Shared.Rent(length);
         try
         {
@@ -505,13 +531,14 @@ public ref struct AvroReader
     /// </remarks>    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryReadThreeOrFourByteVarint(out uint value)
     {
-        var span = _span;
         var position = _position;
-        if (span.Length - position >= 4)
+        if (_span.Length - position >= 4)
         {
-            uint b0 = span[position];
-            uint b1 = span[position + 1];
-            uint b2 = span[position + 2];
+            // One slice, then constant indexes, so the bounds checks fold away.
+            var bytes = _span.Slice(position, 4);
+            uint b0 = bytes[0];
+            uint b1 = bytes[1];
+            uint b2 = bytes[2];
             if (b2 < 0x80)
             {
                 _position = position + 3;
@@ -519,7 +546,7 @@ public ref struct AvroReader
                 return true;
             }
 
-            uint b3 = span[position + 3];
+            uint b3 = bytes[3];
             if (b3 < 0x80)
             {
                 _position = position + 4;
@@ -690,22 +717,39 @@ public ref struct AvroReader
     private int ReadLength(string what)
     {
         var length = ReadLong();
-        if (length < 0 || length > int.MaxValue)
+        if ((ulong)length > int.MaxValue)
         {
-            throw new AvroDataException($"Invalid {what} length {length} at offset {BytesConsumed}.");
+            ThrowInvalidLength(what, length, BytesConsumed);
         }
 
         EnsureRemaining(length, what);
         return (int)length;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private readonly void EnsureRemaining(long count, string what)
     {
         if (count > BytesRemaining)
         {
-            throw new AvroDataException($"Unexpected end of Avro data: {what} value needs {count} byte(s) at offset {BytesConsumed}, {BytesRemaining} remain.");
+            ThrowTruncated(what, count, BytesConsumed, BytesRemaining);
         }
     }
+
+    // The throws live in separate methods so the callers stay small enough to inline.
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowTruncated(string what, long count, long offset, long remaining) =>
+        throw new AvroDataException($"Unexpected end of Avro data: {what} value needs {count} byte(s) at offset {offset}, {remaining} remain.");
+
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowInvalidLength(string what, long length, long offset) =>
+        throw new AvroDataException($"Invalid {what} length {length} at offset {offset}.");
+
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowInvalidBoolean(byte value, long offset) =>
+        throw new AvroDataException($"Invalid boolean byte 0x{value:X2} at offset {offset}; expected 0 or 1.");
 
     private ReadOnlySpan<byte> ReadSpan(int length)
     {

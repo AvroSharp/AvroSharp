@@ -87,7 +87,7 @@ public ref struct AvroWriter
     public void WriteBoolean(bool value)
     {
         Ensure(1);
-        _buffer[_buffered++] = value ? (byte)1 : (byte)0;
+        At(_buffered++) = value ? (byte)1 : (byte)0;
     }
 
     /// <summary>Writes an <c>int</c> as a zig-zag variable-length integer (1 to 5 bytes).</summary>
@@ -105,7 +105,15 @@ public ref struct AvroWriter
     public void WriteFloat(float value)
     {
         Ensure(sizeof(float));
-        BinaryPrimitives.WriteSingleLittleEndian(_buffer[_buffered..], value);
+        if (BitConverter.IsLittleEndian)
+        {
+            Unsafe.WriteUnaligned(ref At(_buffered), value);
+        }
+        else
+        {
+            BinaryPrimitives.WriteSingleLittleEndian(_buffer[_buffered..], value);
+        }
+
         _buffered += sizeof(float);
     }
 
@@ -114,7 +122,15 @@ public ref struct AvroWriter
     public void WriteDouble(double value)
     {
         Ensure(sizeof(double));
-        BinaryPrimitives.WriteDoubleLittleEndian(_buffer[_buffered..], value);
+        if (BitConverter.IsLittleEndian)
+        {
+            Unsafe.WriteUnaligned(ref At(_buffered), value);
+        }
+        else
+        {
+            BinaryPrimitives.WriteDoubleLittleEndian(_buffer[_buffered..], value);
+        }
+
         _buffered += sizeof(double);
     }
 
@@ -246,25 +262,33 @@ public ref struct AvroWriter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint64(ulong value)
     {
-        // The fast paths need room for a whole 8-byte store; near the end of a fixed span the exact-size path
-        // writes only the bytes the value needs.
+        // The fast paths need room for a whole 8-byte store. An IBufferWriter destination simply grows; near the end
+        // of a fixed span the exact-size path writes only the bytes the value needs.
         if (_buffer.Length - _buffered < MaxVarint64Length)
         {
-            WriteVarintExact(value);
-            return;
+            if (_output is null)
+            {
+                WriteVarintExact(value);
+                return;
+            }
+
+            Grow(MaxVarint64Length);
         }
 
+        // Capacity is checked above, so these stores skip the per-element bounds check.
+        ref var destination = ref At(_buffered);
         if (value < 0x80)
         {
-            _buffer[_buffered++] = (byte)value;
+            destination = (byte)value;
+            _buffered++;
             return;
         }
 
         if (value < 0x4000)
         {
             // Two bytes: common enough (64 to 8191 in magnitude) to deserve direct stores.
-            _buffer[_buffered] = (byte)(value | 0x80);
-            _buffer[_buffered + 1] = (byte)(value >> 7);
+            destination = (byte)(value | 0x80);
+            Unsafe.Add(ref destination, 1) = (byte)(value >> 7);
             _buffered += 2;
             return;
         }
@@ -381,6 +405,10 @@ public ref struct AvroWriter
         Ensure(length);
         _buffered += WriteVarintLoop(_buffer[_buffered..], value);
     }
+    /// <summary>A reference to the buffer at <paramref name="index"/>, without a bounds check; callers check capacity first.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly ref byte At(int index) => ref Unsafe.Add(ref MemoryMarshal.GetReference(_buffer), index);
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Ensure(int count)
     {

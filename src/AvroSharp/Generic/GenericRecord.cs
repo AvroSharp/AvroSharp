@@ -19,6 +19,13 @@ public sealed class GenericRecord : IEquatable<GenericRecord>
         _values = schema.Fields.Count == 0 ? [] : new AvroValue[schema.Fields.Count];
     }
 
+    // For the reader: the field count is cached in the compiled plan, avoiding an interface call per record.
+    internal GenericRecord(RecordSchema schema, int fieldCount)
+    {
+        Schema = schema;
+        _values = fieldCount == 0 ? [] : new AvroValue[fieldCount];
+    }
+
     /// <summary>Gets the record schema.</summary>
     public RecordSchema Schema { get; }
 
@@ -41,6 +48,10 @@ public sealed class GenericRecord : IEquatable<GenericRecord>
         get => _values[Schema.GetField(name).Position];
         set => _values[Schema.GetField(name).Position] = value;
     }
+
+    internal int FieldCount => _values.Length;
+
+    internal ref AvroValue ValueAt(int position) => ref _values[position];
 
     /// <summary>Gets a field value by name, if the field exists.</summary>
     /// <param name="name">The field name.</param>
