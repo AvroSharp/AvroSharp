@@ -30,6 +30,25 @@ Times are per value (÷ 65,536). "Before" is `ad53209` on the i7 and the previou
 
 The EPYC comparison against Apache passed 9 of 10. It failed 1-byte encode: 162,100 ns vs 122,846 ns (0.76×).
 
+### i5-3570K (no BMI2, shift-and-mask fallback)
+
+Same commit and job, run later on the i5. "Before" is the `ad53209` 64K run on the same machine.
+
+| Case | Before → after | Apache | Change |
+|---|---|---|---|
+| Decode 1 byte | 1.85 → **4.57 ns** | 4.36 | 2.5× slower; **fails vs Apache** |
+| Decode 2 bytes | 2.06 → 4.49 | 6.73 | 2.2× slower |
+| Decode 3 bytes | 3.62 → **6.84** | 9.16 | 1.9× slower |
+| Decode mixed 1–2 | 4.93 → 4.52 | 9.41 | 1.1× faster |
+| Decode mixed 1–10 | 12.92 → 9.19 | 21.58 | 1.4× faster |
+| Encode 1 byte | 2.04 → **2.64** | 2.44 | 1.3× slower; **fails vs Apache** |
+| Encode 2 bytes | 2.13 → 2.64 | 4.45 | 1.2× slower |
+| Encode 3 bytes | 4.89 → **6.99** | 6.68 | 1.4× slower; **fails vs Apache** |
+| Encode mixed 1–2 | 4.62 → 2.63 | 7.21 | 1.75× faster |
+| Encode mixed 1–10 | 10.77 → 8.82 | 17.10 | 1.2× faster |
+
+The i5 confirms the pattern without PEXT/PDEP: uniform short lengths got slower, and mixed lengths got faster. The 1-byte encode slowdown also appears on the i5 and i7, not only on the EPYC.
+
 ## Findings
 
 1. **Removing the 1-byte branch made each value wait for the previous one.**
@@ -57,3 +76,13 @@ The EPYC comparison against Apache passed 9 of 10. It failed 1-byte encode: 162,
 2. **Judge it on whole records,** not only the varint microbenchmarks: `GenericRecordBenchmarks`, and the Telemetry and Counters scenarios in `ShowcaseBenchmarks`. They reflect how lengths actually vary per field.
 3. **Fix EPYC 1-byte encode before merging.** Its comparison against Apache now fails.
 4. **Re-run with the default job.** Three iterations leaves the Apache baselines too noisy to trust.
+
+## What was changed
+
+The follow-up commit on the same branch goes further than recommendation 1:
+
+- The branchy one- and two-byte paths are restored inline, as before `57c987c`.
+- The unrolled three- and four-byte paths are restored too, on every target. The i5 and i7 both measured 3-byte decode slower on the word path.
+- The word path (PEXT/PDEP, or shift-and-mask) now handles only 5 to 8 bytes. Nine and ten bytes still extend the word.
+
+Mixed 1–2 is expected to lose most of its gain. Mixed 1–10 should keep part of it, and 5-byte decode should improve. None of this has been measured yet.

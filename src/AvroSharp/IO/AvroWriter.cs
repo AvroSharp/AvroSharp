@@ -262,14 +262,15 @@ public ref struct AvroWriter
     /// <remarks>
     /// PERF: hot path for every int, long, length, index and count.
     /// <list type="bullet">
-    /// <item>One and two bytes are written inline without branching on which: two bytes are always stored and the
-    /// position advances by one or two. Mixed one- and two-byte data cost 4-6 times more than either length alone
-    /// when the two lengths took separate branches (docs/reviews/2026-09-26-benchmarks-64k.md).</item>
-    /// <item>Three to eight bytes (net8+) are one 8-byte store; the 7-bit groups are spread with BMI2 PDEP when
-    /// available, or with shifts and masks otherwise. No branch depends on the length.</item>
+    /// <item>One and two bytes are written inline, and three and four bytes with direct stores, each behind its own
+    /// length branch. In records each field's length is usually stable, so these branches predict well. A
+    /// branchless one- and two-byte store (57c987c) was slower for uniform lengths on every machine measured, and
+    /// won only on randomly mixed lengths (docs/reviews/2026-09-26-branchless-varints.md).</item>
+    /// <item>Five to eight bytes (net8+) are one 8-byte store; the 7-bit groups are spread with BMI2 PDEP when
+    /// available, or with shifts and masks otherwise.</item>
     /// <item>Nine and ten bytes add one or two bytes after the word.</item>
     /// </list>
-    /// Measure with VarintBenchmarks (Mixed1-2, Mixed1-10, and single lengths) before changing.
+    /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint64(ulong value)
@@ -287,24 +288,21 @@ public ref struct AvroWriter
             Grow(MaxVarint64Length);
         }
 
+        // Capacity is checked above, so these stores skip the per-element bounds check.
+        ref var destination = ref At(_buffered);
+        if (value < 0x80)
+        {
+            destination = (byte)value;
+            _buffered++;
+            return;
+        }
+
         if (value < 0x4000)
         {
-            // One or two bytes. "more" is 1 when the value needs a second byte; the second byte is stored either way
-            // and overwritten by the next value when unused. Capacity is checked above, so no bounds checks.
-            var v = (uint)value;
-            var more = (0x7Fu - v) >> 31;
-            ref var destination = ref At(_buffered);
-            if (BitConverter.IsLittleEndian)
-            {
-                Unsafe.WriteUnaligned(ref destination, (ushort)((v & 0x7F) | (more << 7) | ((v >> 7) << 8)));
-            }
-            else
-            {
-                destination = (byte)((v & 0x7F) | (more << 7));
-                Unsafe.Add(ref destination, 1) = (byte)(v >> 7);
-            }
-
-            _buffered += 1 + (int)more;
+            // Two bytes: common enough (64 to 8191 in magnitude) to deserve direct stores.
+            destination = (byte)(value | 0x80);
+            Unsafe.Add(ref destination, 1) = (byte)(value >> 7);
+            _buffered += 2;
             return;
         }
 
@@ -316,21 +314,8 @@ public ref struct AvroWriter
     private void WriteVarintMulti(ulong value)
     {
         var buffer = _buffer[_buffered..];
-#if NET8_0_OR_GREATER
-        if (value < 1UL << 56)
-        {
-            // 3 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
-            // one write. Bytes past the varint are overwritten by the next value.
-            var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
-            var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
-            WriteWord(buffer, SpreadVarint(value) | continuation);
-            _buffered += length;
-            return;
-        }
 
-        _buffered += WriteLongVarint(buffer, value);
-#else
-        // netstandard: direct stores for three and four bytes, the byte loop otherwise.
+        // Three or four bytes: direct stores, cheaper than the word path for short values.
         if (value < 1UL << 21)
         {
             buffer[0] = (byte)(value | 0x80);
@@ -350,6 +335,20 @@ public ref struct AvroWriter
             return;
         }
 
+#if NET8_0_OR_GREATER
+        if (value < 1UL << 56)
+        {
+            // 5 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
+            // one write. Bytes past the varint are overwritten by the next value.
+            var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
+            var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
+            WriteWord(buffer, SpreadVarint(value) | continuation);
+            _buffered += length;
+            return;
+        }
+
+        _buffered += WriteLongVarint(buffer, value);
+#else
         _buffered += WriteVarintLoop(buffer, value);
 #endif
     }
