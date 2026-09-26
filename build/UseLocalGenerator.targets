@@ -4,9 +4,12 @@
        The compiler loads only assemblies passed to it as analyzers, so the generator's own dependencies (which the
        package ships next to it in analyzers/) are added here from the generator's output folder. -->
   <ItemGroup>
+    <!-- OutDir/OutputPath are not passed on: BenchmarkDotNet builds with one shared /p:OutDir, where the generator's
+         netstandard2.0 copy of AvroSharp.dll would overwrite the consumer's own build of it. -->
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\AvroSharp.Generators\AvroSharp.Generators.csproj"
                       OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+                      ReferenceOutputAssembly="false"
+                      GlobalPropertiesToRemove="OutDir;OutputPath" />
     <CompilerVisibleProperty Include="AvroSharpNamespace" />
   </ItemGroup>
 
