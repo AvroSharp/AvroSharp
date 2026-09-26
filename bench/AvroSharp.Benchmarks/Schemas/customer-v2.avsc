@@ -1,0 +1,9 @@
+{"type":"record","name":"Customer","namespace":"bench.evolved","doc":"Version 2; version 1 is in ResolutionBenchmarks.","fields":[
+  {"name":"id","type":"long"},
+  {"name":"name","type":"string","aliases":["full_name"]},
+  {"name":"email","type":["null","string"],"default":null},
+  {"name":"tier","type":{"type":"enum","name":"Tier","symbols":["UNKNOWN","BASIC","SILVER","GOLD"],"default":"UNKNOWN"}},
+  {"name":"balance","type":"double"},
+  {"name":"visits","type":{"type":"array","items":"long"}},
+  {"name":"loyalty","type":"int","default":0}
+]}
