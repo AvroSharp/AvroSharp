@@ -29,4 +29,11 @@ public sealed class CodeGenOptions
     /// The generated code then needs a reference to Apache.Avro. Defaults to <see langword="false"/>.
     /// </summary>
     public bool ApacheCompatible { get; init; }
+
+    /// <summary>
+    /// Gets whether to emit nullable reference type annotations (<c>string?</c>, <c>#nullable enable</c>), which need
+    /// C# 8 or later. Without them the generated code compiles as C# 7.3, the default for netstandard2.0 and .NET
+    /// Framework projects. Defaults to <see langword="true"/>.
+    /// </summary>
+    public bool NullableAnnotations { get; init; } = true;
 }

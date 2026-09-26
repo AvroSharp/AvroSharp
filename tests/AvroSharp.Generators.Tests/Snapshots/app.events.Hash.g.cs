@@ -17,7 +17,7 @@ namespace app.events
         private static global::AvroSharp.Schemas.AvroSchema? s_schema;
 
         /// <summary>Gets the Avro schema of this type.</summary>
-        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ??= global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson);
+        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? (s_schema = global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
 
         /// <summary>Creates a value from exactly <see cref="Size"/> bytes. The array is not copied.</summary>
         public Hash(byte[] value)
@@ -29,7 +29,7 @@ namespace app.events
         public byte[] Value { get; }
 
         /// <inheritdoc />
-        public bool Equals(Hash? other) => other is not null && global::System.MemoryExtensions.SequenceEqual(new global::System.ReadOnlySpan<byte>(Value), other.Value);
+        public bool Equals(Hash? other) => !(other is null) && global::System.MemoryExtensions.SequenceEqual(new global::System.ReadOnlySpan<byte>(Value), other.Value);
 
         /// <inheritdoc />
         public override bool Equals(object? obj) => obj is Hash other && Equals(other);
