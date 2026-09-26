@@ -1,0 +1,16 @@
+#nullable enable
+AvroSharp.CodeGen.CodeGenOptions
+AvroSharp.CodeGen.CodeGenOptions.CodeGenOptions() -> void
+AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.get -> string?
+AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.init -> void
+AvroSharp.CodeGen.CSharpCodeGenerator
+AvroSharp.CodeGen.GeneratedSource
+AvroSharp.CodeGen.GeneratedSource.Equals(AvroSharp.CodeGen.GeneratedSource? other) -> bool
+AvroSharp.CodeGen.GeneratedSource.GeneratedSource(string! hintName, string! text) -> void
+AvroSharp.CodeGen.GeneratedSource.HintName.get -> string!
+AvroSharp.CodeGen.GeneratedSource.Text.get -> string!
+override AvroSharp.CodeGen.GeneratedSource.Equals(object? obj) -> bool
+override AvroSharp.CodeGen.GeneratedSource.GetHashCode() -> int
+override AvroSharp.CodeGen.GeneratedSource.ToString() -> string!
+static AvroSharp.CodeGen.CodeGenOptions.Default.get -> AvroSharp.CodeGen.CodeGenOptions!
+static AvroSharp.CodeGen.CSharpCodeGenerator.Generate(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! schemas, AvroSharp.CodeGen.CodeGenOptions? options = null) -> System.Collections.Generic.IReadOnlyList<AvroSharp.CodeGen.GeneratedSource!>!

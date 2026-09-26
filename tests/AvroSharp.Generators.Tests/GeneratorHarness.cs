@@ -1,0 +1,84 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
+
+namespace AvroSharp.Generators.Tests;
+
+/// <summary>Runs <see cref="SchemaFileGenerator"/> on in-memory schema files and compiles the result.</summary>
+internal static class GeneratorHarness
+{
+    private static readonly Lazy<MetadataReference[]> s_frameworkReferences = new(() =>
+        [.. ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Where(path => Path.GetFileName(path).StartsWith("System", StringComparison.Ordinal) || Path.GetFileName(path) is "mscorlib.dll" or "netstandard.dll")
+            .Select(path => MetadataReference.CreateFromFile(path))]);
+
+    public static CSharpCompilation CreateCompilation(bool referenceAvroSharp = true, params string[] sources)
+    {
+        IEnumerable<MetadataReference> references = s_frameworkReferences.Value;
+        if (referenceAvroSharp)
+        {
+            references = references.Append(MetadataReference.CreateFromFile(typeof(AvroSharp.IO.AvroWriter).Assembly.Location));
+        }
+
+        return CSharpCompilation.Create(
+            "Consumer",
+            sources.Select(s => CSharpSyntaxTree.ParseText(s, new CSharpParseOptions(LanguageVersion.Latest))),
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+    }
+
+    public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null) =>
+        CSharpGeneratorDriver.Create(
+            [new SchemaFileGenerator().AsSourceGenerator()],
+            files.Select(f => (AdditionalText)new InMemoryText(f.Path, f.Text)),
+            new CSharpParseOptions(LanguageVersion.Latest),
+            new Options(avroSharpNamespace),
+            new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
+
+    /// <summary>Runs the generator; returns the generated sources, the generator's diagnostics and the compiler's.</summary>
+    public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
+        Run(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, bool referenceAvroSharp = true)
+    {
+        var compilation = CreateCompilation(referenceAvroSharp, "internal static class Placeholder { }");
+        var driver = CreateDriver(files, avroSharpNamespace).RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+        var result = driver.GetRunResult().Results.Single();
+        return (result.GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
+    }
+
+    public static AdditionalText Text(string path, string text) => new InMemoryText(path, text);
+
+    private sealed class InMemoryText(string path, string text) : AdditionalText
+    {
+        public override string Path { get; } = path;
+
+        public override SourceText GetText(CancellationToken cancellationToken = default) => SourceText.From(text);
+    }
+
+    private sealed class Options(string? avroSharpNamespace) : AnalyzerConfigOptionsProvider
+    {
+        public override AnalyzerConfigOptions GlobalOptions { get; } = new Values(avroSharpNamespace);
+
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => Values.Empty;
+
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => Values.Empty;
+
+        private sealed class Values(string? avroSharpNamespace) : AnalyzerConfigOptions
+        {
+            public static Values Empty { get; } = new(null);
+
+            public override bool TryGetValue(string key, out string value)
+            {
+                value = avroSharpNamespace ?? string.Empty;
+                return string.Equals(key, "build_property.AvroSharpNamespace", StringComparison.Ordinal) && avroSharpNamespace is not null;
+            }
+        }
+    }
+}

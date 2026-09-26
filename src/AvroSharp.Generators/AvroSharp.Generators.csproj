@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Build-time source generator: C# types and serializers for the .avsc files passed as AdditionalFiles.
+       Runs inside the compiler, so it targets netstandard2.0 and ships its dependencies next to it in the package. -->
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <RootNamespace>AvroSharp.Generators</RootNamespace>
+    <PackageId>AvroSharp.Generators</PackageId>
+    <Description>Source generator for AvroSharp: C# types and allocation-free serializers from Apache Avro™ schema files (.avsc).</Description>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <!-- The generator is not a library: nothing goes in lib/, everything in analyzers/. -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>false</DevelopmentDependency>
+    <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Consumers get the AvroSharp runtime package from this dependency; the generator also loads it itself. -->
+    <ProjectReference Include="..\AvroSharp\AvroSharp.csproj" />
+    <ProjectReference Include="..\AvroSharp.CodeGen\AvroSharp.CodeGen.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+    <None Include="build\AvroSharp.Generators.props" Pack="true" PackagePath="build;buildTransitive" />
+  </ItemGroup>
+
+  <!-- Pack the generator and the assemblies it loads (netstandard2.0 builds) into analyzers/dotnet/cs. -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);AvroSharpPackGeneratorAssemblies</TargetsForTfmSpecificContentInPackage>
+  </PropertyGroup>
+
+  <Target Name="AvroSharpPackGeneratorAssemblies">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath);$(TargetDir)AvroSharp.dll;$(TargetDir)AvroSharp.CodeGen.dll" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
+</Project>

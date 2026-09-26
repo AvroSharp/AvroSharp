@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The C# code generation engine: schemas in, source text out. No Roslyn dependency, so the source generator and
+       the command-line tool (M6) share it. netstandard2.0 because it runs inside the compiler. -->
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <RootNamespace>AvroSharp.CodeGen</RootNamespace>
+    <PackageId>AvroSharp.CodeGen</PackageId>
+    <Description>C# code generation from Apache Avro™ schemas, used by the AvroSharp source generator and tools.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AvroSharp\AvroSharp.csproj" />
+  </ItemGroup>
+
+</Project>

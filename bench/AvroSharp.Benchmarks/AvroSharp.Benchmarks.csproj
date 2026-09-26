@@ -19,4 +19,11 @@
     <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
   </ItemGroup>
 
+  <!-- The generated benchmark type (bench.generated.Order) comes from the source generator, as in a consumer project. -->
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+  <ItemGroup>
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
 </Project>

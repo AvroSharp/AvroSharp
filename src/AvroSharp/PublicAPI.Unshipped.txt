@@ -3,8 +3,8 @@ abstract AvroSharp.Schemas.AvroLogicalType.IsValidFor(AvroSharp.Schemas.AvroSche
 AvroSharp.AvroCodecNames
 AvroSharp.AvroException
 AvroSharp.AvroException.AvroException() -> void
-AvroSharp.AvroException.AvroException(string! message) -> void
 AvroSharp.AvroException.AvroException(string! message, System.Exception? innerException) -> void
+AvroSharp.AvroException.AvroException(string! message) -> void
 AvroSharp.Generic.AvroValue
 AvroSharp.Generic.AvroValue.AsArray() -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.Generic.AvroValue.AsBoolean() -> bool
@@ -86,8 +86,8 @@ AvroSharp.Generic.GenericRecord.TryGetValue(string! name, out AvroSharp.Generic.
 AvroSharp.Generic.GenericRecord.Values.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.IO.AvroDataException
 AvroSharp.IO.AvroDataException.AvroDataException() -> void
-AvroSharp.IO.AvroDataException.AvroDataException(string! message) -> void
 AvroSharp.IO.AvroDataException.AvroDataException(string! message, System.Exception? innerException) -> void
+AvroSharp.IO.AvroDataException.AvroDataException(string! message) -> void
 AvroSharp.IO.AvroReader
 AvroSharp.IO.AvroReader.AvroReader() -> void
 AvroSharp.IO.AvroReader.AvroReader(in System.Buffers.ReadOnlySequence<byte> data) -> void
@@ -173,9 +173,9 @@ AvroSharp.Schemas.AvroSchema.Type.get -> AvroSharp.Schemas.AvroSchemaType
 AvroSharp.Schemas.AvroSchema.WriteTo(System.Text.Json.Utf8JsonWriter! writer) -> void
 AvroSharp.Schemas.AvroSchemaException
 AvroSharp.Schemas.AvroSchemaException.AvroSchemaException() -> void
-AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message) -> void
 AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message, string? path, long? lineNumber, long? bytePositionInLine, System.Exception? innerException = null) -> void
 AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message, System.Exception? innerException) -> void
+AvroSharp.Schemas.AvroSchemaException.AvroSchemaException(string! message) -> void
 AvroSharp.Schemas.AvroSchemaException.BytePositionInLine.get -> long?
 AvroSharp.Schemas.AvroSchemaException.LineNumber.get -> long?
 AvroSharp.Schemas.AvroSchemaException.Path.get -> string?
@@ -268,6 +268,8 @@ AvroSharp.Schemas.SchemaName.SchemaName(string! name, string? namespace = null) 
 AvroSharp.Schemas.UnionSchema
 AvroSharp.Schemas.UnionSchema.Branches.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>!
 AvroSharp.Schemas.UnionSchema.UnionSchema(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! branches) -> void
+AvroSharp.Serialization.AvroGeneratedCode
+AvroSharp.Serialization.AvroWriteAction<T>
 const AvroSharp.AvroCodecNames.Bzip2 = "bzip2" -> string!
 const AvroSharp.AvroCodecNames.Deflate = "deflate" -> string!
 const AvroSharp.AvroCodecNames.Null = "null" -> string!
@@ -275,6 +277,8 @@ const AvroSharp.AvroCodecNames.Snappy = "snappy" -> string!
 const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
 const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
 const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
+const AvroSharp.Serialization.AvroGeneratedCode.MaxDepth = 128 -> int
+const AvroSharp.Serialization.AvroGeneratedCode.MaxZeroSizeItems = 65536 -> int
 override AvroSharp.Generic.AvroValue.Equals(object? obj) -> bool
 override AvroSharp.Generic.AvroValue.GetHashCode() -> int
 override AvroSharp.Generic.AvroValue.ToString() -> string!
@@ -363,3 +367,14 @@ static AvroSharp.Schemas.SchemaFingerprint.Md5(AvroSharp.Schemas.AvroSchema! sch
 static AvroSharp.Schemas.SchemaFingerprint.Sha256(AvroSharp.Schemas.AvroSchema! schema) -> byte[]!
 static AvroSharp.Schemas.SchemaName.operator !=(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
 static AvroSharp.Schemas.SchemaName.operator ==(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
+static AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(byte[]! value, int size, string! typeName) -> byte[]!
+static AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(int count) -> int
+static AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.IO.AvroDataException!
+static AvroSharp.Serialization.AvroGeneratedCode.NullValue(string! field) -> AvroSharp.AvroException!
+static AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref AvroSharp.IO.AvroReader reader, int minimumItemSize, int itemsSoFar) -> int
+static AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref AvroSharp.IO.AvroReader reader, int symbolCount, string! enumName) -> int
+static AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.AvroDataException!
+static AvroSharp.Serialization.AvroGeneratedCode.SerializeToArray<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write) -> byte[]!
+static AvroSharp.Serialization.AvroGeneratedCode.UnionValueMismatch(object? value, string! field) -> AvroSharp.AvroException!
+static AvroSharp.Serialization.AvroGeneratedCode.WriteTooDeep() -> AvroSharp.AvroException!
+virtual AvroSharp.Serialization.AvroWriteAction<T>.Invoke(ref AvroSharp.IO.AvroWriter writer, T value) -> void

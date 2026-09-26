@@ -1,0 +1,12 @@
+{"type":"record","name":"Order","namespace":"bench.generated","fields":[
+  {"name":"id","type":"long"},
+  {"name":"customer","type":"string"},
+  {"name":"total","type":"double"},
+  {"name":"quantity","type":"int"},
+  {"name":"paid","type":"boolean"},
+  {"name":"note","type":["null","string"]},
+  {"name":"lines","type":{"type":"array","items":{"type":"record","name":"Line","fields":[
+    {"name":"sku","type":"string"},{"name":"qty","type":"int"},{"name":"price","type":"double"}]}}},
+  {"name":"counters","type":{"type":"array","items":"long"}},
+  {"name":"tags","type":{"type":"map","values":"string"}}
+]}

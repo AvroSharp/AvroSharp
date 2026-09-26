@@ -1,0 +1,7 @@
+{"type": "record", "name": "Node", "namespace": "graph", "fields": [
+  {"name": "value", "type": "int"},
+  {"name": "next", "type": ["null", "Node"]},
+  {"name": "children", "type": {"type": "array", "items": "Node"}},
+  {"name": "empty", "type": {"type": "record", "name": "Empty", "fields": []}},
+  {"name": "nulls", "type": {"type": "array", "items": "null"}}
+]}

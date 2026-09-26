@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs the source generator in-process with Roslyn: diagnostics, snapshots and incremental caching. -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Generators\AvroSharp.Generators.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Snapshots\*.cs" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Remove="Snapshots\*.cs" />
+  </ItemGroup>
+
+</Project>
