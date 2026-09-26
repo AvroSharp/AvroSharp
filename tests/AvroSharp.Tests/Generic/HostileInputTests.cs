@@ -1,0 +1,166 @@
+using System;
+using System.Buffers;
+using System.Linq;
+using System.Threading.Tasks;
+using AvroSharp.Generic;
+using AvroSharp.IO;
+using AvroSharp.Schemas;
+
+namespace AvroSharp.Tests.Generic;
+
+/// <summary>Malformed or hostile input must fail fast, without large allocations or stack overflows.</summary>
+public class HostileInputTests
+{
+    [Test]
+    public async Task ArrayOfRecords_WithAHugeCount_IsRejectedWithoutAllocating()
+    {
+        // A record with an int field takes at least one byte, so 8 million of them cannot fit in 5 bytes of input.
+        var schema = AvroSchema.Parse("""{"type":"array","items":{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}}""");
+        var bytes = Encode(w => w.WriteLong(1L << 23));
+
+#if NET
+        var before = GC.GetAllocatedBytesForCurrentThread();
+#endif
+        var ex = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(schema).Read(bytes));
+        await Assert.That(ex.Message).Contains("larger than the remaining input");
+#if NET
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        await Assert.That(allocated).IsLessThan(1024 * 1024);
+#endif
+    }
+
+    [Test]
+    public async Task ZeroSizeItems_AreLimitedPerRead_AcrossBlocks()
+    {
+        // Empty records take no bytes: three blocks of 30,000 exceed the default budget of 65,536 in total.
+        var schema = AvroSchema.Parse("""{"type":"array","items":{"type":"record","name":"Empty","fields":[]}}""");
+        var bytes = Encode(w =>
+        {
+            w.WriteBlockCount(30_000);
+            w.WriteBlockCount(30_000);
+            w.WriteBlockCount(30_000);
+            w.WriteBlockEnd();
+        });
+
+        var ex = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(schema).Read(bytes));
+        await Assert.That(ex.Message).Contains("MaxZeroSizeItems");
+
+        // A higher limit, chosen by the caller, allows it.
+        var generous = GenericDatumReader.Create(schema, new GenericDatumReaderOptions { MaxZeroSizeItems = 100_000 });
+        await Assert.That(generous.Read(bytes).AsArray().Count).IsEqualTo(90_000);
+    }
+
+    [Test]
+    public async Task DeeplyNestedInput_IsRejectedInsteadOfOverflowingTheStack()
+    {
+        var schema = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"children","type":{"type":"array","items":"Node"}}]}""");
+        var bytes = NestedNodes(depth: 10_000);
+
+        var ex = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(schema).Read(bytes));
+        await Assert.That(ex.Message).Contains("nested more than 128 levels");
+    }
+
+    [Test]
+    public async Task MaxDepth_AllowsNestingUpToTheLimit()
+    {
+        var schema = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"children","type":{"type":"array","items":"Node"}}]}""");
+        var reader = GenericDatumReader.Create(schema, new GenericDatumReaderOptions { MaxDepth = 200 });
+
+        var value = reader.Read(NestedNodes(depth: 200));
+        Assert.Throws<AvroDataException>(() => reader.Read(NestedNodes(depth: 201)));
+
+        var depth = 0;
+        for (var node = value; node.AsRecord()["children"].AsArray().Count > 0; node = node.AsRecord()["children"].AsArray()[0])
+        {
+            depth++;
+        }
+
+        await Assert.That(depth + 1).IsEqualTo(200);
+    }
+
+    [Test]
+    public async Task RecordContainingItself_IsRejectedByTheWriter()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"Loop","fields":[{"name":"next","type":["null","Loop"]}]}""");
+        var record = new GenericRecord(schema);
+        record["next"] = record;
+
+        var ex = Assert.Throws<AvroException>(() => GenericDatumWriter.Create(schema).WriteToArray(record));
+        await Assert.That(ex.Message).Contains("nested more than 128 levels");
+    }
+
+    [Test]
+    public async Task WriterMaxDepth_IsConfigurable()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"List","fields":[{"name":"next","type":["null","List"]}]}""");
+        var head = new GenericRecord(schema);
+        var current = head;
+        for (var i = 1; i < 10; i++)
+        {
+            var next = new GenericRecord(schema);
+            current["next"] = next;
+            current = next;
+        }
+
+        // A chain of 10 records: 10 levels are allowed with MaxDepth = 10, and rejected with 9.
+        Assert.Throws<AvroException>(() => GenericDatumWriter.Create(schema, new GenericDatumWriterOptions { MaxDepth = 9 }).WriteToArray(head));
+        var bytes = GenericDatumWriter.Create(schema, new GenericDatumWriterOptions { MaxDepth = 10 }).WriteToArray(head);
+        await Assert.That(bytes.Length).IsGreaterThan(0);
+    }
+
+    [Test]
+    public async Task MapWithAHugeCount_IsRejected()
+    {
+        var schema = AvroSchema.Parse("""{"type":"map","values":"long"}""");
+        var bytes = Encode(w => w.WriteLong(1L << 40));
+        var ex = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(schema).Read(bytes));
+        await Assert.That(ex.Message).Contains("larger than the remaining input");
+    }
+
+    /// <summary>A chain of <paramref name="depth"/> Node records, each holding a one-item array of the next.</summary>
+    private static byte[] NestedNodes(int depth) => Encode(w =>
+    {
+        for (var i = 0; i < depth - 1; i++)
+        {
+            w.WriteBlockCount(1);
+        }
+
+        foreach (var _ in Enumerable.Range(0, depth))
+        {
+            w.WriteBlockEnd();
+        }
+    });
+
+    private static byte[] Encode(Action<Writer> write)
+    {
+        var output = new ArrayBufferWriter<byte>();
+        var writer = new Writer(output);
+        write(writer);
+        return output.WrittenSpan.ToArray();
+    }
+
+    /// <summary>Appends values to a buffer; a class, so the lambdas above need no ref struct.</summary>
+    private sealed class Writer(ArrayBufferWriter<byte> output)
+    {
+        public void WriteLong(long value)
+        {
+            var writer = new AvroWriter(output);
+            writer.WriteLong(value);
+            writer.Flush();
+        }
+
+        public void WriteBlockCount(long count)
+        {
+            var writer = new AvroWriter(output);
+            writer.WriteBlockCount(count);
+            writer.Flush();
+        }
+
+        public void WriteBlockEnd()
+        {
+            var writer = new AvroWriter(output);
+            writer.WriteBlockEnd();
+            writer.Flush();
+        }
+    }
+}

@@ -55,6 +55,24 @@ catch (AvroSchemaException ex)
     Check(Same(ex.Path, "$.fields[0].type") && ex.LineNumber == 1, "error path and line");
 }
 
+// Binary encoding and the generic data model.
+var person = (RecordSchema)AvroSchema.Parse("""
+    {"type":"record","name":"Person","fields":[
+      {"name":"name","type":"string"},{"name":"age","type":"int"},
+      {"name":"scores","type":{"type":"array","items":"long"}},{"name":"email","type":["null","string"]}]}
+    """);
+var alice = new AvroSharp.Generic.GenericRecord(person)
+{
+    ["name"] = "Alice",
+    ["age"] = 30,
+    ["scores"] = AvroSharp.Generic.AvroValue.FromArray(new AvroSharp.Generic.AvroValue[] { 1L, 200L, -3L }),
+    ["email"] = AvroSharp.Generic.AvroValue.Null,
+};
+var encoded = AvroSharp.Generic.GenericDatumWriter.Create(person).WriteToArray(alice);
+var decoded = AvroSharp.Generic.GenericDatumReader.Create(person).Read(encoded);
+Check(decoded.Equals((AvroSharp.Generic.AvroValue)alice), "generic record round trip");
+Check(Same(Convert.ToHexString(encoded), "0A416C6963653C06029003050000"), "generic record bytes");
+
 static bool Same(string? a, string? b) => string.Equals(a, b, StringComparison.Ordinal);
 
 Console.WriteLine(failures == 0 ? "AOT smoke test passed" : $"AOT smoke test failed ({failures})");

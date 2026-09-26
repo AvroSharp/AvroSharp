@@ -5,6 +5,75 @@ AvroSharp.AvroException
 AvroSharp.AvroException.AvroException() -> void
 AvroSharp.AvroException.AvroException(string! message, System.Exception? innerException) -> void
 AvroSharp.AvroException.AvroException(string! message) -> void
+AvroSharp.Generic.AvroValue
+AvroSharp.Generic.AvroValue.AsArray() -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
+AvroSharp.Generic.AvroValue.AsBoolean() -> bool
+AvroSharp.Generic.AvroValue.AsBytes() -> byte[]!
+AvroSharp.Generic.AvroValue.AsDouble() -> double
+AvroSharp.Generic.AvroValue.AsEnumOrdinal() -> int
+AvroSharp.Generic.AvroValue.AsEnumSymbol() -> string!
+AvroSharp.Generic.AvroValue.AsFixed() -> AvroSharp.Generic.GenericFixed!
+AvroSharp.Generic.AvroValue.AsInt32() -> int
+AvroSharp.Generic.AvroValue.AsInt64() -> long
+AvroSharp.Generic.AvroValue.AsMap() -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Generic.AvroValue>!
+AvroSharp.Generic.AvroValue.AsRecord() -> AvroSharp.Generic.GenericRecord!
+AvroSharp.Generic.AvroValue.AsSingle() -> float
+AvroSharp.Generic.AvroValue.AsString() -> string!
+AvroSharp.Generic.AvroValue.AvroValue() -> void
+AvroSharp.Generic.AvroValue.EnumSchema.get -> AvroSharp.Schemas.EnumSchema?
+AvroSharp.Generic.AvroValue.Equals(AvroSharp.Generic.AvroValue other) -> bool
+AvroSharp.Generic.AvroValue.IsNull.get -> bool
+AvroSharp.Generic.AvroValue.Kind.get -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValue.ToObject() -> object?
+AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Array = 10 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Boolean = 1 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Bytes = 6 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Double = 5 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Enum = 9 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Fixed = 12 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Float = 4 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Int = 2 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Long = 3 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Map = 11 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Null = 0 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.Record = 8 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueKind.String = 7 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.GenericDatumReader
+AvroSharp.Generic.GenericDatumReader.Read(ref AvroSharp.IO.AvroReader reader) -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericDatumReader.Read(System.ReadOnlySpan<byte> data) -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericDatumReader.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumReaderOptions
+AvroSharp.Generic.GenericDatumReaderOptions.GenericDatumReaderOptions() -> void
+AvroSharp.Generic.GenericDatumReaderOptions.MaxDepth.get -> int
+AvroSharp.Generic.GenericDatumReaderOptions.MaxDepth.init -> void
+AvroSharp.Generic.GenericDatumReaderOptions.MaxZeroSizeItems.get -> int
+AvroSharp.Generic.GenericDatumReaderOptions.MaxZeroSizeItems.init -> void
+AvroSharp.Generic.GenericDatumWriter
+AvroSharp.Generic.GenericDatumWriter.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumWriter.Write(ref AvroSharp.IO.AvroWriter writer, in AvroSharp.Generic.AvroValue value) -> void
+AvroSharp.Generic.GenericDatumWriter.Write(System.Buffers.IBufferWriter<byte>! output, in AvroSharp.Generic.AvroValue value) -> void
+AvroSharp.Generic.GenericDatumWriter.WriteToArray(in AvroSharp.Generic.AvroValue value) -> byte[]!
+AvroSharp.Generic.GenericDatumWriterOptions
+AvroSharp.Generic.GenericDatumWriterOptions.GenericDatumWriterOptions() -> void
+AvroSharp.Generic.GenericDatumWriterOptions.MaxDepth.get -> int
+AvroSharp.Generic.GenericDatumWriterOptions.MaxDepth.init -> void
+AvroSharp.Generic.GenericFixed
+AvroSharp.Generic.GenericFixed.Bytes.get -> System.ReadOnlyMemory<byte>
+AvroSharp.Generic.GenericFixed.Equals(AvroSharp.Generic.GenericFixed? other) -> bool
+AvroSharp.Generic.GenericFixed.GenericFixed(AvroSharp.Schemas.FixedSchema! schema, byte[]! bytes) -> void
+AvroSharp.Generic.GenericFixed.GetBytesUnsafe() -> byte[]!
+AvroSharp.Generic.GenericFixed.Schema.get -> AvroSharp.Schemas.FixedSchema!
+AvroSharp.Generic.GenericRecord
+AvroSharp.Generic.GenericRecord.Equals(AvroSharp.Generic.GenericRecord? other) -> bool
+AvroSharp.Generic.GenericRecord.GenericRecord(AvroSharp.Schemas.RecordSchema! schema) -> void
+AvroSharp.Generic.GenericRecord.Schema.get -> AvroSharp.Schemas.RecordSchema!
+AvroSharp.Generic.GenericRecord.this[int position].get -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericRecord.this[int position].set -> void
+AvroSharp.Generic.GenericRecord.this[string! name].get -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.GenericRecord.this[string! name].set -> void
+AvroSharp.Generic.GenericRecord.TryGetValue(string! name, out AvroSharp.Generic.AvroValue value) -> bool
+AvroSharp.Generic.GenericRecord.Values.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.IO.AvroDataException
 AvroSharp.IO.AvroDataException.AvroDataException() -> void
 AvroSharp.IO.AvroDataException.AvroDataException(string! message, System.Exception? innerException) -> void
@@ -28,7 +97,9 @@ AvroSharp.IO.AvroReader.ReadFixedSpan(int size) -> System.ReadOnlySpan<byte>
 AvroSharp.IO.AvroReader.ReadFloat() -> float
 AvroSharp.IO.AvroReader.ReadFloats(scoped System.Span<float> destination) -> void
 AvroSharp.IO.AvroReader.ReadInt() -> int
+AvroSharp.IO.AvroReader.ReadInts(scoped System.Span<int> destination) -> void
 AvroSharp.IO.AvroReader.ReadLong() -> long
+AvroSharp.IO.AvroReader.ReadLongs(scoped System.Span<long> destination) -> void
 AvroSharp.IO.AvroReader.ReadNull() -> void
 AvroSharp.IO.AvroReader.ReadString() -> string!
 AvroSharp.IO.AvroReader.ReadStringUtf8() -> System.ReadOnlySpan<byte>
@@ -194,6 +265,15 @@ const AvroSharp.AvroCodecNames.Snappy = "snappy" -> string!
 const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
 const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
 const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
+override AvroSharp.Generic.AvroValue.Equals(object? obj) -> bool
+override AvroSharp.Generic.AvroValue.GetHashCode() -> int
+override AvroSharp.Generic.AvroValue.ToString() -> string!
+override AvroSharp.Generic.GenericFixed.Equals(object? obj) -> bool
+override AvroSharp.Generic.GenericFixed.GetHashCode() -> int
+override AvroSharp.Generic.GenericFixed.ToString() -> string!
+override AvroSharp.Generic.GenericRecord.Equals(object? obj) -> bool
+override AvroSharp.Generic.GenericRecord.GetHashCode() -> int
+override AvroSharp.Generic.GenericRecord.ToString() -> string!
 override AvroSharp.Schemas.AvroLogicalType.ToString() -> string!
 override AvroSharp.Schemas.AvroSchema.ToString() -> string!
 override AvroSharp.Schemas.DecimalLogicalType.Equals(object? obj) -> bool
@@ -205,6 +285,35 @@ override AvroSharp.Schemas.SchemaName.Equals(object? obj) -> bool
 override AvroSharp.Schemas.SchemaName.GetHashCode() -> int
 override AvroSharp.Schemas.SchemaName.ToString() -> string!
 static AvroSharp.AvroCodecNames.IsStandard(string? name) -> bool
+static AvroSharp.Generic.AvroValue.FromArray(System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>! items) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromBoolean(bool value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromByteArray(byte[]? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromDouble(double value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromEnum(AvroSharp.Schemas.EnumSchema! schema, int ordinal) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromEnum(AvroSharp.Schemas.EnumSchema! schema, string! symbol) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromGenericFixed(AvroSharp.Generic.GenericFixed? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromGenericRecord(AvroSharp.Generic.GenericRecord? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromInt32(int value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromInt64(long value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromMap(System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Generic.AvroValue>! entries) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromSingle(float value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromString(string? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(AvroSharp.Generic.GenericFixed? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(AvroSharp.Generic.GenericRecord? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(bool value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(byte[]? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(double value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(float value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(int value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(long value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue(string? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.Null.get -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.operator !=(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
+static AvroSharp.Generic.AvroValue.operator ==(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
+static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumReader!
+static AvroSharp.Generic.GenericDatumReaderOptions.Default.get -> AvroSharp.Generic.GenericDatumReaderOptions!
+static AvroSharp.Generic.GenericDatumWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumWriter!
+static AvroSharp.Generic.GenericDatumWriterOptions.Default.get -> AvroSharp.Generic.GenericDatumWriterOptions!
 static AvroSharp.Schemas.AvroLogicalType.BigDecimal.get -> AvroSharp.Schemas.AvroLogicalType!
 static AvroSharp.Schemas.AvroLogicalType.Date.get -> AvroSharp.Schemas.AvroLogicalType!
 static AvroSharp.Schemas.AvroLogicalType.Decimal(int precision, int scale = 0) -> AvroSharp.Schemas.DecimalLogicalType!

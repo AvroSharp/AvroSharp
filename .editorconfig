@@ -72,6 +72,7 @@ dotnet_diagnostic.RS0026.severity = none     # multiple overloads with optional 
 dotnet_diagnostic.RS0027.severity = none
 
 [tests/**.cs]
+dotnet_diagnostic.MA0002.severity = none     # test dictionaries and lists may use default comparers
 dotnet_diagnostic.CA5394.severity = none     # seeded Random gives reproducible test data
 dotnet_diagnostic.CA1707.severity = none     # underscores in test names
 dotnet_diagnostic.CA1515.severity = none     # test classes must be public
