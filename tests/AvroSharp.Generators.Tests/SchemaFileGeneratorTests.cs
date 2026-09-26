@@ -42,10 +42,13 @@ public class SchemaFileGeneratorTests
         var (sources, _, _) = GeneratorHarness.Run([("event.avsc", EventSchema)]);
         var actual = sources.Single(s => string.Equals(s.HintName, hintName, StringComparison.Ordinal)).SourceText.ToString();
 
-        var snapshot = Path.Combine(SnapshotDirectory(), hintName);
+        // Snapshots are read from the copy in the output folder: CI builds map source paths to /_/ (deterministic
+        // builds), so the source folder is only known, and only written, when updating snapshots locally.
+        var snapshot = Path.Combine(AppContext.BaseDirectory, "Snapshots", hintName);
         if (string.Equals(Environment.GetEnvironmentVariable("AVROSHARP_UPDATE_SNAPSHOTS"), "1", StringComparison.Ordinal))
         {
-            await File.WriteAllTextAsync(snapshot, actual);
+            await File.WriteAllTextAsync(Path.Combine(SnapshotDirectory(), hintName), actual);
+            return;
         }
 
         var expected = await File.ReadAllTextAsync(snapshot);
