@@ -7,7 +7,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files.
 >
-> Not implemented yet: schema resolution for generated types, container files and codecs. See [the design](docs/design.md) for the roadmap.
+> Not implemented yet: container files and codecs. See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 
@@ -50,6 +50,7 @@ writer.Flush();
 - **Unions:** a union of `null` and one other type becomes a nullable property; other unions become `object?`.
 - **Logical types:** `date` becomes `DateOnly` and `time-millis`/`time-micros` become `TimeOnly` (`DateTime`/`TimeSpan` on .NET Framework and netstandard); `timestamp-millis`/`-micros` become `DateTimeOffset` and the `local-` variants `DateTime`; `uuid` becomes `Guid`; `decimal` with a precision up to 28 becomes `decimal`. Decimals are written exactly or rejected, never rounded. Other logical types keep their underlying type. Set `AvroSharpLogicalTypes` to `raw` to keep the underlying types everywhere.
 - **Property names:** PascalCase by default (`customer_name` becomes `CustomerName`). Set `AvroSharpPropertyNames` to `avro` to keep the Avro field names as written, as Apache's `avrogen` does (C# keywords are escaped: `@class`).
+- **Schema evolution:** `Order.FromAvroBytes(bytes, writerSchema)` reads data written with another version of the schema (added fields take their defaults, removed fields are skipped, numbers are promoted).
 - **Field access by position:** every generated record implements `IAvroSpecificRecord` (`Schema`, `Get(int)`, `Put(int, object?)`), following the contract of Apache.Avro's `ISpecificRecord`.
 - **Apache.Avro compatibility mode:** set `<AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>` in a project that references Apache.Avro, and the same generated classes also work with Apache's `SpecificDatumWriter<T>`/`SpecificDatumReader<T>`, so code can move to AvroSharp one call site at a time.
   - **What changes:**

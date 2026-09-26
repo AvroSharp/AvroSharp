@@ -1,0 +1,7 @@
+{"type": "record", "name": "Person", "namespace": "evo", "doc": "Version 2: the generated type. Version 1 is in EvolutionTests.", "fields": [
+  {"name": "id", "type": "long"},
+  {"name": "name", "type": "string", "aliases": ["nickname"]},
+  {"name": "email", "type": ["null", "string"], "default": null},
+  {"name": "score", "type": "double", "default": 1.5},
+  {"name": "tier", "type": {"type": "enum", "name": "Tier", "symbols": ["UNKNOWN", "BASIC", "GOLD"], "default": "UNKNOWN"}, "default": "BASIC"}
+]}

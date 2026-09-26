@@ -175,6 +175,28 @@ public static class CSharpCodeGenerator
         w.Line($"var reader = new {Reader}(data);");
         w.Line("return ReadCore(ref reader, 0);");
         w.Close();
+
+        // Schema resolution: data of another version of the schema is resolved to this type's schema first.
+        w.Line();
+        w.Line("/// <summary>");
+        w.Line("/// Reads a value written with <paramref name=\"writerSchema\"/>, another version of this type's schema, resolving the");
+        w.Line("/// differences as the specification allows (added fields take their defaults, removed fields are skipped, numbers");
+        w.Line("/// are promoted). Data written with this type's own schema is read directly.");
+        w.Line("/// </summary>");
+        w.Open($"public static {name} Read(ref {Reader} reader, global::AvroSharp.Schemas.AvroSchema writerSchema)");
+        w.Open($"if ({Support}.IsSameSchema(writerSchema, Schema))");
+        w.Line("return ReadCore(ref reader, 0);");
+        w.Close();
+        w.Line();
+        w.Line($"return FromAvroBytes({Support}.ResolveToReaderEncoding(ref reader, writerSchema, Schema));");
+        w.Close();
+
+        w.Line();
+        w.Line("/// <summary>Reads a value from Avro binary data written with <paramref name=\"writerSchema\"/>, resolving schema differences.</summary>");
+        w.Open($"public static {name} FromAvroBytes(global::System.ReadOnlySpan<byte> data, global::AvroSharp.Schemas.AvroSchema writerSchema)");
+        w.Line($"var reader = new {Reader}(data);");
+        w.Line("return Read(ref reader, writerSchema);");
+        w.Close();
     }
 
     /// <summary>

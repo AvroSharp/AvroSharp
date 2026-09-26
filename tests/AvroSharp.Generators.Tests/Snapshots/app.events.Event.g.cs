@@ -57,6 +57,28 @@ namespace app.events
             return ReadCore(ref reader, 0);
         }
 
+        /// <summary>
+        /// Reads a value written with <paramref name="writerSchema"/>, another version of this type's schema, resolving the
+        /// differences as the specification allows (added fields take their defaults, removed fields are skipped, numbers
+        /// are promoted). Data written with this type's own schema is read directly.
+        /// </summary>
+        public static Event Read(ref global::AvroSharp.IO.AvroReader reader, global::AvroSharp.Schemas.AvroSchema writerSchema)
+        {
+            if (global::AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writerSchema, Schema))
+            {
+                return ReadCore(ref reader, 0);
+            }
+
+            return FromAvroBytes(global::AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref reader, writerSchema, Schema));
+        }
+
+        /// <summary>Reads a value from Avro binary data written with <paramref name="writerSchema"/>, resolving schema differences.</summary>
+        public static Event FromAvroBytes(global::System.ReadOnlySpan<byte> data, global::AvroSharp.Schemas.AvroSchema writerSchema)
+        {
+            var reader = new global::AvroSharp.IO.AvroReader(data);
+            return Read(ref reader, writerSchema);
+        }
+
         global::AvroSharp.Schemas.RecordSchema global::AvroSharp.Serialization.IAvroSpecificRecord.Schema => (global::AvroSharp.Schemas.RecordSchema)Schema;
 
         /// <summary>Gets the value of the field at a position in the schema, boxed.</summary>
