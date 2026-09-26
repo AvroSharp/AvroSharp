@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 #if NET8_0_OR_GREATER
 using System.Numerics;
+using System.Runtime.Intrinsics.X86;
 #endif
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -257,8 +258,20 @@ public ref struct AvroWriter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint32(uint value) => WriteVarint64(value);
 
-    // PERF: hot path for every int, long, length, index and count. Only the one- and two-byte cases are inlined;
-    // see WriteVarintMulti for measurements and the options left to try.
+    /// <summary>Writes the raw (zig-zag) bits of an <c>int</c> or <c>long</c> varint.</summary>
+    /// <remarks>
+    /// PERF: hot path for every int, long, length, index and count.
+    /// <list type="bullet">
+    /// <item>One and two bytes are written inline, and three and four bytes with direct stores, each behind its own
+    /// length branch. In records each field's length is usually stable, so these branches predict well. A
+    /// branchless one- and two-byte store (57c987c) was slower for uniform lengths on every machine measured, and
+    /// won only on randomly mixed lengths (docs/reviews/2026-09-26-branchless-varints.md).</item>
+    /// <item>Five to eight bytes (net8+) are one 8-byte store; the 7-bit groups are spread with BMI2 PDEP when
+    /// available, or with shifts and masks otherwise.</item>
+    /// <item>Nine and ten bytes add one or two bytes after the word.</item>
+    /// </list>
+    /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint64(ulong value)
     {
@@ -297,21 +310,10 @@ public ref struct AvroWriter
     }
 
     /// <summary>A varint of 3 or more bytes; kept out of line so the inlined call sites stay small.</summary>
-    /// <remarks>
-    /// PERF: candidate for further optimization. Measured 2026-09-25 (VarintBenchmarks, 1,000 values, net10):
-    /// 3-byte encode was the thinnest win over Apache.Avro, and the best variant differs by CPU. The word path
-    /// (bit spread plus one 8-byte store) gave 0.59x on an i7-12800H but lost 1.27x on an i5-3570K; unrolled
-    /// byte stores (the current code) gave 0.93x/0.71x (3/4 bytes) on the i5-3570K and 0.92x/0.75x on the i7-12800H.
-    /// One 4-byte store for 3-4 bytes was also measured on the i7-12800H: 0.89x/0.79x, not better overall, so reverted.
-    /// Options not yet tried: moving the 3-byte case into the inlined call site (bigger call sites); BMI2
-    /// PDEP for the spread when Bmi2.X64.IsSupported (slow microcode on AMD Zen 1/2); a batched WriteLongs for
-    /// array items. Re-measure on both machines before changing: VarintBenchmarks with AVROSHARP_VARINT_BYTES.
-    /// Caution: these numbers came from 1,000-value datasets that the branch predictor can learn (see
-    /// docs/reviews/2026-09-25-performance.md, §1.2); re-measure with the 64K random-value benchmarks before relying on them.
-    /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void WriteVarintMulti(ulong value)
-    {        var buffer = _buffer[_buffered..];
+    {
+        var buffer = _buffer[_buffered..];
 
         // Three or four bytes: direct stores, cheaper than the word path for short values.
         if (value < 1UL << 21)
@@ -336,11 +338,11 @@ public ref struct AvroWriter
 #if NET8_0_OR_GREATER
         if (value < 1UL << 56)
         {
-            // 5 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the
-            // word in one write. Bytes past the varint are overwritten by the next value.
+            // 5 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
+            // one write. Bytes past the varint are overwritten by the next value.
             var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
             var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
-            BinaryPrimitives.WriteUInt64LittleEndian(buffer, SpreadVarint(value) | continuation);
+            WriteWord(buffer, SpreadVarint(value) | continuation);
             _buffered += length;
             return;
         }
@@ -350,6 +352,21 @@ public ref struct AvroWriter
         _buffered += WriteVarintLoop(buffer, value);
 #endif
     }
+
+#if NET8_0_OR_GREATER
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteWord(Span<byte> buffer, ulong word)
+    {
+        if (BitConverter.IsLittleEndian)
+        {
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(buffer), word);
+        }
+        else
+        {
+            BinaryPrimitives.WriteUInt64LittleEndian(buffer, word);
+        }
+    }
+#endif
 #if NET8_0_OR_GREATER
     /// <summary>
     /// Writes a 9- or 10-byte varint (a value of 2^56 or more): the low 56 bits as a full word of continued bytes,
@@ -357,7 +374,7 @@ public ref struct AvroWriter
     /// </summary>
     private static int WriteLongVarint(Span<byte> buffer, ulong value)
     {
-        BinaryPrimitives.WriteUInt64LittleEndian(buffer, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
+        WriteWord(buffer, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
         var high = value >> 56;
         if (high < 0x80)
         {
@@ -373,6 +390,11 @@ public ref struct AvroWriter
     /// <summary>Places the 7-bit groups of a value below 2^56 into consecutive bytes, without a loop.</summary>    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong SpreadVarint(ulong value)
     {
+        if (Bmi2.X64.IsSupported)
+        {
+            return Bmi2.X64.ParallelBitDeposit(value, 0x7F7F7F7F7F7F7F7FUL);
+        }
+
         var x = ((value & 0x00FFFFFFF0000000UL) << 4) | (value & 0x000000000FFFFFFFUL);
         x = ((x & 0x0FFFC0000FFFC000UL) << 2) | (x & 0x00003FFF00003FFFUL);
         x = ((x & 0x3F803F803F803F80UL) << 1) | (x & 0x007F007F007F007FUL);

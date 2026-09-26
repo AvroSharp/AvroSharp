@@ -4,6 +4,7 @@ using System.Buffers.Binary;
 #if NET8_0_OR_GREATER
 using System.Numerics;
 using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 #endif
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -485,6 +486,8 @@ public ref struct AvroReader
         return _span[_position++];
     }
 
+    /// <summary>Reads the raw (zig-zag) bits of an <c>int</c> varint.</summary>
+    /// <remarks>See <see cref="ReadVarint64"/> for the design.</remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint ReadVarint32()
     {
@@ -514,21 +517,56 @@ public ref struct AvroReader
         return ReadVarint32Multi();
     }
 
+    /// <summary>Reads the raw (zig-zag) bits of a <c>long</c> varint.</summary>
+    /// <remarks>
+    /// PERF: hot path for every int, long, length, index and count.
+    /// <list type="bullet">
+    /// <item>One and two bytes are decoded inline, and three and four bytes with unrolled byte reads, each behind
+    /// its own length branch. In records, consecutive varints belong to different fields and each field's length
+    /// is usually stable, so these branches predict well, and a predicted branch lets the CPU start the next read
+    /// before the current value is decoded. A branchless one- and two-byte decode (57c987c) made every value wait
+    /// for the previous one: about 2.7 ns per 1-byte value against 0.6 ns on an i7-12800H, winning only on randomly
+    /// mixed lengths (docs/reviews/2026-09-26-branchless-varints.md).</item>
+    /// <item>Five to eight bytes (net8+) take one 8-byte read; the 7-bit groups are packed with BMI2 PEXT when
+    /// available, or with shifts and masks otherwise, without branching on the length.</item>
+    /// <item>Nine and ten bytes complete the word with one or two more bytes.</item>
+    /// </list>
+    /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ulong ReadVarint64()
+    {
+        // Inline fast paths for one- and two-byte values: small numbers, lengths, indexes and ordinals.
+        var span = _span;
+        var position = _position;
+        if ((uint)position < (uint)span.Length)
+        {
+            ulong first = span[position];
+            if (first < 0x80)
+            {
+                _position = position + 1;
+                return first;
+            }
+
+            if ((uint)(position + 1) < (uint)span.Length)
+            {
+                ulong second = span[position + 1];
+                if (second < 0x80)
+                {
+                    _position = position + 2;
+                    return (first & 0x7F) | (second << 7);
+                }
+            }
+        }
+
+        return ReadVarint64Multi();
+    }
+
     /// <summary>
     /// Reads a three- or four-byte varint with unrolled byte reads, which beats the word path for short values.
     /// The inline path has already seen continuation bits on the first two bytes whenever two bytes were available.
     /// </summary>
-    /// <remarks>
-    /// PERF: candidate for further optimization. Measured 2026-09-25 (VarintBenchmarks, net10): with this path,
-    /// 3/4-byte decode is 0.52x/0.47x of Apache.Avro's time on an i5-3570K and 0.57x/0.53x on an i7-12800H;
-    /// 8- and 10-byte values (word path) are about 0.33x. The remaining cost is mostly the out-of-line call and
-    /// bounds checks, not the arithmetic. Options not yet tried: one 4-byte read instead of four byte reads; BMI2
-    /// PEXT for the word path when Bmi2.X64.IsSupported (slow microcode on AMD Zen 1/2); SIMD batch decoding of
-    /// array blocks (Masked VByte, or runs of one-byte values), which belongs in the array reader. Re-measure on
-    /// both machines before changing: VarintBenchmarks with AVROSHARP_VARINT_BYTES.
-    /// Caution: these numbers came from 1,000-value datasets that the branch predictor can learn (see
-    /// docs/reviews/2026-09-25-performance.md, §1.2); re-measure with the 64K random-value benchmarks before relying on them.
-    /// </remarks>    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool TryReadThreeOrFourByteVarint(out uint value)
     {
         var position = _position;
@@ -559,7 +597,8 @@ public ref struct AvroReader
         return false;
     }
 
-    /// <summary>A multi-byte <c>int</c>: decoded from one 8-byte read when enough input is contiguous.</summary>    [MethodImpl(MethodImplOptions.NoInlining)]
+    /// <summary>An <c>int</c> of three or more bytes.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private uint ReadVarint32Multi()
     {
         if (TryReadThreeOrFourByteVarint(out var shortValue))
@@ -568,24 +607,25 @@ public ref struct AvroReader
         }
 
 #if NET8_0_OR_GREATER
-        if (_span.Length - _position >= sizeof(ulong))
+        var position = _position;
+        if (_span.Length - position >= sizeof(ulong))
         {
-            var word = BinaryPrimitives.ReadUInt64LittleEndian(_span[_position..]);
+            var word = Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref MemoryMarshal.GetReference(_span), position));
             var stops = ~word & 0x8080808080808080UL;
             var length = (BitOperations.TrailingZeroCount(stops) >> 3) + 1;
             if (stops != 0 && length <= MaxVarint32Length)
             {
-                _position += length;
+                _position = position + length;
 
-                // Bits beyond 32 in a fifth byte are dropped, as in the byte-by-byte path (and Java).
-                return (uint)CompactVarint(word, length);
+                // Bits beyond 32 in a fifth byte are dropped, as in the byte loop (and Java).
+                return (uint)ExtractVarint(word, stops);
             }
         }
 #endif
         return ReadVarint32Slow();
     }
 
-    /// <summary>A multi-byte <c>long</c>: decoded from one 8-byte read when it is at most 8 bytes long.</summary>
+    /// <summary>A <c>long</c> of three or more bytes.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private ulong ReadVarint64Multi()
     {
@@ -595,35 +635,36 @@ public ref struct AvroReader
         }
 
 #if NET8_0_OR_GREATER
-        if (_span.Length - _position >= sizeof(ulong))
+        var position = _position;
+        if (_span.Length - position >= sizeof(ulong))
         {
-            var word = BinaryPrimitives.ReadUInt64LittleEndian(_span[_position..]);
+            ref var start = ref Unsafe.Add(ref MemoryMarshal.GetReference(_span), position);
+            var word = Unsafe.ReadUnaligned<ulong>(ref start);
             var stops = ~word & 0x8080808080808080UL;
             if (stops != 0)
             {
-                var length = (BitOperations.TrailingZeroCount(stops) >> 3) + 1;
-                _position += length;
-                return CompactVarint(word, length);
+                _position = position + (BitOperations.TrailingZeroCount(stops) >> 3) + 1;
+                return ExtractVarint(word, stops);
             }
 
             // No terminator in the first 8 bytes: a 9- or 10-byte value (full-range longs, negative values).
             // The first 56 bits come from the word; bits 56-62 and 63 from the next two bytes.
-            if (_span.Length - _position >= MaxVarint64Length)
+            if (_span.Length - position >= MaxVarint64Length)
             {
-                var result = CompactVarint(word, sizeof(ulong));
-                var ninth = _span[_position + 8];
+                var result = PackVarintGroups(word & 0x7F7F7F7F7F7F7F7FUL);
+                var ninth = Unsafe.Add(ref start, 8);
                 result |= (ulong)(ninth & 0x7F) << 56;
                 if (ninth < 0x80)
                 {
-                    _position += 9;
+                    _position = position + 9;
                     return result;
                 }
 
-                var tenth = _span[_position + 9];
+                var tenth = Unsafe.Add(ref start, 9);
                 if (tenth < 0x80)
                 {
                     // Only the lowest bit of a tenth byte fits in 64 bits; the rest is dropped, as in the byte loop.
-                    _position += MaxVarint64Length;
+                    _position = position + MaxVarint64Length;
                     return result | ((ulong)tenth << 63);
                 }
 
@@ -636,14 +677,24 @@ public ref struct AvroReader
 
 #if NET8_0_OR_GREATER
     /// <summary>
-    /// Removes the continuation bits of the first <paramref name="length"/> (1 to 8) bytes of a little-endian word
-    /// and packs their 7-bit groups together, without a loop or data-dependent branches.
+    /// Decodes a varint whose terminating byte is the lowest set bit of <paramref name="stops"/> (the inverted
+    /// continuation bits of <paramref name="word"/>), without branching on its length.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ulong CompactVarint(ulong word, int length)
+    private static ulong ExtractVarint(ulong word, ulong stops)
     {
-        var keep = length == sizeof(ulong) ? ulong.MaxValue : (1UL << (length * 8)) - 1;
-        var x = word & keep & 0x7F7F7F7F7F7F7F7FUL;
+        // Keep the bytes up to and including the terminator (all eight when it is the last byte).
+        var keep = ((stops & (0UL - stops)) << 1) - 1;
+        var bytes = word & keep;
+        return Bmi2.X64.IsSupported
+            ? Bmi2.X64.ParallelBitExtract(bytes, 0x7F7F7F7F7F7F7F7FUL)
+            : PackVarintGroups(bytes & 0x7F7F7F7F7F7F7F7FUL);
+    }
+
+    /// <summary>Packs the 7-bit groups of up to eight bytes (continuation bits already cleared) together, without a loop.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong PackVarintGroups(ulong x)
+    {
         x = ((x & 0x7F007F007F007F00UL) >> 1) | (x & 0x007F007F007F007FUL);
         x = ((x & 0x3FFF00003FFF0000UL) >> 2) | (x & 0x00003FFF00003FFFUL);
         x = ((x & 0x0FFFFFFF00000000UL) >> 4) | (x & 0x000000000FFFFFFFUL);
@@ -666,38 +717,6 @@ public ref struct AvroReader
 
         throw new AvroDataException($"Invalid int encoding at offset {BytesConsumed - MaxVarint32Length}: more than {MaxVarint32Length} bytes.");
     }
-
-    // PERF: hot path for every int, long, length, index and count. Only the one- and two-byte cases are inlined;
-    // see TryReadThreeOrFourByteVarint for measurements and the options left to try.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ulong ReadVarint64()
-    {
-        // Inline fast paths for one- and two-byte values: small numbers, lengths, indexes and ordinals.
-        var span = _span;
-        var position = _position;
-        if ((uint)position < (uint)span.Length)
-        {
-            ulong first = span[position];
-            if (first < 0x80)
-            {
-                _position = position + 1;
-                return first;
-            }
-
-            if ((uint)(position + 1) < (uint)span.Length)
-            {
-                ulong second = span[position + 1];
-                if (second < 0x80)
-                {
-                    _position = position + 2;
-                    return (first & 0x7F) | (second << 7);
-                }
-            }
-        }
-
-        return ReadVarint64Multi();
-    }
-
     private ulong ReadVarint64Slow()
     {
         ulong result = 0;
