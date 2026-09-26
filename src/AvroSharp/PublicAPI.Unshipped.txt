@@ -17,8 +17,12 @@ AvroSharp.Containers.AvroFileReader<T>.Dispose() -> void
 AvroSharp.Containers.AvroFileReader<T>.DisposeAsync() -> System.Threading.Tasks.ValueTask
 AvroSharp.Containers.AvroFileReader<T>.GetMetadataString(string! key) -> string?
 AvroSharp.Containers.AvroFileReader<T>.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.ReadOnlyMemory<byte>>!
+AvroSharp.Containers.AvroFileReader<T>.PastSync(long position) -> bool
+AvroSharp.Containers.AvroFileReader<T>.PreviousSync.get -> long
 AvroSharp.Containers.AvroFileReader<T>.ReadAll() -> System.Collections.Generic.IEnumerable<T>!
 AvroSharp.Containers.AvroFileReader<T>.ReadAllAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<T>!
+AvroSharp.Containers.AvroFileReader<T>.Seek(long position) -> void
+AvroSharp.Containers.AvroFileReader<T>.Sync(long position) -> void
 AvroSharp.Containers.AvroFileReader<T>.TryRead(out T value) -> bool
 AvroSharp.Containers.AvroFileReader<T>.WriterSchema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Containers.AvroFileReaderOptions
