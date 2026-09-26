@@ -19,4 +19,8 @@
     <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\TestData\**\*" LinkBase="TestData" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

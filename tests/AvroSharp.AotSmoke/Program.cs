@@ -73,6 +73,29 @@ var decoded = AvroSharp.Generic.GenericDatumReader.Create(person).Read(encoded);
 Check(decoded.Equals((AvroSharp.Generic.AvroValue)alice), "generic record round trip");
 Check(Same(Convert.ToHexString(encoded), "0A416C6963653C06029003050000"), "generic record bytes");
 
+// Object container files with each built-in codec.
+foreach (var codec in new[] { AvroSharp.Containers.AvroCodec.Null, AvroSharp.Containers.AvroCodec.Deflate })
+{
+    using var file = new MemoryStream();
+    using (var writer = AvroSharp.Containers.AvroFileWriter.CreateGeneric(file, person, new AvroSharp.Containers.AvroFileWriterOptions { Codec = codec, SyncInterval = 16, LeaveOpen = true }))
+    {
+        for (var i = 0; i < 10; i++)
+        {
+            writer.Write(alice);
+        }
+    }
+
+    file.Position = 0;
+    using var reader = AvroSharp.Containers.AvroFileReader.OpenGeneric(file);
+    var count = 0;
+    foreach (var record in reader.ReadAll())
+    {
+        count += record.Equals((AvroSharp.Generic.AvroValue)alice) ? 1 : 0;
+    }
+
+    Check(count == 10 && Same(reader.Codec, codec.Name), $"container file with the {codec.Name} codec");
+}
+
 static bool Same(string? a, string? b) => string.Equals(a, b, StringComparison.Ordinal);
 
 Console.WriteLine(failures == 0 ? "AOT smoke test passed" : $"AOT smoke test failed ({failures})");

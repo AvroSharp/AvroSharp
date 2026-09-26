@@ -5,9 +5,10 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > **Status:** early development, not yet released. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
-> - C# code generation from `.avsc` files.
+> - C# code generation from `.avsc` files;
+> - object container files with the `null` and `deflate` codecs.
 >
-> Not implemented yet: container files and codecs. See [the design](docs/design.md) for the roadmap.
+> Not implemented yet: the other codecs, async container I/O and single-object encoding. See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 
@@ -17,6 +18,18 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 - Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and `System.IO.Pipelines`.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
 - Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
+
+## Object container files
+
+```csharp
+using var writer = AvroFileWriter.CreateGeneric(stream, schema, new AvroFileWriterOptions { Codec = AvroCodec.Deflate });
+writer.Write(record);                        // an AvroValue or GenericRecord
+
+using var reader = AvroFileReader.OpenGeneric(stream, readerSchema);  // readerSchema is optional
+foreach (var value in reader.ReadAll()) { ... }
+```
+
+Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound. Other codecs can be plugged in by subclassing `AvroCodec`.
 
 ## Code generation from schema files
 
