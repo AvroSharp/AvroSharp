@@ -131,6 +131,28 @@ public class SchemaFileGeneratorTests
     }
 
     [Test]
+    public async Task ApacheCompatibleWithoutApacheAvro_IsReported()
+    {
+        var (sources, generatorDiagnostics, _) = GeneratorHarness.Run([("event.avsc", EventSchema)], apacheCompatible: true);
+
+        await Assert.That(generatorDiagnostics.Single().Id).IsEqualTo("AVROGEN004");
+        await Assert.That(sources).IsEmpty();
+    }
+
+    [Test]
+    public async Task ApacheCompatible_ImplementsApacheContracts_AndCompiles()
+    {
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run([("event.avsc", EventSchema)], apacheCompatible: true, referenceApache: true);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        var byName = sources.ToDictionary(s => s.HintName, s => s.SourceText.ToString(), StringComparer.Ordinal);
+        await Assert.That(byName["app.events.Event.g.cs"]).Contains("global::Avro.Specific.ISpecificRecord");
+        await Assert.That(byName["app.events.Hash.g.cs"]).Contains(": global::Avro.Specific.SpecificFixed");
+        await Assert.That(byName.ContainsKey("AvroSharp.Generated.ApacheDecimals.g.cs")).IsTrue();
+        await Assert.That(compileDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString())).IsEmpty();
+    }
+
+    [Test]
     public async Task EditingCSharpCode_ReusesTheCachedGeneration()
     {
         var compilation = GeneratorHarness.CreateCompilation(true, "class A { }");

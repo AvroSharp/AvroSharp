@@ -36,6 +36,14 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor s_generationFailed = new(
         "AVROGEN003", "Avro code generation failed", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor s_missingApache = new(
+        "AVROGEN004",
+        "Apache.Avro not referenced",
+        "AvroSharpApacheCompatible is true, but the project does not reference Apache.Avro; add a reference to it, or remove the property",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -48,51 +56,66 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         (
             Namespace: options.GlobalOptions.TryGetValue("build_property.AvroSharpNamespace", out var ns) && !string.IsNullOrWhiteSpace(ns) ? ns.Trim() : null,
             Raw: options.GlobalOptions.TryGetValue("build_property.AvroSharpLogicalTypes", out var logical)
-                && string.Equals(logical.Trim(), "raw", StringComparison.OrdinalIgnoreCase)));
+                && string.Equals(logical.Trim(), "raw", StringComparison.OrdinalIgnoreCase),
+            Apache: options.GlobalOptions.TryGetValue("build_property.AvroSharpApacheCompatible", out var apache)
+                && string.Equals(apache.Trim(), "true", StringComparison.OrdinalIgnoreCase)));
 
         var hasRuntime = context.CompilationProvider.Select(static (compilation, _) =>
             compilation.GetTypeByMetadataName("AvroSharp.Serialization.AvroGeneratedCode") is not null);
 
         // A multi-targeted project runs the generator once per framework: DateOnly/TimeOnly exist from .NET 6.
-        var hasDateOnly = context.CompilationProvider.Select(static (compilation, _) =>
-            compilation.GetTypeByMetadataName("System.DateOnly") is not null);
+        var target = context.CompilationProvider.Select(static (compilation, _) =>
+        (
+            HasDateOnly: compilation.GetTypeByMetadataName("System.DateOnly") is not null,
+            HasApache: compilation.GetTypeByMetadataName("Avro.Specific.ISpecificRecord") is not null));
 
-        var results = files.Combine(properties).Combine(hasDateOnly)
+        var results = files.Combine(properties).Combine(target)
             .Select(static (input, cancellationToken) => Generate(
                 input.Left.Left,
                 new CodeGenOptions
                 {
                     DefaultNamespace = input.Left.Right.Namespace,
                     LogicalTypes = input.Left.Right.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
-                    TargetHasDateOnly = input.Right,
+                    TargetHasDateOnly = input.Right.HasDateOnly,
+                    ApacheCompatible = input.Left.Right.Apache && input.Right.HasApache,
                 },
                 cancellationToken))
             .WithTrackingName("Generate");
 
-        context.RegisterSourceOutput(results.Combine(hasRuntime), static (output, input) =>
+        var apacheMissing = properties.Combine(target).Select(static (input, _) => input.Left.Apache && !input.Right.HasApache);
+
+        context.RegisterSourceOutput(results.Combine(hasRuntime).Combine(apacheMissing), static (output, input) => AddOutput(output, input.Left.Left, input.Left.Right, input.Right));
+    }
+
+    /// <summary>Reports the diagnostics and, when the project can compile it, adds the generated code.</summary>
+    private static void AddOutput(SourceProductionContext output, GenerationResult result, bool runtime, bool missingApache)
+    {
+        foreach (var diagnostic in result.Diagnostics)
         {
-            var (result, runtime) = input;
-            foreach (var diagnostic in result.Diagnostics)
-            {
-                output.ReportDiagnostic(diagnostic.ToDiagnostic());
-            }
+            output.ReportDiagnostic(diagnostic.ToDiagnostic());
+        }
 
-            if (result.Sources.Count == 0)
-            {
-                return;
-            }
+        if (result.Sources.Count == 0)
+        {
+            return;
+        }
 
-            if (!runtime)
-            {
-                output.ReportDiagnostic(Diagnostic.Create(s_missingRuntime, Location.None));
-                return;
-            }
+        if (!runtime)
+        {
+            output.ReportDiagnostic(Diagnostic.Create(s_missingRuntime, Location.None));
+            return;
+        }
 
-            foreach (var source in result.Sources)
-            {
-                output.AddSource(source.HintName, SourceText.From(source.Text, System.Text.Encoding.UTF8));
-            }
-        });
+        if (missingApache)
+        {
+            output.ReportDiagnostic(Diagnostic.Create(s_missingApache, Location.None));
+            return;
+        }
+
+        foreach (var source in result.Sources)
+        {
+            output.AddSource(source.HintName, SourceText.From(source.Text, System.Text.Encoding.UTF8));
+        }
     }
 
     /// <summary>
