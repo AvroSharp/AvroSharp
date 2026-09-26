@@ -18,6 +18,22 @@ internal sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
 
     public ReadOnlySpan<byte> WrittenSpan => _buffer.AsSpan(0, _written);
 
+    public ReadOnlyMemory<byte> WrittenMemory => _buffer.AsMemory(0, _written);
+
+    /// <summary>Discards everything written; the buffer is kept for reuse.</summary>
+    public void Clear() => _written = 0;
+
+    /// <summary>Discards what was written after the first <paramref name="length"/> bytes.</summary>
+    public void Truncate(int length)
+    {
+        if ((uint)length > (uint)_written)
+        {
+            throw new ArgumentOutOfRangeException(nameof(length));
+        }
+
+        _written = length;
+    }
+
     public void Advance(int count)
     {
         if ((uint)count > (uint)(_buffer.Length - _written))

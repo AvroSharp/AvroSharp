@@ -21,7 +21,7 @@ namespace AvroSharp.Benchmarks;
 [CategoriesColumn]
 public class GenericRecordBenchmarks
 {
-    private const string OrderJson = """
+    internal const string OrderJson = """
         {"type":"record","name":"Order","namespace":"bench","fields":[
           {"name":"id","type":"long"},
           {"name":"customer","type":"string"},
