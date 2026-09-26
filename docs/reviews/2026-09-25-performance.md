@@ -13,14 +13,17 @@ Target frameworks are `net10.0;net9.0;net8.0;netstandard2.1;netstandard2.0`, and
 
 ## 0. Fix first: security and robustness
 
-These three are confirmed in the code.
+These three are confirmed in the code. **Status: all three fixed in PR #4** (tests in `tests/AvroSharp.Tests/Generic/HostileInputTests.cs`).
 
 1. **A few bytes of input can force a huge allocation.** `GenericDatumReader.cs:240` sets `list.Capacity` to the block count before it reads any items. `RecordNode.MinimumSize` is `0` (`:189`), so every `array<record>` gets the zero-size cap `MaxZeroSizeItemsPerBlock = 1 << 24` (`:27`). At 16 bytes per `AvroValue`, a 5-byte input can trigger a 256 MB allocation on the large object heap. A zero-size item such as `NullNode` consumes no bytes, so repeating blocks grow memory without limit.
    - Compute a real minimum size for a record once its fields are built. A recursive reference counts as 0, so cycles are safe.
    - When `MinimumSize == 0`, pre-allocate at most `Math.Min(n, 1024)` items.
    - Add a per-read budget for zero-size items.
+   - **Fixed:** records compute their minimum size from their fields; arrays and maps pre-allocate at most 1,024 items; zero-size items draw from a per-read budget (`GenericDatumReaderOptions.MaxZeroSizeItems`, default 65,536).
 2. **Deeply nested input can crash the process.** Nothing limits how deep a recursive schema can nest while reading or writing. A schema like `Node{children: array<Node>}` needs about 2 bytes per level, so a crafted input of about 20–50 KB overflows the stack, and a stack overflow cannot be caught. Add an explicit depth counter (default 64–128) and pass it through `Read`/`Write`.
+   - **Fixed:** `GenericDatumReaderOptions.MaxDepth` and `GenericDatumWriterOptions.MaxDepth` (default 128); the writer limit also stops a record that contains itself.
 3. **An overflow throws the wrong exception.** `list.Count + n` (`:240`) can overflow `int` across blocks. It then throws `ArgumentOutOfRangeException` instead of `AvroDataException`.
+   - **Fixed:** the running item count is checked against the largest .NET array length before each block, as a `long`.
 
 ---
 

@@ -31,8 +31,10 @@ public ref struct AvroReader
     private const int MaxVarint32Length = 5;
     private const int MaxVarint64Length = 10;
 
+#if NET8_0_OR_GREATER
     // Values decoded one at a time after a multi-byte value, before the bulk readers look for a one-byte run again.
     private const int ScalarBatchAfterMultiByte = 8;
+#endif
 
     private readonly ReadOnlySequence<byte> _sequence;
     private readonly long _length;

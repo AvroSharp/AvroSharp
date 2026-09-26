@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
@@ -16,30 +17,50 @@ public sealed class GenericDatumWriter
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumWriter> s_cache = new();
 
+    private const string FieldPathKey = "AvroSharp.FieldPath";
+
     private readonly WriterNode _root;
 
-    private GenericDatumWriter(AvroSchema schema)
+    private GenericDatumWriter(AvroSchema schema, GenericDatumWriterOptions options)
     {
         Schema = schema;
-        _root = new Builder().Build(schema);
+        _root = new Builder(options.MaxDepth).Build(schema);
     }
 
     /// <summary>Gets the schema values are written with.</summary>
     public AvroSchema Schema { get; }
 
-    /// <summary>Gets the writer for <paramref name="schema"/>, compiling it on first use.</summary>
+    /// <summary>
+    /// Gets the writer for <paramref name="schema"/>, compiling it on first use. Writers with the default options are
+    /// cached per schema; writers with custom options are created each time, so keep and reuse them.
+    /// </summary>
     /// <param name="schema">The schema to write with.</param>
-    public static GenericDatumWriter Create(AvroSchema schema)
+    /// <param name="options">Limits, or <see langword="null"/> for <see cref="GenericDatumWriterOptions.Default"/>.</param>
+    public static GenericDatumWriter Create(AvroSchema schema, GenericDatumWriterOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(schema);
-        return s_cache.GetValue(schema, static s => new GenericDatumWriter(s));
+        return options is null || ReferenceEquals(options, GenericDatumWriterOptions.Default)
+            ? s_cache.GetValue(schema, static s => new GenericDatumWriter(s, GenericDatumWriterOptions.Default))
+            : new GenericDatumWriter(schema, options);
     }
 
     /// <summary>Writes a value.</summary>
     /// <param name="writer">The destination.</param>
     /// <param name="value">A value matching <see cref="Schema"/>.</param>
     /// <exception cref="AvroException">The value does not match the schema.</exception>
-    public void Write(ref AvroWriter writer, in AvroValue value) => _root.Write(ref writer, value);
+    public void Write(ref AvroWriter writer, in AvroValue value)
+    {
+        try
+        {
+            _root.Write(ref writer, value, 0);
+        }
+        catch (AvroException ex) when (ex is not AvroDataException && ex.Data[FieldPathKey] is List<string> path)
+        {
+            // Record nodes add their field to the path from exception filters, which never catch. Catching and
+            // rethrowing at every level instead nests exception handling, which overflows the stack on .NET Framework.
+            throw new AvroException(DescribePath(path) + ex.Message, ex);
+        }
+    }
 
     /// <summary>Writes a value to <paramref name="output"/> and commits it.</summary>
     /// <param name="output">The destination.</param>
@@ -47,7 +68,7 @@ public sealed class GenericDatumWriter
     public void Write(IBufferWriter<byte> output, in AvroValue value)
     {
         var writer = new AvroWriter(output);
-        _root.Write(ref writer, value);
+        Write(ref writer, value);
         writer.Flush();
     }
 
@@ -63,12 +84,40 @@ public sealed class GenericDatumWriter
     private static AvroException Mismatch(AvroSchema schema, in AvroValue value) =>
         new($"A {value.Kind} value cannot be written as {schema.CanonicalForm}.");
 
-    private abstract class WriterNode
+    /// <summary>Formats the field path collected while the exception propagated (innermost field first).</summary>
+    private static string DescribePath(List<string> innermostFirst)
     {
-        public abstract void Write(ref AvroWriter writer, in AvroValue value);
+        const int Shown = 8;
+        var outermostFirst = Enumerable.Reverse(innermostFirst).ToList();
+        var parts = outermostFirst.Count <= Shown
+            ? outermostFirst
+            : [.. outermostFirst.Take(Shown / 2), "...", .. outermostFirst.Skip(outermostFirst.Count - (Shown / 2))];
+        return "Field '" + string.Join("' > '", parts) + "': ";
     }
 
-    private sealed class Builder
+    /// <summary>Exception filter: adds a field to the path and returns false, so the exception keeps propagating.</summary>
+    private static bool AddToPath(AvroException ex, RecordSchema schema, int field)
+    {
+        if (ex is not AvroDataException)
+        {
+            if (ex.Data[FieldPathKey] is not List<string> path)
+            {
+                ex.Data[FieldPathKey] = path = [];
+            }
+
+            path.Add(schema.FullName + "." + schema.Fields[field].Name);
+        }
+
+        return false;
+    }
+
+    private abstract class WriterNode
+    {
+        // depth: the number of records around this value.
+        public abstract void Write(ref AvroWriter writer, in AvroValue value, int depth);
+    }
+
+    private sealed class Builder(int maxDepth)
     {
         // Schemas compare by reference.
         private readonly Dictionary<RecordSchema, RecordNode> _records = [];
@@ -102,7 +151,7 @@ public sealed class GenericDatumWriter
                 return existing;
             }
 
-            var node = new RecordNode(record);
+            var node = new RecordNode(record, maxDepth);
             _records.Add(record, node);
             node.Fields = record.Fields.ConvertAll(f => Build(f.Schema));
             return node;
@@ -111,7 +160,7 @@ public sealed class GenericDatumWriter
 
     private sealed class NullNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value)
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth)
         {
             if (!value.IsNull)
             {
@@ -122,25 +171,25 @@ public sealed class GenericDatumWriter
 
     private sealed class BooleanNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) =>
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteBoolean(value.Kind == AvroValueKind.Boolean ? value.AsBoolean() : throw Mismatch(schema, value));
     }
 
     private sealed class IntNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) =>
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteInt(value.Kind == AvroValueKind.Int ? (int)value.Bits : throw Mismatch(schema, value));
     }
 
     private sealed class LongNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) =>
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteLong(value.Kind is AvroValueKind.Long or AvroValueKind.Int ? value.Bits : throw Mismatch(schema, value));
     }
 
     private sealed class FloatNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) => writer.WriteFloat(value.Kind switch
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) => writer.WriteFloat(value.Kind switch
         {
             AvroValueKind.Float => value.AsSingle(),
             AvroValueKind.Int or AvroValueKind.Long => value.Bits,
@@ -150,7 +199,7 @@ public sealed class GenericDatumWriter
 
     private sealed class DoubleNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) => writer.WriteDouble(value.Kind switch
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) => writer.WriteDouble(value.Kind switch
         {
             AvroValueKind.Double or AvroValueKind.Float => value.AsDouble(),
             AvroValueKind.Int or AvroValueKind.Long => value.Bits,
@@ -160,45 +209,52 @@ public sealed class GenericDatumWriter
 
     private sealed class BytesNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) =>
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteBytes(value.Reference as byte[] ?? throw Mismatch(schema, value));
     }
 
     private sealed class StringNode(AvroSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) =>
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteString(value.Reference as string ?? throw Mismatch(schema, value));
     }
 
-    private sealed class RecordNode(RecordSchema schema) : WriterNode
+    private sealed class RecordNode(RecordSchema schema, int maxDepth) : WriterNode
     {
         public WriterNode[] Fields { get; set; } = [];
 
-        public override void Write(ref AvroWriter writer, in AvroValue value)
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth)
         {
             if (value.Reference is not GenericRecord record || record.Schema.Name != schema.Name || record.Values.Count != Fields.Length)
             {
                 throw Mismatch(schema, value);
             }
 
-            var fields = Fields;
-            for (var i = 0; i < fields.Length; i++)
+            if (depth >= maxDepth)
             {
-                try
+                throw new AvroException($"Records are nested more than {maxDepth} levels deep (GenericDatumWriterOptions.MaxDepth); a record may contain itself.");
+            }
+
+            var fields = Fields;
+            var i = 0;
+            try
+            {
+                for (; i < fields.Length; i++)
                 {
-                    fields[i].Write(ref writer, record[i]);
+                    fields[i].Write(ref writer, record[i], depth + 1);
                 }
-                catch (AvroException ex) when (ex is not AvroDataException)
-                {
-                    throw new AvroException($"Field '{schema.FullName}.{schema.Fields[i].Name}': {ex.Message}", ex);
-                }
+            }
+            catch (AvroException ex) when (AddToPath(ex, schema, i))
+            {
+                // Never reached: the filter only records the field.
+                throw;
             }
         }
     }
 
     private sealed class EnumNode(EnumSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) =>
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteEnum(value.EnumSchema is { } enumSchema && enumSchema.Name == schema.Name
                 ? (int)value.Bits
                 : throw Mismatch(schema, value));
@@ -206,7 +262,7 @@ public sealed class GenericDatumWriter
 
     private sealed class FixedNode(FixedSchema schema) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value) =>
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteFixed(value.Reference is GenericFixed fixedValue && fixedValue.Schema.Name == schema.Name
                 ? fixedValue.Bytes.Span
                 : throw Mismatch(schema, value));
@@ -214,7 +270,7 @@ public sealed class GenericDatumWriter
 
     private sealed class ArrayNode(WriterNode items) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value)
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth)
         {
             var list = value.Kind == AvroValueKind.Array ? value.AsArray() : throw new AvroException($"A {value.Kind} value cannot be written as an array.");
             if (list.Count > 0)
@@ -222,7 +278,7 @@ public sealed class GenericDatumWriter
                 writer.WriteBlockCount(list.Count);
                 for (var i = 0; i < list.Count; i++)
                 {
-                    items.Write(ref writer, list[i]);
+                    items.Write(ref writer, list[i], depth);
                 }
             }
 
@@ -232,7 +288,7 @@ public sealed class GenericDatumWriter
 
     private sealed class MapNode(WriterNode values) : WriterNode
     {
-        public override void Write(ref AvroWriter writer, in AvroValue value)
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth)
         {
             var map = value.Kind == AvroValueKind.Map ? value.AsMap() : throw new AvroException($"A {value.Kind} value cannot be written as a map.");
             if (map.Count > 0)
@@ -241,7 +297,7 @@ public sealed class GenericDatumWriter
                 foreach (var entry in map)
                 {
                     writer.WriteString(entry.Key);
-                    values.Write(ref writer, entry.Value);
+                    values.Write(ref writer, entry.Value, depth);
                 }
             }
 
@@ -282,7 +338,7 @@ public sealed class GenericDatumWriter
             Widen(AvroValueKind.Float, AvroValueKind.Double);
         }
 
-        public override void Write(ref AvroWriter writer, in AvroValue value)
+        public override void Write(ref AvroWriter writer, in AvroValue value, int depth)
         {
             var kind = value.Kind;
             var index = kind switch
@@ -299,7 +355,7 @@ public sealed class GenericDatumWriter
             }
 
             writer.WriteUnionIndex(index);
-            _branches[index].Write(ref writer, value);
+            _branches[index].Write(ref writer, value, depth);
         }
 
         private static AvroValueKind KindOf(AvroSchemaType type) => type switch

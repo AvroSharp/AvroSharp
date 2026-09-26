@@ -43,11 +43,21 @@ AvroSharp.Generic.GenericDatumReader
 AvroSharp.Generic.GenericDatumReader.Read(ref AvroSharp.IO.AvroReader reader) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumReader.Read(System.ReadOnlySpan<byte> data) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumReader.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumReaderOptions
+AvroSharp.Generic.GenericDatumReaderOptions.GenericDatumReaderOptions() -> void
+AvroSharp.Generic.GenericDatumReaderOptions.MaxDepth.get -> int
+AvroSharp.Generic.GenericDatumReaderOptions.MaxDepth.init -> void
+AvroSharp.Generic.GenericDatumReaderOptions.MaxZeroSizeItems.get -> int
+AvroSharp.Generic.GenericDatumReaderOptions.MaxZeroSizeItems.init -> void
 AvroSharp.Generic.GenericDatumWriter
 AvroSharp.Generic.GenericDatumWriter.Schema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Generic.GenericDatumWriter.Write(ref AvroSharp.IO.AvroWriter writer, in AvroSharp.Generic.AvroValue value) -> void
 AvroSharp.Generic.GenericDatumWriter.Write(System.Buffers.IBufferWriter<byte>! output, in AvroSharp.Generic.AvroValue value) -> void
 AvroSharp.Generic.GenericDatumWriter.WriteToArray(in AvroSharp.Generic.AvroValue value) -> byte[]!
+AvroSharp.Generic.GenericDatumWriterOptions
+AvroSharp.Generic.GenericDatumWriterOptions.GenericDatumWriterOptions() -> void
+AvroSharp.Generic.GenericDatumWriterOptions.MaxDepth.get -> int
+AvroSharp.Generic.GenericDatumWriterOptions.MaxDepth.init -> void
 AvroSharp.Generic.GenericFixed
 AvroSharp.Generic.GenericFixed.Bytes.get -> System.ReadOnlyMemory<byte>
 AvroSharp.Generic.GenericFixed.Equals(AvroSharp.Generic.GenericFixed? other) -> bool
@@ -254,7 +264,6 @@ const AvroSharp.AvroCodecNames.Null = "null" -> string!
 const AvroSharp.AvroCodecNames.Snappy = "snappy" -> string!
 const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
 const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
-const AvroSharp.Generic.GenericDatumReader.MaxZeroSizeItemsPerBlock = 16777216 -> int
 const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
 override AvroSharp.Generic.AvroValue.Equals(object? obj) -> bool
 override AvroSharp.Generic.AvroValue.GetHashCode() -> int
@@ -301,8 +310,10 @@ static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.Null.get -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.operator !=(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
 static AvroSharp.Generic.AvroValue.operator ==(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
-static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Generic.GenericDatumReader!
-static AvroSharp.Generic.GenericDatumWriter.Create(AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Generic.GenericDatumWriter!
+static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumReader!
+static AvroSharp.Generic.GenericDatumReaderOptions.Default.get -> AvroSharp.Generic.GenericDatumReaderOptions!
+static AvroSharp.Generic.GenericDatumWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumWriter!
+static AvroSharp.Generic.GenericDatumWriterOptions.Default.get -> AvroSharp.Generic.GenericDatumWriterOptions!
 static AvroSharp.Schemas.AvroLogicalType.BigDecimal.get -> AvroSharp.Schemas.AvroLogicalType!
 static AvroSharp.Schemas.AvroLogicalType.Date.get -> AvroSharp.Schemas.AvroLogicalType!
 static AvroSharp.Schemas.AvroLogicalType.Decimal(int precision, int scale = 0) -> AvroSharp.Schemas.DecimalLogicalType!

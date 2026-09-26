@@ -142,7 +142,7 @@ public class GenericDatumTests
     [Arguments("""["null","int"]""", "04", "branch index 2 is out of range")]
     [Arguments("""{"type":"array","items":"long"}""", "C8010000", "larger than the remaining input")]
     [Arguments("""{"type":"map","values":"null"}""", "0400", "larger than the remaining input")]
-    [Arguments("""{"type":"array","items":"null"}""", "FEFFFFFFFF0F", "larger than the remaining input")]
+    [Arguments("""{"type":"array","items":"null"}""", "FEFFFFFFFF0F", "MaxZeroSizeItems")]
     public async Task Reader_RejectsMalformedData(string schemaJson, string hex, string reason)
     {
         var reader = GenericDatumReader.Create(AvroSchema.Parse(schemaJson));
