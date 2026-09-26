@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using AvroSharp.Generic;
+using AvroSharp.IO;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using ApacheGenericRecord = Avro.Generic.GenericRecord;
@@ -40,6 +42,7 @@ public class GenericRecordBenchmarks
     private Avro.Generic.GenericDatumWriter<ApacheGenericRecord> _apacheWriter = null!;
     private Avro.Generic.GenericDatumReader<ApacheGenericRecord> _apacheReader = null!;
     private ApacheGenericRecord _apacheRecord = null!;
+    private bench.generated.Order _generated = null!;
     private byte[] _encoded = [];
     private readonly System.Buffers.ArrayBufferWriter<byte> _output = new();
     private readonly MemoryStream _stream = new();
@@ -72,6 +75,13 @@ public class GenericRecordBenchmarks
         _apacheReader = new Avro.Generic.GenericDatumReader<ApacheGenericRecord>(apacheSchema, apacheSchema);
         _encoded = _writer.WriteToArray(_record);
         _apacheRecord = _apacheReader.Read(null!, new Avro.IO.BinaryDecoder(new MemoryStream(_encoded)));
+
+        // The generated type reads the generic encoding; it must write the very same bytes back.
+        _generated = bench.generated.Order.FromAvroBytes(_encoded);
+        if (!_generated.ToAvroBytes().AsSpan().SequenceEqual(_encoded))
+        {
+            throw new InvalidOperationException("The generated serializer does not reproduce the generic encoding.");
+        }
     }
 
     [GlobalCleanup]
@@ -105,4 +115,24 @@ public class GenericRecordBenchmarks
     [Benchmark]
     [BenchmarkCategory("Read")]
     public AvroValue AvroSharp_Read() => _reader.Read(_encoded);
+
+    // The same schema through the source generator (Schemas/order.avsc): the typed path.
+    [Benchmark]
+    [BenchmarkCategory("Write")]
+    public long AvroSharp_Generated_Write()
+    {
+        _output.ResetWrittenCount();
+        var writer = new AvroWriter(_output);
+        bench.generated.Order.Write(ref writer, _generated);
+        writer.Flush();
+        return _output.WrittenCount;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Read")]
+    public bench.generated.Order AvroSharp_Generated_Read()
+    {
+        var reader = new AvroReader(_encoded);
+        return bench.generated.Order.Read(ref reader);
+    }
 }

@@ -1,0 +1,99 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using AvroSharp.Schemas;
+
+namespace AvroSharp.CodeGen;
+
+/// <summary>Maps Avro names to C# identifiers and literals.</summary>
+internal sealed class CSharpNames(CodeGenOptions options)
+{
+    private static readonly HashSet<string> s_keywords = new(StringComparer.Ordinal)
+    {
+        "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class", "const",
+        "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event", "explicit", "extern",
+        "false", "finally", "fixed", "float", "for", "foreach", "goto", "if", "implicit", "in", "int", "interface",
+        "internal", "is", "lock", "long", "namespace", "new", "null", "object", "operator", "out", "override",
+        "params", "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
+        "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true", "try", "typeof",
+        "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
+    };
+
+    /// <summary>Escapes a C# keyword with <c>@</c>. Avro names are already valid C# identifier characters.</summary>
+    public static string Identifier(string name) => s_keywords.Contains(name) ? "@" + name : name;
+
+    /// <summary>Converts <c>first_name</c> or <c>firstName</c> to <c>FirstName</c>.</summary>
+    public static string Pascal(string name)
+    {
+        var result = new StringBuilder(name.Length);
+        foreach (var part in name.Split('_'))
+        {
+            if (part.Length > 0)
+            {
+                result.Append(char.ToUpperInvariant(part[0])).Append(part, 1, part.Length - 1);
+            }
+        }
+
+        return result.Length == 0 || char.IsDigit(result[0]) ? "Field" + result : result.ToString();
+    }
+
+    /// <summary>A C# string literal.</summary>
+    public static string Literal(string value)
+    {
+        var result = new StringBuilder(value.Length + 2).Append('"');
+        foreach (var c in value)
+        {
+            switch (c)
+            {
+                case '"':
+                    result.Append("\\\"");
+                    break;
+                case '\\':
+                    result.Append("\\\\");
+                    break;
+                case '\n':
+                    result.Append("\\n");
+                    break;
+                case '\r':
+                    result.Append("\\r");
+                    break;
+                case '\t':
+                    result.Append("\\t");
+                    break;
+                default:
+                    if (c < ' ' || char.IsSurrogate(c) || c > '~')
+                    {
+                        result.Append("\\u").Append(((int)c).ToString("X4", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        result.Append(c);
+                    }
+
+                    break;
+            }
+        }
+
+        return result.Append('"').ToString();
+    }
+
+    /// <summary>Escapes text for an XML documentation comment.</summary>
+    public static string Xml(string text) =>
+        text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+
+    /// <summary>Gets the C# namespace for a named type, or <see langword="null"/> for the global namespace.</summary>
+    public string? Namespace(NamedSchema schema)
+    {
+        var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? options.DefaultNamespace : schema.Name.Namespace;
+        return string.IsNullOrEmpty(ns) ? null : string.Join(".", ns!.Split('.').Select(Identifier));
+    }
+
+    /// <summary>Gets the fully qualified C# name of a named type.</summary>
+    public string TypeName(NamedSchema schema)
+    {
+        var ns = Namespace(schema);
+        return "global::" + (ns is null ? string.Empty : ns + ".") + Identifier(schema.Name.Name);
+    }
+}

@@ -453,6 +453,26 @@ AvroSharp/
   - Property tests check that SIMD and scalar paths produce identical results.
   - CI also runs the test suite with `DOTNET_EnableHWIntrinsic=0`, so the scalar fallback is exercised on every run.
 - **M2.5 — Schema-file source generator (moved forward from M6)**: the `AvroSharp.CodeGen` engine plus the build-time generator for `.avsc` files passed as `AdditionalFiles`. It emits the C# types and, for each, a serializer and deserializer that call `AvroWriter`/`AvroReader` directly in schema order, with no schema lookups, boxing or virtual calls at runtime. Writer/reader resolution for generated types comes with M3. *Exit*: generated types round-trip and match Apache.Avro C# bytes for the M2 fixtures; snapshot and compile-and-roundtrip tests; incremental-cache generator tests; the generated path is the fastest AvroSharp path in local benchmarks.
+
+  *Status*:
+  - **Done:** `src/AvroSharp.CodeGen` (engine) and `src/AvroSharp.Generators` (incremental generator, packed with its dependencies in `analyzers/dotnet/cs`), plus `AvroGeneratedCode`, the small runtime support class that generated code calls.
+  - **What gets generated:**
+    - a record becomes a `partial class` with get/set properties;
+    - an enum becomes a C# enum;
+    - a fixed type becomes a class that wraps exactly its size in bytes;
+    - `[null, T]` becomes a nullable property, and other multi-branch unions become `object?`.
+  - **Guards:** generated readers apply the generic reader's hostile-input limits (block counts checked against the remaining input, zero-size item budget, record depth 128).
+  - **Tests:**
+    - Roslyn driver tests for diagnostics, snapshots and incremental caching;
+    - a consumer project built by the SDK for round trips, byte equality with the generic writer and Apache.Avro, random generic data through every generated type, and hostile input;
+    - net481 compiles the generated code against the netstandard2.0 build.
+  - **Benchmarks:** `GenericRecordBenchmarks` has `AvroSharp_Generated_*` rows. They have not been run yet, so the "fastest path" exit criterion is unmeasured.
+  - **Deferred:**
+    - logical types map to their underlying type (a follow-up maps them to `DateOnly`, `DateTimeOffset`, `Guid`, `decimal`);
+    - generated union classes for multi-branch unions;
+    - `required`/`init` members and records;
+    - field-run fusion (§4.11).
+  - **Requirement:** the generator needs the .NET 10 SDK or Visual Studio 2026, because it loads AvroSharp's netstandard2.0 build, which references System.Text.Json 10, inside the compiler.
 - **M3 — Resolution (1.5 weeks)**: `ResolvedSchema`, generic reader consumption, aliases, defaults, promotions. *Exit*: spec resolution table tests + Apache oracle property tests pass; E benchmark (generic) beats Apache.
 - **M4 — Attribute-driven generator and `AvroSerializer<T>` API (2 weeks)**: `[AvroSerializable]` on user types generates the schema and the serializer/deserializer; the `AvroSerializer<T>` API over generated code. (The reflection and expression-tree tiers were dropped: no reflection on serialization paths.) *Exit*: typed P/S/N/L/E benchmarks beat Apache Specific and Reflect; zero trim/AOT warnings.
 - **M5 — Container files + codecs + single-object (2 weeks)**: sync/async writer/reader, `PooledBufferWriter`, null/deflate, Snappy/Zstd packages, `Sync/Seek`, single-object encoding. *Exit*: `weather*.avro`, `syncInMeta.avro`, `messageV1` pass; files written are readable by Apache.Avro C# (which Apache's own CI checks against the other languages); container read/write benchmarks beat Apache for all four codecs; AOT smoke runs.

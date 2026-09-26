@@ -2,7 +2,12 @@
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
 
-> **Status:** early development. Schemas (parsing, writing, canonical form, fingerprints) work; binary encoding, container files and code generation are not implemented yet. See [the design](docs/design.md) for the roadmap.
+> **Status:** early development, not yet released. Working today:
+> - schemas (parsing, writing, canonical form, fingerprints);
+> - binary and JSON encoding of the generic data model;
+> - C# code generation from `.avsc` files.
+>
+> Not implemented yet: schema resolution, container files and codecs. See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 
@@ -12,6 +17,39 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 - Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and `System.IO.Pipelines`.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
 - Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
+
+## Code generation from schema files
+
+Reference the `AvroSharp.Generators` package and pass your schema files to the compiler:
+
+```xml
+<ItemGroup>
+  <PackageReference Include="AvroSharp.Generators" Version="..." />
+  <AdditionalFiles Include="Schemas\*.avsc" />
+</ItemGroup>
+```
+
+Each named type becomes a C# type:
+- a record becomes a `partial class`;
+- an enum becomes a C# enum;
+- a fixed type becomes a class that wraps exactly its number of bytes.
+
+Each record also gets serializers that call `AvroWriter`/`AvroReader` directly, in schema order:
+
+```csharp
+byte[] bytes = order.ToAvroBytes();
+var copy = shop.Order.FromAvroBytes(bytes);
+
+var writer = new AvroWriter(bufferWriter);   // or write into your own IBufferWriter<byte>
+shop.Order.Write(ref writer, order);
+writer.Flush();
+```
+
+- **Cross-file references:** schema files may refer to named types defined in other files.
+- **Namespaces:** types without an Avro namespace go into the namespace set by the MSBuild property `AvroSharpNamespace`, or the global namespace.
+- **Unions:** a union of `null` and one other type becomes a nullable property; other unions become `object?`.
+- **Logical types:** these are represented by their underlying type for now (a `date` is an `int`).
+- **Requirements:** the generator needs the .NET 10 SDK or Visual Studio 2026, because it runs AvroSharp inside the compiler. The generated code works on every target AvroSharp supports.
 
 ## Building
 

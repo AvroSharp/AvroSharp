@@ -1,0 +1,5 @@
+{"type": "record", "name": "Customer", "namespace": "crm", "fields": [
+  {"name": "name", "type": "string"},
+  {"name": "last_status", "type": "shop.Status"},
+  {"name": "last_order", "type": ["null", "shop.Order"]}
+]}

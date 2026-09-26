@@ -1,0 +1,4 @@
+#nullable enable
+AvroSharp.Generators.SchemaFileGenerator
+AvroSharp.Generators.SchemaFileGenerator.Initialize(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context) -> void
+AvroSharp.Generators.SchemaFileGenerator.SchemaFileGenerator() -> void

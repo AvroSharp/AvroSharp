@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Uses the source generator the way a consumer does: as an analyzer, with .avsc files as AdditionalFiles, built by
+       the SDK's compiler. net481 compiles the generated code against the netstandard2.0 build of AvroSharp. -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+    <AvroSharpNamespace>Generated.Default</AvroSharpNamespace>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+  <ItemGroup>
+    <AdditionalFiles Include="Schemas\*.avsc" />
+    <None Include="Schemas\*.avsc" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="..\AvroSharp.Interop.Tests\RandomValues.cs" Link="RandomValues.cs" />
+  </ItemGroup>
+
+</Project>
