@@ -68,6 +68,21 @@ public sealed class GenericRecord : IEquatable<GenericRecord>
         return false;
     }
 
+    /// <summary>Gets a field value by position, if the record has a field at that position.</summary>
+    /// <param name="index">The zero-based field position.</param>
+    /// <param name="value">The value, when found.</param>
+    public bool TryGetValue(int index, out AvroValue value)
+    {
+        if ((uint)index < (uint)_values.Length)
+        {
+            value = _values[index];
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
     /// <summary>Compares schema full names and field values (see <see cref="AvroValue.Equals(AvroValue)"/>).</summary>
     /// <param name="other">The other record.</param>
     public bool Equals(GenericRecord? other) =>

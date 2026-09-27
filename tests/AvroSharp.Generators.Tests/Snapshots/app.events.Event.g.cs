@@ -238,9 +238,9 @@ namespace app.events
                 value.Tags = items4;
             }
             {
-                var map5 = new global::System.Collections.Generic.Dictionary<string, double>(global::System.StringComparer.Ordinal);
-                int count5;
-                while ((count5 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, map5.Count)) != 0)
+                var count5 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, 0);
+                var map5 = new global::System.Collections.Generic.Dictionary<string, double>(global::AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(count5), global::System.StringComparer.Ordinal);
+                while (count5 != 0)
                 {
                     for (var i5 = 0; i5 < count5; i5++)
                     {
@@ -249,6 +249,7 @@ namespace app.events
                         value5 = reader.ReadDouble();
                         map5[key5] = value5;
                     }
+                    count5 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, map5.Count);
                 }
                 value.Scores = map5;
             }

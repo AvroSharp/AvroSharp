@@ -130,6 +130,7 @@ AvroSharp.Generic.GenericRecord.this[int position].get -> AvroSharp.Generic.Avro
 AvroSharp.Generic.GenericRecord.this[int position].set -> void
 AvroSharp.Generic.GenericRecord.this[string! name].get -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericRecord.this[string! name].set -> void
+AvroSharp.Generic.GenericRecord.TryGetValue(int index, out AvroSharp.Generic.AvroValue value) -> bool
 AvroSharp.Generic.GenericRecord.TryGetValue(string! name, out AvroSharp.Generic.AvroValue value) -> bool
 AvroSharp.Generic.GenericRecord.Values.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.IO.AvroDataException

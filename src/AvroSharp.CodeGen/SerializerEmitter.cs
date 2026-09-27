@@ -297,18 +297,19 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         var n = _next++;
         var valueType = types.TypeOf(map.Values);
         w.Open();
-        w.Line($"var map{n} = new {TypeMapper.DictionaryType}<string, {valueType}>(global::System.StringComparer.Ordinal);");
-        w.Line($"int count{n};");
 
-        // Each entry has at least a key length byte.
+        // Each entry has at least a key length byte. The first block's count sizes the dictionary, as in the generic reader.
         var minimumEntrySize = (int)System.Math.Min(1L + TypeMapper.MinimumSize(map.Values), int.MaxValue);
-        w.Open($"while ((count{n} = {Support}.ReadBlockItemCount(ref reader, {Int(minimumEntrySize)}, map{n}.Count)) != 0)");
+        w.Line($"var count{n} = {Support}.ReadBlockItemCount(ref reader, {Int(minimumEntrySize)}, 0);");
+        w.Line($"var map{n} = new {TypeMapper.DictionaryType}<string, {valueType}>({Support}.InitialCapacity(count{n}), global::System.StringComparer.Ordinal);");
+        w.Open($"while (count{n} != 0)");
         w.Open($"for (var i{n} = 0; i{n} < count{n}; i{n}++)");
         w.Line($"var key{n} = reader.ReadString();");
         w.Line($"{valueType} value{n};");
         Read(w, map.Values, $"value{n}");
         w.Line($"map{n}[key{n}] = value{n};");
         w.Close();
+        w.Line($"count{n} = {Support}.ReadBlockItemCount(ref reader, {Int(minimumEntrySize)}, map{n}.Count);");
         w.Close();
         w.Line($"{target} = map{n};");
         w.Close();

@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 #if NET8_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
+using AvroSharp.Buffers;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
 
@@ -75,9 +76,9 @@ public sealed class GenericDatumWriter
     /// <param name="value">A value matching <see cref="Schema"/>.</param>
     public byte[] WriteToArray(in AvroValue value)
     {
-        var output = new ArrayBufferWriter<byte>();
+        using var output = new PooledBufferWriter();
         Write(output, value);
-        return output.WrittenSpan.ToArray();
+        return output.ToArray();
     }
 
     private static AvroException Mismatch(AvroSchema schema, in AvroValue value) =>
