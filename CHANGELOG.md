@@ -38,10 +38,18 @@ All notable changes to this project are documented here. The format follows [Kee
 - `AvroSchemaParser` and `AvroSchema.Parse`/`ParseAsync`: `System.Text.Json` parser over UTF-8 with default-value validation, optional comments, and errors that report the JSON path, line and column. A parser keeps named types across calls, so schemas split over several files can refer to each other.
 - Full schema JSON writer, Parsing Canonical Form, and CRC-64-AVRO, MD5 and SHA-256 fingerprints.
 - Tests against Apache Avro's `schema-tests.txt` vectors, property-based interop tests against Apache.Avro (C#), a Native AOT smoke test, and schema-parse benchmarks gated against Apache.Avro.
-- Repository skeleton: build settings, analyzers, public API tracking, strong naming, TUnit tests on .NET 8/9/10 and .NET Framework 4.8.1, and CI on Linux and Windows (x64 and Arm64).
 - `AvroCodecNames`: the codec names defined by the specification.
+- Repository skeleton: build settings, analyzers, public API tracking, strong naming, TUnit tests on .NET 8/9/10 and .NET Framework 4.8.1, and CI on Linux (x64 and Arm64); Windows and .NET Framework are tested locally until the Windows runners are re-enabled (#72).
+
+### Changed
+
+- Reading generated types with a writer schema (`Read(ref reader, writerSchema)`, as container files and single-object messages do for every object) no longer compares the two schemas' canonical forms for every record. A writer schema remembers the last schema found to have its canonical form, so repeated checks compare references (#60).
+- Resolving records whose reader field order differs from the writer's no longer allocates an array per record; the slots are rented from the shared array pool (#61).
+- `AvroMessageReader` checks the last schema used before its fingerprint dictionary, which saves the dictionary lookup when messages repeat one schema (#63).
+- Each package ships its own README (`AvroSharp.CodeGen` and `AvroSharp.Generators` no longer show the repository README), and all three include `THIRD-PARTY-NOTICES.md` (#66).
 
 ### Fixed
 
+- `THIRD-PARTY-NOTICES.md` said the packages contain no third-party code, but they compile in source from Polyfill (MIT). The notice now includes Polyfill's copyright and license, and is packed into every package (#66).
 - Generated code needed C# 9 (`new()` initializers, `??=`, `is { }` and `is not` patterns), so it failed to compile in netstandard2.0 and .NET Framework projects, which default to C# 7.3. It now uses constructs every version accepts, and emits nullable annotations only for C# 8 and later.
 - Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.

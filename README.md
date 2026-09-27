@@ -20,6 +20,52 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
 - Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
 
+## Getting started
+
+Parse a schema, then write and read values of it with the generic data model. `AvroValue` holds any Avro value without boxing, and a `GenericRecord` holds a record's fields by name or position.
+
+```csharp
+using AvroSharp.Generic;
+using AvroSharp.Schemas;
+
+var schema = (RecordSchema)AvroSchema.Parse("""
+    {"type":"record","name":"User","namespace":"example","fields":[
+      {"name":"id","type":"int"},
+      {"name":"name","type":"string"}]}
+    """);
+
+var user = new GenericRecord(schema) { ["id"] = 1, ["name"] = "Ada" };
+byte[] bytes = GenericDatumWriter.Create(schema).WriteToArray(user);
+
+GenericRecord copy = GenericDatumReader.Create(schema).Read(bytes).AsRecord();
+string name = copy["name"].AsString();
+```
+
+**Schema evolution.** Data written with one version of a schema can be read as another. Fields are matched by name or alias, removed fields are skipped, added fields take their defaults, and numbers are promoted:
+
+```csharp
+var v2 = AvroSchema.Parse("""
+    {"type":"record","name":"User","namespace":"example","fields":[
+      {"name":"id","type":"long"},
+      {"name":"name","type":"string"},
+      {"name":"active","type":"boolean","default":true}]}
+    """);
+
+GenericRecord upgraded = GenericDatumReader.Create(writerSchema: schema, readerSchema: v2).Read(bytes).AsRecord();
+bool active = upgraded["active"].AsBoolean();   // true, the default
+```
+
+Readers and writers are cached per schema (or schema pair) and are thread-safe, so they can be shared.
+
+**JSON.** The specification's JSON encoding, with wrapped union values:
+
+```csharp
+string json = GenericDatumJsonWriter.Create(schema).WriteToString(user);   // {"id":1,"name":"Ada"}
+AvroValue fromJson = GenericDatumJsonReader.Create(schema).Read(json);
+```
+
+For your own types, [generate C# classes from the schema files](#code-generation-from-schema-files): they read and write without the generic model.
+
 ## Object container files
 
 ```csharp

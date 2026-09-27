@@ -421,7 +421,9 @@ public sealed partial class GenericDatumReader
 
         private void TranscodeReordered(ref AvroReader reader, ref AvroWriter writer, ref ReadState state, ScratchBuffers scratch)
         {
-            var fields = new PooledBufferWriter?[readerFieldCount];
+            // Rented rather than allocated: this runs once per record, nested ones included. Only the first
+            // readerFieldCount slots are used, and the array is cleared when returned, so it holds no stale buffers.
+            var fields = ArrayPool<PooledBufferWriter?>.Shared.Rent(readerFieldCount);
             try
             {
                 foreach (var (target, node) in Steps)
@@ -445,13 +447,15 @@ public sealed partial class GenericDatumReader
             }
             finally
             {
-                foreach (var buffer in fields)
+                for (var i = 0; i < readerFieldCount; i++)
                 {
-                    if (buffer is not null)
+                    if (fields[i] is { } buffer)
                     {
                         scratch.Return(buffer);
                     }
                 }
+
+                ArrayPool<PooledBufferWriter?>.Shared.Return(fields, clearArray: true);
             }
         }
     }
