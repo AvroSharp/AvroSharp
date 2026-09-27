@@ -154,9 +154,7 @@ public static class AvroGeneratedCode
     {
         ArgumentNullException.ThrowIfNull(writerSchema);
         ArgumentNullException.ThrowIfNull(readerSchema);
-        return ReferenceEquals(writerSchema, readerSchema)
-            || (writerSchema.Fingerprint64 == readerSchema.Fingerprint64
-                && string.Equals(writerSchema.CanonicalForm, readerSchema.CanonicalForm, StringComparison.Ordinal));
+        return writerSchema.HasSameCanonicalForm(readerSchema);
     }
 
     /// <summary>
