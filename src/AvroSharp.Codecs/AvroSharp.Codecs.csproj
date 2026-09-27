@@ -8,9 +8,10 @@
     <PackageId>AvroSharp.Codecs</PackageId>
     <Description>The snappy, zstandard, bzip2 and xz codecs for AvroSharp object container files, on fully managed libraries.</Description>
     <PackageTags>$(PackageTags);snappy;zstd;zstandard;bzip2;xz;compression</PackageTags>
-    <!-- Lzma.Net is not strong-named. .NET (Core) ignores strong names, and .NET Framework loads a weakly named
-         reference of a strong-named assembly (net481 tests cover it); only the compiler warns. Remove once Lzma.Net
-         ships a strong name. -->
+    <!-- TEMPORARY: Lzma.Net 5.8.4.2 is not strong-named. .NET (Core) ignores strong names, but .NET Framework refuses
+         to load it from this strong-named assembly ("A strongly-named assembly is required"), which the net481 tests
+         show. Must be removed, with Lzma.Net raised to the strong-named 5.8.4.3 (zcsizmadia/Lzma.Net#38), before
+         this package ships. -->
     <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
 

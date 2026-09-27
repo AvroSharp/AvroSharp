@@ -31,7 +31,10 @@ public sealed class ZstandardCodec : AvroCodec
     /// The compression level, from <see cref="MinLevel"/> (fastest) to <see cref="MaxLevel"/> (smallest); it affects
     /// writing only.
     /// </param>
-    /// <param name="checksum">Whether each frame carries a checksum of its content, verified when it is read.</param>
+    /// <param name="checksum">
+    /// Whether each frame carries a checksum of its content, verified when it is read. Without one (the default, as in
+    /// Java), a damaged block may decompress to other bytes instead of failing.
+    /// </param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="level"/> is outside the supported range.</exception>
     public ZstandardCodec(int level = DefaultLevel, bool checksum = false)
     {

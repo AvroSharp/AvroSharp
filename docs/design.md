@@ -72,9 +72,7 @@ Legend: **[src]** = verified by reading the reference source/page during this st
 | `AvroSharp.Generators` | Roslyn incremental generator(s): (a) `.avsc/.avpr` AdditionalFiles → C# types; (b) `[AvroSerializable]` attribute → serializer/deserializer/schema. `netstandard2.0`, analyzer package. | Yes |
 | `AvroSharp.CodeGen` | Shared codegen engine (schema → C# model → text), used by CLI + generator. netstandard2.0 (must run inside Roslyn). | Yes |
 | `AvroSharp.Tool` | `dotnet tool` (`dnx AvroSharp.Tool gen ...`), System.CommandLine 2.0 GA. | Yes |
-| `AvroSharp.Codecs.Snappy` | Snappier-based codec + CRC-32 trailer | Yes |
-| `AvroSharp.Codecs.Zstd` | ZstdSharp.Port-based codec | Yes |
-| `AvroSharp.Codecs.Bzip2`, `AvroSharp.Codecs.Xz` | SharpZipLib / XZ.NET-style managed impls | v1.0 if cheap, else v1.1 |
+| `AvroSharp.Codecs` | snappy (Snappier, with the CRC-32 trailer), zstandard (ZstdSharp.Port), bzip2 (SharpZipLib) and xz (Lzma.Net) in one package, so a reader of files of unknown codec needs one reference (decided 2026-09-27; was one package per codec) | Yes |
 | `AvroSharp.Idl` | `.avdl` parser → protocol/schema model | v1.x |
 | `AvroSharp.Confluent` | Schema Registry client abstraction, wire format (`0x00` + 4-byte big-endian schema id), Confluent.Kafka serdes | v1.x |
 | `AvroSharp.MSBuild` | *Not needed*: build-time generation is the source generator. | — |
@@ -398,7 +396,7 @@ AvroSharp/
   AvroSharp.slnx                   (new XML solution format, SDK 10)
   src/AvroSharp/                   + PublicAPI.Shipped.txt / PublicAPI.Unshipped.txt per TFM group
   src/AvroSharp.CodeGen/  src/AvroSharp.Generators/  src/AvroSharp.Tool/
-  src/AvroSharp.Codecs.Snappy/  src/AvroSharp.Codecs.Zstd/  src/AvroSharp.Codecs.Bzip2/  src/AvroSharp.Codecs.Xz/
+  src/AvroSharp.Codecs/
   tests/AvroSharp.Tests/  tests/AvroSharp.Spec.Tests/  tests/AvroSharp.Interop.Tests/  tests/AvroSharp.Property.Tests/
   tests/AvroSharp.Generators.Tests/  tests/AvroSharp.CodeGen.Tests/  tests/AvroSharp.NetFramework.Tests/ (net48, references netstandard2.0 build)
   fuzz/AvroSharp.Fuzz/ (SharpFuzz harness)  tests/AvroSharp.AotSmoke/ (PublishAot console)  tests/TestData/ (git submodule or copied share/test/data + own vectors)
