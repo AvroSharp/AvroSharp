@@ -149,6 +149,29 @@ public class GeneratedCodeTests
     }
 
     [Test]
+    public async Task MapsInSeveralBlocks_AreRead()
+    {
+        // Two entries, then one entry in a block with its byte size (count -1, size 3), then the end.
+        byte[] bytes = [.. Varint(2), 0x02, (byte)'a', 0x02, 0x02, (byte)'b', 0x04, .. Varint(-1), .. Varint(3), 0x02, (byte)'c', 0x06, 0x00];
+
+        var counts = maps.Counts.FromAvroBytes(bytes);
+
+        await Assert.That(counts.Values.Count).IsEqualTo(3);
+        await Assert.That(counts.Values["a"] + counts.Values["b"] + counts.Values["c"]).IsEqualTo(6);
+        await Assert.That(maps.Counts.FromAvroBytes([0x00]).Values.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task AHugeMapBlockCount_IsRejectedBeforeTheDictionaryIsCreated()
+    {
+        byte[] bytes = [.. Varint(1_000_000_000), 0x00];
+
+        var ex = Assert.Throws<AvroDataException>(() => maps.Counts.FromAvroBytes(bytes));
+
+        await Assert.That(ex.Message).Contains("larger than the remaining input");
+    }
+
+    [Test]
     public async Task NullInANonNullField_NamesTheField()
     {
         var order = TestData.CreateOrder();

@@ -88,6 +88,11 @@ public class AvroValueTests
         await Assert.That(record["a"].AsInt32()).IsEqualTo(5);
         await Assert.That(record.TryGetValue("b", out var b) && string.Equals(b.AsString(), "x", StringComparison.Ordinal)).IsTrue();
         await Assert.That(record.TryGetValue("c", out _)).IsFalse();
+        await Assert.That(record.TryGetValue(0, out var a) && a.AsInt32() == 5).IsTrue();
+        await Assert.That(record.TryGetValue(1, out var byIndex) && string.Equals(byIndex.AsString(), "x", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(record.TryGetValue(2, out var missing) || missing.Kind != AvroValueKind.Null).IsFalse();
+        await Assert.That(record.TryGetValue(-1, out _)).IsFalse();
+        await Assert.That(record.TryGetValue(int.MinValue, out _)).IsFalse();
         Assert.Throws<KeyNotFoundException>(() => _ = record["c"]);
         await Assert.That(record.ToString()).IsEqualTo("R {a: 5, b: x}");
     }
