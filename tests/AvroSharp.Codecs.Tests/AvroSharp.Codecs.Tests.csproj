@@ -6,8 +6,6 @@
     <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
     <OutputType>Exe</OutputType>
-    <!-- TEMPORARY, with the same suppression in src/AvroSharp.Codecs: Lzma.Net 5.8.4.2 is not strong-named. -->
-    <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
