@@ -16,6 +16,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/AvroSharp/AvroSharp.csproj" />
+    <Project Path="src/AvroSharp.Codecs/AvroSharp.Codecs.csproj" />
     <Project Path="src/AvroSharp.CodeGen/AvroSharp.CodeGen.csproj" />
     <Project Path="src/AvroSharp.Generators/AvroSharp.Generators.csproj" />
   </Folder>
