@@ -42,7 +42,11 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     // The current block: its objects, decoded one at a time from _position.
     private byte[] _raw = [];
     private PooledBufferWriter? _decompressed;
-    private ReadOnlyMemory<byte> _blockData;
+    private ArraySegment<byte> _blockData;
+    private LimitedBufferWriter? _limited;
+
+    // Metadata entries found by the header parse in progress, as positions of their keys and values; null once parsed.
+    private List<((int Start, int Length) Key, (int Start, int Length) Value)>? _headerEntries;
     private int _position;
     private long _objectsLeft;
 
@@ -50,6 +54,10 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     // the block most recently read (just after the previous sync marker).
     private long _firstBlockStart = -1;
     private long _blockStart = -1;
+
+    // PastSync: the block start whose end-of-stream check is cached, and its result.
+    private long _endCheckedFor = -1;
+    private bool _blockIsAtEnd;
     private bool _disposed;
 
     internal AvroFileReader(Stream stream, AvroFileReaderOptions options)
@@ -248,12 +256,12 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
     private T DecodeNext()
     {
-        var reader = new AvroReader(_blockData.Span[_position..]);
+        var reader = new AvroReader(_blockData.AsSpan(_position));
         var value = _read(ref reader);
         _position += (int)reader.BytesConsumed;
-        if (--_objectsLeft == 0 && _position != _blockData.Length)
+        if (--_objectsLeft == 0 && _position != _blockData.Count)
         {
-            throw new AvroDataException($"A block has {_blockData.Length - _position} bytes left after its last object.");
+            throw new AvroDataException($"A block has {_blockData.Count - _position} bytes left after its last object.");
         }
 
         return value;

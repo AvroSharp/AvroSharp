@@ -44,6 +44,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- Container files use their streams less:
+  - The writer writes each block, with its count, size and sync marker, in one stream write instead of three. That is one call or one await per block. Its block buffer is sized from the sync interval (#62).
+  - The reader keeps its block buffer between blocks while it is large enough, reuses the buffer that limits decompressed size, and decodes objects from an array segment (#62).
+  - `PastSync` checks the stream's length once per block, not for every object of the documented split loop (#62).
+  - A header that needs several fills is still re-scanned, but an attempt that runs out of data no longer allocates. Metadata is recorded as positions and turned into strings and copies once, when the header is complete (#70).
+- The container benchmarks and the Native AOT smoke test cover every codec. The benchmark baselines are Apache.Avro's codec packages (#32).
 - Reading generated types with a writer schema (`Read(ref reader, writerSchema)`, as container files and single-object messages do for every object) no longer compares the two schemas' canonical forms for every record. A writer schema remembers the last schema found to have its canonical form, so repeated checks compare references (#60).
 - Resolving records whose reader field order differs from the writer's no longer allocates an array per record; the slots are rented from the shared array pool (#61).
 - `AvroMessageReader` checks the last schema used before its fingerprint dictionary, which saves the dictionary lookup when messages repeat one schema (#63).

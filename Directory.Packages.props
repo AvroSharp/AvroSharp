@@ -45,6 +45,8 @@
     <PackageVersion Include="Apache.Avro" Version="1.12.2" />
     <PackageVersion Include="Apache.Avro.File.Snappy" Version="1.12.2" />
     <PackageVersion Include="Apache.Avro.File.BZip2" Version="1.12.2" />
+    <PackageVersion Include="Apache.Avro.File.XZ" Version="1.12.2" />
+    <PackageVersion Include="Apache.Avro.File.Zstandard" Version="1.12.2" />
     <PackageVersion Include="SharpFuzz" Version="2.3.0" />
   </ItemGroup>
 

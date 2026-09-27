@@ -12,11 +12,23 @@
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="Apache.Avro" />
+    <!-- Apache's codec packages, the baselines of the container benchmarks. XZ and Zstandard wrap native libraries;
+         Zstandard.Net ships libzstd for Windows only, so the Apache zstandard rows run only there. -->
+    <PackageReference Include="Apache.Avro.File.Snappy" />
+    <PackageReference Include="Apache.Avro.File.BZip2" />
+    <PackageReference Include="Apache.Avro.File.XZ" />
+    <PackageReference Include="Apache.Avro.File.Zstandard" />
     <PackageReference Include="Chr.Avro.Json" />
+  </ItemGroup>
+
+  <!-- Zstandard.Net's build targets copy libzstd only for .NET Framework projects; copy it for the Windows x64 runs. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows')) And '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">
+    <None Include="$(NuGetPackageRoot)zstandard.net\1.1.7\build\x64\libzstd.dll" Link="libzstd.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Codecs\AvroSharp.Codecs.csproj" />
   </ItemGroup>
 
   <!-- The generated benchmark type (bench.generated.Order) comes from the source generator, as in a consumer project. -->
