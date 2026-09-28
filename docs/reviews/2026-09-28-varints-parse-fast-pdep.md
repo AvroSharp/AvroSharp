@@ -61,4 +61,11 @@ With fast PDEP, a single write stores 3 to 8 bytes with one word, without testin
 
 1. Re-run `VarintBenchmarks` encode on a fast-PDEP machine after the bulk fix: the bulk Mixed1-10 and 8-byte rows should now be faster than single writes.
 2. The 1-byte cost (6–8%) comes with the inline word path. Record writes did not show it in the EPYC A/B runs; the repeat runs on the i5 and nas will show whether it holds for the other path.
-3. Repeat GenericRecord `AvroSharp_Write` with DefaultJob before treating its +7% as real.
+3. ~~Repeat GenericRecord `AvroSharp_Write` with DefaultJob before treating its +7% as real.~~ Done: the +7% was ShortRun noise.
+
+   | Write | EPYC main (`c36c660`) | EPYC `8164630` | i7 main | i7 `88f2ed9` |
+   |---|---:|---:|---:|---:|
+   | Generic | 498.1 ns | 494.4 ns (−0.7%) | 328.5 ns | 322.9 ns (−1.7%) |
+   | Generated | 334.2 ns | 310.4 ns (−7.1%) | 208.7 ns | 191.9 ns (−8.0%) |
+
+   DefaultJob on both machines; one core on the EPYC. Generated writes are 6.59× faster than Apache.Avro on the i7 (6.18× on main) and 7.38× on the EPYC.
