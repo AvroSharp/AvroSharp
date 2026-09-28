@@ -1,0 +1,36 @@
+name: Bug report
+description: Something AvroSharp does wrong, or differently from the Avro specification
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead. Include the exception message and stack trace.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The smallest schema, data (for example as hex or a small `.avro` file) and code that show it.
+      render: csharp
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: AvroSharp version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and OS
+      placeholder: .NET 10, Windows x64 (or .NET Framework 4.8.1, Native AOT, ...)
+  - type: textarea
+    id: interop
+    attributes:
+      label: Other implementations
+      description: If the data comes from or goes to another Avro library (Apache Avro Java or C#, fastavro, ...), which one and what it does with the same data.
