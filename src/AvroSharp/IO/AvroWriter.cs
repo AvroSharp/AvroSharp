@@ -345,6 +345,15 @@ public ref struct AvroWriter
             return 2;
         }
 
+#if NET8_0_OR_GREATER
+        // As for single values: without it, mixed lengths went through the 3/4/5/6-8 tests, and bulk Mixed1-10
+        // was up to 60% slower than single writes on the i7-12800H and the EPYC 7543.
+        if (FastBmi2.IsSupported && value < 1UL << 56)
+        {
+            return WriteSpreadWord(ref destination, value);
+        }
+#endif
+
         return WriteMultiByteVarint(ref destination, value);
     }
 
@@ -457,13 +466,9 @@ public ref struct AvroWriter
         }
 
 #if NET8_0_OR_GREATER
-        // FastBmi2 implies x64, so little-endian. Bytes past the varint are overwritten by the next value.
         if (FastBmi2.IsSupported && value < 1UL << 56)
         {
-            var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
-            var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
-            Unsafe.WriteUnaligned(ref destination, Bmi2.X64.ParallelBitDeposit(value, 0x7F7F7F7F7F7F7F7FUL) | continuation);
-            _buffered += length;
+            _buffered += WriteSpreadWord(ref destination, value);
             return;
         }
 #endif
@@ -524,6 +529,20 @@ public ref struct AvroWriter
     }
 
 #if NET8_0_OR_GREATER
+    /// <summary>
+    /// Writes a varint below 2^56 of 3 to 8 bytes as one 8-byte store of its 7-bit groups, spread with PDEP; returns
+    /// its length. Only where PDEP is fast (FastBmi2, which implies x64 and so little-endian). Bytes past the varint
+    /// are overwritten by the next value.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int WriteSpreadWord(ref byte destination, ulong value)
+    {
+        var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
+        var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
+        Unsafe.WriteUnaligned(ref destination, Bmi2.X64.ParallelBitDeposit(value, 0x7F7F7F7F7F7F7F7FUL) | continuation);
+        return length;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void WriteWord(ref byte destination, ulong word) =>
         Unsafe.WriteUnaligned(ref destination, BitConverter.IsLittleEndian ? word : BinaryPrimitives.ReverseEndianness(word));
