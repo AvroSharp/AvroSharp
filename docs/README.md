@@ -21,3 +21,4 @@ Dated notes from reviews and benchmark runs. Each one records what was measured,
 | 2026-09-26 | [Generated code](reviews/2026-09-26-generated-code.md): generated serializers against the generic model and Apache.Avro |
 | 2026-09-28 | [Full benchmark run](reviews/2026-09-28-benchmarks.md): every benchmark on an i7-12800H with .NET 10, as speed-ups over Apache.Avro |
 | 2026-09-28 | [perf/varints-parse benchmarks](reviews/2026-09-28-varints-parse.md): bulk reads, varint encode and schema parsing on an i5-3570K and a Ryzen 5 3500U |
+| 2026-09-28 | [perf/varints-parse at 41d6483](reviews/2026-09-28-varints-parse-rerun.md): the second run on both machines, with the record and container benchmarks |
