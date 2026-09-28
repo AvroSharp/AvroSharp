@@ -16,26 +16,40 @@ The same targets run on every build as a seeded mutation smoke test (`tests/Avro
 
 ## Running with libFuzzer
 
-These steps follow the SharpFuzz documentation. They have not been run in this repository yet, so expect to adjust paths.
+These steps were run on Linux (the `mcr.microsoft.com/dotnet/sdk:10.0` image) with SharpFuzz 2.3.0 and
+`libfuzzer-dotnet` v2025.05.02.0904. The nightly workflow (below) runs the same steps.
 
-1. Install the instrumentation tool and download `libfuzzer-dotnet` for your platform from its [releases](https://github.com/Metalnem/libfuzzer-dotnet/releases):
+1. Install the instrumentation tool and download `libfuzzer-dotnet` for your platform from its [releases](https://github.com/Metalnem/libfuzzer-dotnet/releases) (`libfuzzer-dotnet-ubuntu`, `-debian` or `-windows.exe`):
 
    ```sh
    dotnet tool install --global SharpFuzz.CommandLine
    ```
 
-2. Build the harness and instrument AvroSharp (only the library under test is instrumented):
+2. Build the harness and write the seed corpus. Write the seeds **before** instrumenting: instrumented code runs only
+   under libFuzzer, and anything else that loads it crashes with an `AccessViolationException`.
 
    ```sh
    dotnet publish fuzz/AvroSharp.Fuzz -c Release -o out/fuzz
-   sharpfuzz out/fuzz/AvroSharp.dll
+   out/fuzz/AvroSharp.Fuzz --write-seeds corpus
    ```
 
-3. Write the seed corpus, then run one target:
+   In a container whose user does not own the checkout, MinVer cannot read the Git history; add `-p:MinVerSkip=true`.
+
+3. Instrument AvroSharp (only the library under test), then run a target:
 
    ```sh
-   out/fuzz/AvroSharp.Fuzz --write-seeds corpus
-   libfuzzer-dotnet --target_path=out/fuzz/AvroSharp.Fuzz --target_arg=GenericBinary corpus/GenericBinary
+   sharpfuzz out/fuzz/AvroSharp.dll
+   libfuzzer-dotnet --target_path=out/fuzz/AvroSharp.Fuzz --target_arg=GenericBinary -max_total_time=1800 corpus/GenericBinary
    ```
 
 A crash leaves its input in a `crash-*` file. To reproduce it, add the input to `FuzzSmokeTests` as a fixed case, fix the bug, and keep the case as a regression test.
+
+## Nightly runs
+
+`.github/workflows/fuzz.yml` runs every target for 30 minutes each night (and on demand, with the time as an input), one job per target. Each target's corpus is kept in the Actions cache between runs, so coverage builds up night after night; a crash fails its job and uploads the input as the `crashes-<target>` artifact.
+
+## Results
+
+| Date | Where | Time per target | Executions per target | Crashes |
+|---|---|---|---|---|
+| 2026-09-27 | Ryzen 5 3500U, Docker, all 7 targets in parallel | 20 minutes | 4.3–9.1 million | none |
