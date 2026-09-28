@@ -23,11 +23,10 @@
     <None Include="$(MSBuildProjectDirectory)\README.md" Pack="true" PackagePath="\" Condition="Exists('$(MSBuildProjectDirectory)\README.md')" />
     <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" Visible="false" Condition="!Exists('$(MSBuildProjectDirectory)\README.md')" />
     <None Include="$(MSBuildThisFileDirectory)..\THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" Visible="false" />
+    <!-- The analyzer package adds PublicAPI.Shipped.txt and PublicAPI.Unshipped.txt as AdditionalFiles itself. -->
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" Visible="false" />
-    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
-    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
   </ItemGroup>
 
   <!-- Source-only polyfills for language features and newer BCL APIs; nothing is added where the TFM already has them. -->

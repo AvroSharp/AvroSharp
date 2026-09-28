@@ -1,0 +1,53 @@
+name: Docs
+
+# Builds the documentation site (DocFX: the guide and docs from Markdown, the API reference from the XML
+# documentation) and publishes it to GitHub Pages from main. Pull requests build it, so broken links fail them.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build the site
+        run: |
+          dotnet tool install docfx --tool-path .tools
+          .tools/docfx docfx.json --warningsAsErrors
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: artifacts/docs
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
