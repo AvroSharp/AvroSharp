@@ -17,7 +17,7 @@
 | §3 Packages | Expression-tree and reflection typed paths in `AvroSharp`; `AvroSharp.Codecs.Snappy`/`.Zstd`/`.Bzip2`/`.Xz` | No reflection tiers (decision above); one `AvroSharp.Codecs` package. `AvroSharp.Tool` and `AvroSharp.Idl` don't exist yet (#33). |
 | §3, §4.10 I/O | `PipeReader`/`PipeWriter` overloads | `Stream`, `ReadOnlySpan<byte>`, `ReadOnlySequence<byte>` and `IBufferWriter<byte>`; the core doesn't reference `System.IO.Pipelines`. |
 | §9 SDK | `global.json` 10.0.401 with `latestPatch`; `ImplicitUsings=enable`; `.globalconfig` | 10.0.100 with `latestFeature`; `ImplicitUsings=disable`; analyzer severities in `.editorconfig`. |
-| §9 Projects | `Spec.Tests`, `Property.Tests`, `CodeGen.Tests`, `NetFramework.Tests`, `samples/` | Spec vectors and property tests live in `AvroSharp.Tests` and `AvroSharp.Interop.Tests`, code generation tests in the `Generators.*` projects, and net481 is a target of the test projects. There are no samples yet (#74). |
+| §9 Projects | `Spec.Tests`, `Property.Tests`, `CodeGen.Tests`, `NetFramework.Tests`, `samples/` | Spec vectors and property tests live in `AvroSharp.Tests` and `AvroSharp.Interop.Tests`, code generation tests in the `Generators.*` projects, and net481 is a target of the test projects. `samples/` has three runnable samples, run by CI. |
 | §9 Workflows | `release.yml`, `codeql.yml` | Only `ci.yml` (#76). Windows runners are disabled (#72). |
 | §10 Tests | xUnit v3 | TUnit on Microsoft.Testing.Platform. |
 | §13 Test data | `tests/TestData/apache/` | `tests/TestData/apache-avro/` (Apache's files) and `tests/TestData/java-avro/` (files written by Apache Avro Java). |

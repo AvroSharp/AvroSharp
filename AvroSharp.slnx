@@ -20,6 +20,11 @@
     <Project Path="src/AvroSharp.CodeGen/AvroSharp.CodeGen.csproj" />
     <Project Path="src/AvroSharp.Generators/AvroSharp.Generators.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/GettingStarted/GettingStarted.csproj" />
+    <Project Path="samples/GeneratedTypes/GeneratedTypes.csproj" />
+    <Project Path="samples/Messaging/Messaging.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AvroSharp.Tests/AvroSharp.Tests.csproj" />
     <Project Path="tests/AvroSharp.Codecs.Tests/AvroSharp.Codecs.Tests.csproj" />
