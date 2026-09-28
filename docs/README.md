@@ -3,6 +3,7 @@
 - [Roadmap](roadmap.md): the status of each milestone and where the open work is tracked.
 - [Design](design.md): the design proposal, the decisions made since, and how the repository differs from the proposal.
 - [Fuzzing](../fuzz/README.md): the libFuzzer targets and how to run them.
+- [Samples](../samples/README.md): runnable programs for the main APIs, run by CI.
 - [Contributing](../CONTRIBUTING.md): building, testing, formatting and pull requests.
 - [Changelog](../CHANGELOG.md): what changed, newest first.
 

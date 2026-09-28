@@ -81,6 +81,15 @@ jobs:
           DOTNET_EnableHWIntrinsic: 0
         run: dotnet test --project tests/AvroSharp.Tests -c Release --no-build -f net10.0
 
+      # Each sample checks its own results and exits with 1 when one is wrong.
+      - name: Samples
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          for sample in samples/*/; do
+            dotnet run --project "$sample" -c Release --no-build
+          done
+
       - name: Native AOT smoke test
         shell: bash
         run: |

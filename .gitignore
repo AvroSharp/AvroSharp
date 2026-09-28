@@ -483,3 +483,8 @@ $RECYCLE.BIN/
 
 # Snapshot test output that differs from the committed snapshot
 *.received
+
+# DocFX: API pages generated from the XML documentation (docs/api/index.md is written by hand).
+docs/api/*
+!docs/api/index.md
+.tools/

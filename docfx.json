@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [ { "files": [ "src/AvroSharp/AvroSharp.csproj", "src/AvroSharp.Codecs/AvroSharp.Codecs.csproj", "src/AvroSharp.CodeGen/AvroSharp.CodeGen.csproj" ] } ],
+      "properties": { "TargetFramework": "netstandard2.0" },
+      "dest": "docs/api",
+      "namespaceLayout": "flattened",
+      "memberLayout": "separatePages"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "index.md", "toc.yml", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
+          "docs/api/**.yml", "docs/api/index.md", "docs/roadmap.md", "docs/design.md", "docs/README.md", "docs/reviews/*.md",
+          "samples/README.md", "fuzz/README.md"
+        ]
+      }
+    ],
+    "resource": [
+      { "files": [ "LICENSE", "THIRD-PARTY-NOTICES.md", "samples/**/*.cs", "samples/**/*.avsc", "fuzz/AvroSharp.Fuzz/*.cs" ] }
+    ],
+    "output": "artifacts/docs",
+    "template": [ "default", "modern" ],
+    "globalMetadata": {
+      "_appName": "AvroSharp",
+      "_appTitle": "AvroSharp",
+      "_appFooter": "AvroSharp is MIT licensed. Apache Avro, Avro and Apache are trademarks of The Apache Software Foundation.",
+      "_enableSearch": true,
+      "_gitContribute": { "repo": "https://github.com/zcsizmadia/AvroSharp", "branch": "main" }
+    }
+  }
+}
