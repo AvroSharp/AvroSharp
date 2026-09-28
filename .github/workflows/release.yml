@@ -100,16 +100,25 @@ jobs:
     runs-on: ubuntu-latest
     environment: nuget
     permissions:
-      contents: write
+      contents: write # the GitHub release
+      id-token: write # the OIDC token that nuget.org's trusted publishing exchanges for a short-lived key
     steps:
       - uses: actions/download-artifact@v8
         with:
           name: release
 
-      # NUGET_API_KEY: a nuget.org key scoped to push AvroSharp* packages only (issue #84), stored in the 'nuget'
-      # environment. The symbol packages (.snupkg) are pushed with the packages.
+      # Trusted publishing: no stored API key. nuget.org checks the OIDC token against its trusted publishing policy
+      # (this repository, release.yml, the 'nuget' environment) and returns a key valid for about an hour.
+      # NUGET_USER is the nuget.org account or organization that owns the policy, set as a repository variable.
+      - name: Log in to nuget.org
+        id: nuget
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # The symbol packages (.snupkg) are pushed with the packages.
       - name: Push to nuget.org
-        run: dotnet nuget push "artifacts/package/release/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push "artifacts/package/release/*.nupkg" --api-key "${{ steps.nuget.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Create the GitHub release
         env:
