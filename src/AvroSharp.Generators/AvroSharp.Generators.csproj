@@ -13,6 +13,10 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <DevelopmentDependency>false</DevelopmentDependency>
     <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
+    <!-- No symbol package: with nothing in lib/, it would hold no .pdb, and nuget.org rejects such a package (this
+         stopped the 0.1.0 publish). The PDB is embedded in the generator's DLL instead, so it can still be debugged. -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <DebugType>embedded</DebugType>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
 

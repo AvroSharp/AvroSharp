@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-28
+
+The first complete release of all four packages. 0.1.0's publish stopped partway, so `AvroSharp.CodeGen` 0.1.0 was never published; use 0.1.1. The code is the same as 0.1.0.
+
+### Fixed
+
+- Releasing: `AvroSharp.Generators` no longer produces a symbol package. It had no `.pdb` in it, since the generator ships under `analyzers/`, and nuget.org's rejection stopped the 0.1.0 publish before `AvroSharp.CodeGen`. The generator's PDB is embedded in its DLL instead. The release workflow now pushes each package separately and checks, while packing, that every symbol package contains a PDB.
+
 ## [0.1.0] - 2026-09-28
 
 The first preview. It covers:
@@ -82,5 +90,6 @@ Packages: `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen` and `AvroSharp.Ge
 - Generated code needed C# 9 (`new()` initializers, `??=`, `is { }` and `is not` patterns), so it failed to compile in netstandard2.0 and .NET Framework projects, which default to C# 7.3. It now uses constructs every version accepts, and emits nullable annotations only for C# 8 and later.
 - Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.
 
-[Unreleased]: https://github.com/zcsizmadia/AvroSharp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/zcsizmadia/AvroSharp/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/zcsizmadia/AvroSharp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/zcsizmadia/AvroSharp/releases/tag/v0.1.0
