@@ -219,27 +219,36 @@ public sealed partial class AvroFileReader<T>
     // Checks the sync marker (buffered by the caller) and prepares the block's objects for decoding.
     private void FinishBlock(long count, int size)
     {
+        ConsumeSyncMarker();
+        _blockData = Decompress(new ArraySegment<byte>(_raw, 0, size));
+        CheckObjectCount(count, _blockData.Count);
+        _position = 0;
+        _objectsLeft = count;
+    }
+
+    // Checks and skips the sync marker after a block (buffered by the caller).
+    private void ConsumeSyncMarker()
+    {
         if (!_input.AsSpan(_inputStart, AvroContainerFormat.SyncSize).SequenceEqual(_sync))
         {
             throw new AvroDataException("A block is not followed by the file's sync marker; the file is corrupt.");
         }
 
         _inputStart += AvroContainerFormat.SyncSize;
-        _blockData = Decompress(new ArraySegment<byte>(_raw, 0, size));
+    }
 
+    private static void CheckObjectCount(long count, int length)
+    {
         // Every object takes at least one byte except zero-size ones (null, empty records), which input cannot bound.
-        if (count > _blockData.Count && count > AvroGeneratedCode.MaxZeroSizeItems)
+        if (count > length && count > AvroGeneratedCode.MaxZeroSizeItems)
         {
-            throw new AvroDataException($"A block declares {count} objects in {_blockData.Count} bytes.");
+            throw new AvroDataException($"A block declares {count} objects in {length} bytes.");
         }
 
-        if (count == 0 && _blockData.Count != 0)
+        if (count == 0 && length != 0)
         {
-            throw new AvroDataException($"A block declares no objects but holds {_blockData.Count} bytes.");
+            throw new AvroDataException($"A block declares no objects but holds {length} bytes.");
         }
-
-        _position = 0;
-        _objectsLeft = count;
     }
 
     private ArraySegment<byte> Decompress(ArraySegment<byte> raw)
@@ -252,16 +261,20 @@ public sealed partial class AvroFileReader<T>
         _decompressed ??= new PooledBufferWriter(Math.Max(raw.Count * 4, 256));
         _limited ??= new LimitedBufferWriter(_decompressed, _maxBlockLength);
         _decompressed.Clear();
+        DecompressInto(raw, _limited);
+        return _decompressed.WrittenSegment;
+    }
+
+    private void DecompressInto(ArraySegment<byte> raw, LimitedBufferWriter destination)
+    {
         try
         {
-            _codec.Decompress(raw, _limited);
+            _codec.Decompress(raw, destination);
         }
         catch (InvalidDataException ex)
         {
             throw new AvroDataException($"A block cannot be decompressed with the '{_codec.Name}' codec: {ex.Message}", ex);
         }
-
-        return _decompressed.WrittenSegment;
     }
 
     private static AvroCodec? FindCodec(string name, IReadOnlyList<AvroCodec> extra)

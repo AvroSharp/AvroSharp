@@ -234,6 +234,22 @@ public class ContainerBenchmarks
         return count;
     }
 
+    // Reading and decompression on a background task, overlapping decoding.
+    [Benchmark]
+    [BenchmarkCategory("Read")]
+    public async Task<int> AvroSharp_ReadPipelinedAsync()
+    {
+        var reader = await AvroFileReader.OpenGenericAsync(new MemoryStream(_file, writable: false), options: s_readerOptions).ConfigureAwait(false);
+        await using var disposeReader = reader.ConfigureAwait(false);
+        var count = 0;
+        await foreach (var _ in reader.ReadAllPipelinedAsync().ConfigureAwait(false))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
     private AvroFileWriterOptions Options() => new()
     {
         Codec = OurCodec,

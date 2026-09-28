@@ -61,6 +61,22 @@ public class CodecTests
     }
 
     [Test]
+    [MethodDataSource(nameof(JavaCodecs))]
+    public async Task JavasManyBlockFile_ReadsTheSame_Pipelined(string codec)
+    {
+        var expected = ReadAll("java-avro/many-" + codec + ".avro");
+
+        await using var reader = await AvroFileReader.OpenGenericAsync(File.OpenRead(TestData.PathOf("java-avro/many-" + codec + ".avro")), options: new AvroFileReaderOptions { Codecs = AvroCodecs.All });
+        var read = new List<AvroValue>();
+        await foreach (var value in reader.ReadAllPipelinedAsync())
+        {
+            read.Add(value);
+        }
+
+        await Assert.That(read.SequenceEqual(expected)).IsTrue();
+    }
+
+    [Test]
     public async Task ApachesSnappyWeatherFile_IsRead()
     {
         var expected = ReadAll("apache-avro/weather.avro");

@@ -23,6 +23,7 @@
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.12" />
+    <PackageVersion Include="System.Threading.Channels" Version="10.0.12" />
   </ItemGroup>
 
   <!-- AvroSharp.Codecs: fully managed compression libraries only (docs/design.md, decision 1). Each is the lowest

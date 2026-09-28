@@ -226,6 +226,19 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
     private async ValueTask<bool> ReadBlockAsync(CancellationToken cancellationToken)
     {
+        var (read, count, size) = await ReadRawBlockAsync(cancellationToken).ConfigureAwait(false);
+        if (!read)
+        {
+            return false;
+        }
+
+        FinishBlock(count, size);
+        return true;
+    }
+
+    // Reads the next block's count, size and data (into _raw[0..size]) and buffers its sync marker, unchecked.
+    private async ValueTask<(bool Read, long Count, int Size)> ReadRawBlockAsync(CancellationToken cancellationToken)
+    {
         // Blocks already buffered are read without awaiting, so cancellation is checked here too.
         cancellationToken.ThrowIfCancellationRequested();
         MarkBlockStart();
@@ -235,7 +248,7 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
         {
             if (!await FillAtLeastAsync(Buffered + 1, cancellationToken).ConfigureAwait(false))
             {
-                return Buffered == 0 ? false : throw Truncated("block header");
+                return Buffered == 0 ? default : throw Truncated("block header");
             }
         }
 
@@ -250,8 +263,7 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
             throw Truncated("sync marker");
         }
 
-        FinishBlock(count, (int)size);
-        return true;
+        return (true, count, (int)size);
     }
 
     private T DecodeNext()
