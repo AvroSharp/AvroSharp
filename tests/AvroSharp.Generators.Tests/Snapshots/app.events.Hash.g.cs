@@ -23,14 +23,14 @@ namespace app.events
         public static string SchemaJson => s_schemaJson ??= global::System.Text.Encoding.UTF8.GetString(SchemaUtf8);
 
         /// <summary>Gets the Avro schema of this type.</summary>
-        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ??= global::AvroSharp.Schemas.AvroSchema.Parse(SchemaUtf8);
+        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? global::AvroSharp.Serialization.AvroGeneratedCode.PublishSchema(ref s_schema, global::AvroSharp.Schemas.AvroSchema.Parse(SchemaUtf8));
 #else
         /// <summary>Gets the Avro schema of this type, as JSON.</summary>
         public static string SchemaJson =>
             "{\"type\":\"fixed\",\"name\":\"Hash\",\"namespace\":\"app.events\",\"size\":2}";
 
         /// <summary>Gets the Avro schema of this type.</summary>
-        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ??= global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson);
+        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? global::AvroSharp.Serialization.AvroGeneratedCode.PublishSchema(ref s_schema, global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
 #endif
 
         /// <summary>Creates a value from exactly <see cref="Size"/> bytes. The array is not copied.</summary>

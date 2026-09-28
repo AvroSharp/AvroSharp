@@ -580,6 +580,7 @@ static AvroSharp.Schemas.SchemaName.operator !=(AvroSharp.Schemas.SchemaName? le
 static AvroSharp.Schemas.SchemaName.operator ==(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
 static AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(byte[]! value, int size, string! typeName) -> byte[]!
 static AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> AvroSharp.Serialization.AvroRecordPlan?
+static AvroSharp.Serialization.AvroGeneratedCode.PublishSchema(ref AvroSharp.Schemas.AvroSchema? field, AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Schemas.AvroSchema!
 static AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(int count) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(int fieldPos, int fieldCount, string! recordName) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.IO.AvroDataException!

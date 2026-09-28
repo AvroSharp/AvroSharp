@@ -481,6 +481,21 @@ public class SchemaFileGeneratorTests
     }
 
     [Test]
+    public async Task AnEditThatChangesNoOutput_LeavesTheGenerationUnchanged()
+    {
+        // Trailing whitespace regenerates, but the sources and diagnostics compare equal, so later steps are skipped.
+        const string Clash = """{"type":"record","name":"Clash","namespace":"app.events","fields":[{"name":"USER_ID","type":"long"},{"name":"userId","type":"long"}]}""";
+        var compilation = GeneratorHarness.CreateCompilation(true, "class A { }");
+        var driver = GeneratorHarness.CreateDriver([("event.avsc", EventSchema), ("clash.avsc", Clash)]).RunGenerators(compilation);
+        await Assert.That(driver.GetRunResult().Diagnostics.Select(d => d.Id).ToArray()).IsEquivalentTo(new[] { "AVROGEN005" });
+
+        driver = driver.ReplaceAdditionalTexts([GeneratorHarness.Text("event.avsc", EventSchema + "\n  "), GeneratorHarness.Text("clash.avsc", Clash + " ")]).RunGenerators(compilation);
+
+        var step = driver.GetRunResult().Results.Single().TrackedSteps["Generate"].Single();
+        await Assert.That(step.Outputs.Select(o => o.Reason).ToArray()).IsEquivalentTo(new[] { IncrementalStepRunReason.Unchanged });
+    }
+
+    [Test]
     public async Task EditingASchema_Regenerates()
     {
         var compilation = GeneratorHarness.CreateCompilation(true, "class A { }");

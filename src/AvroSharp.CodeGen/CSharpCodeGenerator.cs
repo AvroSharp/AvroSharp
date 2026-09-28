@@ -931,7 +931,7 @@ public static class CSharpCodeGenerator
             w.Line("public static string SchemaJson => s_schemaJson ??= global::System.Text.Encoding.UTF8.GetString(SchemaUtf8);");
             w.Line();
             w.Line("/// <summary>Gets the Avro schema of this type.</summary>");
-            w.Line($"public static {AvroSchema} {propertyName} => s_schema ??= {AvroSchema}.Parse(SchemaUtf8);");
+            w.Line($"public static {AvroSchema} {propertyName} => s_schema ?? {Support}.PublishSchema(ref s_schema, {AvroSchema}.Parse(SchemaUtf8));");
             w.Directive("#else");
         }
 
@@ -940,9 +940,7 @@ public static class CSharpCodeGenerator
         SplitLiteral(w, json, string.Empty);
         w.Line();
         w.Line("/// <summary>Gets the Avro schema of this type.</summary>");
-        w.Line(types.LanguageVersion >= 8
-            ? $"public static {AvroSchema} {propertyName} => s_schema ??= {AvroSchema}.Parse(SchemaJson);"
-            : $"public static {AvroSchema} {propertyName} => s_schema ?? (s_schema = {AvroSchema}.Parse(SchemaJson));");
+        w.Line($"public static {AvroSchema} {propertyName} => s_schema ?? {Support}.PublishSchema(ref s_schema, {AvroSchema}.Parse(SchemaJson));");
         if (types.Modern)
         {
             w.Directive("#endif");

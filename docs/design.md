@@ -462,7 +462,8 @@ AvroSharp/
 
   Rules for SIMD code:
   - net8+ only, inside `#if NET8_0_OR_GREATER`, using the portable `Vector128` API so one path covers x64 and Arm64; netstandard gets the scalar version.
-  - Each SIMD path must beat both our scalar path and Apache.Avro in BenchmarkDotNet on x64 and Arm64, or it is removed.
+  - Each SIMD or bulk path must beat both our plain scalar loop and Apache.Avro in BenchmarkDotNet on every tested CPU, x64 and Arm64, on uniform and mixed data, or it is removed (decided in #29). A result within 3% of the scalar loop counts as noise, not a loss, because repeated runs on an idle machine differ by that much; anything slower by more than 3% fails. The rule is the same on every CPU: no selection of the path by ISA or vendor at startup, and no accepted losses beyond the noise band.
+    - Status: bulk `ReadLongs`/`ReadInts` fail this on mixed data (90% one-byte values, 10% timestamps): 121 µs against 98 µs for the plain loop on .NET 10 (docs/reviews/2026-09-28-benchmarks.md), and 119 against 96 µs on the .NET 11 RC. #24 either fixes this or removes the vector path, before 1.0.
   - Property tests check that SIMD and scalar paths produce identical results.
   - CI also runs the test suite with `DOTNET_EnableHWIntrinsic=0`, so the scalar fallback is exercised on every run.
 - **M2.5 — Schema-file source generator (moved forward from M6)**: the `AvroSharp.CodeGen` engine plus the build-time generator for `.avsc` files passed as `AdditionalFiles`. It emits the C# types and, for each, a serializer and deserializer that call `AvroWriter`/`AvroReader` directly in schema order, with no schema lookups, boxing or virtual calls at runtime. Writer/reader resolution for generated types comes with M3. *Exit*: generated types round-trip and match Apache.Avro C# bytes for the M2 fixtures; snapshot and compile-and-roundtrip tests; incremental-cache generator tests; the generated path is the fastest AvroSharp path in local benchmarks.

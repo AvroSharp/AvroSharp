@@ -16,7 +16,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - The Apache compatibility mode makes code written for `avrogen` classes compile unchanged (#116): property names default to the Avro field names, as avrogen's are (`AvroSharpPropertyNames=pascal` keeps PascalCase), and types have avrogen's static `_SCHEMA` and an instance `Schema` (Apache's `Avro.Schema`). AvroSharp's schema is `AvroSharpSchema` in that mode, on records as on fixed types. `CodeGenOptions.PropertyNaming` is now nullable: `null` means the mode's default.
 - Generated property names title-case segments in capitals (#117): `USER_ID` becomes `UserId` (it was `USERID`) and `HTTP2_PORT` becomes `Http2Port`; segments with lower-case letters keep their capitals (`txId` is `TxId`). This renames such properties in existing generated code.
 - `[GeneratedCode]` on generated types carries the generator's package version (for example `0.1.2`) instead of `0.0.0.0` (#107): MinVer sets `AssemblyVersion` to `major.0.0.0`.
-- Generated code no longer checks a union branch's value for null after a type pattern proved it is not, and null checks have one pair of parentheses (#107). With C# 8 or later the schema property uses `??=`.
+- Generated code no longer checks a union branch's value for null after a type pattern proved it is not, and null checks have one pair of parentheses (#107).
 
 ### Added
 
@@ -38,6 +38,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Generated writers check enum values (#111): a C# enum can hold any number, which was written as an out-of-range ordinal that readers reject. Writing it now throws `AvroException` naming the field.
 - A `bytes` decimal with no bytes is rejected with `AvroDataException` instead of being read as 0, as in Java (#111). The Apache compatibility mode's decimals check the same.
 - `Put` on a generated record's `null`-typed field rejects values other than `null`, which were silently dropped on write (#111).
+- A generated type's `Schema` is one instance even when first read on several threads at once. Before, a thread that lost the race to parse it could keep its own instance, which missed the cache of resolution plans and the same-schema fast path. The new `AvroGeneratedCode.PublishSchema` stores the first one.
 
 ## [0.1.1] - 2026-09-28
 

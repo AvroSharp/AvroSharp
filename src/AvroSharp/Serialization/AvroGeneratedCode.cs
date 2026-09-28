@@ -197,6 +197,19 @@ public static partial class AvroGeneratedCode
     }
 
     /// <summary>
+    /// Stores <paramref name="schema"/> in <paramref name="field"/> unless another thread stored one first, and returns
+    /// the stored one, so a generated type's <c>Schema</c> is one instance even when first read on several threads at
+    /// once (plans are cached per instance, and the same instance is the fast path for resolution).
+    /// </summary>
+    /// <param name="field">The generated type's schema field.</param>
+    /// <param name="schema">The schema just parsed.</param>
+    public static AvroSchema PublishSchema(ref AvroSchema? field, AvroSchema schema)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        return System.Threading.Interlocked.CompareExchange(ref field, schema, null) ?? schema;
+    }
+
+    /// <summary>
     /// Gets the plan for reading a generated record from data of another version of its schema, or <see langword="null"/>
     /// when <paramref name="writerSchema"/> is not a record of the same name (then use <see cref="ResolveToReaderEncoding"/>).
     /// Plans are built once per pair of schemas.

@@ -21,6 +21,7 @@
   <ItemGroup>
     <None Include="Snapshots\*.cs" CopyToOutputDirectory="PreserveNewest" />
     <Compile Remove="Snapshots\*.cs" />
+    <None Include="..\AvroSharp.Generators.Consumer.Tests\Schemas\*.avsc" Link="ConsumerSchemas\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
