@@ -20,6 +20,7 @@ namespace AvroSharp.Benchmarks;
 /// <item><b>Counters</b>: a flat record of 16 small ints (one-byte varints).</item>
 /// <item><b>IntArray</b>, <b>LongArray</b>: 1,000 small ints or longs in one array (bulk varint path; on net8+ a Vector128 check decodes runs of one-byte values 16 at a time).</item>
 /// <item><b>DoubleArray</b>: 1,000 doubles in one array (bulk copy on little-endian hardware).</item>
+/// <item><b>BooleanArray</b>: 1,000 booleans in one array (one checked copy).</item>
 /// </list>
 /// The numeric flat records are also the baseline for field-run fusion (design section 4.11).
 /// </summary>
@@ -38,7 +39,7 @@ public class ShowcaseBenchmarks
     private readonly System.Buffers.ArrayBufferWriter<byte> _output = new(64 * 1024);
     private readonly MemoryStream _stream = new(64 * 1024);
 
-    [Params("Telemetry", "Counters", "IntArray", "LongArray", "DoubleArray")]
+    [Params("Telemetry", "Counters", "IntArray", "LongArray", "DoubleArray", "BooleanArray")]
     public string Scenario { get; set; } = "Telemetry";
 
     [GlobalSetup]
@@ -71,15 +72,20 @@ public class ShowcaseBenchmarks
             case "LongArray":
                 record[0] = AvroValue.FromArray(Enumerable.Range(0, 1_000).Select(_ => (AvroValue)(long)random.Next(-60, 60)).ToArray());
                 break;
+            case "BooleanArray":
+                record[0] = AvroValue.FromArray(Enumerable.Range(0, 1_000).Select(_ => (AvroValue)(random.Next(2) == 1)).ToArray());
+                break;
             default:
                 record[0] = AvroValue.FromArray(Enumerable.Range(0, 1_000).Select(_ => (AvroValue)(random.NextDouble() * 1e6)).ToArray());
                 break;
         }
 
-        _record = record;
         _writer = GenericDatumWriter.Create(schema);
         _reader = GenericDatumReader.Create(schema);
-        _encoded = _writer.WriteToArray(_record);
+        _encoded = _writer.WriteToArray(record);
+
+        // Write the value as the reader produces it (arrays of primitives are stored as the primitives).
+        _record = _reader.Read(_encoded);
 
         var apacheSchema = (Avro.RecordSchema)Avro.Schema.Parse(json);
         _apacheWriter = new Avro.Generic.GenericDatumWriter<ApacheGenericRecord>(apacheSchema);
@@ -144,6 +150,9 @@ public class ShowcaseBenchmarks
                 break;
             case "LongArray":
                 fields.Append("""{"name":"values","type":{"type":"array","items":"long"}}""");
+                break;
+            case "BooleanArray":
+                fields.Append("""{"name":"values","type":{"type":"array","items":"boolean"}}""");
                 break;
             default:
                 fields.Append("""{"name":"values","type":{"type":"array","items":"double"}}""");

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- The generic reader stores arrays of `boolean`, `int`, `long`, `float` and `double` items as the primitives themselves, not one `AvroValue` each (#23). `AsArray()` still returns the items as values. The new `TryGetInt64Array` and the other typed accessors return the memory without a copy, and `FromInt64Array` and the other typed factories wrap existing memory. The writer takes these arrays from their memory: booleans, floats and doubles as one copy, ints and longs with no kind check per item. On the i7-12800H (.NET 10), reading an array of 1,000 items with the generic model is 4.4× faster for ints (3,241 to 734 ns), 3.5× for longs and 6.2× for doubles, and allocates a quarter to a half as much. A record with 64 long counters reads in 591 ns instead of 748 ns. Against Apache.Avro, array reads are now 6.6–16.6× faster, up from 1.7–2.8×.
+- The array returned by `AsArray()` for these item types is no longer a `List<AvroValue>`. Code that cast it to `List<AvroValue>` has to copy it instead (`AsArray()` has always been documented as `IReadOnlyList<AvroValue>`).
+
+### Added
+
+- Bulk booleans (#26): `AvroReader.ReadBooleans` checks and copies a block of booleans as one span, and `AvroWriter.WriteBooleans` writes one as a single copy. Generated code uses them for `boolean` arrays, and the generic reader and writer use them for boolean arrays.
+
 ## [0.1.1] - 2026-09-28
 
 The first complete release of all four packages. 0.1.0's publish stopped partway, so `AvroSharp.CodeGen` 0.1.0 was never published; use 0.1.1. The code is the same as 0.1.0.

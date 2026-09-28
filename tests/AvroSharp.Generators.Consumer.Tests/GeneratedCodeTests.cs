@@ -38,6 +38,7 @@ public class GeneratedCodeTests
         await Assert.That(back.Sku).IsEqualTo(order.Sku);
         await Assert.That(back.Counters).IsEquivalentTo(order.Counters);
         await Assert.That(back.Weights).IsEquivalentTo(order.Weights);
+        await Assert.That(back.Flags).IsEquivalentTo(order.Flags);
         await Assert.That(back.Lines[1].Note).IsEqualTo("fragile");
         await Assert.That(back.Groups["g"]).IsEquivalentTo(new[] { "x", "y" });
         await Assert.That(back.Discount).IsNull();

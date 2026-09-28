@@ -84,7 +84,7 @@ public class GetPutTests
 
     [Test]
     [Arguments(-1)]
-    [Arguments(30)]
+    [Arguments(31)]
     public async Task PositionsOutsideTheRecord_AreRejected(int position)
     {
         var order = TestData.CreateOrder();
@@ -92,7 +92,7 @@ public class GetPutTests
         var getError = Assert.Throws<AvroException>(() => order.Get(position));
         Assert.Throws<AvroException>(() => order.Put(position, 1));
 
-        await Assert.That(getError.Message).Contains($"no field at position {position} (30 fields)");
+        await Assert.That(getError.Message).Contains($"no field at position {position} (31 fields)");
     }
 
     [Test]

@@ -284,6 +284,35 @@ public ref struct AvroReader
     }
 
     /// <summary>
+    /// Reads <c>boolean</c> array items into <paramref name="destination"/>. Contiguous input is checked and copied
+    /// as one span, since each item is one byte.
+    /// </summary>
+    /// <param name="destination">Receives one value per element.</param>
+    /// <exception cref="AvroDataException">An item is neither 0 nor 1, or the input ended.</exception>
+    public void ReadBooleans(scoped Span<bool> destination)
+    {
+        EnsureRemaining(destination.Length, "boolean");
+        if (_span.Length - _position >= destination.Length)
+        {
+            var source = _span.Slice(_position, destination.Length);
+            var invalid = IndexOfInvalidBoolean(source);
+            if (invalid >= 0)
+            {
+                ThrowInvalidBoolean(source[invalid], BytesConsumed + invalid);
+            }
+
+            source.CopyTo(MemoryMarshal.AsBytes(destination));
+            _position += destination.Length;
+            return;
+        }
+
+        for (var i = 0; i < destination.Length; i++)
+        {
+            destination[i] = ReadBoolean();
+        }
+    }
+
+    /// <summary>
     /// Reads <c>double</c> array items into <paramref name="destination"/>. On little-endian hardware, contiguous
     /// input is a single copy.
     /// </summary>
@@ -764,6 +793,24 @@ public ref struct AvroReader
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowInvalidLength(string what, long length, long offset) =>
         throw new AvroDataException($"Invalid {what} length {length} at offset {offset}.");
+
+    /// <summary>The index of the first byte that is neither 0 nor 1, or -1.</summary>
+    internal static int IndexOfInvalidBoolean(ReadOnlySpan<byte> bytes)
+    {
+#if NET8_0_OR_GREATER
+        return bytes.IndexOfAnyExcept((byte)0, (byte)1);
+#else
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            if (bytes[i] > 1)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+#endif
+    }
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]

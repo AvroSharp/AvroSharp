@@ -251,6 +251,8 @@ public sealed class GenericDatumWriter
             // The concrete types the reader creates are written from a span, without interface calls.
             switch (value.Reference)
             {
+                case PrimitiveArray primitives when TryWritePrimitives(ref writer, primitives):
+                    break;
 #if NET8_0_OR_GREATER
                 case List<AvroValue> list:
                     WriteItems(ref writer, CollectionsMarshal.AsSpan(list), depth);
@@ -274,6 +276,52 @@ public sealed class GenericDatumWriter
                 default:
                     throw new AvroException($"A {value.Kind} value cannot be written as an array.");
             }
+        }
+
+        // An array stored as primitives is written from its memory when the items' schema takes them as they are:
+        // booleans, doubles and floats as one copy, ints and longs without a kind check per item. Any other
+        // combination (for example ints written as doubles) goes item by item through the items' node.
+        private bool TryWritePrimitives(ref AvroWriter writer, PrimitiveArray array)
+        {
+            switch (array, items)
+            {
+                case (_, _) when array.Count == 0:
+                    break;
+                case (Int64Array longs, LongNode):
+                    writer.WriteBlockCount(longs.Count);
+                    foreach (var item in longs.Items.Span)
+                    {
+                        writer.WriteLong(item);
+                    }
+
+                    break;
+                case (Int32Array ints, IntNode or LongNode):
+                    // An int and a long with the same value have the same encoding.
+                    writer.WriteBlockCount(ints.Count);
+                    foreach (var item in ints.Items.Span)
+                    {
+                        writer.WriteInt(item);
+                    }
+
+                    break;
+                case (DoubleArray doubles, DoubleNode):
+                    writer.WriteBlockCount(doubles.Count);
+                    writer.WriteDoubles(doubles.Items.Span);
+                    break;
+                case (SingleArray floats, FloatNode):
+                    writer.WriteBlockCount(floats.Count);
+                    writer.WriteFloats(floats.Items.Span);
+                    break;
+                case (BooleanArray booleans, BooleanNode):
+                    writer.WriteBlockCount(booleans.Count);
+                    writer.WriteBooleans(booleans.Items.Span);
+                    break;
+                default:
+                    return false;
+            }
+
+            writer.WriteBlockEnd();
+            return true;
         }
 
         private void WriteItems(ref AvroWriter writer, ReadOnlySpan<AvroValue> values, int depth)

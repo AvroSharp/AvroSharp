@@ -17,6 +17,7 @@
     {"name": "small", "type": {"type": "array", "items": "int"}},
     {"name": "weights", "type": {"type": "array", "items": "double"}},
     {"name": "ratios", "type": {"type": "array", "items": "float"}},
+    {"name": "flags", "type": {"type": "array", "items": "boolean"}},
     {"name": "tags", "type": {"type": "array", "items": "string"}},
     {"name": "lines", "type": {"type": "array", "items": {"type": "record", "name": "Line", "fields": [
       {"name": "sku", "type": "Sku"}, {"name": "qty", "type": "int"}, {"name": "note", "type": ["null", "string"]}]}}},

@@ -223,6 +223,26 @@ public ref struct AvroWriter
     public void WriteBlockEnd() => WriteVarint32(0);
 
     /// <summary>
+    /// Writes <c>boolean</c> array items as a single copy, since each item is one byte in memory and on the wire.
+    /// </summary>
+    /// <param name="values">The items; write the block count first.</param>
+    public void WriteBooleans(scoped ReadOnlySpan<bool> values)
+    {
+        var bytes = MemoryMarshal.AsBytes(values);
+        if (AvroReader.IndexOfInvalidBoolean(bytes) < 0)
+        {
+            WriteRaw(bytes);
+            return;
+        }
+
+        // A bool made by unsafe code can hold other bytes; write those as true, as WriteBoolean does.
+        foreach (var value in values)
+        {
+            WriteBoolean(value);
+        }
+    }
+
+    /// <summary>
     /// Writes <c>double</c> array items. On little-endian hardware this is a single copy, because Avro's
     /// encoding matches the in-memory layout.
     /// </summary>
