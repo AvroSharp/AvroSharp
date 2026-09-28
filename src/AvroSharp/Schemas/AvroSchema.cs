@@ -95,9 +95,26 @@ public abstract class AvroSchema
     public static ValueTask<AvroSchema> ParseAsync(Stream utf8Json, AvroSchemaParseOptions? options = null, CancellationToken cancellationToken = default) =>
         new AvroSchemaParser(options).ParseAsync(utf8Json, cancellationToken);
 
-    /// <summary>Writes the full schema JSON, including documentation, aliases, defaults and custom properties.</summary>
+    /// <summary>
+    /// Writes the full schema JSON, including documentation, aliases, defaults and custom properties. The compact
+    /// form is the text Apache Avro Java's <c>Schema.toString()</c> gives for the same schema: the same attribute
+    /// order, and numbers in defaults and properties printed as Java prints them.
+    /// </summary>
     /// <param name="indented"><see langword="true"/> to indent the output.</param>
     public string ToJson(bool indented = false) => SchemaJsonWriter.ToJson(this, indented);
+
+    /// <summary>
+    /// Writes the schema JSON with the named types in <paramref name="referencedSchemas"/> written by name instead of
+    /// defined: the form a schema registry stores for a schema with references to other subjects, like Java's
+    /// <c>Schema.toString(referencedSchemas, pretty)</c>. Types are matched by full name.
+    /// </summary>
+    /// <param name="referencedSchemas">The named types that other registered schemas define.</param>
+    /// <param name="indented"><see langword="true"/> to indent the output.</param>
+    public string ToJson(IEnumerable<NamedSchema> referencedSchemas, bool indented = false)
+    {
+        ArgumentNullException.ThrowIfNull(referencedSchemas);
+        return SchemaJsonWriter.ToJson(this, indented, referencedSchemas);
+    }
 
     /// <summary>Writes the full schema JSON to <paramref name="writer"/>.</summary>
     /// <param name="writer">The destination.</param>

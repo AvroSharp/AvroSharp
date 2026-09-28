@@ -9,6 +9,7 @@
 | `GenericJson` | First byte picks a schema; the rest is JSON data | Same as `GenericBinary` |
 | `ContainerFile` | An object container file, read with a 1 MiB block limit | Only `AvroException` escapes; every object read round-trips like `GenericBinary` |
 | `SingleObject` | A single-object encoded message of one of the schemas | Only `AvroException` escapes; the object round-trips |
+| `RegistryMessage` | First byte picks a registry framing (Confluent, Confluent GUID, Apicurio 8-byte, AWS Glue plain and zlib); the rest is the message | Only `AvroException` escapes; the object read round-trips |
 | `Resolution` | First byte picks a writer/reader schema pair; the rest is writer data | The resolving reader and the transcoder that generated types use either both fail or give equal values |
 
 The same targets run on every build as a seeded mutation smoke test (`tests/AvroSharp.Tests/Fuzz/FuzzSmokeTests.cs`). That catches crashes close to valid input but is not coverage-guided; use libFuzzer for longer runs.

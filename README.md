@@ -103,6 +103,26 @@ var reader = AvroMessageReader.CreateGeneric(new AvroSchemaStore(v1, v2), reader
 AvroValue value = reader.Read(message);      // the fingerprint selects the writer schema
 ```
 
+## Schema registries
+
+Messages in a registry's wire framing, with no registry client dependency: the caller supplies the schema ID, and an `IAvroSchemaIdResolver` (a synchronous lookup with an asynchronous fill) finds schemas when reading.
+
+```csharp
+byte[] message = AvroRegistryMessage.ToArray(AvroRegistryFraming.Confluent, AvroSchemaId.FromNumber(42), order, Order.Write);
+
+var reader = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.Confluent, resolver);
+AvroValue value = await reader.ReadAsync(message);   // fetches schema 42 through the resolver the first time
+```
+
+| Framing | Header |
+|---|---|
+| `Confluent` | `0x00`, 4-byte big-endian ID (byte-identical to Confluent's serializer) |
+| `ConfluentGuid` | `0x01`, 16-byte big-endian GUID (Confluent Platform 8); `ConfluentSchemaIdHeader` for the `__value_schema_id` header |
+| `Apicurio` / `Apicurio8Byte` | `0x00`, 4-byte (Apicurio 3's default) or 8-byte (Apicurio 2's default) big-endian ID |
+| `AwsGlue` / `AwsGlueCompressed` | `0x03`, compression byte (`0x00`, or `0x05` for zlib), 16-byte big-endian schema version UUID |
+
+**References.** A schema that refers to named types registered under other subjects parses against them with `AvroSchemaParser.AddNamedSchemas` (or by parsing the referenced schemas first with the same parser). `schema.ToJson(referencedSchemas)` writes it with those types by name, as Java's `Schema.toString(referencedSchemas, false)` does, and `ToJson()` is Java's `Schema.toString()` byte for byte (attribute order, and numbers as Java prints them), so registering AvroSharp's text finds the version a Java client registered.
+
 ## Code generation from schema files
 
 Reference the `AvroSharp.Generators` package and pass your schema files to the compiler:
