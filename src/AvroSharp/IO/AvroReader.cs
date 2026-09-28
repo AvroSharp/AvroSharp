@@ -399,15 +399,13 @@ public ref struct AvroReader
                 continue;
             }
 
-            var chunk = _span.Slice(_position, Vector128<byte>.Count);
-            var run = OneByteRunLength(chunk);
-            for (var k = 0; k < run; k++)
-            {
-                uint b = chunk[k];
-#pragma warning disable IDE0004 // The casts are redundant only because -(uint) is a long; they keep the zig-zag decode explicit.
-                destination[i + k] = (long)(b >> 1) ^ -(long)(b & 1);
-#pragma warning restore IDE0004
-            }
+            // All 16 bytes are decoded and stored without a loop over the run; values past the run are overwritten by
+            // the ones read next, since at least 16 destination items remain.
+            var zigZag = OneByteValues(_span.Slice(_position, Vector128<byte>.Count), out var run);
+            var (low, high) = Vector128.Widen(zigZag);
+            ref var target = ref Unsafe.Add(ref MemoryMarshal.GetReference(destination), i);
+            StoreAsLongs(low, ref target);
+            StoreAsLongs(high, ref Unsafe.Add(ref target, 8));
 
             _position += run;
             i += run;
@@ -450,13 +448,11 @@ public ref struct AvroReader
                 continue;
             }
 
-            var chunk = _span.Slice(_position, Vector128<byte>.Count);
-            var run = OneByteRunLength(chunk);
-            for (var k = 0; k < run; k++)
-            {
-                uint b = chunk[k];
-                destination[i + k] = (int)(b >> 1) ^ -(int)(b & 1);
-            }
+            var zigZag = OneByteValues(_span.Slice(_position, Vector128<byte>.Count), out var run);
+            var (low, high) = Vector128.Widen(zigZag);
+            ref var target = ref Unsafe.Add(ref MemoryMarshal.GetReference(destination), i);
+            StoreAsInts(low, ref target);
+            StoreAsInts(high, ref Unsafe.Add(ref target, 8));
 
             _position += run;
             i += run;
@@ -473,12 +469,41 @@ public ref struct AvroReader
     }
 
 #if NET8_0_OR_GREATER
-    /// <summary>The number of leading bytes (0 to 16) of <paramref name="chunk"/> that are complete one-byte varints.</summary>
+    /// <summary>
+    /// Decodes each byte of <paramref name="chunk"/> as a one-byte varint, and gets in <paramref name="run"/> how many
+    /// leading bytes (0 to 16) really are one-byte varints. A one-byte varint's zig-zag value is -64 to 63, so it is
+    /// decoded as a signed byte; the lanes past the run hold meaningless values.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int OneByteRunLength(ReadOnlySpan<byte> chunk)
+    private static Vector128<sbyte> OneByteValues(ReadOnlySpan<byte> chunk, out int run)
     {
-        var continuation = Vector128.Create(chunk).ExtractMostSignificantBits();
-        return continuation == 0 ? Vector128<byte>.Count : BitOperations.TrailingZeroCount(continuation);
+        var bytes = Vector128.Create(chunk);
+        var continuation = bytes.ExtractMostSignificantBits();
+        run = continuation == 0 ? Vector128<byte>.Count : BitOperations.TrailingZeroCount(continuation);
+        var sign = Vector128<byte>.Zero - (bytes & Vector128<byte>.One);
+        return (Vector128.ShiftRightLogical(bytes, 1) ^ sign).AsSByte();
+    }
+
+    /// <summary>Sign-extends 8 values to <c>long</c> and stores them at <paramref name="destination"/>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void StoreAsLongs(Vector128<short> values, ref long destination)
+    {
+        var (low, high) = Vector128.Widen(values);
+        var (a, b) = Vector128.Widen(low);
+        var (c, d) = Vector128.Widen(high);
+        a.StoreUnsafe(ref destination);
+        b.StoreUnsafe(ref destination, 2);
+        c.StoreUnsafe(ref destination, 4);
+        d.StoreUnsafe(ref destination, 6);
+    }
+
+    /// <summary>Sign-extends 8 values to <c>int</c> and stores them at <paramref name="destination"/>.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void StoreAsInts(Vector128<short> values, ref int destination)
+    {
+        var (low, high) = Vector128.Widen(values);
+        low.StoreUnsafe(ref destination);
+        high.StoreUnsafe(ref destination, 4);
     }
 #endif
     /// <summary>Skips a variable-length <c>int</c> or <c>long</c>.</summary>
