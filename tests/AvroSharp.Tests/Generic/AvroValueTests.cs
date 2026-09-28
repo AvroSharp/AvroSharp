@@ -72,8 +72,8 @@ public class AvroValueTests
     public async Task ToObject_AndToString()
     {
         var schema = new EnumSchema(new SchemaName("E"), ["A"]);
-        await Assert.That(AvroValue.FromInt64(5).ToObject()).IsEqualTo((object)5L);
-        await Assert.That(AvroValue.FromEnum(schema, 0).ToObject()).IsEqualTo((object)"A");
+        await Assert.That(AvroValue.FromInt64(5).ToObject()).IsEqualTo(5L);
+        await Assert.That(AvroValue.FromEnum(schema, 0).ToObject()).IsEqualTo("A");
         await Assert.That(AvroValue.Null.ToObject()).IsNull();
         await Assert.That(AvroValue.FromArray(new AvroValue[] { 1, AvroValue.Null }).ToString()).IsEqualTo("[1, null]");
     }

@@ -45,6 +45,6 @@ public class ConfluentFramingInteropTests
 
         await Assert.That(Convert.ToHexString(ours)).IsEqualTo(Convert.ToHexString(theirs));
         await Assert.That(readByUs["name"].AsString()).IsEqualTo("Ada");
-        await Assert.That(readByThem["id"]).IsEqualTo((object)42L);
+        await Assert.That(readByThem["id"]).IsEqualTo(42L);
     }
 }

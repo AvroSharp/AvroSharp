@@ -20,7 +20,7 @@ public class SchemaConstructionTests
                 new RecordField("status", status),
                 new RecordField("lines", new ArraySchema(line)),
                 new RecordField("tags", new MapSchema(AvroSchema.String)),
-                new RecordField("next", new UnionSchema([AvroSchema.Null, self]), JsonDocument.Parse("null").RootElement),
+                new RecordField("next", new UnionSchema([AvroSchema.Null, self]), JsonElement.Parse("null")),
                 new RecordField("id", new FixedSchema(new SchemaName("shop.Id"), 16, AvroLogicalType.Uuid)),
             ]);
 

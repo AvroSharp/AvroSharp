@@ -46,7 +46,7 @@ public static class AvroFileWriter
     {
         ArgumentNullException.ThrowIfNull(schema);
         var datumWriter = GenericDatumWriter.Create(schema, writerOptions);
-        return Create<AvroValue>(stream, schema, (ref AvroWriter writer, AvroValue value) => datumWriter.Write(ref writer, value), options);
+        return Create<AvroValue>(stream, schema, (ref writer, value) => datumWriter.Write(ref writer, value), options);
     }
 }
 

@@ -104,6 +104,6 @@ public static class AvroFileReader
             var datumReader = readerSchema is null
                 ? GenericDatumReader.Create(writerSchema, readerOptions)
                 : GenericDatumReader.Create(writerSchema, readerSchema, readerOptions);
-            return (ref AvroReader reader) => datumReader.Read(ref reader);
+            return (ref reader) => datumReader.Read(ref reader);
         };
 }

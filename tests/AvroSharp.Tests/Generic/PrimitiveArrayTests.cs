@@ -14,15 +14,15 @@ public class PrimitiveArrayTests
     [Test]
     public async Task Reader_StoresPrimitiveItemsAsTypedArrays()
     {
-        await Assert.That(await Read<long>("long", [1L, -2L, long.MaxValue, long.MinValue], v => v, (AvroValue a, out ReadOnlyMemory<long> m) => a.TryGetInt64Array(out m)))
+        await Assert.That(await Read<long>("long", [1L, -2L, long.MaxValue, long.MinValue], v => v, (a, out m) => a.TryGetInt64Array(out m)))
             .IsEquivalentTo(new[] { 1L, -2L, long.MaxValue, long.MinValue });
-        await Assert.That(await Read<int>("int", [0, 63, -64, int.MaxValue, int.MinValue], v => v, (AvroValue a, out ReadOnlyMemory<int> m) => a.TryGetInt32Array(out m)))
+        await Assert.That(await Read<int>("int", [0, 63, -64, int.MaxValue, int.MinValue], v => v, (a, out m) => a.TryGetInt32Array(out m)))
             .IsEquivalentTo(new[] { 0, 63, -64, int.MaxValue, int.MinValue });
-        await Assert.That(await Read<double>("double", [1.5, double.NaN, double.NegativeInfinity], v => v, (AvroValue a, out ReadOnlyMemory<double> m) => a.TryGetDoubleArray(out m)))
+        await Assert.That(await Read<double>("double", [1.5, double.NaN, double.NegativeInfinity], v => v, (a, out m) => a.TryGetDoubleArray(out m)))
             .IsEquivalentTo(new[] { 1.5, double.NaN, double.NegativeInfinity });
-        await Assert.That(await Read<float>("float", [-0.5f, float.Epsilon], v => v, (AvroValue a, out ReadOnlyMemory<float> m) => a.TryGetSingleArray(out m)))
+        await Assert.That(await Read<float>("float", [-0.5f, float.Epsilon], v => v, (a, out m) => a.TryGetSingleArray(out m)))
             .IsEquivalentTo(new[] { -0.5f, float.Epsilon });
-        await Assert.That(await Read<bool>("boolean", [true, false, true], v => v, (AvroValue a, out ReadOnlyMemory<bool> m) => a.TryGetBooleanArray(out m)))
+        await Assert.That(await Read<bool>("boolean", [true, false, true], v => v, (a, out m) => a.TryGetBooleanArray(out m)))
             .IsEquivalentTo(new[] { true, false, true });
     }
 
@@ -30,7 +30,7 @@ public class PrimitiveArrayTests
     public async Task Reader_JoinsBlocks_AndReadsEmptyArrays()
     {
         // Three blocks: one with a byte size (a negative count), then two plain ones.
-        var bytes = BinaryEncodingTests.EncodeBytes((ref AvroWriter w) =>
+        var bytes = BinaryEncodingTests.EncodeBytes((ref w) =>
         {
             w.WriteLong(-2);
             w.WriteLong(3);

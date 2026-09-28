@@ -31,7 +31,7 @@ public sealed partial class GenericDatumReader
     internal sealed class Transcoder
     {
         [ThreadStatic]
-        private static ScratchBuffers? t_scratch;
+        private static ScratchBuffers? s_scratch;
 
         private readonly TranscodeNode _root;
 
@@ -48,7 +48,7 @@ public sealed partial class GenericDatumReader
         public void Transcode(ref AvroReader reader, IBufferWriter<byte> output)
         {
             var state = new ReadState(GenericDatumReaderOptions.Default);
-            var scratch = t_scratch ??= new ScratchBuffers();
+            var scratch = s_scratch ??= new ScratchBuffers();
             var writer = new AvroWriter(output);
             _root.Transcode(ref reader, ref writer, ref state, scratch);
             writer.Flush();
@@ -127,25 +127,18 @@ public sealed partial class GenericDatumReader
 
         private TranscodeNode BuildNonUnion(AvroSchema writer, AvroSchema reader, string path)
         {
-            switch (writer, reader)
+            return (writer, reader) switch
             {
-                case (RecordSchema w, RecordSchema r) when ResolvingBuilder.NamesMatch(w, r):
-                    return BuildRecord(w, r, path);
-                case (EnumSchema w, EnumSchema r) when ResolvingBuilder.NamesMatch(w, r):
-                    return new EnumTranscodeNode(w, r, ResolvingBuilder.EnumMap(w, r));
-                case (FixedSchema w, FixedSchema r) when ResolvingBuilder.NamesMatch(w, r):
-                    return w.Size == r.Size
-                        ? new CopyFixedNode(w.Size)
-                        : throw ResolvingBuilder.Incompatible(writer, reader, path, $"the fixed sizes differ ({w.Size} and {r.Size})");
-                case (ArraySchema w, ArraySchema r):
-                    return new BlocksTranscodeNode(Build(w.Items, r.Items, path + "[]"), isMap: false);
-                case (MapSchema w, MapSchema r):
-                    return new BlocksTranscodeNode(Build(w.Values, r.Values, path + "{}"), isMap: true);
-                case (PrimitiveSchema, PrimitiveSchema):
-                    return Primitive(writer.Type, reader.Type) ?? throw ResolvingBuilder.Incompatible(writer, reader, path, "the types differ and no promotion applies");
-                default:
-                    throw ResolvingBuilder.Incompatible(writer, reader, path, writer is NamedSchema && reader is NamedSchema ? "the names differ" : "the types differ");
-            }
+                (RecordSchema w, RecordSchema r) when ResolvingBuilder.NamesMatch(w, r) => BuildRecord(w, r, path),
+                (EnumSchema w, EnumSchema r) when ResolvingBuilder.NamesMatch(w, r) => new EnumTranscodeNode(w, r, ResolvingBuilder.EnumMap(w, r)),
+                (FixedSchema w, FixedSchema r) when ResolvingBuilder.NamesMatch(w, r) => w.Size == r.Size
+                    ? new CopyFixedNode(w.Size)
+                    : throw ResolvingBuilder.Incompatible(writer, reader, path, $"the fixed sizes differ ({w.Size} and {r.Size})"),
+                (ArraySchema w, ArraySchema r) => new BlocksTranscodeNode(Build(w.Items, r.Items, path + "[]"), isMap: false),
+                (MapSchema w, MapSchema r) => new BlocksTranscodeNode(Build(w.Values, r.Values, path + "{}"), isMap: true),
+                (PrimitiveSchema, PrimitiveSchema) => Primitive(writer.Type, reader.Type) ?? throw ResolvingBuilder.Incompatible(writer, reader, path, "the types differ and no promotion applies"),
+                _ => throw ResolvingBuilder.Incompatible(writer, reader, path, writer is NamedSchema && reader is NamedSchema ? "the names differ" : "the types differ"),
+            };
         }
 
         private static PrimitiveTranscodeNode? Primitive(AvroSchemaType writer, AvroSchemaType reader) => (writer, reader) switch
@@ -238,31 +231,31 @@ public sealed partial class GenericDatumReader
             _copy = copy;
         }
 
-        public static PrimitiveTranscodeNode Null { get; } = new(0, static (ref AvroReader r, ref AvroWriter w) => { });
+        public static PrimitiveTranscodeNode Null { get; } = new(0, static (ref r, ref w) => { });
 
-        public static PrimitiveTranscodeNode Boolean { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteBoolean(r.ReadBoolean()));
+        public static PrimitiveTranscodeNode Boolean { get; } = new(1, static (ref r, ref w) => w.WriteBoolean(r.ReadBoolean()));
 
-        public static PrimitiveTranscodeNode Int { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteInt(r.ReadInt()));
+        public static PrimitiveTranscodeNode Int { get; } = new(1, static (ref r, ref w) => w.WriteInt(r.ReadInt()));
 
-        public static PrimitiveTranscodeNode Long { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteLong(r.ReadLong()));
+        public static PrimitiveTranscodeNode Long { get; } = new(1, static (ref r, ref w) => w.WriteLong(r.ReadLong()));
 
-        public static PrimitiveTranscodeNode IntToLong { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteLong(r.ReadInt()));
+        public static PrimitiveTranscodeNode IntToLong { get; } = new(1, static (ref r, ref w) => w.WriteLong(r.ReadInt()));
 
-        public static PrimitiveTranscodeNode IntToFloat { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteFloat(r.ReadInt()));
+        public static PrimitiveTranscodeNode IntToFloat { get; } = new(1, static (ref r, ref w) => w.WriteFloat(r.ReadInt()));
 
-        public static PrimitiveTranscodeNode IntToDouble { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteDouble(r.ReadInt()));
+        public static PrimitiveTranscodeNode IntToDouble { get; } = new(1, static (ref r, ref w) => w.WriteDouble(r.ReadInt()));
 
-        public static PrimitiveTranscodeNode LongToFloat { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteFloat(r.ReadLong()));
+        public static PrimitiveTranscodeNode LongToFloat { get; } = new(1, static (ref r, ref w) => w.WriteFloat(r.ReadLong()));
 
-        public static PrimitiveTranscodeNode LongToDouble { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteDouble(r.ReadLong()));
+        public static PrimitiveTranscodeNode LongToDouble { get; } = new(1, static (ref r, ref w) => w.WriteDouble(r.ReadLong()));
 
-        public static PrimitiveTranscodeNode Float { get; } = new(sizeof(float), static (ref AvroReader r, ref AvroWriter w) => w.WriteRaw(r.ReadFixedSpan(sizeof(float))));
+        public static PrimitiveTranscodeNode Float { get; } = new(sizeof(float), static (ref r, ref w) => w.WriteRaw(r.ReadFixedSpan(sizeof(float))));
 
-        public static PrimitiveTranscodeNode FloatToDouble { get; } = new(sizeof(float), static (ref AvroReader r, ref AvroWriter w) => w.WriteDouble(r.ReadFloat()));
+        public static PrimitiveTranscodeNode FloatToDouble { get; } = new(sizeof(float), static (ref r, ref w) => w.WriteDouble(r.ReadFloat()));
 
-        public static PrimitiveTranscodeNode Double { get; } = new(sizeof(double), static (ref AvroReader r, ref AvroWriter w) => w.WriteRaw(r.ReadFixedSpan(sizeof(double))));
+        public static PrimitiveTranscodeNode Double { get; } = new(sizeof(double), static (ref r, ref w) => w.WriteRaw(r.ReadFixedSpan(sizeof(double))));
 
-        public static PrimitiveTranscodeNode Bytes { get; } = new(1, static (ref AvroReader r, ref AvroWriter w) => w.WriteBytes(r.ReadBytesSpan()));
+        public static PrimitiveTranscodeNode Bytes { get; } = new(1, static (ref r, ref w) => w.WriteBytes(r.ReadBytesSpan()));
 
         public override int MinimumSize => _minimumSize;
 
@@ -415,7 +408,7 @@ public sealed partial class GenericDatumReader
 
                 for (; next < target; next++)
                 {
-                    writer.WriteRaw(Defaults[next]!);
+                    writer.WriteRaw(Defaults[next]);
                 }
 
                 node.Transcode(ref reader, ref writer, ref state, scratch);
@@ -424,7 +417,7 @@ public sealed partial class GenericDatumReader
 
             for (; next < readerFieldCount; next++)
             {
-                writer.WriteRaw(Defaults[next]!);
+                writer.WriteRaw(Defaults[next]);
             }
         }
 
@@ -451,7 +444,7 @@ public sealed partial class GenericDatumReader
 
                 for (var i = 0; i < readerFieldCount; i++)
                 {
-                    writer.WriteRaw(fields[i] is { } buffer ? buffer.WrittenSpan : Defaults[i]!);
+                    writer.WriteRaw(fields[i] is { } buffer ? buffer.WrittenSpan : Defaults[i]);
                 }
             }
             finally

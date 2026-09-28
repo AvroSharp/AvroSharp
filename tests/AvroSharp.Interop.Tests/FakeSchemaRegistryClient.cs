@@ -40,7 +40,7 @@ public class FakeSchemaRegistryClient : DispatchProxy
 
         if (returns == typeof(Task<RegisteredSchema>))
         {
-            return Task.FromResult(new RegisteredSchema("users-value", 1, _id, _schema, SchemaType.Avro, new List<SchemaReference>()));
+            return Task.FromResult(new RegisteredSchema("users-value", 1, _id, _schema, SchemaType.Avro, []));
         }
 
         // Lookups that return lists (for example schema associations in newer clients) find nothing.

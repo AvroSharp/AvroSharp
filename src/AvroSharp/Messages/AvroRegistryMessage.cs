@@ -65,6 +65,6 @@ public static class AvroRegistryMessage
     {
         ArgumentNullException.ThrowIfNull(writer);
         var copy = value;
-        return ToArray(framing, id, copy, (ref AvroWriter w, AvroValue v) => writer.Write(ref w, v));
+        return ToArray(framing, id, copy, (ref w, v) => writer.Write(ref w, v));
     }
 }

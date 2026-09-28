@@ -194,11 +194,11 @@ public static class AvroGeneratedCode
     // The per-thread buffer that resolved values are written to, emptied.
     internal static PooledBufferWriter ResolvedBuffer()
     {
-        var buffer = t_resolved;
+        var buffer = s_resolved;
         if (buffer is null || buffer.Capacity > MaxRetainedResolvedBuffer)
         {
             buffer?.Dispose();
-            buffer = t_resolved = new PooledBufferWriter(1024);
+            buffer = s_resolved = new PooledBufferWriter(1024);
         }
 
         buffer.Clear();
@@ -209,7 +209,7 @@ public static class AvroGeneratedCode
     private const int MaxRetainedResolvedBuffer = 1024 * 1024;
 
     [ThreadStatic]
-    private static PooledBufferWriter? t_resolved;
+    private static PooledBufferWriter? s_resolved;
 
     /// <summary>Checks the length of a fixed value's bytes.</summary>
     /// <param name="value">The bytes.</param>

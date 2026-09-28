@@ -15,9 +15,9 @@ switch (args)
         {
             var target = Directory.CreateDirectory(Path.Combine(folder, group.Key));
             var index = 0;
-            foreach (var seed in group)
+            foreach (var (_, input) in group)
             {
-                File.WriteAllBytes(Path.Combine(target.FullName, $"seed-{index++:D3}"), seed.Input);
+                File.WriteAllBytes(Path.Combine(target.FullName, $"seed-{index++:D3}"), input);
                 count++;
             }
         }

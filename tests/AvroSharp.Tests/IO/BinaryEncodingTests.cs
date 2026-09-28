@@ -25,7 +25,7 @@ public class BinaryEncodingTests
     [Arguments(long.MinValue, "FFFFFFFFFFFFFFFFFF01")]
     public async Task Long_UsesZigZagVarints(long value, string hex)
     {
-        await Assert.That(Encode((ref AvroWriter w) => w.WriteLong(value))).IsEqualTo(hex);
+        await Assert.That(Encode((ref w) => w.WriteLong(value))).IsEqualTo(hex);
         await Assert.That(ReadLongConsumingAll(hex)).IsEqualTo((value, hex.Length / 2L));
     }
 
@@ -39,7 +39,7 @@ public class BinaryEncodingTests
     [Arguments(int.MinValue, "FFFFFFFF0F")]
     public async Task Int_UsesZigZagVarints(int value, string hex)
     {
-        await Assert.That(Encode((ref AvroWriter w) => w.WriteInt(value))).IsEqualTo(hex);
+        await Assert.That(Encode((ref w) => w.WriteInt(value))).IsEqualTo(hex);
         await Assert.That(ReadIntConsumingAll(hex)).IsEqualTo((value, hex.Length / 2L));
     }
 
@@ -47,17 +47,17 @@ public class BinaryEncodingTests
     public async Task SpecificationExamples_AreReproduced()
     {
         // string "foo"
-        await Assert.That(Encode((ref AvroWriter w) => w.WriteString("foo"))).IsEqualTo("06666F6F");
+        await Assert.That(Encode((ref w) => w.WriteString("foo"))).IsEqualTo("06666F6F");
 
         // record {a: long = 27, b: string = "foo"}
-        await Assert.That(Encode((ref AvroWriter w) =>
+        await Assert.That(Encode((ref w) =>
         {
             w.WriteLong(27);
             w.WriteString("foo");
         })).IsEqualTo("3606666F6F");
 
         // array of longs [3, 27]
-        await Assert.That(Encode((ref AvroWriter w) =>
+        await Assert.That(Encode((ref w) =>
         {
             w.WriteBlockCount(2);
             w.WriteLong(3);
@@ -66,8 +66,8 @@ public class BinaryEncodingTests
         })).IsEqualTo("04063600");
 
         // union ["null","string"]: null, then "a"
-        await Assert.That(Encode((ref AvroWriter w) => w.WriteUnionIndex(0))).IsEqualTo("00");
-        await Assert.That(Encode((ref AvroWriter w) =>
+        await Assert.That(Encode((ref w) => w.WriteUnionIndex(0))).IsEqualTo("00");
+        await Assert.That(Encode((ref w) =>
         {
             w.WriteUnionIndex(1);
             w.WriteString("a");
@@ -77,7 +77,7 @@ public class BinaryEncodingTests
     [Test]
     public async Task Primitives_RoundTrip()
     {
-        var bytes = EncodeBytes((ref AvroWriter w) =>
+        var bytes = EncodeBytes((ref w) =>
         {
             w.WriteNull();
             w.WriteBoolean(true);
@@ -106,8 +106,8 @@ public class BinaryEncodingTests
     [Test]
     public async Task FloatAndDouble_AreLittleEndianBitPatterns()
     {
-        await Assert.That(Encode((ref AvroWriter w) => w.WriteFloat(1.0f))).IsEqualTo("0000803F");
-        await Assert.That(Encode((ref AvroWriter w) => w.WriteDouble(1.0))).IsEqualTo("000000000000F03F");
+        await Assert.That(Encode((ref w) => w.WriteFloat(1.0f))).IsEqualTo("0000803F");
+        await Assert.That(Encode((ref w) => w.WriteDouble(1.0))).IsEqualTo("000000000000F03F");
     }
 
     [Test]
@@ -116,12 +116,12 @@ public class BinaryEncodingTests
         var doubles = Enumerable.Range(0, 100).Select(i => (i * 1.25) - 40).ToArray();
         var floats = doubles.Select(d => (float)d).ToArray();
 
-        var bulk = Encode((ref AvroWriter w) =>
+        var bulk = Encode((ref w) =>
         {
             w.WriteDoubles(doubles);
             w.WriteFloats(floats);
         });
-        var single = Encode((ref AvroWriter w) =>
+        var single = Encode((ref w) =>
         {
             foreach (var d in doubles)
             {
@@ -150,8 +150,8 @@ public class BinaryEncodingTests
     public async Task BulkBooleans_MatchItemByItemEncoding()
     {
         var values = Enumerable.Range(0, 100).Select(i => i % 3 == 0).ToArray();
-        var bulk = Encode((ref AvroWriter w) => w.WriteBooleans(values));
-        var single = Encode((ref AvroWriter w) =>
+        var bulk = Encode((ref w) => w.WriteBooleans(values));
+        var single = Encode((ref w) =>
         {
             foreach (var v in values)
             {
@@ -187,13 +187,13 @@ public class BinaryEncodingTests
         // Only unsafe code can make such a bool; it is written as WriteBoolean writes it.
         var raw = new byte[] { 0, 1, 2 };
         var values = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, bool>(raw).ToArray();
-        await Assert.That(Encode((ref AvroWriter w) => w.WriteBooleans(values))).IsEqualTo("000101");
+        await Assert.That(Encode((ref w) => w.WriteBooleans(values))).IsEqualTo("000101");
     }
 
     [Test]
     public async Task ReadBytesSpan_DoesNotCopyContiguousInput()
     {
-        var bytes = EncodeBytes((ref AvroWriter w) => w.WriteBytes([1, 2, 3, 4]));
+        var bytes = EncodeBytes((ref w) => w.WriteBytes([1, 2, 3, 4]));
         var firstByteAfterMutation = ReadFirstByteAfterMutating(bytes);
         await Assert.That(firstByteAfterMutation).IsEqualTo((byte)42);
     }
@@ -202,7 +202,7 @@ public class BinaryEncodingTests
     public async Task BlockCount_WithByteSize_AllowsSkipping()
     {
         // A negative count is followed by the block's byte size.
-        var bytes = EncodeBytes((ref AvroWriter w) =>
+        var bytes = EncodeBytes((ref w) =>
         {
             w.WriteLong(-3);
             w.WriteLong(3);
@@ -229,7 +229,7 @@ public class BinaryEncodingTests
     [Test]
     public async Task SkipHelpers_ConsumeWholeValues()
     {
-        var bytes = EncodeBytes((ref AvroWriter w) =>
+        var bytes = EncodeBytes((ref w) =>
         {
             w.WriteLong(long.MaxValue);
             w.WriteString("skip me");

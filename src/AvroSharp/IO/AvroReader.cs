@@ -391,7 +391,9 @@ public ref struct AvroReader
             for (var k = 0; k < run; k++)
             {
                 uint b = chunk[k];
+#pragma warning disable IDE0004 // The casts are redundant only because -(uint) is a long; they keep the zig-zag decode explicit.
                 destination[i + k] = (long)(b >> 1) ^ -(long)(b & 1);
+#pragma warning restore IDE0004
             }
 
             _position += run;

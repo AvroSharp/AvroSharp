@@ -40,7 +40,7 @@ public class ContainerHostileInputTests
     [Test]
     public async Task AHeaderWithoutASchema_IsRejected()
     {
-        var bytes = Build((ref AvroWriter w) =>
+        var bytes = Build((ref w) =>
         {
             w.WriteRaw("Obj\u0001"u8);
             w.WriteBlockCount(1);
@@ -58,7 +58,7 @@ public class ContainerHostileInputTests
     [Test]
     public async Task AnInvalidSchema_IsRejected()
     {
-        var bytes = Build((ref AvroWriter w) =>
+        var bytes = Build((ref w) =>
         {
             w.WriteRaw("Obj\u0001"u8);
             w.WriteBlockCount(1);
@@ -76,7 +76,7 @@ public class ContainerHostileInputTests
     [Test]
     public async Task AHugeMetadataValue_IsRejectedWithoutAllocating()
     {
-        var bytes = Build((ref AvroWriter w) =>
+        var bytes = Build((ref w) =>
         {
             w.WriteRaw("Obj\u0001"u8);
             w.WriteBlockCount(1);
@@ -218,7 +218,7 @@ public class ContainerHostileInputTests
     }
 
     /// <summary>A header for the schema <c>long</c> (or <paramref name="schema"/>) whose sync marker is all zeros.</summary>
-    private static byte[] Header(string schema = "\"long\"", string codec = "null") => Build((ref AvroWriter w) =>
+    private static byte[] Header(string schema = "\"long\"", string codec = "null") => Build((ref w) =>
     {
         w.WriteRaw("Obj\u0001"u8);
         w.WriteBlockCount(2);
@@ -233,7 +233,7 @@ public class ContainerHostileInputTests
     private static byte[] WithBlock(long count, byte[] data, long? sizeOverride = null, string codec = "null", string schema = "\"long\"")
     {
         var header = Header(schema, codec);
-        return Build((ref AvroWriter w) =>
+        return Build((ref w) =>
         {
             w.WriteRaw(header);
             w.WriteLong(count);

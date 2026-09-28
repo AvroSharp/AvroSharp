@@ -6,7 +6,6 @@ using System.Linq;
 using AvroSharp.Codecs;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 using shop;
 
@@ -17,7 +16,7 @@ var orders = Enumerable.Range(1, 1000).Select(i => new Order
     PlacedAt = DateTimeOffset.UnixEpoch.AddDays(20_000 + i),
     Total = 9.99m * i,
     Status = i % 3 == 0 ? Status.SHIPPED : Status.PAID,
-    Items = [new Item { Sku = "SKU-" + (i % 7), Quantity = i % 4 + 1 }],
+    Items = [new Item { Sku = "SKU-" + (i % 7), Quantity = (i % 4) + 1 }],
     Note = i % 10 == 0 ? "gift" : null,
 }).ToList();
 
@@ -72,7 +71,7 @@ using (var writer = AvroFileWriter.CreateGeneric(oldFile, v1, new AvroFileWriter
 }
 
 oldFile.Position = 0;
-using (var reader = AvroFileReader.Open<Order>(oldFile, writerSchema => (ref AvroReader r) => Order.Read(ref r, writerSchema)))
+using (var reader = AvroFileReader.Open<Order>(oldFile, writerSchema => (ref r) => Order.Read(ref r, writerSchema)))
 {
     var old = reader.ReadAll().Single();
     Console.WriteLine($"Version 1 file read as the current Order: customer '{old.Customer}', status {old.Status}, total {old.Total}");

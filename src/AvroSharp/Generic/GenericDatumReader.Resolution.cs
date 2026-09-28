@@ -103,25 +103,18 @@ public sealed partial class GenericDatumReader
 
         private ReaderNode BuildNonUnion(AvroSchema writer, AvroSchema reader, string path)
         {
-            switch (writer, reader)
+            return (writer, reader) switch
             {
-                case (RecordSchema w, RecordSchema r) when NamesMatch(w, r):
-                    return BuildRecord(w, r, path);
-                case (EnumSchema w, EnumSchema r) when NamesMatch(w, r):
-                    return BuildEnum(w, r);
-                case (FixedSchema w, FixedSchema r) when NamesMatch(w, r):
-                    return w.Size == r.Size
-                        ? new ResolvedFixedNode(r)
-                        : throw Incompatible(writer, reader, path, $"the fixed sizes differ ({w.Size} and {r.Size})");
-                case (ArraySchema w, ArraySchema r):
-                    return new ArrayNode(Build(w.Items, r.Items, path + "[]"));
-                case (MapSchema w, MapSchema r):
-                    return new MapNode(Build(w.Values, r.Values, path + "{}"));
-                case (PrimitiveSchema, PrimitiveSchema):
-                    return Promote(writer.Type, reader.Type) ?? throw Incompatible(writer, reader, path, "the types differ and no promotion applies");
-                default:
-                    throw Incompatible(writer, reader, path, writer is NamedSchema && reader is NamedSchema ? "the names differ" : "the types differ");
-            }
+                (RecordSchema w, RecordSchema r) when NamesMatch(w, r) => BuildRecord(w, r, path),
+                (EnumSchema w, EnumSchema r) when NamesMatch(w, r) => BuildEnum(w, r),
+                (FixedSchema w, FixedSchema r) when NamesMatch(w, r) => w.Size == r.Size
+                    ? new ResolvedFixedNode(r)
+                    : throw Incompatible(writer, reader, path, $"the fixed sizes differ ({w.Size} and {r.Size})"),
+                (ArraySchema w, ArraySchema r) => new ArrayNode(Build(w.Items, r.Items, path + "[]")),
+                (MapSchema w, MapSchema r) => new MapNode(Build(w.Values, r.Values, path + "{}")),
+                (PrimitiveSchema, PrimitiveSchema) => Promote(writer.Type, reader.Type) ?? throw Incompatible(writer, reader, path, "the types differ and no promotion applies"),
+                _ => throw Incompatible(writer, reader, path, writer is NamedSchema && reader is NamedSchema ? "the names differ" : "the types differ"),
+            };
         }
 
         public static ReaderNode? Promote(AvroSchemaType writer, AvroSchemaType reader) => (writer, reader) switch
@@ -137,14 +130,14 @@ public sealed partial class GenericDatumReader
                 AvroSchemaType.Bytes => BytesNode.Instance,
                 _ => StringNode.Instance,
             },
-            (AvroSchemaType.Int, AvroSchemaType.Long) => new PromoteNode(1, static (ref AvroReader r) => (long)r.ReadInt()),
-            (AvroSchemaType.Int, AvroSchemaType.Float) => new PromoteNode(1, static (ref AvroReader r) => (float)r.ReadInt()),
-            (AvroSchemaType.Int, AvroSchemaType.Double) => new PromoteNode(1, static (ref AvroReader r) => (double)r.ReadInt()),
-            (AvroSchemaType.Long, AvroSchemaType.Float) => new PromoteNode(1, static (ref AvroReader r) => (float)r.ReadLong()),
-            (AvroSchemaType.Long, AvroSchemaType.Double) => new PromoteNode(1, static (ref AvroReader r) => (double)r.ReadLong()),
-            (AvroSchemaType.Float, AvroSchemaType.Double) => new PromoteNode(sizeof(float), static (ref AvroReader r) => (double)r.ReadFloat()),
-            (AvroSchemaType.String, AvroSchemaType.Bytes) => new PromoteNode(1, static (ref AvroReader r) => r.ReadStringUtf8().ToArray()),
-            (AvroSchemaType.Bytes, AvroSchemaType.String) => new PromoteNode(1, static (ref AvroReader r) => Encoding.UTF8.GetString(r.ReadBytes())),
+            (AvroSchemaType.Int, AvroSchemaType.Long) => new PromoteNode(1, static (ref r) => (long)r.ReadInt()),
+            (AvroSchemaType.Int, AvroSchemaType.Float) => new PromoteNode(1, static (ref r) => (float)r.ReadInt()),
+            (AvroSchemaType.Int, AvroSchemaType.Double) => new PromoteNode(1, static (ref r) => (double)r.ReadInt()),
+            (AvroSchemaType.Long, AvroSchemaType.Float) => new PromoteNode(1, static (ref r) => (float)r.ReadLong()),
+            (AvroSchemaType.Long, AvroSchemaType.Double) => new PromoteNode(1, static (ref r) => (double)r.ReadLong()),
+            (AvroSchemaType.Float, AvroSchemaType.Double) => new PromoteNode(sizeof(float), static (ref r) => (double)r.ReadFloat()),
+            (AvroSchemaType.String, AvroSchemaType.Bytes) => new PromoteNode(1, static (ref r) => r.ReadStringUtf8().ToArray()),
+            (AvroSchemaType.Bytes, AvroSchemaType.String) => new PromoteNode(1, static (ref r) => Encoding.UTF8.GetString(r.ReadBytes())),
             _ => null,
         };
 

@@ -22,7 +22,7 @@ public class ResolutionPlanTests
     [Test]
     public async Task OrderWriterVersions_ReadLikeTheGenericResolvingReader()
     {
-        var checkedCount = Check(shop.Order.SchemaJson, shop.Order.Schema, (ref AvroReader r, AvroSchema w) => shop.Order.Read(ref r, w).ToAvroBytes());
+        var checkedCount = Check(shop.Order.SchemaJson, shop.Order.Schema, (ref r, w) => shop.Order.Read(ref r, w).ToAvroBytes());
 
         await Assert.That(checkedCount).IsGreaterThan(Variants / 2);
     }
@@ -30,7 +30,7 @@ public class ResolutionPlanTests
     [Test]
     public async Task PersonWriterVersions_WithDroppedFieldsAndDefaults_ReadLikeTheGenericResolvingReader()
     {
-        var checkedCount = Check(evo.Person.SchemaJson, evo.Person.Schema, (ref AvroReader r, AvroSchema w) => evo.Person.Read(ref r, w).ToAvroBytes());
+        var checkedCount = Check(evo.Person.SchemaJson, evo.Person.Schema, (ref r, w) => evo.Person.Read(ref r, w).ToAvroBytes());
 
         await Assert.That(checkedCount).IsGreaterThan(Variants / 2);
     }

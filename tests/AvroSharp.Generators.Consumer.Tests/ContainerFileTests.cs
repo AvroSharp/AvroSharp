@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.Generators.Consumer.Tests;
@@ -68,7 +67,7 @@ public class ContainerFileTests
         }
 
         file.Position = 0;
-        using var reader = AvroFileReader.Open<evo.Person>(file, ws => (ref AvroReader r) => evo.Person.Read(ref r, ws));
+        using var reader = AvroFileReader.Open<evo.Person>(file, ws => (ref r) => evo.Person.Read(ref r, ws));
         var person = reader.ReadAll().Single();
 
         await Assert.That(person.Id).IsEqualTo(7L);

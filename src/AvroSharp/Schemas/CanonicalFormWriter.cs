@@ -156,7 +156,7 @@ internal sealed class CanonicalFormWriter
 #else
         foreach (var b in utf8)
         {
-            if (b < 0x20 || b == (byte)'"' || b == (byte)'\\')
+            if (b is < 0x20 or (byte)'"' or (byte)'\\')
             {
                 return true;
             }

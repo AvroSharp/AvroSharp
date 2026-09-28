@@ -31,7 +31,7 @@ public class AvroValueTransformerTests
     {
         AvroValue customer = Customer();
 
-        var result = AvroValueTransformer.Transform(s_customer, customer, static (in AvroFieldContext _, in AvroValue value) => value);
+        var result = AvroValueTransformer.Transform(s_customer, customer, static (in _, in value) => value);
 
         await Assert.That(ReferenceEquals(result.AsRecord(), customer.AsRecord())).IsTrue();
     }
@@ -59,7 +59,7 @@ public class AvroValueTransformerTests
     public async Task TheContext_NamesTheFieldAndTheValuesOwnSchema()
     {
         var seen = new List<(string FullName, AvroSchemaType Type, string Value)>();
-        AvroValueTransformer.Transform(s_customer, Customer(), (in AvroFieldContext field, in AvroValue value) =>
+        AvroValueTransformer.Transform(s_customer, Customer(), (in field, in value) =>
         {
             seen.Add((field.FullName, field.Schema.Type, value.Kind == AvroValueKind.Long ? value.AsInt64().ToString(System.Globalization.CultureInfo.InvariantCulture) : value.AsString()));
             return value;
@@ -99,12 +99,13 @@ public class AvroValueTransformerTests
     public async Task NullsAndValuesOutsideFields_AreNotPassedToTheTransform()
     {
         var calls = 0;
-        AvroFieldTransform count = (in AvroFieldContext _, in AvroValue value) =>
+        AvroValue Count(in AvroFieldContext field, in AvroValue value)
         {
             calls++;
             return value;
-        };
+        }
 
+        AvroFieldTransform count = Count;
         AvroValueTransformer.Transform(AvroSchema.Parse("\"string\""), "top level", count);
         var customer = Customer();
         customer["email"] = AvroValue.Null;

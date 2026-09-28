@@ -146,10 +146,7 @@ public static class AvroValueTransformer
                     }
                 }
 
-                if (output is not null)
-                {
-                    output[i] = replaced;
-                }
+                output?[i] = replaced;
             }
 
             return output is null ? value : output;
@@ -171,10 +168,7 @@ public static class AvroValueTransformer
                     }
                 }
 
-                if (output is not null)
-                {
-                    output[i] = replaced;
-                }
+                output?[i] = replaced;
             }
 
             return output is null ? value : AvroValue.FromArray(output);
@@ -201,10 +195,7 @@ public static class AvroValueTransformer
                     }
                 }
 
-                if (output is not null)
-                {
-                    output[entry.Key] = replaced;
-                }
+                output?[entry.Key] = replaced;
             }
 
             return output is null ? value : AvroValue.FromMap(output);

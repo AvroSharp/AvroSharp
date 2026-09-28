@@ -21,7 +21,7 @@ public class ApacheSpecificTests
     public async Task GeneratedTypes_ImplementApacheSpecificContracts()
     {
         await Assert.That(new shop.Order() is ISpecificRecord).IsTrue();
-        await Assert.That(new shop.Sku() is SpecificFixed).IsTrue();
+        await Assert.That(typeof(SpecificFixed).IsAssignableFrom(typeof(shop.Sku))).IsTrue();
         await Assert.That(typeof(shop.Order).GetProperty("Created")!.PropertyType).IsEqualTo(typeof(DateTime));
         await Assert.That(typeof(shop.Order).GetProperty("Amount")!.PropertyType).IsEqualTo(typeof(Avro.AvroDecimal));
         await Assert.That(((ISpecificRecord)new shop.Order()).Schema.Fullname).IsEqualTo("shop.Order");

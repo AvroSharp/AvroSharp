@@ -222,7 +222,8 @@ internal static class RandomSchemas
 
         private (string Name, string? Namespace) NewName(string prefix, int namespaceChoice, string? enclosingNamespace)
         {
-            var name = prefix + (_counter++).ToString(CultureInfo.InvariantCulture);
+            var name = prefix + _counter.ToString(CultureInfo.InvariantCulture);
+            _counter++;
             var ns = s_namespaces[namespaceChoice];
             if (apacheCompatible && ns is { Length: 0 })
             {

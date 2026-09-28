@@ -61,7 +61,7 @@ public class ApacheAvroSchemaInteropTests
         await Assert.That(samples.Count(s => s.Contains("\"record\"", StringComparison.Ordinal))).IsGreaterThan(50);
         await Assert.That(samples.Count(s => s.Contains("\"namespace\"", StringComparison.Ordinal))).IsGreaterThan(20);
         await Assert.That(samples.Count(s => s.Contains("logicalType", StringComparison.Ordinal))).IsGreaterThan(20);
-        await Assert.That(samples.Count(s => s.StartsWith('[') || s.Contains(":[\"", StringComparison.Ordinal))).IsGreaterThan(20);
+        await Assert.That(samples.Count(s => s is ['[', ..] || s.Contains(":[\"", StringComparison.Ordinal))).IsGreaterThan(20);
     }
 
     private static void WithSchemaInErrors(string json, Action check)

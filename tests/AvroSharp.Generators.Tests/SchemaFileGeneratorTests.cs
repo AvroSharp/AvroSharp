@@ -288,10 +288,10 @@ public class SchemaFileGeneratorTests
         record.Put(2, "stored");
         record.Put(3, 42);
 
-        await Assert.That(record.Get(2)).IsEqualTo((object)"stored");
-        await Assert.That(record.Get(3)).IsEqualTo((object)42);
+        await Assert.That(record.Get(2)).IsEqualTo("stored");
+        await Assert.That(record.Get(3)).IsEqualTo(42);
         var fieldValue = record.GetType().GetProperty(setting is null ? "FieldValue" : "fieldValue")!.GetValue(record);
-        await Assert.That(fieldValue).IsEqualTo((object)"stored");
+        await Assert.That(fieldValue).IsEqualTo("stored");
     }
 
     [Test]
