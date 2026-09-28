@@ -67,6 +67,13 @@ internal sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
         _written += value.Length;
     }
 
+    /// <summary>Leaves <paramref name="count"/> bytes of room, to be filled in later through <see cref="WrittenSegment"/>.</summary>
+    public void Reserve(int count)
+    {
+        Ensure(count);
+        _written += count;
+    }
+
     public void Write(byte value)
     {
         Ensure(1);

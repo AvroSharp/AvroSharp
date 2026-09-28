@@ -66,9 +66,12 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     private readonly AvroCodec _codec;
     private readonly int _syncInterval;
     private readonly bool _leaveOpen;
+    // A block's count and size (two varints, at most 10 bytes each) are written right-aligned into this much room
+    // left at the start of the block's buffer, and the sync marker after its data, so each block is one write.
+    private const int PrefixRoom = 20;
+
     private readonly byte[] _sync = new byte[AvroContainerFormat.SyncSize];
-    private readonly byte[] _prefix = new byte[20];
-    private readonly PooledBufferWriter _block = new(4096);
+    private readonly PooledBufferWriter _block;
     private PooledBufferWriter? _compressed;
     private byte[]? _pendingHeader;
     private long _blockCount;
@@ -83,6 +86,10 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         _syncInterval = options.SyncInterval;
         _leaveOpen = options.LeaveOpen;
         _pendingHeader = BuildHeader(options);
+
+        // Sized for a whole block at the sync interval (up to 1 MiB), so a typical block needs no growth.
+        _block = new PooledBufferWriter(PrefixRoom + Math.Min(_syncInterval, 1024 * 1024) + 1024);
+        ClearBlock();
     }
 
     /// <summary>Gets the schema of the objects.</summary>
@@ -197,7 +204,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         }
 
         _blockCount++;
-        return _block.WrittenCount >= _syncInterval;
+        return _block.WrittenCount - PrefixRoom >= _syncInterval;
     }
 
     private void ReleaseBuffers()
@@ -261,10 +268,16 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
             return;
         }
 
-        var data = CompressBlock(out var prefixLength);
-        _stream.Write(_prefix, 0, prefixLength);
-        _stream.Write(data.Array!, data.Offset, data.Count);
-        _stream.Write(_sync, 0, _sync.Length);
+        var output = FrameBlock(out var block);
+        try
+        {
+            _stream.Write(block.Array!, block.Offset, block.Count);
+        }
+        finally
+        {
+            Unframe(output);
+        }
+
         ClearBlock();
     }
 
@@ -281,10 +294,16 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
             return;
         }
 
-        var data = CompressBlock(out var prefixLength);
-        await WriteToStreamAsync(new ArraySegment<byte>(_prefix, 0, prefixLength), cancellationToken).ConfigureAwait(false);
-        await WriteToStreamAsync(data, cancellationToken).ConfigureAwait(false);
-        await WriteToStreamAsync(new ArraySegment<byte>(_sync), cancellationToken).ConfigureAwait(false);
+        var output = FrameBlock(out var block);
+        try
+        {
+            await WriteToStreamAsync(block, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            Unframe(output);
+        }
+
         ClearBlock();
     }
 
@@ -295,32 +314,46 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         _stream.WriteAsync(data.AsMemory(), cancellationToken);
 #endif
 
-    // Compresses the buffered objects and encodes the block's count and size into _prefix.
-    private ArraySegment<byte> CompressBlock(out int prefixLength)
+    // Compresses the buffered objects when the codec is not null, then frames them in place: the count and size
+    // right-aligned into the room before the data, and the sync marker after it. Returns the buffer that holds the
+    // frame; `block` is the whole block as written to the stream.
+    private PooledBufferWriter FrameBlock(out ArraySegment<byte> block)
     {
-        ArraySegment<byte> data;
+        PooledBufferWriter output;
         if (ReferenceEquals(_codec, AvroCodec.Null))
         {
-            data = _block.WrittenSegment;
+            output = _block;
         }
         else
         {
-            _compressed ??= new PooledBufferWriter(_block.WrittenCount);
-            _compressed.Clear();
-            _codec.Compress(_block.WrittenMemory, _compressed);
-            data = _compressed.WrittenSegment;
+            output = _compressed ??= new PooledBufferWriter(_block.WrittenCount + AvroContainerFormat.SyncSize);
+            output.Clear();
+            output.Reserve(PrefixRoom);
+            _codec.Compress(_block.WrittenMemory[PrefixRoom..], output);
         }
 
-        var writer = new AvroWriter(_prefix);
+        var size = output.WrittenCount - PrefixRoom;
+        Span<byte> prefix = stackalloc byte[PrefixRoom];
+        var writer = new AvroWriter(prefix);
         writer.WriteLong(_blockCount);
-        writer.WriteLong(data.Count);
-        prefixLength = (int)writer.BytesWritten;
-        return data;
+        writer.WriteLong(size);
+        var prefixLength = (int)writer.BytesWritten;
+
+        output.Write(_sync);
+        var frame = output.WrittenSegment;
+        var start = PrefixRoom - prefixLength;
+        prefix[..prefixLength].CopyTo(frame.AsSpan(start));
+        block = new ArraySegment<byte>(frame.Array!, start, frame.Count - start);
+        return output;
     }
+
+    // Removes the sync marker that FrameBlock appended, so a block whose write failed is not framed twice.
+    private static void Unframe(PooledBufferWriter output) => output.Truncate(output.WrittenCount - AvroContainerFormat.SyncSize);
 
     private void ClearBlock()
     {
         _block.Clear();
+        _block.Reserve(PrefixRoom);
         _blockCount = 0;
     }
 

@@ -11,7 +11,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Codecs\AvroSharp.Codecs.csproj" />
     <TrimmerRootAssembly Include="AvroSharp" />
+    <TrimmerRootAssembly Include="AvroSharp.Codecs" />
   </ItemGroup>
 
 </Project>
