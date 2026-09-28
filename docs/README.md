@@ -19,3 +19,4 @@ Dated notes from reviews and benchmark runs. Each one records what was measured,
 | 2026-09-26 | [Hybrid varints](reviews/2026-09-26-hybrid-varints.md): the hybrid varint encoder and its open questions |
 | 2026-09-26 | [EPYC varints](reviews/2026-09-26-epyc-varint.md): varint performance on AMD EPYC |
 | 2026-09-26 | [Generated code](reviews/2026-09-26-generated-code.md): generated serializers against the generic model and Apache.Avro |
+| 2026-09-28 | [Full benchmark run](reviews/2026-09-28-benchmarks.md): every benchmark on an i7-12800H with .NET 10, as speed-ups over Apache.Avro |
