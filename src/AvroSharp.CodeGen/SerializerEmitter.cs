@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using AvroSharp.Schemas;
 
@@ -13,6 +14,66 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
     private const string CollectionsMarshal = "global::System.Runtime.InteropServices.CollectionsMarshal";
 
     private int _next;
+
+    /// <summary>Gets the C# type of a value of <paramref name="schema"/>.</summary>
+    public string TypeOf(AvroSchema schema) => types.TypeOf(schema);
+
+    /// <summary>
+    /// The resolution plan's conversions that generated code performs itself for a field of <paramref name="schema"/>:
+    /// numeric promotions into a plain number, and enum remapping. The plan transcodes any other difference.
+    /// </summary>
+    public IReadOnlyList<string> ResolvedConversions(AvroSchema schema) => schema switch
+    {
+        _ when types.Logical(schema) is not null => [],
+        EnumSchema => ["EnumRemap"],
+        ArraySchema array when types.Logical(array.Items) is null && array.Items is PrimitiveSchema => Promotions(array.Items.Type, "Items"),
+        PrimitiveSchema => Promotions(schema.Type, string.Empty),
+        _ => [],
+    };
+
+    /// <summary>Reads a writer value converted as <paramref name="conversion"/> (one of <see cref="ResolvedConversions"/>).</summary>
+    public void ReadConverted(CodeWriter w, AvroSchema schema, string conversion, string target)
+    {
+        if (schema is EnumSchema enumSchema)
+        {
+            w.Line($"{target} = ({names.TypeName(enumSchema)})plan.MapEnum(step, reader.ReadEnum());");
+            return;
+        }
+
+        var (read, writerItemSize) = conversion.EndsWith("FromInt", System.StringComparison.Ordinal) ? ("reader.ReadInt()", 1)
+            : conversion.EndsWith("FromLong", System.StringComparison.Ordinal) ? ("reader.ReadLong()", 1)
+            : ("reader.ReadFloat()", 4);
+        if (schema is not ArraySchema array)
+        {
+            w.Line($"{target} = {read};");
+            return;
+        }
+
+        // An array of promoted numbers: the writer's items, read one by one into the reader's list.
+        var n = _next++;
+        w.Open();
+        w.Line($"var items{n} = new {TypeMapper.ListType}<{types.TypeOf(array.Items)}>();");
+        w.Line($"int count{n};");
+        w.Open($"while ((count{n} = {Support}.ReadBlockItemCount(ref reader, {Int(writerItemSize)}, items{n}.Count)) != 0)");
+        w.Open($"if (items{n}.Count == 0)");
+        w.Line($"items{n}.Capacity = {Support}.InitialCapacity(count{n});");
+        w.Close();
+        w.Open($"for (var i{n} = 0; i{n} < count{n}; i{n}++)");
+        w.Line($"items{n}.Add({read});");
+        w.Close();
+        w.Close();
+        w.Line($"{target} = items{n};");
+        w.Close();
+    }
+
+    // The writer types that promote to a reader number.
+    private static string[] Promotions(AvroSchemaType reader, string prefix) => reader switch
+    {
+        AvroSchemaType.Long => [prefix + "FromInt"],
+        AvroSchemaType.Float => [prefix + "FromInt", prefix + "FromLong"],
+        AvroSchemaType.Double => [prefix + "FromInt", prefix + "FromLong", prefix + "FromFloat"],
+        _ => [],
+    };
 
     /// <summary>Writes <paramref name="expression"/>. <paramref name="field"/> (<c>Record.field</c>) names it in errors.</summary>
     public void Write(CodeWriter w, AvroSchema schema, string expression, string field)
