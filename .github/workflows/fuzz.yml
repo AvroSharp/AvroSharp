@@ -1,0 +1,84 @@
+name: Fuzz
+
+# Coverage-guided fuzzing of every target in fuzz/AvroSharp.Fuzz with SharpFuzz and libFuzzer: nightly, and on demand.
+# Each target runs in its own job; its corpus is kept between runs in the Actions cache, and a crash fails the job
+# and uploads the input that caused it. See fuzz/README.md for running a target locally.
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: Seconds per target
+        default: '1800'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  SHARPFUZZ_VERSION: 2.3.0
+  LIBFUZZER_DOTNET: https://github.com/Metalnem/libfuzzer-dotnet/releases/download/v2025.05.02.0904/libfuzzer-dotnet-ubuntu
+
+jobs:
+  fuzz:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [SchemaParse, GenericBinary, GenericJson, ContainerFile, SingleObject, Resolution, RegistryMessage]
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # MinVer needs tags and history
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build the harness
+        run: |
+          dotnet tool install --tool-path "$RUNNER_TEMP/tools" SharpFuzz.CommandLine --version "$SHARPFUZZ_VERSION"
+          dotnet publish fuzz/AvroSharp.Fuzz -c Release -o "$RUNNER_TEMP/fuzz"
+          curl -sSfL -o "$RUNNER_TEMP/tools/libfuzzer-dotnet" "$LIBFUZZER_DOTNET"
+          chmod +x "$RUNNER_TEMP/tools/libfuzzer-dotnet"
+
+      - name: Restore the corpus
+        uses: actions/cache/restore@v6
+        with:
+          path: corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+
+      # The seeds are written before AvroSharp.dll is instrumented: instrumented code only runs under libFuzzer.
+      - name: Seed and instrument
+        run: |
+          "$RUNNER_TEMP/fuzz/AvroSharp.Fuzz" --write-seeds seeds
+          mkdir -p "corpus/${{ matrix.target }}" crashes
+          cp -n "seeds/${{ matrix.target }}"/* "corpus/${{ matrix.target }}/"
+          "$RUNNER_TEMP/tools/sharpfuzz" "$RUNNER_TEMP/fuzz/AvroSharp.dll"
+
+      - name: Fuzz
+        run: |
+          "$RUNNER_TEMP/tools/libfuzzer-dotnet" --target_path="$RUNNER_TEMP/fuzz/AvroSharp.Fuzz" --target_arg=${{ matrix.target }} \
+            -max_total_time=${{ inputs.seconds || '1800' }} -rss_limit_mb=2048 -timeout=10 -artifact_prefix=crashes/ \
+            "corpus/${{ matrix.target }}"
+
+      - name: Save the corpus
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+
+      - name: Upload crashes
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crashes-${{ matrix.target }}
+          path: crashes/
+          if-no-files-found: ignore
