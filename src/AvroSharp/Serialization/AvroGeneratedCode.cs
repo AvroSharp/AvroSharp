@@ -23,7 +23,7 @@ public delegate T AvroReadFunc<out T>(ref AvroReader reader);
 /// they are not meant to be called directly and may change between versions together with the generator.
 /// </summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public static class AvroGeneratedCode
+public static partial class AvroGeneratedCode
 {
     /// <summary>The deepest nesting of records a generated serializer writes or reads, as in the generic model.</summary>
     public const int MaxDepth = 128;
@@ -80,9 +80,16 @@ public static class AvroGeneratedCode
             return 0;
         }
 
+        // No collection may exceed the largest .NET array; below that bound, count * minimumItemSize cannot overflow a
+        // long, so the input check multiplies instead of dividing (a 64-bit division costs 10 to 90 cycles per block).
+        if (count > MaxCollectionCount - itemsSoFar)
+        {
+            throw new AvroDataException($"The collection would hold more than {MaxCollectionCount} items.");
+        }
+
         if (minimumItemSize > 0)
         {
-            if (count > reader.BytesRemaining / minimumItemSize)
+            if (count * minimumItemSize > reader.BytesRemaining)
             {
                 throw new AvroDataException($"Block count {count} is larger than the remaining input can hold.");
             }
@@ -97,11 +104,6 @@ public static class AvroGeneratedCode
             }
 
             reader.ZeroSizeItems += count;
-        }
-
-        if (itemsSoFar + count > MaxCollectionCount)
-        {
-            throw new AvroDataException($"The collection would hold more than {MaxCollectionCount} items.");
         }
 
         return (int)count;

@@ -33,6 +33,9 @@ public sealed partial class GenericDatumReader
         [ThreadStatic]
         private static ScratchBuffers? s_scratch;
 
+        // The thread's scratch buffers, created on first use.
+        private static ScratchBuffers ThreadScratch() => s_scratch ??= new ScratchBuffers();
+
         private readonly TranscodeNode _root;
 
         internal Transcoder(AvroSchema writerSchema, AvroSchema readerSchema, string path = "$") => _root = new TranscodingBuilder().Build(writerSchema, readerSchema, path);
@@ -48,7 +51,7 @@ public sealed partial class GenericDatumReader
         public void Transcode(ref AvroReader reader, IBufferWriter<byte> output)
         {
             var state = new ReadState(GenericDatumReaderOptions.Default);
-            var scratch = s_scratch ??= new ScratchBuffers();
+            var scratch = ThreadScratch();
             var writer = new AvroWriter(output);
             _root.Transcode(ref reader, ref writer, ref state, scratch);
             writer.Flush();

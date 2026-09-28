@@ -1,0 +1,8 @@
+{"type": "record", "name": "Reading", "namespace": "smoke", "fields": [
+  {"name": "sensor", "type": "string"},
+  {"name": "value", "type": ["null", "double"], "default": null},
+  {"name": "unit", "type": {"type": "enum", "name": "Unit", "symbols": ["C", "F"]}, "default": "C"},
+  {"name": "samples", "type": {"type": "array", "items": "long"}, "default": []},
+  {"name": "tags", "type": {"type": "map", "values": "string"}, "default": {}},
+  {"name": "next", "type": ["null", "Reading"], "default": null}
+]}

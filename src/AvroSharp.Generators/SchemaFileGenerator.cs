@@ -60,8 +60,10 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                 && string.Equals(logical.Trim(), "raw", StringComparison.OrdinalIgnoreCase),
             Apache: options.GlobalOptions.TryGetValue("build_property.AvroSharpApacheCompatible", out var apache)
                 && string.Equals(apache.Trim(), "true", StringComparison.OrdinalIgnoreCase),
-            AvroNames: options.GlobalOptions.TryGetValue("build_property.AvroSharpPropertyNames", out var naming)
-                && string.Equals(naming.Trim(), "avro", StringComparison.OrdinalIgnoreCase)));
+            // Unset means the mode's default: PascalCase, or avrogen's names in the Apache compatibility mode.
+            Naming: options.GlobalOptions.TryGetValue("build_property.AvroSharpPropertyNames", out var naming) && !string.IsNullOrWhiteSpace(naming)
+                ? string.Equals(naming.Trim(), "avro", StringComparison.OrdinalIgnoreCase) ? PropertyNaming.Avro : PropertyNaming.PascalCase
+                : (PropertyNaming?)null));
 
         var hasRuntime = context.CompilationProvider.Select(static (compilation, _) =>
             compilation.GetTypeByMetadataName("AvroSharp.Serialization.AvroGeneratedCode") is not null);
@@ -72,11 +74,12 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             HasDateOnly: compilation.GetTypeByMetadataName("System.DateOnly") is not null,
             HasApache: compilation.GetTypeByMetadataName("Avro.Specific.ISpecificRecord") is not null));
 
-        // Nullable annotations need C# 8; netstandard2.0 and .NET Framework projects default to C# 7.3.
-        var annotations = context.ParseOptionsProvider.Select(static (options, _) =>
-            options is CSharpParseOptions csharp && csharp.LanguageVersion >= LanguageVersion.CSharp8);
+        // The project's major C# version: nullable annotations need 8, UTF-8 literals and static abstract members 11.
+        // netstandard2.0 and .NET Framework projects default to C# 7.3.
+        var language = context.ParseOptionsProvider.Select(static (options, _) =>
+            options is CSharpParseOptions csharp ? (int)csharp.LanguageVersion.MapSpecifiedToEffectiveVersion() / 100 : 7);
 
-        var results = files.Combine(properties).Combine(target).Combine(annotations)
+        var results = files.Combine(properties).Combine(target).Combine(language)
             .Select(static (input, cancellationToken) => Generate(
                 input.Left.Left.Left,
                 new CodeGenOptions
@@ -85,8 +88,9 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                     LogicalTypes = input.Left.Left.Right.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
                     TargetHasDateOnly = input.Left.Right.HasDateOnly,
                     ApacheCompatible = input.Left.Left.Right.Apache && input.Left.Right.HasApache,
-                    NullableAnnotations = input.Right,
-                    PropertyNaming = input.Left.Left.Right.AvroNames ? PropertyNaming.Avro : PropertyNaming.PascalCase,
+                    NullableAnnotations = input.Right >= 8,
+                    LanguageVersion = input.Right,
+                    PropertyNaming = input.Left.Left.Right.Naming,
                 },
                 cancellationToken))
             .WithTrackingName("Generate");

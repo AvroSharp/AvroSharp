@@ -182,6 +182,62 @@ public class BinaryEncodingTests
     }
 
     [Test]
+    public async Task BulkIntsAndLongs_MatchItemByItemEncoding()
+    {
+        int[] ints = [0, 1, -1, 63, -64, 64, int.MaxValue, int.MinValue];
+        long[] longs = [0, 1, -1, 1L << 40, long.MaxValue, long.MinValue];
+        var bulk = Encode((ref w) =>
+        {
+            w.WriteInts(ints);
+            w.WriteLongs(longs);
+        });
+        var single = Encode((ref w) =>
+        {
+            foreach (var i in ints)
+            {
+                w.WriteInt(i);
+            }
+
+            foreach (var l in longs)
+            {
+                w.WriteLong(l);
+            }
+        });
+        await Assert.That(bulk).IsEqualTo(single);
+    }
+
+    [Test]
+    public async Task SpanWriterForTryWrites_ReportsOverflowInsteadOfThrowing()
+    {
+        // Every write path runs out of room at some point: varints near the end, raw bytes, strings.
+        foreach (var size in new[] { 0, 1, 5, 9, 12, 30 })
+        {
+            var (overflowed, written) = TryWriteMixture(new byte[size]);
+            await Assert.That(overflowed).IsTrue();
+            await Assert.That(written).IsEqualTo(0);
+        }
+
+        var (fitOverflowed, fitWritten) = TryWriteMixture(new byte[128]);
+        await Assert.That(fitOverflowed).IsFalse();
+        await Assert.That(fitWritten).IsEqualTo(Convert.FromHexString(Encode(WriteMixtureValues)).Length);
+    }
+
+    private static (bool Overflowed, int Written) TryWriteMixture(byte[] destination)
+    {
+        var writer = AvroSharp.Serialization.AvroGeneratedCode.BeginTryWrite(destination);
+        WriteMixtureValues(ref writer);
+        return (!AvroSharp.Serialization.AvroGeneratedCode.EndTryWrite(ref writer, out var written), written);
+    }
+
+    private static void WriteMixtureValues(ref AvroWriter w)
+    {
+        w.WriteLong(long.MaxValue);
+        w.WriteString("a string that is longer than the small buffers");
+        w.WriteBytes([1, 2, 3]);
+        w.WriteDouble(1.5);
+    }
+
+    [Test]
     public async Task WriteBooleans_WritesOtherBytesAsTrue()
     {
         // Only unsafe code can make such a bool; it is written as WriteBoolean writes it.

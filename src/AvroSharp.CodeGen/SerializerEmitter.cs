@@ -8,6 +8,12 @@ namespace AvroSharp.CodeGen;
 /// Emits the statements that write and read one value, in schema order, calling <c>AvroWriter</c>/<c>AvroReader</c>
 /// directly: no schema lookups, virtual calls or boxing (except for unions mapped to <c>object?</c>).
 /// </summary>
+/// <remarks>
+/// The common shapes are one call to an <c>AvroGeneratedCode</c> helper: unions of <c>null</c> and a primitive or a
+/// record, and arrays and maps of primitives, strings, bytes or records. The helpers are inlined (unions) or take
+/// struct codecs the JIT specializes (collections), so the machine code stays that of inlined code while the generated
+/// source stays small. Other shapes are emitted inline.
+/// </remarks>
 internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 {
     private const string Support = "global::AvroSharp.Serialization.AvroGeneratedCode";
@@ -90,8 +96,9 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
             case RecordSchema record:
                 w.Line($"{names.TypeName(record)}.WriteCore(ref writer, {NotNull(expression, field)}, depth + 1);");
                 break;
-            case EnumSchema:
-                w.Line($"writer.WriteEnum((int){expression});");
+            case EnumSchema enumSchema:
+                // C# enums hold any number; only the symbols' ordinals are valid Avro.
+                w.Line($"writer.WriteEnum({Support}.CheckEnumOrdinal((int){expression}, {Int(enumSchema.Symbols.Count)}, {CSharpNames.Literal(field)}));");
                 break;
             case FixedSchema:
                 w.Line($"writer.WriteFixed({NotNull(expression, field)}.Value);");
@@ -111,8 +118,11 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         }
     }
 
-    /// <summary>Reads a value and assigns it to <paramref name="target"/>.</summary>
-    public void Read(CodeWriter w, AvroSchema schema, string target)
+    /// <summary>
+    /// Reads a value and assigns it to <paramref name="target"/>. With <paramref name="reuse"/>, a list, dictionary or
+    /// record already held there is cleared and filled again instead of replaced (<c>IAvroReadable</c>).
+    /// </summary>
+    public void Read(CodeWriter w, AvroSchema schema, string target, bool reuse = false)
     {
         if (types.Logical(schema) is { } logical)
         {
@@ -123,19 +133,19 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         switch (schema)
         {
             case RecordSchema record:
-                w.Line($"{target} = {names.TypeName(record)}.ReadCore(ref reader, depth + 1);");
+                w.Line($"{target} = {names.TypeName(record)}.ReadCore(ref reader, {(reuse ? target : "null")}, depth + 1);");
                 break;
             case EnumSchema enumSchema:
                 w.Line($"{target} = ({names.TypeName(enumSchema)}){Support}.ReadEnumOrdinal(ref reader, {Int(enumSchema.Symbols.Count)}, {CSharpNames.Literal(enumSchema.FullName)});");
                 break;
             case FixedSchema fixedSchema:
-                w.Line($"{target} = new {names.TypeName(fixedSchema)}(reader.ReadFixedSpan({Int(fixedSchema.Size)}).ToArray());");
+                w.Line($"{target} = new {names.TypeName(fixedSchema)}({Support}.ReadFixedBytes(ref reader, {Int(fixedSchema.Size)}));");
                 break;
             case ArraySchema array:
-                ReadArray(w, array, target);
+                ReadArray(w, array, target, reuse);
                 break;
             case MapSchema map:
-                ReadMap(w, map, target);
+                ReadMap(w, map, target, reuse);
                 break;
             case UnionSchema union:
                 ReadUnion(w, union, target);
@@ -194,58 +204,45 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         _ => "reader.ReadString()",
     };
 
-    /// <summary>The bulk reader for arrays of a fixed-width or varint primitive, or <see langword="null"/> (also for mapped logical types).</summary>
-    private string? BulkReader(AvroSchema items) => items.Type switch
+    // The list helper for arrays of a fixed-width or varint primitive (bulk reads and writes), or null.
+    private string? PrimitiveList(AvroSchema items) => items.Type switch
     {
         _ when items is not PrimitiveSchema || types.Logical(items) is not null => null,
-        AvroSchemaType.Boolean => "ReadBooleans",
-        AvroSchemaType.Int => "ReadInts",
-        AvroSchemaType.Long => "ReadLongs",
-        AvroSchemaType.Float => "ReadFloats",
-        AvroSchemaType.Double => "ReadDoubles",
-        _ => null,
-    };
-
-    /// <summary>The bulk writer for arrays of a one-byte or fixed-width primitive, or <see langword="null"/> (also for mapped logical types).</summary>
-    private string? BulkWriter(AvroSchema items) => items.Type switch
-    {
-        _ when items is not PrimitiveSchema || types.Logical(items) is not null => null,
-        AvroSchemaType.Boolean => "WriteBooleans",
-        AvroSchemaType.Float => "WriteFloats",
-        AvroSchemaType.Double => "WriteDoubles",
+        AvroSchemaType.Boolean => "BooleanList",
+        AvroSchemaType.Int => "IntList",
+        AvroSchemaType.Long => "LongList",
+        AvroSchemaType.Float => "FloatList",
+        AvroSchemaType.Double => "DoubleList",
         _ => null,
     };
 
     private void WriteArray(CodeWriter w, ArraySchema array, string expression, string field)
     {
+        if (PrimitiveList(array.Items) is { } list)
+        {
+            w.Line($"{Support}.Write{list}(ref writer, {expression}, {CSharpNames.Literal(field)});");
+            return;
+        }
+
+        if (types.Codec(array.Items) is { } codec)
+        {
+            w.Line($"{Support}.WriteList<{types.TypeOf(array.Items)}, {codec}>(ref writer, {expression}, {CSharpNames.Literal(field)}, depth + 1);");
+            return;
+        }
+
         var n = _next++;
         w.Open();
         w.Line($"var items{n} = {NotNull(expression, field)};");
         w.Open($"if (items{n}.Count > 0)");
         w.Line($"writer.WriteBlockCount(items{n}.Count);");
-        if (BulkWriter(array.Items) is { } bulk)
-        {
-            // Fixed-width items are one copy on little-endian hardware; booleans are one copy everywhere.
-            w.Directive("#if NET8_0_OR_GREATER");
-            w.Line($"writer.{bulk}({CollectionsMarshal}.AsSpan(items{n}));");
-            w.Directive("#else");
-            w.Open($"foreach (var item{n} in items{n})");
-            Write(w, array.Items, $"item{n}", field);
-            w.Close();
-            w.Directive("#endif");
-        }
-        else
-        {
-            w.Directive("#if NET8_0_OR_GREATER");
-            w.Line($"foreach (var item{n} in {CollectionsMarshal}.AsSpan(items{n}))");
-            w.Directive("#else");
-            w.Line($"foreach (var item{n} in items{n})");
-            w.Directive("#endif");
-            w.Open();
-            Write(w, array.Items, $"item{n}", field);
-            w.Close();
-        }
-
+        w.Directive("#if NET8_0_OR_GREATER");
+        w.Line($"foreach (var item{n} in {CollectionsMarshal}.AsSpan(items{n}))");
+        w.Directive("#else");
+        w.Line($"foreach (var item{n} in items{n})");
+        w.Directive("#endif");
+        w.Open();
+        Write(w, array.Items, $"item{n}", field);
+        w.Close();
         w.Close();
         w.Line("writer.WriteBlockEnd();");
         w.Close();
@@ -253,6 +250,12 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
     private void WriteMap(CodeWriter w, MapSchema map, string expression, string field)
     {
+        if (types.Codec(map.Values) is { } codec)
+        {
+            w.Line($"{Support}.WriteMap<{types.TypeOf(map.Values)}, {codec}>(ref writer, {expression}, {CSharpNames.Literal(field)}, depth + 1);");
+            return;
+        }
+
         var n = _next++;
         w.Open();
         w.Line($"var map{n} = {NotNull(expression, field)};");
@@ -269,6 +272,15 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
     private void WriteUnion(CodeWriter w, UnionSchema union, string expression, string field)
     {
+        if (types.NullableHelper(union) is { } helper)
+        {
+            var branch = union.Branches[helper.ValueIndex];
+            w.Line(helper.Suffix.Length == 0
+                ? $"{Support}.WriteNullable<{types.TypeOf(branch)}, {types.Codec(branch)}>(ref writer, {expression}, {Int(helper.ValueIndex)}, depth + 1);"
+                : $"{Support}.WriteNullable{helper.Suffix}(ref writer, {expression}, {Int(helper.ValueIndex)});");
+            return;
+        }
+
         var (nullIndex, others) = TypeMapper.Classify(union);
         var n = _next++;
         if (others.Count == 0)
@@ -292,67 +304,62 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         }
         else
         {
-            // object?: the branch is chosen from the value's runtime type.
-            w.Open($"switch ({expression})");
-            if (nullIndex >= 0)
-            {
-                w.Line("case null:");
-                w.Indent();
-                w.Line($"writer.WriteUnionIndex({Int(nullIndex)});");
-                w.Line("break;");
-                w.Outdent();
-            }
-
-            foreach (var index in others)
-            {
-                var branch = union.Branches[index];
-                w.Line($"case {types.TypeOf(branch)} value{n}_{Int(index)}:");
-                w.Indent();
-                w.Line($"writer.WriteUnionIndex({Int(index)});");
-                Write(w, branch, $"value{n}_{Int(index)}", field);
-                w.Line("break;");
-                w.Outdent();
-            }
-
-            w.Line("default:");
-            w.Indent();
-            w.Line($"throw {Support}.UnionValueMismatch({expression}, {CSharpNames.Literal(field)});");
-            w.Outdent();
-            w.Close();
+            WriteObjectUnion(w, union, expression, field, nullIndex, others, n);
         }
     }
 
-    private void ReadArray(CodeWriter w, ArraySchema array, string target)
+    // object?: the branch is chosen from the value's runtime type.
+    private void WriteObjectUnion(CodeWriter w, UnionSchema union, string expression, string field, int nullIndex, List<int> others, int n)
     {
+        w.Open($"switch ({expression})");
+        if (nullIndex >= 0)
+        {
+            w.Line("case null:");
+            w.Indent();
+            w.Line($"writer.WriteUnionIndex({Int(nullIndex)});");
+            w.Line("break;");
+            w.Outdent();
+        }
+
+        foreach (var index in others)
+        {
+            var branch = union.Branches[index];
+            w.Line($"case {types.TypeOf(branch)} value{n}_{Int(index)}:");
+            w.Indent();
+            w.Line($"writer.WriteUnionIndex({Int(index)});");
+            Write(w, branch, $"value{n}_{Int(index)}", field);
+            w.Line("break;");
+            w.Outdent();
+        }
+
+        w.Line("default:");
+        w.Indent();
+        w.Line($"throw {Support}.UnionValueMismatch({expression}, {CSharpNames.Literal(field)});");
+        w.Outdent();
+        w.Close();
+    }
+
+    private void ReadArray(CodeWriter w, ArraySchema array, string target, bool reuse)
+    {
+        var existing = reuse ? target : "null";
+        if (PrimitiveList(array.Items) is { } list)
+        {
+            w.Line($"{target} = {Support}.Read{list}(ref reader, {existing});");
+            return;
+        }
+
+        if (types.Codec(array.Items) is { } codec)
+        {
+            w.Line($"{target} = {Support}.ReadList<{types.TypeOf(array.Items)}, {codec}>(ref reader, {existing}, {Int(TypeMapper.MinimumSize(array.Items))}, depth + 1);");
+            return;
+        }
+
         var n = _next++;
         var itemType = types.TypeOf(array.Items);
         w.Open();
         w.Line($"var items{n} = new {TypeMapper.ListType}<{itemType}>();");
         w.Line($"int count{n};");
         w.Open($"while ((count{n} = {Support}.ReadBlockItemCount(ref reader, {Int(TypeMapper.MinimumSize(array.Items))}, items{n}.Count)) != 0)");
-        if (BulkReader(array.Items) is { } bulk)
-        {
-            // Runs of small varints are decoded together; fixed-width items are one copy on little-endian hardware.
-            w.Directive("#if NET8_0_OR_GREATER");
-            w.Line($"var start{n} = items{n}.Count;");
-            w.Line($"{CollectionsMarshal}.SetCount(items{n}, start{n} + count{n});");
-            w.Line($"reader.{bulk}({CollectionsMarshal}.AsSpan(items{n}).Slice(start{n}, count{n}));");
-            w.Directive("#else");
-            ReadItems(w, array, n, itemType);
-            w.Directive("#endif");
-        }
-        else
-        {
-            ReadItems(w, array, n, itemType);
-        }
-
-        w.Close();
-        w.Line($"{target} = items{n};");
-        w.Close();
-    }
-
-    private void ReadItems(CodeWriter w, ArraySchema array, int n, string itemType)
-    {
         w.Open($"if (items{n}.Count == 0)");
         w.Line($"items{n}.Capacity = {Support}.InitialCapacity(count{n});");
         w.Close();
@@ -361,16 +368,24 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         Read(w, array.Items, $"item{n}");
         w.Line($"items{n}.Add(item{n});");
         w.Close();
+        w.Close();
+        w.Line($"{target} = items{n};");
+        w.Close();
     }
 
-    private void ReadMap(CodeWriter w, MapSchema map, string target)
+    private void ReadMap(CodeWriter w, MapSchema map, string target, bool reuse)
     {
+        // Each entry has at least a key length byte. The first block's count sizes the dictionary, as in the generic reader.
+        var minimumEntrySize = (int)System.Math.Min(1L + TypeMapper.MinimumSize(map.Values), int.MaxValue);
+        if (types.Codec(map.Values) is { } codec)
+        {
+            w.Line($"{target} = {Support}.ReadMap<{types.TypeOf(map.Values)}, {codec}>(ref reader, {(reuse ? target : "null")}, {Int(minimumEntrySize)}, depth + 1);");
+            return;
+        }
+
         var n = _next++;
         var valueType = types.TypeOf(map.Values);
         w.Open();
-
-        // Each entry has at least a key length byte. The first block's count sizes the dictionary, as in the generic reader.
-        var minimumEntrySize = (int)System.Math.Min(1L + TypeMapper.MinimumSize(map.Values), int.MaxValue);
         w.Line($"var count{n} = {Support}.ReadBlockItemCount(ref reader, {Int(minimumEntrySize)}, 0);");
         w.Line($"var map{n} = new {TypeMapper.DictionaryType}<string, {valueType}>({Support}.InitialCapacity(count{n}), global::System.StringComparer.Ordinal);");
         w.Open($"while (count{n} != 0)");
@@ -388,6 +403,15 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
     private void ReadUnion(CodeWriter w, UnionSchema union, string target)
     {
+        if (types.NullableHelper(union) is { } helper)
+        {
+            var branch = union.Branches[helper.ValueIndex];
+            w.Line(helper.Suffix.Length == 0
+                ? $"{target} = {Support}.ReadNullable<{types.TypeOf(branch)}, {types.Codec(branch)}>(ref reader, {Int(helper.ValueIndex)}, depth + 1);"
+                : $"{target} = {Support}.ReadNullable{helper.Suffix}(ref reader, {Int(helper.ValueIndex)});");
+            return;
+        }
+
         var n = _next++;
         w.Line($"var index{n} = reader.ReadUnionIndex();");
         w.Open($"switch (index{n})");

@@ -106,4 +106,27 @@ public static class AvroFileReader
                 : GenericDatumReader.Create(writerSchema, readerSchema, readerOptions);
             return (ref reader) => datumReader.Read(ref reader);
         };
+
+#if NET8_0_OR_GREATER
+    /// <summary>Opens a container file of a generated type, reading data of another version of its schema by resolution.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="stream">The source, positioned at the start of the file.</param>
+    /// <param name="options">The file options, or <see langword="null"/> for the defaults.</param>
+    /// <exception cref="AvroDataException">The header is malformed.</exception>
+    /// <exception cref="AvroException">The file's codec is not available.</exception>
+    public static AvroFileReader<T> Open<T>(Stream stream, AvroFileReaderOptions? options = null)
+        where T : IAvroSerializable<T> =>
+        Open(stream, AvroSerializable<T>.For, options);
+
+    /// <summary>Opens a container file of a generated type, reading its header asynchronously.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="stream">The source, positioned at the start of the file.</param>
+    /// <param name="options">The file options, or <see langword="null"/> for the defaults.</param>
+    /// <param name="cancellationToken">Cancels reading the header.</param>
+    /// <exception cref="AvroDataException">The header is malformed.</exception>
+    /// <exception cref="AvroException">The file's codec is not available.</exception>
+    public static ValueTask<AvroFileReader<T>> OpenAsync<T>(Stream stream, AvroFileReaderOptions? options = null, CancellationToken cancellationToken = default)
+        where T : IAvroSerializable<T> =>
+        OpenAsync(stream, AvroSerializable<T>.For, options, cancellationToken);
+#endif
 }

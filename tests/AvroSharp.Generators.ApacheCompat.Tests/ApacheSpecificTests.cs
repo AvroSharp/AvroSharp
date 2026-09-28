@@ -24,7 +24,7 @@ public class ApacheSpecificTests
         await Assert.That(typeof(SpecificFixed).IsAssignableFrom(typeof(shop.Sku))).IsTrue();
         await Assert.That(typeof(shop.Order).GetProperty("Created")!.PropertyType).IsEqualTo(typeof(DateTime));
         await Assert.That(typeof(shop.Order).GetProperty("Amount")!.PropertyType).IsEqualTo(typeof(Avro.AvroDecimal));
-        await Assert.That(((ISpecificRecord)new shop.Order()).Schema.Fullname).IsEqualTo("shop.Order");
+        await Assert.That(new shop.Order().Schema.Fullname).IsEqualTo("shop.Order");
     }
 
     [Test]
@@ -61,12 +61,12 @@ public class ApacheSpecificTests
     {
         var checkedSamples = typeName switch
         {
-            "shop.Order" => Check(shop.Order.Schema, shop.Order.FromAvroBytes, o => o.ToAvroBytes()),
-            "graph.Node" => Check(graph.Node.Schema, graph.Node.FromAvroBytes, o => o.ToAvroBytes()),
-            "crm.Customer" => Check(crm.Customer.Schema, crm.Customer.FromAvroBytes, o => o.ToAvroBytes()),
-            "Unnamespaced" => Check(Unnamespaced.Schema, Unnamespaced.FromAvroBytes, o => o.ToAvroBytes()),
+            "shop.Order" => Check(shop.Order.AvroSharpSchema, shop.Order.FromAvroBytes, o => o.ToAvroBytes()),
+            "graph.Node" => Check(graph.Node.AvroSharpSchema, graph.Node.FromAvroBytes, o => o.ToAvroBytes()),
+            "crm.Customer" => Check(crm.Customer.AvroSharpSchema, crm.Customer.FromAvroBytes, o => o.ToAvroBytes()),
+            "Unnamespaced" => Check(Unnamespaced.AvroSharpSchema, Unnamespaced.FromAvroBytes, o => o.ToAvroBytes()),
             // logical.Moments has a decimal on fixed, which Apache's specific writer cannot write (see ApacheWriter_CannotWriteDecimalOnFixed).
-            _ => Check(logical.Moments.Schema, logical.Moments.FromAvroBytes, o => o.ToAvroBytes(), apacheCanWrite: false),
+            _ => Check(logical.Moments.AvroSharpSchema, logical.Moments.FromAvroBytes, o => o.ToAvroBytes(), apacheCanWrite: false),
         };
 
         // RandomValues gives up on many deep recursive values (graph.Node), so not every seed yields a sample.
@@ -82,8 +82,8 @@ public class ApacheSpecificTests
     [Test]
     public async Task ApacheWriter_CannotWriteDecimalOnFixed()
     {
-        var bytes = GenericDatumWriter.Create(logical.Moments.Schema)
-            .WriteToArray(new RandomValues(1).TryCreate(logical.Moments.Schema)!.Value);
+        var bytes = GenericDatumWriter.Create(logical.Moments.AvroSharpSchema)
+            .WriteToArray(new RandomValues(1).TryCreate(logical.Moments.AvroSharpSchema)!.Value);
 
         var read = ApacheRead<logical.Moments>(bytes);
 
@@ -100,8 +100,8 @@ public class ApacheSpecificTests
     [Test]
     public async Task LocalTimestamps_FollowApache_InLocalTime()
     {
-        var moments = logical.Moments.FromAvroBytes(GenericDatumWriter.Create(logical.Moments.Schema)
-            .WriteToArray(new RandomValues(3).TryCreate(logical.Moments.Schema)!.Value));
+        var moments = logical.Moments.FromAvroBytes(GenericDatumWriter.Create(logical.Moments.AvroSharpSchema)
+            .WriteToArray(new RandomValues(3).TryCreate(logical.Moments.AvroSharpSchema)!.Value));
         var apache = ApacheRead<logical.Moments>(moments.ToAvroBytes());
 
         await Assert.That(moments.LocalMillis.Kind).IsEqualTo(DateTimeKind.Local);

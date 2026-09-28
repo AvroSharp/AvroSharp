@@ -11,13 +11,27 @@ namespace app.events
         /// <summary>The number of bytes in a value.</summary>
         public const int Size = 2;
 
-        /// <summary>The Avro schema of this type, as JSON.</summary>
-        public const string SchemaJson = "{\"type\":\"fixed\",\"name\":\"Hash\",\"namespace\":\"app.events\",\"size\":2}";
-
         private static global::AvroSharp.Schemas.AvroSchema? s_schema;
+
+#if NET8_0_OR_GREATER
+        private static global::System.ReadOnlySpan<byte> SchemaUtf8 =>
+            "{\"type\":\"fixed\",\"name\":\"Hash\",\"namespace\":\"app.events\",\"size\":2}"u8;
+
+        private static string? s_schemaJson;
+
+        /// <summary>Gets the Avro schema of this type, as JSON.</summary>
+        public static string SchemaJson => s_schemaJson ??= global::System.Text.Encoding.UTF8.GetString(SchemaUtf8);
+
+        /// <summary>Gets the Avro schema of this type.</summary>
+        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ??= global::AvroSharp.Schemas.AvroSchema.Parse(SchemaUtf8);
+#else
+        /// <summary>Gets the Avro schema of this type, as JSON.</summary>
+        public static string SchemaJson =>
+            "{\"type\":\"fixed\",\"name\":\"Hash\",\"namespace\":\"app.events\",\"size\":2}";
 
         /// <summary>Gets the Avro schema of this type.</summary>
         public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? (s_schema = global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
+#endif
 
         /// <summary>Creates a value from exactly <see cref="Size"/> bytes. The array is not copied.</summary>
         public Hash(byte[] value)

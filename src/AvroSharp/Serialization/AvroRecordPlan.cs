@@ -78,6 +78,19 @@ public sealed class AvroRecordPlan
     /// <param name="step">The writer field position.</param>
     public AvroConversion Conversion(int step) => _steps[step].Conversion;
 
+    /// <summary>
+    /// Gets the reader field position that writer field <paramref name="step"/> fills (or -1 to skip it) and how it is
+    /// read, with one lookup.
+    /// </summary>
+    /// <param name="step">The writer field position.</param>
+    /// <param name="conversion">How the field is read.</param>
+    public int Target(int step, out AvroConversion conversion)
+    {
+        ref readonly var s = ref _steps[step];
+        conversion = s.Conversion;
+        return s.Target;
+    }
+
     /// <summary>Skips writer field <paramref name="step"/>, which the reader does not have.</summary>
     /// <param name="step">The writer field position.</param>
     /// <param name="reader">The source.</param>

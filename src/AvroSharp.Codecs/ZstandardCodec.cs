@@ -26,6 +26,11 @@ public sealed class ZstandardCodec : AvroCodec
     [ThreadStatic]
     private static Decompressor? s_decompressor;
 
+    // The thread's compressor and decompressor, created on first use; ZstdSharp's contexts are not thread-safe.
+    private static Compressor ThreadCompressor(int level) => s_compressor ??= new Compressor(level);
+
+    private static Decompressor ThreadDecompressor() => s_decompressor ??= new Decompressor();
+
     /// <summary>Creates a zstandard codec.</summary>
     /// <param name="level">
     /// The compression level, from <see cref="MinLevel"/> (fastest) to <see cref="MaxLevel"/> (smallest); it affects
@@ -69,7 +74,7 @@ public sealed class ZstandardCodec : AvroCodec
     public override void Compress(ReadOnlyMemory<byte> source, IBufferWriter<byte> destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        var compressor = s_compressor ??= new Compressor(Level);
+        var compressor = ThreadCompressor(Level);
         compressor.Level = Level;
         compressor.SetParameter(ZSTD_cParameter.ZSTD_c_checksumFlag, Checksum ? 1 : 0);
 
@@ -82,7 +87,7 @@ public sealed class ZstandardCodec : AvroCodec
     public override void Decompress(ReadOnlyMemory<byte> source, IBufferWriter<byte> destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        var decompressor = s_decompressor ??= new Decompressor();
+        var decompressor = ThreadDecompressor();
 
         // Streaming, because a frame need not record its decompressed size. A previous block that failed may have
         // left the context mid-frame.

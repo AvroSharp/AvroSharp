@@ -24,13 +24,26 @@ internal static class ApacheSupport
     public static string SchemaJson(string json) =>
         json.Replace("\"size\":16,\"logicalType\":\"uuid\"", "\"size\":16");
 
-    /// <summary>Explicit <c>ISpecificRecord</c> members, delegating to the generated <c>Get</c>/<c>Put</c>.</summary>
-    public static void EmitRecordMembers(CodeWriter w, TypeMapper types)
+    /// <summary>
+    /// The schema as avrogen's classes expose it: a static <c>_SCHEMA</c> and an instance <c>Schema</c> (which also
+    /// implements <c>ISpecificRecord.Schema</c>), so code written for avrogen output, such as
+    /// <c>new SpecificDatumWriter&lt;T&gt;(value.Schema)</c>, compiles unchanged.
+    /// </summary>
+    public static void EmitRecordSchema(CodeWriter w, TypeMapper types)
     {
         w.Line();
         w.Line($"private static {types.Nullable(ApacheSchema)} s_apacheSchema;");
         w.Line();
-        w.Line($"{ApacheSchema} {SpecificRecord}.Schema => s_apacheSchema ?? (s_apacheSchema = {ApacheSchema}.Parse(ApacheSchemaJson));");
+        w.Line("/// <summary>Gets the schema as Apache.Avro represents it, as avrogen's generated classes have it.</summary>");
+        w.Line($"public static {ApacheSchema} _SCHEMA => s_apacheSchema ?? (s_apacheSchema = {ApacheSchema}.Parse(ApacheSchemaJson));");
+        w.Line();
+        w.Line("/// <summary>Gets the schema as Apache.Avro represents it (<c>ISpecificRecord.Schema</c>); AvroSharp's is <c>AvroSharpSchema</c>.</summary>");
+        w.Line($"public {ApacheSchema} Schema => _SCHEMA;");
+    }
+
+    /// <summary>Explicit <c>ISpecificRecord</c> members, delegating to the generated <c>Get</c>/<c>Put</c>.</summary>
+    public static void EmitRecordMembers(CodeWriter w, TypeMapper types)
+    {
         w.Line();
         w.Line($"object {SpecificRecord}.Get(int fieldPos) => Get(fieldPos){types.NullForgiving};");
         w.Line();
@@ -64,8 +77,11 @@ internal static class ApacheSupport
         w.Line($"Value = global::AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(value, Size, {CSharpNames.Literal(schema.FullName)});");
         w.Close();
         w.Line();
+        w.Line("/// <summary>Gets the schema as Apache.Avro represents it, as avrogen's generated classes have it.</summary>");
+        w.Line($"public static {ApacheSchema} _SCHEMA => s_apacheSchema ?? (s_apacheSchema = {ApacheSchema}.Parse(ApacheSchemaJson));");
+        w.Line();
         w.Line("/// <summary>Gets the schema, as Apache.Avro represents it.</summary>");
-        w.Line($"public override {ApacheSchema} Schema => s_apacheSchema ?? (s_apacheSchema = {ApacheSchema}.Parse(ApacheSchemaJson));");
+        w.Line($"public override {ApacheSchema} Schema => _SCHEMA;");
         w.Close();
     }
 
@@ -139,6 +155,11 @@ internal static class ApacheSupport
 
                 private static global::Avro.AvroDecimal FromUnscaled(byte[] bigEndian, int scale)
                 {
+                    if (bigEndian.Length == 0)
+                    {
+                        throw new global::AvroSharp.IO.AvroDataException("A decimal has no bytes; its unscaled value needs at least one.");
+                    }
+
                     global::System.Array.Reverse(bigEndian);
                     return new global::Avro.AvroDecimal(new global::System.Numerics.BigInteger(bigEndian), scale);
                 }

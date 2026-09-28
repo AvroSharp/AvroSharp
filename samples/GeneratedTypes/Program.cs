@@ -27,7 +27,7 @@ Console.WriteLine($"One order: {bytes.Length} bytes, total {single.Total}");
 
 // A container file with the zstandard codec from AvroSharp.Codecs.
 using var file = new MemoryStream();
-using (var writer = AvroFileWriter.Create<Order>(file, Order.Schema, Order.Write, new AvroFileWriterOptions { Codec = ZstandardCodec.Default, LeaveOpen = true }))
+using (var writer = AvroFileWriter.Create<Order>(file, new AvroFileWriterOptions { Codec = ZstandardCodec.Default, LeaveOpen = true }))
 {
     foreach (var order in orders)
     {
@@ -38,7 +38,7 @@ using (var writer = AvroFileWriter.Create<Order>(file, Order.Schema, Order.Write
 // A reader of files whose codec is not known in advance gets every codec.
 file.Position = 0;
 var readerOptions = new AvroFileReaderOptions { Codecs = AvroCodecs.All, LeaveOpen = true };
-using (var reader = AvroFileReader.Open<Order>(file, _ => Order.Read, readerOptions))
+using (var reader = AvroFileReader.Open<Order>(file, readerOptions))
 {
     var read = reader.ReadAll().ToList();
     Console.WriteLine($"Container file: {file.Length} bytes ({reader.Codec}), {read.Count} orders");
@@ -46,7 +46,7 @@ using (var reader = AvroFileReader.Open<Order>(file, _ => Order.Read, readerOpti
 }
 
 // A file written with version 1 of the schema, before 'status' and 'note' existed: the generated reader resolves it,
-// taking the new fields' defaults.
+// taking the new fields' defaults (Open<T> reads data of another version of T's schema by resolution).
 var v1 = AvroSchema.Parse("""
     {"type":"record","name":"Order","namespace":"shop","fields":[
       {"name":"id","type":{"type":"string","logicalType":"uuid"}},
@@ -71,7 +71,7 @@ using (var writer = AvroFileWriter.CreateGeneric(oldFile, v1, new AvroFileWriter
 }
 
 oldFile.Position = 0;
-using (var reader = AvroFileReader.Open<Order>(oldFile, writerSchema => (ref r) => Order.Read(ref r, writerSchema)))
+using (var reader = AvroFileReader.Open<Order>(oldFile))
 {
     var old = reader.ReadAll().Single();
     Console.WriteLine($"Version 1 file read as the current Order: customer '{old.Customer}', status {old.Status}, total {old.Total}");

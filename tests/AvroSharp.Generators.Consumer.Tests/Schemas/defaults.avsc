@@ -1,0 +1,16 @@
+{"type": "record", "name": "Settings", "namespace": "defaults", "doc": "Every field has a default, so a writer with no fields resolves to it.", "fields": [
+  {"name": "enabled", "type": "boolean", "default": true},
+  {"name": "retries", "type": "int", "default": 3},
+  {"name": "timeout", "type": "long", "default": -30000000000},
+  {"name": "ratio", "type": "float", "default": 0.25},
+  {"name": "scale", "type": "double", "default": 1.5},
+  {"name": "label", "type": "string", "default": "none"},
+  {"name": "magic", "type": "bytes", "default": "\u0000ÿ"},
+  {"name": "level", "type": {"type": "enum", "name": "Level", "symbols": ["LOW", "MID", "HIGH"], "default": "LOW"}, "default": "MID"},
+  {"name": "ports", "type": {"type": "array", "items": "int"}, "default": [80, 443]},
+  {"name": "limits", "type": {"type": "map", "values": "long"}, "default": {"a": 1, "b": 2}},
+  {"name": "mode", "type": ["string", "null"], "default": "auto"},
+  {"name": "count", "type": ["int", "null"], "default": 7},
+  {"name": "note", "type": ["null", "string"], "default": null},
+  {"name": "levels", "type": {"type": "array", "items": "Level"}, "default": ["HIGH", "LOW"]}
+]}
