@@ -363,9 +363,29 @@ AvroSharp.Schemas.SchemaName.SchemaName(string! name, string? namespace = null) 
 AvroSharp.Schemas.UnionSchema
 AvroSharp.Schemas.UnionSchema.Branches.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>!
 AvroSharp.Schemas.UnionSchema.UnionSchema(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! branches) -> void
+AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.EnumRemap = 4 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.FromFloat = 3 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.FromInt = 1 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.FromLong = 2 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.ItemsFromFloat = 7 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.ItemsFromInt = 5 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.ItemsFromLong = 6 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.None = 0 -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroConversion.Transcode = 8 -> AvroSharp.Serialization.AvroConversion
 AvroSharp.Serialization.AvroGeneratedCode
 AvroSharp.Serialization.AvroLogicalValues
 AvroSharp.Serialization.AvroReadFunc<T>
+AvroSharp.Serialization.AvroRecordPlan
+AvroSharp.Serialization.AvroRecordPlan.Conversion(int step) -> AvroSharp.Serialization.AvroConversion
+AvroSharp.Serialization.AvroRecordPlan.DefaultCount.get -> int
+AvroSharp.Serialization.AvroRecordPlan.DefaultTarget(int index) -> int
+AvroSharp.Serialization.AvroRecordPlan.DefaultValue(int index) -> System.ReadOnlySpan<byte>
+AvroSharp.Serialization.AvroRecordPlan.MapEnum(int step, int ordinal) -> int
+AvroSharp.Serialization.AvroRecordPlan.Skip(int step, ref AvroSharp.IO.AvroReader reader) -> void
+AvroSharp.Serialization.AvroRecordPlan.StepCount.get -> int
+AvroSharp.Serialization.AvroRecordPlan.Target(int step) -> int
+AvroSharp.Serialization.AvroRecordPlan.Transcode(int step, ref AvroSharp.IO.AvroReader reader) -> System.ReadOnlySpan<byte>
 AvroSharp.Serialization.AvroWriteAction<T>
 AvroSharp.Serialization.IAvroSpecificRecord
 AvroSharp.Serialization.IAvroSpecificRecord.Get(int fieldPos) -> object?
@@ -518,6 +538,7 @@ static AvroSharp.Schemas.SchemaFingerprint.Sha256(AvroSharp.Schemas.AvroSchema! 
 static AvroSharp.Schemas.SchemaName.operator !=(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
 static AvroSharp.Schemas.SchemaName.operator ==(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
 static AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(byte[]! value, int size, string! typeName) -> byte[]!
+static AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> AvroSharp.Serialization.AvroRecordPlan?
 static AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(int count) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(int fieldPos, int fieldCount, string! recordName) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.IO.AvroDataException!
