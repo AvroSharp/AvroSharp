@@ -41,3 +41,18 @@ Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new 
 ## Workflow
 
 Branch, open a pull request, and merge (squash) once CI is green. `main` is never pushed to directly.
+
+## Releasing
+
+Versions come from git tags through MinVer: `v1.2.3`, or `v1.2.3-alpha.1` for a pre-release.
+
+1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [1.2.3] - YYYY-MM-DD` (the exact version, pre-release suffix included) and start a new empty `[Unreleased]` section. Merge that.
+2. Rehearse: run the **Release** workflow manually on `main` with `publish` off. It tests on Linux and Windows (including net481), packs, and checks the release notes, but pushes nothing.
+3. Tag the merge commit and push the tag: `git tag v1.2.3 && git push origin v1.2.3`. The workflow tests again, packs, pushes the packages and symbols to nuget.org, and creates the GitHub release from the CHANGELOG section, marked as a pre-release when the version has a suffix. It fails if the tag and the packed version differ, or if the CHANGELOG has no section for the version.
+
+The push uses nuget.org's [trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing), so no API key is stored. It needs, once:
+
+- **on nuget.org:** a trusted publishing policy for the account or organization that owns the `AvroSharp*` packages (see #84). The policy names repository owner `zcsizmadia`, repository `AvroSharp`, workflow file `release.yml` and environment `nuget`.
+- **on GitHub:** an environment named `nuget` (Settings → Environments; add required reviewers there to approve each publish), and a repository variable `NUGET_USER` holding that nuget.org account or organization name.
+
+The workflow asks GitHub for an OIDC token, and `NuGet/login` exchanges it for a key that is valid for about an hour.

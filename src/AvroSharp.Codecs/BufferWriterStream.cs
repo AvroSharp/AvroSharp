@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace AvroSharp.Codecs;
@@ -7,14 +8,20 @@ namespace AvroSharp.Codecs;
 /// <summary>A write-only <see cref="Stream"/> over an <see cref="IBufferWriter{T}"/>, for compression libraries that write to streams.</summary>
 internal sealed class BufferWriterStream(IBufferWriter<byte> destination) : Stream
 {
+    // Stream plumbing that no codec calls: the codecs only write. Excluded from coverage rather than tested for its own sake.
+    [ExcludeFromCodeCoverage]
     public override bool CanRead => false;
 
+    [ExcludeFromCodeCoverage]
     public override bool CanSeek => false;
 
+    [ExcludeFromCodeCoverage]
     public override bool CanWrite => true;
 
+    [ExcludeFromCodeCoverage]
     public override long Length => throw new NotSupportedException();
 
+    [ExcludeFromCodeCoverage]
     public override long Position
     {
         get => throw new NotSupportedException();
@@ -33,9 +40,12 @@ internal sealed class BufferWriterStream(IBufferWriter<byte> destination) : Stre
     {
     }
 
+    [ExcludeFromCodeCoverage]
     public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
+    [ExcludeFromCodeCoverage]
     public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
+    [ExcludeFromCodeCoverage]
     public override void SetLength(long value) => throw new NotSupportedException();
 }

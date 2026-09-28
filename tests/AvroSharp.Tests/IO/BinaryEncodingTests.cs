@@ -227,6 +227,72 @@ public class BinaryEncodingTests
     }
 
     [Test]
+    public async Task Strings_EncodeTheSame_InOnePassAndInTwo()
+    {
+        // Lengths around the points where the length prefix grows (1 to 2 bytes at 64 UTF-8 bytes, 2 to 3 at 8192),
+        // with 1- to 4-byte characters and a lone surrogate. A large buffer takes the one-pass path, where the prefix
+        // is sized for 3 bytes per char and the bytes may move down; a buffer of exactly the encoded size, and a
+        // writer that hands out tiny spans, take the two-pass path.
+        var pieces = new[] { "a", "é", "日", "🎉", "\uD800" };
+        var lengths = new[] { 0, 1, 20, 21, 22, 31, 32, 42, 63, 64, 65, 200, 2730, 2731, 4096, 8191, 8192, 9000 };
+        var failures = 0;
+        foreach (var piece in pieces)
+        {
+            foreach (var length in lengths)
+            {
+                var value = string.Concat(Enumerable.Repeat(piece, length));
+                var expected = Utf8Reference(value);
+
+                var large = new byte[expected.Length + (value.Length * 3) + 16];
+                var writer = new AvroWriter(large.AsSpan());
+                writer.WriteString(value);
+                var onePass = large.AsSpan(0, (int)writer.BytesWritten).ToArray();
+
+                var exact = new byte[expected.Length];
+                var exactWriter = new AvroWriter(exact.AsSpan());
+                exactWriter.WriteString(value);
+
+                var tiny = new TinyBufferWriter(chunkSize: 7);
+                var tinyWriter = new AvroWriter(tiny);
+                tinyWriter.WriteString(value);
+                tinyWriter.Flush();
+
+                var pooled = new ArrayBufferWriter<byte>();
+                var pooledWriter = new AvroWriter(pooled);
+                pooledWriter.WriteLong(5);
+                pooledWriter.WriteString(value);
+                pooledWriter.WriteLong(-5);
+                pooledWriter.Flush();
+
+                var reader = new AvroReader(pooled.WrittenSpan);
+                var roundTrip = reader.ReadLong() == 5 && string.Equals(reader.ReadString(), Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(value)), StringComparison.Ordinal) && reader.ReadLong() == -5;
+
+                if (!onePass.SequenceEqual(expected) || !exact.SequenceEqual(expected) || !tiny.WrittenSpan.SequenceEqual(expected) || !roundTrip)
+                {
+                    failures++;
+                }
+            }
+        }
+
+        await Assert.That(failures).IsEqualTo(0);
+    }
+
+    private static byte[] Utf8Reference(string value)
+    {
+        var utf8 = Encoding.UTF8.GetBytes(value);
+        var prefix = new System.Collections.Generic.List<byte>();
+        var zigZag = (ulong)utf8.Length << 1;
+        while (zigZag >= 0x80)
+        {
+            prefix.Add((byte)(zigZag | 0x80));
+            zigZag >>= 7;
+        }
+
+        prefix.Add((byte)zigZag);
+        return [.. prefix, .. utf8];
+    }
+
+    [Test]
     public async Task Writer_ToASpan_ReportsBytesWritten()
     {
         var destination = new byte[16];

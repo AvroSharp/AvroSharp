@@ -1,0 +1,132 @@
+name: Release
+
+# Publishes the packages for a version tag (vX.Y.Z or vX.Y.Z-pre). MinVer takes the version from the tag.
+# Run it manually to rehearse: without 'publish', it builds, tests, packs and checks the release notes, but pushes
+# nothing and creates no release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Push the packages to nuget.org and create the GitHub release (the ref must be a version tag)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  CI: true
+
+jobs:
+  # Every supported platform, including Windows and .NET Framework (net481), which CI does not run on every push.
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - run: dotnet build AvroSharp.slnx -c Release
+      - run: dotnet test --solution AvroSharp.slnx -c Release --no-build
+
+  pack:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - run: dotnet pack AvroSharp.slnx -c Release
+
+      # The package version comes from the tag through MinVer; the release notes are its CHANGELOG section.
+      - name: Version and release notes
+        id: version
+        shell: bash
+        run: |
+          version=$(ls artifacts/package/release/AvroSharp.*.nupkg | sed -n 's#.*/AvroSharp\.\([0-9][^/]*\)\.nupkg#\1#p' | head -1)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Packed version $version"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "${GITHUB_REF#refs/tags/v}" != "$version" ]]; then
+            echo "::error::The tag ${GITHUB_REF#refs/tags/} does not match the packed version $version"
+            exit 1
+          fi
+          # The section '## [version]' up to the next '## ' heading.
+          awk -v v="$version" 'index($0, "## [" v "]") == 1 {found=1; next} found && /^## / {exit} found {print}' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo "::error::CHANGELOG.md has no '## [$version]' section"
+              exit 1
+            fi
+            echo "No '## [$version]' section in CHANGELOG.md (fine for a rehearsal on an untagged ref)" > release-notes.md
+          fi
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: |
+            artifacts/package/release/*
+            release-notes.md
+
+  publish:
+    needs: pack
+    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.publish)
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      contents: write # the GitHub release
+      id-token: write # the OIDC token that nuget.org's trusted publishing exchanges for a short-lived key
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+
+      # Trusted publishing: no stored API key. nuget.org checks the OIDC token against its trusted publishing policy
+      # (this repository, release.yml, the 'nuget' environment) and returns a key valid for about an hour.
+      # NUGET_USER is the nuget.org account or organization that owns the policy, set as a repository variable.
+      - name: Log in to nuget.org
+        id: nuget
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      # The symbol packages (.snupkg) are pushed with the packages.
+      - name: Push to nuget.org
+        run: dotnet nuget push "artifacts/package/release/*.nupkg" --api-key "${{ steps.nuget.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.pack.outputs.version }}
+        shell: bash
+        run: |
+          prerelease=""
+          if [[ "$VERSION" == *-* ]]; then prerelease="--prerelease"; fi
+          gh release create "${GITHUB_REF#refs/tags/}" --repo "$GITHUB_REPOSITORY" --title "v$VERSION" \
+            --notes-file release-notes.md --verify-tag $prerelease artifacts/package/release/*

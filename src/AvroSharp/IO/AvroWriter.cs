@@ -161,8 +161,27 @@ public ref struct AvroWriter
             return;
         }
 
-        // Counting first lets the length prefix be written before the bytes are encoded directly into the
-        // destination; both passes are vectorized by the runtime.
+        // One pass when the buffer has room for the longest possible encoding (3 bytes per UTF-16 char) after room
+        // for its length prefix: encode, then write the real length and, if its prefix is shorter, move the bytes
+        // down. Otherwise count first, so the prefix can be written before the bytes; both passes are vectorized.
+        var maxBytes = (long)value.Length * 3;
+        var maxPrefix = VarintLength((ulong)maxBytes << 1);
+        if (maxPrefix + maxBytes <= _buffer.Length - _buffered)
+        {
+            var start = _buffered;
+            var written = Encoding.UTF8.GetBytes(value, _buffer[(start + maxPrefix)..]);
+            var length = (ulong)written << 1;
+            var prefix = VarintLength(length);
+            if (prefix < maxPrefix)
+            {
+                _buffer.Slice(start + maxPrefix, written).CopyTo(_buffer[(start + prefix)..]);
+            }
+
+            _ = WriteVarintLoop(_buffer[start..], length);
+            _buffered = start + prefix + written;
+            return;
+        }
+
         var byteCount = Encoding.UTF8.GetByteCount(value);
         WriteLong(byteCount);
         Ensure(byteCount);
@@ -402,6 +421,24 @@ public ref struct AvroWriter
         return x;
     }
 #endif
+
+    /// <summary>Gets the number of bytes of the varint of <paramref name="value"/>, 1 to 10.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int VarintLength(ulong value)
+    {
+#if NET8_0_OR_GREATER
+        return ((63 - BitOperations.LeadingZeroCount(value | 1)) / 7) + 1;
+#else
+        var length = 1;
+        while (value >= 0x80)
+        {
+            value >>= 7;
+            length++;
+        }
+
+        return length;
+#endif
+    }
 
     private static int WriteVarintLoop(Span<byte> destination, ulong value)
     {

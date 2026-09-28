@@ -1,11 +1,26 @@
 # AvroSharp — Design
 
+> **This is the design proposal, kept as a record of the reasoning.** The live milestone status is in [roadmap.md](roadmap.md). Where the text below differs from the repository, the repository is right. The known differences are in the table after the decisions.
+
 > **Decisions made after this proposal (these take precedence over the text below):**
 >
 > - **Tests use TUnit**, not xUnit. One test project covers net8.0/net9.0/net10.0 and, on Windows, net481 (the netstandard2.0 build on .NET Framework).
 > - **No reflection on serialization paths.** The source generator is the typed-serialization path. The expression-tree and reflection tiers in Sections 4.5 and 8 are not part of v1; if a runtime fallback is ever added it ships as a separate opt-in package.
 > - **Codecs use fully managed libraries only.** v1.0 ships every specification codec: deflate, snappy (Snappier, BSD-3-Clause), bzip2 (SharpZipLib, MIT), xz (Lzma.Net ≥ 5.8.4.3 (the first strong-named release), 0BSD; targets netstandard2.0/2.1 and net8.0-10.0) and zstandard (ZstdSharp.Port, MIT). Open point: the BCL `DeflateStream` uses the native zlib bundled with the runtime.
 > - **Name AvroSharp, MIT license** (Section 13).
+> - **One codec package, `AvroSharp.Codecs`**, not one package per codec: a reader of files whose codec is not known in advance needs one reference (2026-09-27).
+
+**Status vs. design** (2026-09-27):
+
+| Section | Proposed | In the repository |
+|---|---|---|
+| §3 Packages | Expression-tree and reflection typed paths in `AvroSharp`; `AvroSharp.Codecs.Snappy`/`.Zstd`/`.Bzip2`/`.Xz` | No reflection tiers (decision above); one `AvroSharp.Codecs` package. `AvroSharp.Tool` and `AvroSharp.Idl` don't exist yet (#33). |
+| §3, §4.10 I/O | `PipeReader`/`PipeWriter` overloads | `Stream`, `ReadOnlySpan<byte>`, `ReadOnlySequence<byte>` and `IBufferWriter<byte>`; the core doesn't reference `System.IO.Pipelines`. |
+| §9 SDK | `global.json` 10.0.401 with `latestPatch`; `ImplicitUsings=enable`; `.globalconfig` | 10.0.100 with `latestFeature`; `ImplicitUsings=disable`; analyzer severities in `.editorconfig`. |
+| §9 Projects | `Spec.Tests`, `Property.Tests`, `CodeGen.Tests`, `NetFramework.Tests`, `samples/` | Spec vectors and property tests live in `AvroSharp.Tests` and `AvroSharp.Interop.Tests`, code generation tests in the `Generators.*` projects, and net481 is a target of the test projects. There are no samples yet (#74). |
+| §9 Workflows | `release.yml`, `codeql.yml` | Only `ci.yml` (#76). Windows runners are disabled (#72). |
+| §10 Tests | xUnit v3 | TUnit on Microsoft.Testing.Platform. |
+| §13 Test data | `tests/TestData/apache/` | `tests/TestData/apache-avro/` (Apache's files) and `tests/TestData/java-avro/` (files written by Apache Avro Java). |
 
 Legend: **[src]** = verified by reading the reference source/page during this study; **[docs]** = reasoned from documentation/spec text; **[goal]** = unmeasured target, not a claim.
 
@@ -506,14 +521,14 @@ AvroSharp/
 - Shipped code is MIT, written from the Avro specification. Apache.Avro (Apache-2.0) is studied for design only; its source is not copied or ported into `src/`. If a port is ever unavoidable, that file keeps its Apache-2.0 header and a `NOTICE` entry — the design avoids needing this.
 - Chr.Avro is MIT: derived code is permitted with its copyright notice kept in `THIRD-PARTY-NOTICES.md`; original implementations are still preferred.
 - Apache.Avro / Chr.Avro as test- and benchmark-only dependencies do not affect the shipped license (they are not redistributed in AvroSharp packages).
-- Vendored `apache/avro/share/test/data` files live under `tests/TestData/apache/` with their own `LICENSE` (Apache-2.0) and `NOTICE`.
+- Vendored `apache/avro/share/test/data` files live under `tests/TestData/apache-avro/` with their own `LICENSE` (Apache-2.0) and `NOTICE`.
 - Trademark: "Apache Avro" is an ASF trademark. README/package description: "a .NET implementation of the Apache Avro™ specification"; never "Apache AvroSharp" or anything implying ASF endorsement.
 
-### Critical Files for Implementation
-(Repository is empty; these are the files that will carry the design decisions above.)
-- C:\OpenSource\AVroSharp\Directory.Build.props — TFMs, analyzers, AOT/trim, warnings-as-errors, packaging metadata
-- C:\OpenSource\AVroSharp\Directory.Packages.props — central package versions (STJ, Pipelines, PolySharp, Snappier, ZstdSharp.Port, xunit.v3, CsCheck, BenchmarkDotNet, Apache.Avro 1.12.2, Chr.Avro 10.13.1)
-- C:\OpenSource\AVroSharp\src\AvroSharp\IO\AvroWriter.cs and AvroReader.cs — the ref-struct encoding core every tier depends on
-- C:\OpenSource\AVroSharp\src\AvroSharp\Schema\AvroSchema.cs (+ SchemaParser.cs, CanonicalForm.cs) — immutable model, STJ parser, PCF and fingerprints
-- C:\OpenSource\AVroSharp\src\AvroSharp.CodeGen\CodeGenerator.cs — shared schema→C# engine used by the CLI and both source generators
-- C:\OpenSource\AvroSharp\.github\workflows\ci.yml — the CI matrix; bench/AvroSharp.Benchmarks — the locally run performance gate
+### Where the design lives in the code
+
+- `Directory.Build.props`, `src/Directory.Build.props`: target frameworks, analyzers, AOT/trim, warnings as errors, strong naming, packaging.
+- `Directory.Packages.props`: central package versions; `Directory.Build.targets`: the guard that keeps Apache.Avro and Chr.Avro out of shipped projects.
+- `src/AvroSharp/IO/AvroWriter.cs`, `AvroReader.cs`: the ref-struct encoding core.
+- `src/AvroSharp/Schemas/`: the immutable schema model, the System.Text.Json parser, Parsing Canonical Form and fingerprints.
+- `src/AvroSharp.CodeGen/CSharpCodeGenerator.cs`: the schema-to-C# engine behind the source generator.
+- `.github/workflows/ci.yml`: the CI matrix. `bench/AvroSharp.Benchmarks`: the locally run performance gate.

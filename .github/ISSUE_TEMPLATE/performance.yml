@@ -1,0 +1,25 @@
+name: Performance
+description: Something slower, or allocating more, than it should (against Apache.Avro or an earlier AvroSharp)
+labels: ['area: performance']
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Scenario
+      description: What is being measured (schema, data size and shape, API used) and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Benchmark results
+      description: BenchmarkDotNet output (the summary table, with its environment header), for AvroSharp and the baseline. `bench/AvroSharp.Benchmarks` has the repository's benchmarks.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Benchmark code
+      description: The benchmark, if it is not one of the repository's.
+      render: csharp

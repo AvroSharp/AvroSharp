@@ -61,6 +61,18 @@ jobs:
       - name: Test
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
+      # Line and branch coverage of the shipped assemblies, merged across the test projects and target frameworks, in
+      # the run's summary (linked from the pull request's checks).
+      - name: Coverage summary
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          dotnet tool install dotnet-reportgenerator-globaltool --tool-path .tools
+          .tools/reportgenerator "-reports:artifacts/bin/**/TestResults/**/*.cobertura.xml;TestResults/**/*.cobertura.xml" \
+            -targetdir:artifacts/coverage -reporttypes:MarkdownSummaryGithub \
+            "-assemblyfilters:+AvroSharp;+AvroSharp.Codecs;+AvroSharp.CodeGen;+AvroSharp.Generators"
+          cat artifacts/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
       # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit
       # tests that way too so the fallbacks are exercised on every build.
       - name: Test without hardware intrinsics

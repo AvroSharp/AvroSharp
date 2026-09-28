@@ -61,6 +61,22 @@ public class CodecTests
     }
 
     [Test]
+    [MethodDataSource(nameof(JavaCodecs))]
+    public async Task JavasManyBlockFile_ReadsTheSame_Pipelined(string codec)
+    {
+        var expected = ReadAll("java-avro/many-" + codec + ".avro");
+
+        await using var reader = await AvroFileReader.OpenGenericAsync(File.OpenRead(TestData.PathOf("java-avro/many-" + codec + ".avro")), options: new AvroFileReaderOptions { Codecs = AvroCodecs.All });
+        var read = new List<AvroValue>();
+        await foreach (var value in reader.ReadAllPipelinedAsync())
+        {
+            read.Add(value);
+        }
+
+        await Assert.That(read.SequenceEqual(expected)).IsTrue();
+    }
+
+    [Test]
     public async Task ApachesSnappyWeatherFile_IsRead()
     {
         var expected = ReadAll("apache-avro/weather.avro");
@@ -176,6 +192,40 @@ public class CodecTests
     }
 
     [Test]
+    [MethodDataSource(nameof(Codecs))]
+    public async Task TruncatedBlocks_AreInvalidData(AvroCodec codec)
+    {
+        var data = System.Text.Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("truncated block ", 500)));
+        var compressed = new System.Buffers.ArrayBufferWriter<byte>();
+        codec.Compress(data, compressed);
+
+        // Cut at several points, including inside a snappy block's 4-byte checksum and a block shorter than it.
+        foreach (var length in new[] { 0, 3, compressed.WrittenCount / 2, compressed.WrittenCount - 2 })
+        {
+            var cut = compressed.WrittenMemory[..length];
+            Assert.Throws<InvalidDataException>(() => codec.Decompress(cut, new System.Buffers.ArrayBufferWriter<byte>()));
+        }
+
+        await Assert.That(compressed.WrittenCount).IsGreaterThan(4);
+    }
+
+    [Test]
+    [MethodDataSource(nameof(Codecs))]
+    public async Task BlocksNotBackedByAnArray_RoundTrip(AvroCodec codec)
+    {
+        var data = System.Text.Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat("unmanaged memory ", 300)));
+        using var source = new NotAnArray(data);
+        var compressed = new System.Buffers.ArrayBufferWriter<byte>();
+        codec.Compress(source.Memory, compressed);
+
+        using var block = new NotAnArray(compressed.WrittenSpan.ToArray());
+        var decompressed = new System.Buffers.ArrayBufferWriter<byte>();
+        codec.Decompress(block.Memory, decompressed);
+
+        await Assert.That(decompressed.WrittenSpan.SequenceEqual(data)).IsTrue();
+    }
+
+    [Test]
     public async Task InvalidSettings_AreRejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new ZstandardCodec(ZstandardCodec.MaxLevel + 1));
@@ -236,4 +286,26 @@ public class CodecTests
         Enumerable.Range(0, count).Select(i => Row(i, $"row {i % 17}", BitConverter.GetBytes(i * 7919L))).ToList();
 
     private static GenericRecord Row(long id, string name, byte[] data) => new(s_schema) { ["id"] = id, ["name"] = name, ["data"] = data };
+
+    /// <summary>Memory that does not expose an array (as native memory would not), for the codecs' copying paths.</summary>
+    private sealed class NotAnArray(byte[] data) : System.Buffers.MemoryManager<byte>
+    {
+        public override Span<byte> GetSpan() => data;
+
+        public override System.Buffers.MemoryHandle Pin(int elementIndex = 0) => throw new NotSupportedException();
+
+        public override void Unpin()
+        {
+        }
+
+        protected override bool TryGetArray(out ArraySegment<byte> segment)
+        {
+            segment = default;
+            return false;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+        }
+    }
 }

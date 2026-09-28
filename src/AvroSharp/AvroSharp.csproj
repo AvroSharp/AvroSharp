@@ -10,6 +10,11 @@
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
+  <!-- Channels for pipelined container reading, built into .NET Core 3.0 and later. -->
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="System.Threading.Channels" />
+  </ItemGroup>
+
   <!-- IAsyncEnumerable and IAsyncDisposable, built into netstandard2.1 and later. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />

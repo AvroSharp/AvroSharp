@@ -1,0 +1,22 @@
+name: Feature request
+description: Something AvroSharp should do, or do more easily
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to do
+      description: The task, and what is hard or impossible about it today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+      description: The API or behaviour you have in mind, with a code sketch if you have one.
+      render: csharp
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead
+      description: Workarounds, or how other Avro libraries handle it.
