@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Every specification codec besides the built-in null and deflate, on fully managed libraries only
+       (docs/design.md, decision 1). One package, so a reader of files whose codec is not known in advance needs one
+       reference. It uses only AvroSharp's public API, so it works with any AvroSharp version that has that API. -->
+  <PropertyGroup>
+    <RootNamespace>AvroSharp.Codecs</RootNamespace>
+    <PackageId>AvroSharp.Codecs</PackageId>
+    <Description>The snappy, zstandard, bzip2 and xz codecs for AvroSharp object container files, on fully managed libraries.</Description>
+    <PackageTags>$(PackageTags);snappy;zstd;zstandard;bzip2;xz;compression</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Snappier" />
+    <PackageReference Include="System.IO.Hashing" />
+    <PackageReference Include="ZstdSharp.Port" />
+    <PackageReference Include="SharpZipLib" />
+    <PackageReference Include="Lzma.Net" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AvroSharp\AvroSharp.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -16,11 +16,13 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/AvroSharp/AvroSharp.csproj" />
+    <Project Path="src/AvroSharp.Codecs/AvroSharp.Codecs.csproj" />
     <Project Path="src/AvroSharp.CodeGen/AvroSharp.CodeGen.csproj" />
     <Project Path="src/AvroSharp.Generators/AvroSharp.Generators.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AvroSharp.Tests/AvroSharp.Tests.csproj" />
+    <Project Path="tests/AvroSharp.Codecs.Tests/AvroSharp.Codecs.Tests.csproj" />
     <Project Path="tests/AvroSharp.Interop.Tests/AvroSharp.Interop.Tests.csproj" />
     <Project Path="tests/AvroSharp.Generators.Tests/AvroSharp.Generators.Tests.csproj" />
     <Project Path="tests/AvroSharp.Generators.Consumer.Tests/AvroSharp.Generators.Consumer.Tests.csproj" />

@@ -118,9 +118,12 @@ public sealed partial class AvroFileReader<T>
 
         Metadata = metadata;
         var codecName = GetMetadataString(AvroContainerFormat.CodecKey) ?? AvroCodecNames.Null;
-        _codec = FindCodec(codecName, _codecs)
-            ?? throw new AvroException($"The file is compressed with the '{codecName}' codec, which is not available; add it to AvroFileReaderOptions.Codecs.");
+        _codec = FindCodec(codecName, _codecs) ?? throw CodecNotAvailable(codecName);
     }
+
+    private static AvroException CodecNotAvailable(string name) => AvroCodecNames.IsStandard(name)
+        ? new($"The file is compressed with the '{name}' codec, which is not available. Reference the AvroSharp.Codecs package and set AvroFileReaderOptions.Codecs to AvroCodecs.All.")
+        : new($"The file is compressed with the '{name}' codec, which is not available; add it to AvroFileReaderOptions.Codecs.");
 
     // The header is parsed again after each fill, so the buffered amount grows geometrically, up to the limit.
     private int NextHeaderFill()

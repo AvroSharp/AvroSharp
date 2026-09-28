@@ -6,10 +6,10 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - schemas (parsing, writing, canonical form, fingerprints);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files;
-> - object container files (synchronous and asynchronous) with the `null` and `deflate` codecs;
+> - object container files (synchronous and asynchronous) with every codec in the specification;
 > - single-object encoding.
 >
-> Not implemented yet: the codecs besides `null` and `deflate`. See [the design](docs/design.md) for the roadmap.
+> See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 
@@ -80,7 +80,19 @@ await using var asyncReader = await AvroFileReader.OpenGenericAsync(stream);
 await foreach (var value in asyncReader.ReadAllAsync(cancellationToken)) { ... }
 ```
 
-Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound. Other codecs can be plugged in by subclassing `AvroCodec`.
+Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound.
+
+**Codecs.** `null` and `deflate` are built in. The `AvroSharp.Codecs` package adds the specification's other codecs (snappy, zstandard, bzip2 and xz) on fully managed libraries, with no native binaries:
+
+```csharp
+// Reading: a file's codec is not known until it is opened, so give the reader all of them.
+using var reader = AvroFileReader.OpenGeneric(stream, options: new AvroFileReaderOptions { Codecs = AvroCodecs.All });
+
+// Writing: pick one, with the same defaults as Apache Avro Java.
+var options = new AvroFileWriterOptions { Codec = ZstandardCodec.Default };      // or new ZstandardCodec(level: 9, checksum: true)
+```
+
+The codecs are checked against files written by Apache Avro Java, and Java reads the files they write. Other codecs can be plugged in by subclassing `AvroCodec`.
 
 ## Single-object encoding
 

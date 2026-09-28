@@ -33,3 +33,5 @@ SOFTWARE.
 ## Test data
 
 `tests/TestData/apache-avro/` contains test vectors copied unchanged from [Apache Avro](https://github.com/apache/avro) (tag `release-1.12.2`). They are licensed under the Apache License 2.0; see `tests/TestData/apache-avro/LICENSE.txt` and `NOTICE.txt`. They are used only by the tests and are not distributed in any package.
+
+`tests/TestData/java-avro/` contains container files written by Apache Avro Java's `avro-tools` 1.12.2, derived from Apache's `weather.avro` and from generated data (see its `README.md`). They are licensed under the Apache License 2.0, are used only by the tests, and are not distributed in any package.

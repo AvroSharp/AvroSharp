@@ -6,7 +6,7 @@ namespace AvroSharp.Containers;
 
 /// <summary>
 /// A compression codec for the blocks of an object container file. The null and deflate codecs are built in; other
-/// codecs (snappy, zstandard, bzip2, xz) come from separate packages, or from any subclass passed to
+/// codecs (snappy, zstandard, bzip2, xz) are in the AvroSharp.Codecs package; any subclass can be passed to
 /// <see cref="AvroFileWriterOptions.Codec"/> and <see cref="AvroFileReaderOptions.Codecs"/>.
 /// </summary>
 public abstract class AvroCodec
