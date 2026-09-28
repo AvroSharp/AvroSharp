@@ -32,3 +32,5 @@ static AvroSharp.CodeGen.CodeGenOptions.Default.get -> AvroSharp.CodeGen.CodeGen
 static AvroSharp.CodeGen.CSharpCodeGenerator.Generate(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! schemas, AvroSharp.CodeGen.CodeGenOptions? options = null) -> System.Collections.Generic.IReadOnlyList<AvroSharp.CodeGen.GeneratedSource!>!
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.get -> int
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.init -> void
+AvroSharp.CodeGen.GeneratedSource.GeneratedSource(string! hintName, string! text, System.Collections.Generic.IReadOnlyList<string!>! notes) -> void
+AvroSharp.CodeGen.GeneratedSource.Notes.get -> System.Collections.Generic.IReadOnlyList<string!>!

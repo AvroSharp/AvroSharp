@@ -82,6 +82,13 @@ internal static class ApacheSupport
         w.Line();
         w.Line("/// <summary>Gets the schema, as Apache.Avro represents it.</summary>");
         w.Line($"public override {ApacheSchema} Schema => _SCHEMA;");
+        w.Line();
+        w.Line("/// <inheritdoc />");
+        w.Line($"public override bool Equals({types.Nullable("object")} obj) => base.Equals(obj);");
+        w.Line();
+        w.Line("/// <inheritdoc />");
+        w.Line("public override int GetHashCode() => base.GetHashCode();");
+        CSharpCodeGenerator.EmitFixedOperators(w, name, types);
         w.Close();
     }
 

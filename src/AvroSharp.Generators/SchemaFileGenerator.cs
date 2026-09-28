@@ -37,6 +37,9 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor s_generationFailed = new(
         "AVROGEN003", "Avro code generation failed", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor s_renamed = new(
+        "AVROGEN005", "Generated property renamed", "{0}", Category, DiagnosticSeverity.Info, isEnabledByDefault: true);
+
     private static readonly DiagnosticDescriptor s_missingApache = new(
         "AVROGEN004",
         "Apache.Avro not referenced",
@@ -175,6 +178,14 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         try
         {
             sources = CSharpCodeGenerator.Generate(parsed, options);
+
+            // Notes about the generated code (renamed properties) are reported at the file that defines the type.
+            foreach (var source in sources)
+            {
+                var typeName = source.HintName[..^".g.cs".Length];
+                var path = definedIn.TryGetValue(typeName, out var file) ? file : null;
+                diagnostics.AddRange(source.Notes.Select(note => new DiagnosticInfo(s_renamed.Id, note, path, 1, 1)));
+            }
         }
         catch (Exception ex) when (ex is AvroException or ArgumentException or InvalidOperationException)
         {
@@ -239,7 +250,9 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
 
         public Diagnostic ToDiagnostic()
         {
-            var descriptor = string.Equals(Id, s_invalidSchema.Id, StringComparison.Ordinal) ? s_invalidSchema : s_generationFailed;
+            var descriptor = string.Equals(Id, s_invalidSchema.Id, StringComparison.Ordinal) ? s_invalidSchema
+                : string.Equals(Id, s_renamed.Id, StringComparison.Ordinal) ? s_renamed
+                : s_generationFailed;
             var location = Path is null
                 ? Location.None
                 : Location.Create(Path, default, new LinePositionSpan(Position(), Position()));

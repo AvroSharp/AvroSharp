@@ -201,7 +201,12 @@ public static partial class AvroGeneratedCode
             return true;
         }
 
-        return index == 1 - valueIndex ? false : throw InvalidUnionIndex(index, 2);
+        if (index != 1 - valueIndex)
+        {
+            throw InvalidUnionIndex(index, 2);
+        }
+
+        return false;
     }
 
     // --- Collections ---
@@ -374,12 +379,12 @@ public static partial class AvroGeneratedCode
     /// <param name="field">The field, as <c>Record.field</c>, for errors.</param>
     public static void WriteBooleanList(ref AvroWriter writer, List<bool>? items, string field)
     {
-        var span = Items(items, field, out var count);
+        var count = Count(items, field);
         if (count > 0)
         {
             writer.WriteBlockCount(count);
 #if NET8_0_OR_GREATER
-            writer.WriteBooleans(span);
+            writer.WriteBooleans(CollectionsMarshal.AsSpan(items));
 #else
             writer.WriteBooleans(items!.ToArray());
 #endif
@@ -394,12 +399,12 @@ public static partial class AvroGeneratedCode
     /// <param name="field">The field, as <c>Record.field</c>, for errors.</param>
     public static void WriteIntList(ref AvroWriter writer, List<int>? items, string field)
     {
-        var span = Items(items, field, out var count);
+        var count = Count(items, field);
         if (count > 0)
         {
             writer.WriteBlockCount(count);
 #if NET8_0_OR_GREATER
-            writer.WriteInts(span);
+            writer.WriteInts(CollectionsMarshal.AsSpan(items));
 #else
             foreach (var item in items!)
             {
@@ -417,12 +422,12 @@ public static partial class AvroGeneratedCode
     /// <param name="field">The field, as <c>Record.field</c>, for errors.</param>
     public static void WriteLongList(ref AvroWriter writer, List<long>? items, string field)
     {
-        var span = Items(items, field, out var count);
+        var count = Count(items, field);
         if (count > 0)
         {
             writer.WriteBlockCount(count);
 #if NET8_0_OR_GREATER
-            writer.WriteLongs(span);
+            writer.WriteLongs(CollectionsMarshal.AsSpan(items));
 #else
             foreach (var item in items!)
             {
@@ -440,12 +445,12 @@ public static partial class AvroGeneratedCode
     /// <param name="field">The field, as <c>Record.field</c>, for errors.</param>
     public static void WriteFloatList(ref AvroWriter writer, List<float>? items, string field)
     {
-        var span = Items(items, field, out var count);
+        var count = Count(items, field);
         if (count > 0)
         {
             writer.WriteBlockCount(count);
 #if NET8_0_OR_GREATER
-            writer.WriteFloats(span);
+            writer.WriteFloats(CollectionsMarshal.AsSpan(items));
 #else
             writer.WriteFloats(items!.ToArray());
 #endif
@@ -460,12 +465,12 @@ public static partial class AvroGeneratedCode
     /// <param name="field">The field, as <c>Record.field</c>, for errors.</param>
     public static void WriteDoubleList(ref AvroWriter writer, List<double>? items, string field)
     {
-        var span = Items(items, field, out var count);
+        var count = Count(items, field);
         if (count > 0)
         {
             writer.WriteBlockCount(count);
 #if NET8_0_OR_GREATER
-            writer.WriteDoubles(span);
+            writer.WriteDoubles(CollectionsMarshal.AsSpan(items));
 #else
             writer.WriteDoubles(items!.ToArray());
 #endif
@@ -528,28 +533,10 @@ public static partial class AvroGeneratedCode
         }
     }
 
-    private static ReadOnlySpan<T> Items<T>(List<T>? items, string field, out int count)
-    {
-        if (items is null)
-        {
-            throw NullValue(field);
-        }
-
-        count = items.Count;
-        return CollectionsMarshal.AsSpan(items);
-    }
-#else
-    private static ReadOnlySpan<T> Items<T>(List<T>? items, string field, out int count)
-    {
-        if (items is null)
-        {
-            throw NullValue(field);
-        }
-
-        count = items.Count;
-        return default;
-    }
 #endif
+
+    // The number of items to write; a missing list is an error that names the field.
+    private static int Count<T>(List<T>? items, string field) => items?.Count ?? throw NullValue(field);
 
     private static List<T> Reuse<T>(List<T>? reuse)
     {

@@ -14,6 +14,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - `new T()` gives every field with a schema default its default (#112): primitives, strings, bytes, enums, nullable unions whose default is for their first branch, and arrays and maps of those. Before, only reading data that lacked the field applied the default. Code that relied on these fields starting at zero or empty sees the defaults instead.
 - `SchemaJson` on generated types is a static property instead of a `const`, so it can no longer be used in constant expressions such as attribute arguments.
 - The Apache compatibility mode makes code written for `avrogen` classes compile unchanged (#116): property names default to the Avro field names, as avrogen's are (`AvroSharpPropertyNames=pascal` keeps PascalCase), and types have avrogen's static `_SCHEMA` and an instance `Schema` (Apache's `Avro.Schema`). AvroSharp's schema is `AvroSharpSchema` in that mode, on records as on fixed types. `CodeGenOptions.PropertyNaming` is now nullable: `null` means the mode's default.
+- Generated property names title-case segments in capitals (#117): `USER_ID` becomes `UserId` (it was `USERID`) and `HTTP2_PORT` becomes `Http2Port`; segments with lower-case letters keep their capitals (`txId` is `TxId`). This renames such properties in existing generated code.
+- `[GeneratedCode]` on generated types carries the generator's package version (for example `0.1.2`) instead of `0.0.0.0` (#107): MinVer sets `AssemblyVersion` to `major.0.0.0`.
+- Generated code no longer checks a union branch's value for null after a type pattern proved it is not, and null checks have one pair of parentheses (#107). With C# 8 or later the schema property uses `??=`.
 
 ### Added
 
@@ -22,6 +25,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - Generated records write and read memory without allocating (#115): `TryWriteAvroBytes(Span<byte>, out int)` (no exception when the value does not fit), `WriteAvroBytes(Span<byte>)`, `WriteAvroBytes(IBufferWriter<byte>)`, `FromAvroBytes(data, out int bytesConsumed)` and `FromAvroBytes(in ReadOnlySequence<byte>)`.
 - `AvroWriter.WriteInts` and `WriteLongs` write array items in bulk.
 - `CodeGenOptions.LanguageVersion`: the C# version generated code may use. The source generator sets it from the project; with C# 11 or later, generated code adds the UTF-8 schema literal and `IAvroSerializable<T>` for .NET 8 and later.
+- Generated code is easier to debug and read (#117): records have a `[DebuggerDisplay]` with their first three simple fields, the serializers are `[DebuggerNonUserCode]`, and a property whose logical type keeps its raw type (a decimal wider than 28 digits, `duration`, `timestamp-nanos`, or any logical type with `AvroSharpLogicalTypes=raw`) says in its documentation what the value means.
+- Fixed types have `==`, `!=` and `AsSpan()` (#117).
+- The generator reports a property renamed to avoid a clash (for example `user_id` and `userId` in one record) as informational diagnostic AVROGEN005, naming both fields; `GeneratedSource.Notes` carries these notes for other callers of `CSharpCodeGenerator` (#117).
+- Generated files suppress CS8981, so all-lower-case Avro type names compile without warnings (#117).
 
 ### Fixed
 

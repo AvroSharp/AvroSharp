@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace AvroSharp.CodeGen;
 
@@ -9,11 +11,22 @@ public sealed class GeneratedSource : IEquatable<GeneratedSource>
     /// <param name="hintName">The file name, unique within one generation run.</param>
     /// <param name="text">The C# source.</param>
     public GeneratedSource(string hintName, string text)
+        : this(hintName, text, [])
+    {
+    }
+
+    /// <summary>Initializes a new instance of the <see cref="GeneratedSource"/> class, with notes about the generated code.</summary>
+    /// <param name="hintName">The file name, unique within one generation run.</param>
+    /// <param name="text">The C# source.</param>
+    /// <param name="notes">Things a user may not expect, such as a property renamed to avoid a clash.</param>
+    public GeneratedSource(string hintName, string text, IReadOnlyList<string> notes)
     {
         ArgumentNullException.ThrowIfNull(hintName);
         ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(notes);
         HintName = hintName;
         Text = text;
+        Notes = notes;
     }
 
     /// <summary>Gets the file name, for example <c>com.example.User.g.cs</c>.</summary>
@@ -22,11 +35,18 @@ public sealed class GeneratedSource : IEquatable<GeneratedSource>
     /// <summary>Gets the C# source.</summary>
     public string Text { get; }
 
+    /// <summary>
+    /// Gets notes about the generated code that a user may not expect, such as a property renamed to avoid a clash.
+    /// The source generator reports each as an informational diagnostic.
+    /// </summary>
+    public IReadOnlyList<string> Notes { get; }
+
     /// <inheritdoc />
     public bool Equals(GeneratedSource? other) =>
         other is not null
         && string.Equals(HintName, other.HintName, StringComparison.Ordinal)
-        && string.Equals(Text, other.Text, StringComparison.Ordinal);
+        && string.Equals(Text, other.Text, StringComparison.Ordinal)
+        && Notes.SequenceEqual(other.Notes, StringComparer.Ordinal);
 
     /// <inheritdoc />
     public override bool Equals(object? obj) => obj is GeneratedSource other && Equals(other);

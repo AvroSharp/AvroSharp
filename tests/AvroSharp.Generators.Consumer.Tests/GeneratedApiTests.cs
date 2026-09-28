@@ -179,6 +179,21 @@ public class GeneratedApiTests
     }
 #endif
 
+    [Test]
+    public async Task FixedTypes_CompareByValue_AndExposeASpan()
+    {
+        var a = new shop.Sku([1, 2, 3, 4]);
+        var b = new shop.Sku([1, 2, 3, 4]);
+        var c = new shop.Sku([1, 2, 3, 5]);
+        shop.Sku? none = null;
+
+        await Assert.That(a == b).IsTrue();
+        await Assert.That(a != c).IsTrue();
+        await Assert.That(a == none).IsFalse();
+        await Assert.That(none == null).IsTrue();
+        await Assert.That(a.AsSpan().ToArray()).IsEquivalentTo(new byte[] { 1, 2, 3, 4 });
+    }
+
     private static void ReadFrom<T>(T target, byte[] bytes)
         where T : IAvroReadable
     {
