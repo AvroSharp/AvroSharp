@@ -109,6 +109,67 @@ public class SchemaFileGeneratorTests
         await Assert.That(compileDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)).IsEmpty();
     }
 
+    /// <summary>
+    /// A union whose branches map to the same C# type cannot be written (the branch is chosen from the value's runtime
+    /// type) and would not compile (duplicate case labels, CS8120), so it is reported instead (#108).
+    /// </summary>
+    [Test]
+    [Arguments("""{"type":"string","logicalType":"uuid"}""", """{"type":"fixed","name":"U16","size":16,"logicalType":"uuid"}""", "global::System.Guid")]
+    [Arguments("""{"type":"bytes","logicalType":"decimal","precision":10,"scale":2}""", """{"type":"fixed","name":"D8","size":8,"logicalType":"decimal","precision":10,"scale":2}""", "decimal")]
+    [Arguments("""{"type":"int","logicalType":"time-millis"}""", """{"type":"long","logicalType":"time-micros"}""", "global::System.TimeOnly")]
+    public async Task UnionBranchesWithTheSameCSharpType_AreReported(string first, string second, string csharpType)
+    {
+        var schema = $$"""{"type":"record","name":"R","namespace":"u","fields":[{"name":"v","type":["null",{{first}},{{second}}]}]}""";
+
+        var (sources, generatorDiagnostics, _) = GeneratorHarness.Run([("u.avsc", schema)]);
+
+        var diagnostic = generatorDiagnostics.Single();
+        await Assert.That(diagnostic.Id).IsEqualTo("AVROGEN003");
+        await Assert.That(diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).Contains($"both map to the C# type {csharpType},");
+        await Assert.That(sources).IsEmpty();
+
+        // Mapping logical types to their underlying types separates the branches, and the output compiles.
+        var (rawSources, rawDiagnostics, rawCompile) = GeneratorHarness.Run([("u.avsc", schema)], logicalTypes: "raw");
+        await Assert.That(rawDiagnostics).IsEmpty();
+        await Assert.That(rawSources).IsNotEmpty();
+        await Assert.That(rawCompile.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
+    /// <summary>
+    /// C# ends a comment at any of its line terminators, so a doc containing one must not let the rest of the doc
+    /// become code (#110): the output compiles without warnings and has no member the doc tried to add.
+    /// </summary>
+    [Test]
+    [Arguments("\u2028")]
+    [Arguments("\u2029")]
+    [Arguments("\u0085")]
+    [Arguments("\r")]
+    [Arguments("\n")]
+    [Arguments("\r\n")]
+    public async Task DocLineTerminators_CannotInjectCode(string terminator)
+    {
+        var injected = CSharpJson(terminator + "public int Injected { get; set; }" + terminator + "\u0001end");
+        var schema = $$$"""
+            {"type":"record","name":"Doc","namespace":"d","doc":"{{{injected}}}","fields":[
+              {"name":"v","type":"int","doc":"{{{injected}}}"},
+              {"name":"e","type":{"type":"enum","name":"E","doc":"{{{injected}}}","symbols":["A"]}}
+            ]}
+            """;
+
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run([("d.avsc", schema)]);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(sources).IsNotEmpty();
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+        var type = GeneratorHarness.GenerateAndLoad([("d.avsc", schema)]).GetType("d.Doc")!;
+        await Assert.That(type.GetProperty("Injected")).IsNull();
+
+        // JSON with every non-ASCII or control character escaped, so the terminators reach the parser intact.
+        static string CSharpJson(string text) => string.Concat(text.Select(c => c is < (char)0x20 or > (char)0x7E
+            ? "\\u" + ((int)c).ToString("X4", System.Globalization.CultureInfo.InvariantCulture)
+            : c.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
     [Test]
     public async Task ATypeDefinedInTwoFiles_IsReported_NamingTheOtherFile()
     {

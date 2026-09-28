@@ -149,6 +149,51 @@ public class GeneratedCodeTests
         await Assert.That(nullsError.Message).Contains("zero-size items");
     }
 
+    /// <summary>
+    /// The zero-size budget covers the whole value, not each array (#109): an array of nodes that each declare the
+    /// maximum of nulls used to be accepted, a few bytes per node for 65,536 list entries each.
+    /// </summary>
+    [Test]
+    public async Task ZeroSizeItems_AreLimitedAcrossTheWholeValue()
+    {
+        var hostile = NodeWithChildren(Enumerable.Repeat(65_536, 20));
+        var error = Assert.Throws<AvroDataException>(() => graph.Node.FromAvroBytes(hostile));
+        await Assert.That(error.Message).Contains("zero-size items");
+
+        // Within the budget in total, nested arrays of nulls are read.
+        var node = graph.Node.FromAvroBytes(NodeWithChildren([30_000, 30_000]));
+        await Assert.That(node.Children.Select(c => c.Nulls.Count)).IsEquivalentTo(new[] { 30_000, 30_000 });
+
+        // Each value read from a reused reader (as in a container block) gets the whole budget.
+        byte[] two = [.. NodeWithChildren([60_000]), .. NodeWithChildren([60_000])];
+        await Assert.That(ReadTwo(two)).IsEqualTo(120_000);
+    }
+
+    // A node with value 0 and no next node, whose children each hold the given number of nulls.
+    private static byte[] NodeWithChildren(IEnumerable<int> nullsPerChild)
+    {
+        var counts = nullsPerChild.ToArray();
+        var bytes = new List<byte> { 0x00, 0x00 };
+        bytes.AddRange(Varint(counts.Length));
+        foreach (var count in counts)
+        {
+            bytes.AddRange([0x00, 0x00, 0x00]);
+            bytes.AddRange(Varint(count));
+            bytes.Add(0x00);
+        }
+
+        bytes.AddRange([0x00, 0x00]);
+        return [.. bytes];
+    }
+
+    private static int ReadTwo(byte[] bytes)
+    {
+        var reader = new AvroReader(bytes);
+        var first = graph.Node.Read(ref reader);
+        var second = graph.Node.Read(ref reader);
+        return first.Children.Sum(c => c.Nulls.Count) + second.Children.Sum(c => c.Nulls.Count);
+    }
+
     [Test]
     public async Task MapsInSeveralBlocks_AreRead()
     {

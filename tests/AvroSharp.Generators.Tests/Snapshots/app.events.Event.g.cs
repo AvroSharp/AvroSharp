@@ -45,7 +45,11 @@ namespace app.events
         }
 
         /// <summary>Reads a value written with this type's schema.</summary>
-        public static Event Read(ref global::AvroSharp.IO.AvroReader reader) => ReadCore(ref reader, 0);
+        public static Event Read(ref global::AvroSharp.IO.AvroReader reader)
+        {
+            global::AvroSharp.Serialization.AvroGeneratedCode.BeginRead(ref reader);
+            return ReadCore(ref reader, 0);
+        }
 
         /// <summary>Writes this value to a new array, in Avro binary encoding.</summary>
         public byte[] ToAvroBytes() => global::AvroSharp.Serialization.AvroGeneratedCode.SerializeToArray(this, Write);
@@ -64,6 +68,7 @@ namespace app.events
         /// </summary>
         public static Event Read(ref global::AvroSharp.IO.AvroReader reader, global::AvroSharp.Schemas.AvroSchema writerSchema)
         {
+            global::AvroSharp.Serialization.AvroGeneratedCode.BeginRead(ref reader);
             if (global::AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writerSchema, Schema))
             {
                 return ReadCore(ref reader, 0);
