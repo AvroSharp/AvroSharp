@@ -1,0 +1,12 @@
+{"type": "record", "name": "Order", "namespace": "com.acme.sales",
+ "fields": [
+  {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+  {"name": "customer", "type": "com.acme.crm.Customer"},
+  {"name": "lines", "type": {"type": "array", "items": {"type": "record", "name": "Line", "fields": [
+    {"name": "sku", "type": "string"},
+    {"name": "qty", "type": "int", "default": 1},
+    {"name": "ship_to", "type": ["null", "com.acme.common.Address"], "default": null}
+  ]}}},
+  {"name": "status", "type": {"type": "enum", "name": "Status", "namespace": "com.acme.common", "symbols": ["NEW", "PAID"]}, "default": "NEW"},
+  {"name": "note", "type": ["null", "string"], "default": null}
+ ]}

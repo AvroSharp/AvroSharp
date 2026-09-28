@@ -12,6 +12,8 @@
     <PackageReference Include="TUnit" />
     <PackageReference Include="CsCheck" />
     <PackageReference Include="Apache.Avro" />
+    <!-- Confluent's serializer, to check that Confluent framing is byte-identical to it. -->
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
   </ItemGroup>
 

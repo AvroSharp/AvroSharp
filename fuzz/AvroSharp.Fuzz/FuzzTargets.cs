@@ -210,6 +210,63 @@ public static class FuzzTargets
 
     private static readonly AvroMessageReader<AvroValue> s_messages = AvroMessageReader.CreateGeneric(new AvroSchemaStore([.. Schemas]));
 
+    /// <summary>The registry framings <see cref="RegistryMessage"/> chooses from with the first input byte.</summary>
+    public static IReadOnlyList<AvroRegistryFraming> Framings { get; } =
+    [
+        AvroRegistryFraming.Confluent, AvroRegistryFraming.ConfluentGuid, AvroRegistryFraming.Apicurio8Byte, AvroRegistryFraming.AwsGlue, AvroRegistryFraming.AwsGlueCompressed,
+    ];
+
+    /// <summary>
+    /// A message in a schema registry's framing (the first byte picks it): only <see cref="AvroException"/> escapes, and
+    /// the object read round-trips. Schema i of <see cref="Schemas"/> has the numeric ID i and a GUID ID ending in i.
+    /// </summary>
+    public static void RegistryMessage(ReadOnlySpan<byte> data)
+    {
+        if (data.Length == 0)
+        {
+            return;
+        }
+
+        var framing = Framings[data[0] % Framings.Count];
+        AvroValue value;
+        AvroSchemaId id;
+        try
+        {
+            value = s_registryReaders[framing].Read(data[1..]);
+            framing.TryReadHeader(data[1..], out id);
+        }
+        catch (AvroException)
+        {
+            return;
+        }
+
+        CheckRoundTrips(s_registryIds.GetSchema(id)!, value);
+    }
+
+    private static AvroSchemaId RegistryId(AvroRegistryFraming framing, int schema) =>
+        framing == AvroRegistryFraming.ConfluentGuid || framing == AvroRegistryFraming.AwsGlue || framing == AvroRegistryFraming.AwsGlueCompressed
+            ? AvroSchemaId.FromGuid(new Guid(0x0A0B0C0D, 1, 2, 3, 4, 5, 6, 7, 8, 9, (byte)schema))
+            : AvroSchemaId.FromNumber(schema);
+
+    private static readonly AvroSchemaIdStore s_registryIds = CreateRegistryIds();
+
+    private static readonly Dictionary<AvroRegistryFraming, AvroRegistryMessageReader<AvroValue>> s_registryReaders =
+        Framings.ToDictionary(f => f, f => AvroRegistryMessageReader.CreateGeneric(f, s_registryIds, options: new AvroRegistryReaderOptions { MaxPayloadLength = 1 << 20 }));
+
+    private static AvroSchemaIdStore CreateRegistryIds()
+    {
+        var store = new AvroSchemaIdStore();
+        foreach (var framing in Framings)
+        {
+            for (var i = 0; i < Schemas.Count; i++)
+            {
+                store.Add(RegistryId(framing, i), Schemas[i]);
+            }
+        }
+
+        return store;
+    }
+
     /// <summary>Valid inputs to start fuzzing from, per target: encodings of sample values for every schema.</summary>
     public static IEnumerable<(string Target, byte[] Input)> Seeds()
     {
@@ -227,6 +284,11 @@ public static class FuzzTargets
 
             var values = Enumerable.Range(0, 5).Select(_ => new SampleValues(random).Create(Schemas[i], 0)).ToList();
             yield return (nameof(SingleObject), AvroMessage.ToArray(values[0], GenericDatumWriter.Create(Schemas[i])));
+            for (var f = 0; f < Framings.Count; f++)
+            {
+                yield return (nameof(RegistryMessage), [(byte)f, .. AvroRegistryMessage.ToArray(Framings[f], RegistryId(Framings[f], i), values[1], GenericDatumWriter.Create(Schemas[i]))]);
+            }
+
             foreach (var codec in new[] { AvroCodec.Null, AvroCodec.Deflate })
             {
                 yield return (nameof(ContainerFile), ContainerFileOf(Schemas[i], values, codec));

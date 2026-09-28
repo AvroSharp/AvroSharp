@@ -1,0 +1,8 @@
+{"type": "record", "name": "Address", "namespace": "com.acme.common",
+ "doc": "A postal address: Città, Straße, é & <b> \t tab   sep \u007f del \"quoted\" /slash \\ back 😀",
+ "fields": [
+  {"name": "street", "type": "string"},
+  {"name": "city", "type": "string", "default": "Budapest"},
+  {"name": "zip", "type": ["null", "string"], "default": null, "doc": "Optional."},
+  {"name": "country", "type": {"type": "enum", "name": "Country", "symbols": ["HU", "DE", "US"], "default": "HU", "doc": "ISO code."}}
+ ]}

@@ -33,6 +33,7 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Apache.Avro" Version="1.12.2" />
+    <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.15.1" />
     <PackageVersion Include="SharpFuzz" Version="2.3.0" />
   </ItemGroup>
 

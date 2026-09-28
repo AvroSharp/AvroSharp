@@ -1,41 +1,55 @@
 using System.Collections.Generic;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using AvroSharp.Buffers;
 
 namespace AvroSharp.Schemas;
 
 /// <summary>
 /// Writes the full JSON form of a schema: every attribute is kept, and each named type is defined at its first
-/// occurrence and referred to by name afterwards.
+/// occurrence and referred to by name afterwards. Attributes come in the order Apache Avro Java writes them, and
+/// numbers in defaults and properties are printed as Java prints them, so the compact form is the text of Java's
+/// <c>Schema.toString()</c>, which is what schema registries compare.
 /// </summary>
 internal sealed class SchemaJsonWriter
 {
-    private static readonly JsonWriterOptions s_compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, SkipValidation = true };
     private static readonly JsonWriterOptions s_indented = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, SkipValidation = true, Indented = true };
 
-    private readonly Utf8JsonWriter _writer;
-    private readonly HashSet<NamedSchema> _defined = [];
+    private readonly IJsonOutput _out;
+    private readonly HashSet<string> _known = new(System.StringComparer.Ordinal);
 
-    private SchemaJsonWriter(Utf8JsonWriter writer)
+    private SchemaJsonWriter(IJsonOutput output, IEnumerable<NamedSchema>? referenced)
     {
-        _writer = writer;
+        _out = output;
+        if (referenced is not null)
+        {
+            foreach (var named in referenced)
+            {
+                _known.Add((named ?? throw new System.ArgumentException("A referenced schema is null.", nameof(referenced))).FullName);
+            }
+        }
     }
 
-    public static string ToJson(AvroSchema schema, bool indented)
+    /// <summary>Writes a schema; named types in <paramref name="referenced"/> are written by name, never defined.</summary>
+    public static string ToJson(AvroSchema schema, bool indented, IEnumerable<NamedSchema>? referenced = null)
     {
-        using var buffer = new PooledBufferWriter();
-        using (var writer = new Utf8JsonWriter(buffer, indented ? s_indented : s_compact))
+        if (!indented)
         {
-            new SchemaJsonWriter(writer).WriteSchema(schema, enclosingNamespace: null);
+            var compact = new JacksonJsonOutput();
+            new SchemaJsonWriter(compact, referenced).WriteSchema(schema, enclosingNamespace: null);
+            return compact.ToString();
         }
 
-        return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        using var buffer = new Buffers.PooledBufferWriter();
+        using (var writer = new Utf8JsonWriter(buffer, s_indented))
+        {
+            new SchemaJsonWriter(new Utf8JsonOutput(writer), referenced).WriteSchema(schema, enclosingNamespace: null);
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
     public static void Write(AvroSchema schema, Utf8JsonWriter writer) =>
-        new SchemaJsonWriter(writer).WriteSchema(schema, enclosingNamespace: null);
+        new SchemaJsonWriter(new Utf8JsonOutput(writer), referenced: null).WriteSchema(schema, enclosingNamespace: null);
 
     private void WriteSchema(AvroSchema schema, string? enclosingNamespace)
     {
@@ -44,9 +58,9 @@ internal sealed class SchemaJsonWriter
             case PrimitiveSchema primitive:
                 WritePrimitive(primitive);
                 break;
-            case NamedSchema named when !_defined.Add(named):
-                // Already defined: refer to it by the shortest name that resolves to it.
-                _writer.WriteStringValue(string.Equals(named.Name.Namespace, enclosingNamespace, System.StringComparison.Ordinal) ? named.Name.Name : named.FullName);
+            case NamedSchema named when !_known.Add(named.FullName):
+                // Already defined, or referenced: refer to it by the shortest name that resolves to it.
+                _out.String(string.Equals(named.Name.Namespace, enclosingNamespace, System.StringComparison.Ordinal) ? named.Name.Name : named.FullName);
                 break;
             case RecordSchema record:
                 WriteRecord(record, enclosingNamespace);
@@ -58,29 +72,31 @@ internal sealed class SchemaJsonWriter
                 WriteFixed(fixedSchema, enclosingNamespace);
                 break;
             case ArraySchema array:
-                _writer.WriteStartObject();
-                _writer.WriteString("type"u8, "array"u8);
-                _writer.WritePropertyName("items"u8);
+                _out.StartObject();
+                _out.Name("type");
+                _out.String("array");
+                _out.Name("items");
                 WriteSchema(array.Items, enclosingNamespace);
                 WriteProperties(array.Properties);
-                _writer.WriteEndObject();
+                _out.EndObject();
                 break;
             case MapSchema map:
-                _writer.WriteStartObject();
-                _writer.WriteString("type"u8, "map"u8);
-                _writer.WritePropertyName("values"u8);
+                _out.StartObject();
+                _out.Name("type");
+                _out.String("map");
+                _out.Name("values");
                 WriteSchema(map.Values, enclosingNamespace);
                 WriteProperties(map.Properties);
-                _writer.WriteEndObject();
+                _out.EndObject();
                 break;
             case UnionSchema union:
-                _writer.WriteStartArray();
+                _out.StartArray();
                 foreach (var branch in union.Branches)
                 {
                     WriteSchema(branch, enclosingNamespace);
                 }
 
-                _writer.WriteEndArray();
+                _out.EndArray();
                 break;
             default:
                 throw new AvroSchemaException($"Unsupported schema type '{schema.GetType()}'.");
@@ -91,124 +107,152 @@ internal sealed class SchemaJsonWriter
     {
         if (schema.LogicalType is null && schema.Properties.Count == 0)
         {
-            _writer.WriteStringValue(schema.TypeName);
+            _out.String(schema.TypeName);
             return;
         }
 
-        _writer.WriteStartObject();
-        _writer.WriteString("type"u8, schema.TypeName);
+        _out.StartObject();
+        _out.Name("type");
+        _out.String(schema.TypeName);
         WriteLogicalType(schema.LogicalType);
         WriteProperties(schema.Properties);
-        _writer.WriteEndObject();
+        _out.EndObject();
     }
 
     private void WriteRecord(RecordSchema record, string? enclosingNamespace)
     {
-        _writer.WriteStartObject();
-        _writer.WriteString("type"u8, record.IsError ? "error"u8 : "record"u8);
-        WriteNameAttributes(record, enclosingNamespace);
-        _writer.WritePropertyName("fields"u8);
-        _writer.WriteStartArray();
+        _out.StartObject();
+        _out.Name("type");
+        _out.String(record.IsError ? "error" : "record");
+        WriteNameAndDoc(record, enclosingNamespace);
+        _out.Name("fields");
+        _out.StartArray();
         foreach (var field in record.Fields)
         {
-            _writer.WriteStartObject();
-            _writer.WriteString("name"u8, field.Name);
-            _writer.WritePropertyName("type"u8);
-            WriteSchema(field.Schema, record.Name.Namespace);
-            if (field.Doc is not null)
-            {
-                _writer.WriteString("doc"u8, field.Doc);
-            }
-
-            if (field.DefaultValue is { } defaultValue)
-            {
-                _writer.WritePropertyName("default"u8);
-                defaultValue.WriteTo(_writer);
-            }
-
-            if (field.Order != FieldOrder.Ascending)
-            {
-                _writer.WriteString("order"u8, field.Order == FieldOrder.Descending ? "descending"u8 : "ignore"u8);
-            }
-
-            if (field.Aliases.Count > 0)
-            {
-                _writer.WritePropertyName("aliases"u8);
-                _writer.WriteStartArray();
-                foreach (var alias in field.Aliases)
-                {
-                    _writer.WriteStringValue(alias);
-                }
-
-                _writer.WriteEndArray();
-            }
-
-            WriteProperties(field.Properties);
-            _writer.WriteEndObject();
+            WriteField(field, record.Name.Namespace);
         }
 
-        _writer.WriteEndArray();
+        _out.EndArray();
         WriteProperties(record.Properties);
-        _writer.WriteEndObject();
+        WriteAliases(record);
+        _out.EndObject();
+    }
+
+    private void WriteField(RecordField field, string? recordNamespace)
+    {
+        _out.StartObject();
+        _out.Name("name");
+        _out.String(field.Name);
+        _out.Name("type");
+        WriteSchema(field.Schema, recordNamespace);
+        if (field.Doc is not null)
+        {
+            _out.Name("doc");
+            _out.String(field.Doc);
+        }
+
+        if (field.DefaultValue is { } defaultValue)
+        {
+            _out.Name("default");
+            _out.Value(defaultValue);
+        }
+
+        if (field.Order != FieldOrder.Ascending)
+        {
+            _out.Name("order");
+            _out.String(field.Order == FieldOrder.Descending ? "descending" : "ignore");
+        }
+
+        if (field.Aliases.Count > 0)
+        {
+            _out.Name("aliases");
+            _out.StartArray();
+            foreach (var alias in field.Aliases)
+            {
+                _out.String(alias);
+            }
+
+            _out.EndArray();
+        }
+
+        WriteProperties(field.Properties);
+        _out.EndObject();
     }
 
     private void WriteEnum(EnumSchema schema, string? enclosingNamespace)
     {
-        _writer.WriteStartObject();
-        _writer.WriteString("type"u8, "enum"u8);
-        WriteNameAttributes(schema, enclosingNamespace);
-        _writer.WritePropertyName("symbols"u8);
-        _writer.WriteStartArray();
+        _out.StartObject();
+        _out.Name("type");
+        _out.String("enum");
+        WriteNameAndDoc(schema, enclosingNamespace);
+        _out.Name("symbols");
+        _out.StartArray();
         foreach (var symbol in schema.Symbols)
         {
-            _writer.WriteStringValue(symbol);
+            _out.String(symbol);
         }
 
-        _writer.WriteEndArray();
+        _out.EndArray();
         if (schema.Default is not null)
         {
-            _writer.WriteString("default"u8, schema.Default);
+            _out.Name("default");
+            _out.String(schema.Default);
         }
 
         WriteProperties(schema.Properties);
-        _writer.WriteEndObject();
+        WriteAliases(schema);
+        _out.EndObject();
     }
 
     private void WriteFixed(FixedSchema schema, string? enclosingNamespace)
     {
-        _writer.WriteStartObject();
-        _writer.WriteString("type"u8, "fixed"u8);
-        WriteNameAttributes(schema, enclosingNamespace);
-        _writer.WriteNumber("size"u8, schema.Size);
+        _out.StartObject();
+        _out.Name("type");
+        _out.String("fixed");
+        WriteNameAndDoc(schema, enclosingNamespace);
+        _out.Name("size");
+        _out.Number(schema.Size);
         WriteLogicalType(schema.LogicalType);
         WriteProperties(schema.Properties);
-        _writer.WriteEndObject();
+        WriteAliases(schema);
+        _out.EndObject();
     }
 
-    private void WriteNameAttributes(NamedSchema schema, string? enclosingNamespace)
+    // As Java: a namespace is written when it differs from the enclosing one, and "" when a type without one is
+    // nested in a namespace.
+    private void WriteNameAndDoc(NamedSchema schema, string? enclosingNamespace)
     {
-        _writer.WriteString("name"u8, schema.Name.Name);
+        _out.Name("name");
+        _out.String(schema.Name.Name);
         if (!string.Equals(schema.Name.Namespace, enclosingNamespace, System.StringComparison.Ordinal))
         {
-            _writer.WriteString("namespace"u8, schema.Name.Namespace ?? string.Empty);
+            _out.Name("namespace");
+            _out.String(schema.Name.Namespace ?? string.Empty);
         }
 
         if (schema.Doc is not null)
         {
-            _writer.WriteString("doc"u8, schema.Doc);
+            _out.Name("doc");
+            _out.String(schema.Doc);
         }
+    }
 
-        if (schema.Aliases.Count > 0)
+    // Java writes a named type's aliases last, after its properties.
+    private void WriteAliases(NamedSchema schema)
+    {
+        if (schema.Aliases.Count == 0)
         {
-            _writer.WritePropertyName("aliases"u8);
-            _writer.WriteStartArray();
-            foreach (var alias in schema.Aliases)
-            {
-                _writer.WriteStringValue(string.Equals(alias.Namespace, schema.Name.Namespace, System.StringComparison.Ordinal) ? alias.Name : alias.FullName);
-            }
-
-            _writer.WriteEndArray();
+            return;
         }
+
+        _out.Name("aliases");
+        _out.StartArray();
+        foreach (var alias in schema.Aliases)
+        {
+            _out.String(string.Equals(alias.Namespace, schema.Name.Namespace, System.StringComparison.Ordinal) ? alias.Name : alias.FullName);
+        }
+
+        _out.EndArray();
     }
 
     private void WriteLogicalType(AvroLogicalType? logicalType)
@@ -218,11 +262,14 @@ internal sealed class SchemaJsonWriter
             return;
         }
 
-        _writer.WriteString("logicalType"u8, logicalType.Name);
+        _out.Name("logicalType");
+        _out.String(logicalType.Name);
         if (logicalType is DecimalLogicalType decimalType)
         {
-            _writer.WriteNumber("precision"u8, decimalType.Precision);
-            _writer.WriteNumber("scale"u8, decimalType.Scale);
+            _out.Name("precision");
+            _out.Number(decimalType.Precision);
+            _out.Name("scale");
+            _out.Number(decimalType.Scale);
         }
     }
 
@@ -230,8 +277,8 @@ internal sealed class SchemaJsonWriter
     {
         foreach (var property in properties)
         {
-            _writer.WritePropertyName(property.Key);
-            property.Value.WriteTo(_writer);
+            _out.Name(property.Key);
+            _out.Value(property.Value);
         }
     }
 }

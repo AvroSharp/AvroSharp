@@ -42,7 +42,10 @@ switch (args)
     case [nameof(FuzzTargets.Resolution)]:
         Fuzzer.LibFuzzer.Run(FuzzTargets.Resolution);
         return 0;
+    case [nameof(FuzzTargets.RegistryMessage)]:
+        Fuzzer.LibFuzzer.Run(FuzzTargets.RegistryMessage);
+        return 0;
     default:
-        Console.Error.WriteLine($"Usage: AvroSharp.Fuzz <{nameof(FuzzTargets.GenericBinary)}|{nameof(FuzzTargets.GenericJson)}|{nameof(FuzzTargets.SchemaParse)}|{nameof(FuzzTargets.ContainerFile)}|{nameof(FuzzTargets.SingleObject)}|{nameof(FuzzTargets.Resolution)}>, or --write-seeds <folder>");
+        Console.Error.WriteLine($"Usage: AvroSharp.Fuzz <{nameof(FuzzTargets.GenericBinary)}|{nameof(FuzzTargets.GenericJson)}|{nameof(FuzzTargets.SchemaParse)}|{nameof(FuzzTargets.ContainerFile)}|{nameof(FuzzTargets.SingleObject)}|{nameof(FuzzTargets.Resolution)}|{nameof(FuzzTargets.RegistryMessage)}>, or --write-seeds <folder>");
         return 1;
 }
