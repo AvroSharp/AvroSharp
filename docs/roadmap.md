@@ -4,7 +4,7 @@ The live status of each milestone. The milestones and their exit criteria come f
 
 | Milestone | Status | Open work |
 |---|---|---|
-| M0: skeleton and CI | Done | No package is published yet (#84). |
+| M0: skeleton and CI | Done | The packages are published to nuget.org from the maintainer's account, since 0.1.1. |
 | M1: schemas | Done | |
 | M2: binary encoding and the generic model | Done | SIMD for one-byte varint runs (#24), decided by the SIMD rule (#29) |
 | M2.5: code generation from `.avsc` files | Done | Union classes (#14), `required`/`init` (#15), cyclic cross-file references (#16), options (#18), JSON for generated types (#19), SDK requirement (#20) |

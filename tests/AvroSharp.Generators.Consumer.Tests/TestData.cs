@@ -26,6 +26,7 @@ internal static class TestData
             Small = [1, -1, 1000, int.MinValue],
             Weights = [1.5, -2.25, double.MaxValue],
             Ratios = [0.5f, float.Epsilon],
+            Flags = [true, false, false, true],
             Tags = ["a", "日本", ""],
             Lines = [new shop.Line { Sku = sku, Qty = 1 }, new shop.Line { Sku = sku, Qty = 2, Note = "fragile" }],
             Attributes = new() { ["x"] = 1, ["y"] = -2 },

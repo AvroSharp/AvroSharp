@@ -142,7 +142,7 @@ public ref struct AvroReader   // over ReadOnlySpan<byte> (fast) or ReadOnlySequ
 
 ### 4.4 Generic data model
 - `GenericRecord` (sealed class): `AvroSchema Schema`, values stored in a **`AvroValue[]`** where `AvroValue` is a 16-byte struct (`long`/`double` bits + `object?` ref + type tag) — no boxing for primitives, unlike Apache's `object[]` **[src]**. Indexers by position and name; `TryGetValue<T>`; `GetInt32(int pos)` typed accessors; `object?` indexer kept for convenience (boxes on demand).
-- `GenericEnum` (schema + ordinal, symbol string), `GenericFixed` (schema + `byte[]`/`ReadOnlyMemory<byte>`), arrays as `List<T>`/`AvroValue[]`, maps as `Dictionary<string, AvroValue>`.
+- `GenericEnum` (schema + ordinal, symbol string), `GenericFixed` (schema + `byte[]`/`ReadOnlyMemory<byte>`), arrays as `List<T>`/`AvroValue[]` (arrays of `boolean`, `int`, `long`, `float` and `double` items hold the primitives themselves: they are read in bulk, and booleans and floating-point items are written as one copy; #23, #26), maps as `Dictionary<string, AvroValue>`.
 - `GenericDatumWriter`/`GenericDatumReader` are pre-compiled per schema into a tree of typed `IAvroCodec` nodes (see 4.5) that read/write `AvroValue` without boxing.
 
 ### 4.5 Typed serialization strategy — comparison and recommendation

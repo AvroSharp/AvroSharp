@@ -198,10 +198,21 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
     private string? BulkReader(AvroSchema items) => items.Type switch
     {
         _ when items is not PrimitiveSchema || types.Logical(items) is not null => null,
+        AvroSchemaType.Boolean => "ReadBooleans",
         AvroSchemaType.Int => "ReadInts",
         AvroSchemaType.Long => "ReadLongs",
         AvroSchemaType.Float => "ReadFloats",
         AvroSchemaType.Double => "ReadDoubles",
+        _ => null,
+    };
+
+    /// <summary>The bulk writer for arrays of a one-byte or fixed-width primitive, or <see langword="null"/> (also for mapped logical types).</summary>
+    private string? BulkWriter(AvroSchema items) => items.Type switch
+    {
+        _ when items is not PrimitiveSchema || types.Logical(items) is not null => null,
+        AvroSchemaType.Boolean => "WriteBooleans",
+        AvroSchemaType.Float => "WriteFloats",
+        AvroSchemaType.Double => "WriteDoubles",
         _ => null,
     };
 
@@ -212,10 +223,9 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         w.Line($"var items{n} = {NotNull(expression, field)};");
         w.Open($"if (items{n}.Count > 0)");
         w.Line($"writer.WriteBlockCount(items{n}.Count);");
-        if (array.Items is PrimitiveSchema && types.Logical(array.Items) is null && array.Items.Type is AvroSchemaType.Double or AvroSchemaType.Float)
+        if (BulkWriter(array.Items) is { } bulk)
         {
-            // Fixed-width items are one copy on little-endian hardware.
-            var bulk = array.Items.Type == AvroSchemaType.Double ? "WriteDoubles" : "WriteFloats";
+            // Fixed-width items are one copy on little-endian hardware; booleans are one copy everywhere.
             w.Directive("#if NET8_0_OR_GREATER");
             w.Line($"writer.{bulk}({CollectionsMarshal}.AsSpan(items{n}));");
             w.Directive("#else");

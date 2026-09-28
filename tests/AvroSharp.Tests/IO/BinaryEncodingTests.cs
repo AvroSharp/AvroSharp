@@ -147,6 +147,50 @@ public class BinaryEncodingTests
     }
 
     [Test]
+    public async Task BulkBooleans_MatchItemByItemEncoding()
+    {
+        var values = Enumerable.Range(0, 100).Select(i => i % 3 == 0).ToArray();
+        var bulk = Encode((ref AvroWriter w) => w.WriteBooleans(values));
+        var single = Encode((ref AvroWriter w) =>
+        {
+            foreach (var v in values)
+            {
+                w.WriteBoolean(v);
+            }
+        });
+        await Assert.That(bulk).IsEqualTo(single);
+
+        var bytes = Convert.FromHexString(bulk);
+        await Assert.That(ReadBooleans(new AvroReader(bytes), values.Length)).IsEquivalentTo(values);
+        await Assert.That(ReadBooleans(new AvroReader(Segments.ByteByByte(bytes)), values.Length)).IsEquivalentTo(values);
+    }
+
+    [Test]
+    public async Task BulkBooleans_RejectInvalidBytes_AndTruncatedInput()
+    {
+        byte[] bytes = [0x07, 0x01, 0x00, 0x01, 0xFF];
+        var ex = Assert.Throws<AvroDataException>(() => ReadBooleans(new AvroReader(bytes.AsSpan(1)), 4));
+        await Assert.That(ex.Message).IsEqualTo("Invalid boolean byte 0xFF at offset 3; expected 0 or 1.");
+        ex = Assert.Throws<AvroDataException>(() => ReadBooleans(new AvroReader(Segments.ByteByByte(bytes.AsSpan(1).ToArray())), 4));
+        await Assert.That(ex.Message).IsEqualTo("Invalid boolean byte 0xFF at offset 3; expected 0 or 1.");
+        ex = Assert.Throws<AvroDataException>(() => ReadBooleans(new AvroReader(bytes.AsSpan(1, 3)), 4));
+        await Assert.That(ex.Message).Contains("boolean value needs 4 byte(s)");
+
+        // The offset counts bytes read before the bulk call.
+        var offset = Assert.Throws<AvroDataException>(() => ReadBooleansAfterInt(bytes, 4));
+        await Assert.That(offset.Message).IsEqualTo("Invalid boolean byte 0xFF at offset 4; expected 0 or 1.");
+    }
+
+    [Test]
+    public async Task WriteBooleans_WritesOtherBytesAsTrue()
+    {
+        // Only unsafe code can make such a bool; it is written as WriteBoolean writes it.
+        var raw = new byte[] { 0, 1, 2 };
+        var values = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, bool>(raw).ToArray();
+        await Assert.That(Encode((ref AvroWriter w) => w.WriteBooleans(values))).IsEqualTo("000101");
+    }
+
+    [Test]
     public async Task ReadBytesSpan_DoesNotCopyContiguousInput()
     {
         var bytes = EncodeBytes((ref AvroWriter w) => w.WriteBytes([1, 2, 3, 4]));
@@ -416,6 +460,22 @@ public class BinaryEncodingTests
         reader.ReadDoubles(doubles);
         reader.ReadFloats(floats);
         return (doubles, floats);
+    }
+
+    private static bool[] ReadBooleans(AvroReader reader, int count)
+    {
+        var values = new bool[count];
+        reader.ReadBooleans(values);
+        return values;
+    }
+
+    private static bool[] ReadBooleansAfterInt(byte[] bytes, int count)
+    {
+        var reader = new AvroReader(bytes);
+        _ = reader.ReadInt();
+        var values = new bool[count];
+        reader.ReadBooleans(values);
+        return values;
     }
 
     private static byte ReadFirstByteAfterMutating(byte[] bytes)

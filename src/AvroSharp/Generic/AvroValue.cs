@@ -25,6 +25,12 @@ namespace AvroSharp.Generic;
 /// Arrays are held as <see cref="IReadOnlyList{T}"/> and maps as <see cref="IReadOnlyDictionary{TKey, TValue}"/>;
 /// the reader creates <see cref="List{T}"/> and <see cref="Dictionary{TKey, TValue}"/> instances.
 /// </para>
+/// <para>
+/// Arrays of <c>boolean</c>, <c>int</c>, <c>long</c>, <c>float</c> and <c>double</c> items are held as the primitive
+/// values themselves: the reader creates them this way, and <see cref="FromInt64Array"/> and the other typed
+/// factories wrap existing memory. <see cref="AsArray"/> still returns their items as values, and
+/// <see cref="TryGetInt64Array"/> and the other typed accessors return the memory without a copy.
+/// </para>
 /// </remarks>
 public readonly struct AvroValue : IEquatable<AvroValue>
 {
@@ -52,7 +58,7 @@ public readonly struct AvroValue : IEquatable<AvroValue>
         GenericFixed => AvroValueKind.Fixed,
 
         // The concrete types the reader creates first, then any other list or dictionary.
-        List<AvroValue> or AvroValue[] => AvroValueKind.Array,
+        PrimitiveArray or List<AvroValue> or AvroValue[] => AvroValueKind.Array,
         Dictionary<string, AvroValue> => AvroValueKind.Map,
         IReadOnlyDictionary<string, AvroValue> => AvroValueKind.Map,
         _ => AvroValueKind.Array,
@@ -145,6 +151,7 @@ public readonly struct AvroValue : IEquatable<AvroValue>
     /// <summary>Creates a fixed value, or <c>null</c>.</summary>
     /// <param name="value">The value.</param>
     public static AvroValue FromGenericFixed(GenericFixed? value) => value;
+
     /// <summary>Creates an array value from a list (for example a <see cref="List{T}"/> or an array). The list is not copied.</summary>
     /// <param name="items">The items.</param>
     public static AvroValue FromArray(IReadOnlyList<AvroValue> items)
@@ -152,6 +159,26 @@ public readonly struct AvroValue : IEquatable<AvroValue>
         ArgumentNullException.ThrowIfNull(items);
         return new(0, items);
     }
+
+    /// <summary>Creates an array of <c>boolean</c> items, stored as they are. The memory is not copied.</summary>
+    /// <param name="items">The items.</param>
+    public static AvroValue FromBooleanArray(ReadOnlyMemory<bool> items) => new(0, new BooleanArray(items));
+
+    /// <summary>Creates an array of <c>int</c> items, stored as they are. The memory is not copied.</summary>
+    /// <param name="items">The items.</param>
+    public static AvroValue FromInt32Array(ReadOnlyMemory<int> items) => new(0, new Int32Array(items));
+
+    /// <summary>Creates an array of <c>long</c> items, stored as they are. The memory is not copied.</summary>
+    /// <param name="items">The items.</param>
+    public static AvroValue FromInt64Array(ReadOnlyMemory<long> items) => new(0, new Int64Array(items));
+
+    /// <summary>Creates an array of <c>float</c> items, stored as they are. The memory is not copied.</summary>
+    /// <param name="items">The items.</param>
+    public static AvroValue FromSingleArray(ReadOnlyMemory<float> items) => new(0, new SingleArray(items));
+
+    /// <summary>Creates an array of <c>double</c> items, stored as they are. The memory is not copied.</summary>
+    /// <param name="items">The items.</param>
+    public static AvroValue FromDoubleArray(ReadOnlyMemory<double> items) => new(0, new DoubleArray(items));
 
     /// <summary>Creates a map value from a dictionary (for example a <see cref="Dictionary{TKey, TValue}"/>). The dictionary is not copied.</summary>
     /// <param name="entries">The entries.</param>
@@ -235,6 +262,31 @@ public readonly struct AvroValue : IEquatable<AvroValue>
     public IReadOnlyList<AvroValue> AsArray() =>
         Kind == AvroValueKind.Array ? (IReadOnlyList<AvroValue>)_reference! : throw WrongKind(AvroValueKind.Array);
 
+    /// <summary>Gets the items of an array stored as <c>boolean</c> values, without a copy.</summary>
+    /// <param name="items">The items, when this method returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> for an array read from <c>boolean</c> items or made by <see cref="FromBooleanArray"/>; <see langword="false"/> for any other value, including an array of boolean values held as a list.</returns>
+    public bool TryGetBooleanArray(out ReadOnlyMemory<bool> items) => TryGetItems(out items);
+
+    /// <summary>Gets the items of an array stored as <c>int</c> values, without a copy.</summary>
+    /// <param name="items">The items, when this method returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> for an array read from <c>int</c> items or made by <see cref="FromInt32Array"/>; <see langword="false"/> for any other value, including an array of int values held as a list.</returns>
+    public bool TryGetInt32Array(out ReadOnlyMemory<int> items) => TryGetItems(out items);
+
+    /// <summary>Gets the items of an array stored as <c>long</c> values, without a copy.</summary>
+    /// <param name="items">The items, when this method returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> for an array read from <c>long</c> items or made by <see cref="FromInt64Array"/>; <see langword="false"/> for any other value, including an array of long values held as a list.</returns>
+    public bool TryGetInt64Array(out ReadOnlyMemory<long> items) => TryGetItems(out items);
+
+    /// <summary>Gets the items of an array stored as <c>float</c> values, without a copy.</summary>
+    /// <param name="items">The items, when this method returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> for an array read from <c>float</c> items or made by <see cref="FromSingleArray"/>; <see langword="false"/> for any other value, including an array of float values held as a list.</returns>
+    public bool TryGetSingleArray(out ReadOnlyMemory<float> items) => TryGetItems(out items);
+
+    /// <summary>Gets the items of an array stored as <c>double</c> values, without a copy.</summary>
+    /// <param name="items">The items, when this method returns <see langword="true"/>.</param>
+    /// <returns><see langword="true"/> for an array read from <c>double</c> items or made by <see cref="FromDoubleArray"/>; <see langword="false"/> for any other value, including an array of double values held as a list.</returns>
+    public bool TryGetDoubleArray(out ReadOnlyMemory<double> items) => TryGetItems(out items);
+
     /// <summary>Gets the map entries.</summary>
     /// <exception cref="InvalidOperationException">The value is not a map.</exception>
     public IReadOnlyDictionary<string, AvroValue> AsMap() =>
@@ -269,7 +321,7 @@ public readonly struct AvroValue : IEquatable<AvroValue>
             AvroValueKind.String => string.Equals((string)_reference!, (string)other._reference!, StringComparison.Ordinal),
             AvroValueKind.Bytes => ((byte[])_reference!).AsSpan().SequenceEqual((byte[])other._reference!),
             AvroValueKind.Enum => _bits == other._bits && ((EnumSchema)_reference!).Name == ((EnumSchema)other._reference!).Name,
-            AvroValueKind.Array => AsArray().SequenceEqual(other.AsArray()),
+            AvroValueKind.Array => ArraysEqual(other),
             AvroValueKind.Map => MapsEqual(AsMap(), other.AsMap()),
             _ => _reference!.Equals(other._reference),
         };
@@ -334,6 +386,25 @@ public readonly struct AvroValue : IEquatable<AvroValue>
     internal object? Reference => _reference;
 
     internal static AvroValue FromEnumUnchecked(EnumSchema schema, int ordinal) => new(ordinal, schema);
+
+    private bool TryGetItems<T>(out ReadOnlyMemory<T> items)
+        where T : unmanaged
+    {
+        if (_reference is PrimitiveArray<T> array)
+        {
+            items = array.Items;
+            return true;
+        }
+
+        items = default;
+        return false;
+    }
+
+    // Two typed arrays of the same element type compare as memory; anything else item by item.
+    private bool ArraysEqual(in AvroValue other) =>
+        _reference is PrimitiveArray left && other._reference is PrimitiveArray right && left.ItemsEqual(right) is { } equal
+            ? equal
+            : AsArray().SequenceEqual(other.AsArray());
 
     private static bool MapsEqual(IReadOnlyDictionary<string, AvroValue> left, IReadOnlyDictionary<string, AvroValue> right)
     {

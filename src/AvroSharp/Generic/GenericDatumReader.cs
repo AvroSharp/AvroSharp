@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -270,6 +269,21 @@ public sealed partial class GenericDatumReader
 
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
+            // Arrays of primitive items are read in bulk into an array of the primitives themselves.
+            switch (items)
+            {
+                case LongNode:
+                    return AvroValue.FromInt64Array(ReadBulkItems<long, LongItems>(ref reader, ref state));
+                case IntNode:
+                    return AvroValue.FromInt32Array(ReadBulkItems<int, IntItems>(ref reader, ref state));
+                case DoubleNode:
+                    return AvroValue.FromDoubleArray(ReadBulkItems<double, DoubleItems>(ref reader, ref state));
+                case FloatNode:
+                    return AvroValue.FromSingleArray(ReadBulkItems<float, FloatItems>(ref reader, ref state));
+                case BooleanNode:
+                    return AvroValue.FromBooleanArray(ReadBulkItems<bool, BooleanItems>(ref reader, ref state));
+            }
+
             var list = new List<AvroValue>();
             long count;
             while ((count = reader.ReadBlockCount(out _)) != 0)
@@ -281,116 +295,73 @@ public sealed partial class GenericDatumReader
                     list.Capacity = Math.Min(n, PreallocationLimit);
                 }
 
-                if (items is LongNode)
+                for (var i = 0; i < n; i++)
                 {
-                    ReadBulkItems<long, LongItems>(ref reader, list, n);
-                }
-                else if (items is IntNode)
-                {
-                    ReadBulkItems<int, IntItems>(ref reader, list, n);
-                }
-                else if (items is DoubleNode)
-                {
-                    ReadBulkItems<double, DoubleItems>(ref reader, list, n);
-                }
-                else if (items is FloatNode)
-                {
-                    ReadBulkItems<float, FloatItems>(ref reader, list, n);
-                }
-                else
-                {
-                    for (var i = 0; i < n; i++)
-                    {
-                        list.Add(items.Read(ref reader, ref state));
-                    }
+                    list.Add(items.Read(ref reader, ref state));
                 }
             }
 
             return AvroValue.FromArray(list);
         }
 
-        // Bulk paths for arrays of int, long, float and double: the reader decodes a chunk of items at once (runs of
-        // small varints together; fixed-width items with one copy on little-endian hardware). TItems is a struct, so
-        // each element type gets its own specialized code, with no delegate call per item.
-        private static void ReadBulkItems<T, TItems>(ref AvroReader reader, List<AvroValue> list, int count)
+        // Bulk paths for arrays of boolean, int, long, float and double: each block is decoded straight into the
+        // result (runs of small varints together; fixed-width items with one copy on little-endian hardware).
+        // TItems is a struct, so each element type gets its own specialized code, with no delegate call per item.
+        // CheckBlockCount has checked that the input holds the whole block, which bounds each allocation.
+        private ReadOnlyMemory<T> ReadBulkItems<T, TItems>(ref AvroReader reader, ref ReadState state)
             where T : unmanaged
             where TItems : struct, IBulkItems<T>
         {
-            var items = default(TItems);
-            var buffer = ArrayPool<T>.Shared.Rent(Math.Min(count, 1024));
-            try
+            var values = Array.Empty<T>();
+            var length = 0;
+            long count;
+            while ((count = reader.ReadBlockCount(out _)) != 0)
             {
-                while (count > 0)
+                CheckBlockCount(ref reader, ref state, count, length, items.MinimumSize);
+                var n = (int)count;
+                if (values.Length - length < n)
                 {
-                    var chunk = buffer.AsSpan(0, Math.Min(count, buffer.Length));
-                    items.Read(ref reader, chunk);
-                    AddRange(list, chunk, items);
-                    count -= chunk.Length;
+                    Array.Resize(ref values, Math.Max(length + n, values.Length * 2));
                 }
-            }
-            finally
-            {
-                ArrayPool<T>.Shared.Return(buffer);
-            }
-        }
 
-        private static void AddRange<T, TItems>(List<AvroValue> list, ReadOnlySpan<T> values, TItems items)
-            where T : unmanaged
-            where TItems : struct, IBulkItems<T>
-        {
-#if NET8_0_OR_GREATER
-            // Grow the list once and write straight into its backing array.
-            var start = list.Count;
-            CollectionsMarshal.SetCount(list, start + values.Length);
-            var target = CollectionsMarshal.AsSpan(list).Slice(start, values.Length);
-            for (var i = 0; i < values.Length; i++)
-            {
-                target[i] = items.ToValue(values[i]);
+                default(TItems).Read(ref reader, values.AsSpan(length, n));
+                length += n;
             }
-#else
-            foreach (var value in values)
-            {
-                list.Add(items.ToValue(value));
-            }
-#endif
+
+            return values.AsMemory(0, length);
         }
     }
 
-    /// <summary>How one primitive element type is read in bulk and stored as an <see cref="AvroValue"/>.</summary>
+    /// <summary>How one primitive element type is read in bulk.</summary>
     private interface IBulkItems<T>
         where T : unmanaged
     {
         void Read(ref AvroReader reader, Span<T> destination);
-
-        AvroValue ToValue(T value);
     }
 
     private readonly struct LongItems : IBulkItems<long>
     {
         public void Read(ref AvroReader reader, Span<long> destination) => reader.ReadLongs(destination);
-
-        public AvroValue ToValue(long value) => value;
     }
 
     private readonly struct IntItems : IBulkItems<int>
     {
         public void Read(ref AvroReader reader, Span<int> destination) => reader.ReadInts(destination);
-
-        public AvroValue ToValue(int value) => value;
     }
 
     private readonly struct DoubleItems : IBulkItems<double>
     {
         public void Read(ref AvroReader reader, Span<double> destination) => reader.ReadDoubles(destination);
-
-        public AvroValue ToValue(double value) => value;
     }
 
     private readonly struct FloatItems : IBulkItems<float>
     {
         public void Read(ref AvroReader reader, Span<float> destination) => reader.ReadFloats(destination);
+    }
 
-        public AvroValue ToValue(float value) => value;
+    private readonly struct BooleanItems : IBulkItems<bool>
+    {
+        public void Read(ref AvroReader reader, Span<bool> destination) => reader.ReadBooleans(destination);
     }
 
     private sealed class MapNode(ReaderNode values) : ReaderNode

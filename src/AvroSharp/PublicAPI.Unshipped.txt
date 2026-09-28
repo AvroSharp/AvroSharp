@@ -623,3 +623,15 @@ static AvroSharp.Streams.AvroStreamWriter.CreateGeneric(System.IO.Stream! stream
 virtual AvroSharp.Generic.AvroFieldTransform.Invoke(in AvroSharp.Generic.AvroFieldContext field, in AvroSharp.Generic.AvroValue value) -> AvroSharp.Generic.AvroValue
 virtual AvroSharp.Serialization.AvroReadFunc<T>.Invoke(ref AvroSharp.IO.AvroReader reader) -> T
 virtual AvroSharp.Serialization.AvroWriteAction<T>.Invoke(ref AvroSharp.IO.AvroWriter writer, T value) -> void
+AvroSharp.Generic.AvroValue.TryGetBooleanArray(out System.ReadOnlyMemory<bool> items) -> bool
+AvroSharp.Generic.AvroValue.TryGetDoubleArray(out System.ReadOnlyMemory<double> items) -> bool
+AvroSharp.Generic.AvroValue.TryGetInt32Array(out System.ReadOnlyMemory<int> items) -> bool
+AvroSharp.Generic.AvroValue.TryGetInt64Array(out System.ReadOnlyMemory<long> items) -> bool
+AvroSharp.Generic.AvroValue.TryGetSingleArray(out System.ReadOnlyMemory<float> items) -> bool
+AvroSharp.IO.AvroReader.ReadBooleans(scoped System.Span<bool> destination) -> void
+AvroSharp.IO.AvroWriter.WriteBooleans(scoped System.ReadOnlySpan<bool> values) -> void
+static AvroSharp.Generic.AvroValue.FromBooleanArray(System.ReadOnlyMemory<bool> items) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromDoubleArray(System.ReadOnlyMemory<double> items) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromInt32Array(System.ReadOnlyMemory<int> items) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromInt64Array(System.ReadOnlyMemory<long> items) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromSingleArray(System.ReadOnlyMemory<float> items) -> AvroSharp.Generic.AvroValue
