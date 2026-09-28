@@ -25,6 +25,10 @@ csharp_style_var_when_type_is_apparent = true:suggestion
 csharp_style_var_elsewhere = true:suggestion
 csharp_style_expression_bodied_methods = when_on_single_line:suggestion
 csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_operators = true:suggestion
+csharp_style_expression_bodied_constructors = when_on_single_line:suggestion
+csharp_style_expression_bodied_local_functions = when_on_single_line:suggestion
+dotnet_style_prefer_conditional_expression_over_return = false:suggestion
 csharp_style_prefer_primary_constructors = true:suggestion
 csharp_style_prefer_collection_expression = true:suggestion
 dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
@@ -71,6 +75,13 @@ dotnet_diagnostic.MA0048.severity = none     # file name must match type name (p
 dotnet_diagnostic.RS0026.severity = none     # multiple overloads with optional parameters
 dotnet_diagnostic.RS0027.severity = none
 dotnet_diagnostic.CA1508.severity = none     # dead-code dataflow analysis: about 80% of all analyzer time, mostly false positives
+
+# Code-style rules that AnalysisLevel 11 (the .NET 11 SDK) enforces in the build and that don't fit this code base
+dotnet_diagnostic.IDE0058.severity = none     # unused return values: fluent calls (Append, Advance, TryAdd) would all need '_ ='
+dotnet_diagnostic.IDE0010.severity = none     # populate switch: switches deliberately handle a subset and have a default
+dotnet_diagnostic.IDE0072.severity = none     # populate switch expression: same, with a discard arm
+dotnet_diagnostic.IDE0028.severity = suggestion # ConditionalWeakTable supports collection expressions only on net8+, not netstandard2.0
+dotnet_diagnostic.IDE0032.severity = none     # auto properties: the fields are hot-path state (struct layout, counters updated in place) behind read-only views
 
 [tests/**.cs]
 dotnet_diagnostic.MA0002.severity = none     # test dictionaries and lists may use default comparers

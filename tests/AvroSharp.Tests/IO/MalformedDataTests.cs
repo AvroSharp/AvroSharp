@@ -33,17 +33,17 @@ public class MalformedDataTests
         var bytes = Convert.FromHexString(hex);
         ReadAction read = what switch
         {
-            "int" => (ref AvroReader r) => r.ReadInt(),
-            "long" => (ref AvroReader r) => r.ReadLong(),
-            "boolean" => (ref AvroReader r) => r.ReadBoolean(),
-            "float" => (ref AvroReader r) => r.ReadFloat(),
-            "double" => (ref AvroReader r) => r.ReadDouble(),
-            "bytes" => (ref AvroReader r) => r.ReadBytes(),
-            "string" => (ref AvroReader r) => r.ReadString(),
-            "fixed4" => (ref AvroReader r) => r.ReadFixedSpan(4),
-            "block" => (ref AvroReader r) => r.ReadBlockCount(out _),
-            "doubles2" => (ref AvroReader r) => r.ReadDoubles(new double[2]),
-            "skipbytes" => (ref AvroReader r) => r.SkipBytes(),
+            "int" => (ref r) => r.ReadInt(),
+            "long" => (ref r) => r.ReadLong(),
+            "boolean" => (ref r) => r.ReadBoolean(),
+            "float" => (ref r) => r.ReadFloat(),
+            "double" => (ref r) => r.ReadDouble(),
+            "bytes" => (ref r) => r.ReadBytes(),
+            "string" => (ref r) => r.ReadString(),
+            "fixed4" => (ref r) => r.ReadFixedSpan(4),
+            "block" => (ref r) => r.ReadBlockCount(out _),
+            "doubles2" => (ref r) => r.ReadDoubles(new double[2]),
+            "skipbytes" => (ref r) => r.SkipBytes(),
             _ => throw new ArgumentOutOfRangeException(nameof(what)),
         };
 

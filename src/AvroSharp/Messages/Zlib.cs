@@ -39,7 +39,7 @@ internal static class Zlib
 
         try
         {
-            AvroCodec.Deflate.Decompress(source.Slice(2, source.Length - 6), new LimitedBufferWriter(destination, maxLength));
+            AvroCodec.Deflate.Decompress(source[2..^4], new LimitedBufferWriter(destination, maxLength));
         }
         catch (InvalidDataException ex)
         {

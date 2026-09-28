@@ -154,7 +154,7 @@ public class CodecTests
         var file = Write(SnappyCodec.Default, Rows(10), syncInterval: 1 << 20);
 
         // The last block ends with its 4-byte CRC-32 and then the 16-byte sync marker.
-        file[file.Length - 17] ^= 0x01;
+        file[^17] ^= 0x01;
         var ex = await Assert.ThrowsAsync<AvroDataException>(() => Task.Run(() => ReadAllOf(file)));
 
         await Assert.That(ex!.Message).Contains("CRC-32");

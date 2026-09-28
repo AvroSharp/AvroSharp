@@ -106,7 +106,7 @@ public class SingleObjectEncodingTests
         {
             calls++;
             var datumReader = GenericDatumReader.Create(schema);
-            return (ref AvroReader r) => datumReader.Read(ref r);
+            return (ref r) => datumReader.Read(ref r);
         });
 
         for (var i = 0; i < 5; i++)
@@ -126,7 +126,7 @@ public class SingleObjectEncodingTests
             calls++;
             var datumReader = GenericDatumReader.Create(schema);
             var version = ReferenceEquals(schema, s_v1) ? "v1" : "v2";
-            return (ref AvroReader r) => $"{version}:{datumReader.Read(ref r).AsRecord()["name"].AsString()}";
+            return (ref r) => $"{version}:{datumReader.Read(ref r).AsRecord()["name"].AsString()}";
         });
         var old = AvroMessage.ToArray(User(s_v1, 1, "a"), GenericDatumWriter.Create(s_v1));
         var current = AvroMessage.ToArray(new GenericRecord(s_v2) { ["id"] = 2L, ["name"] = "b", ["active"] = true }, GenericDatumWriter.Create(s_v2));

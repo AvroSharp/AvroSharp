@@ -139,8 +139,8 @@ public static class AvroLogicalValues
         // Guid's byte layout is little-endian in its first three fields.
         return new Guid(
             BinaryPrimitives.ReadInt32BigEndian(bytes),
-            BinaryPrimitives.ReadInt16BigEndian(bytes.Slice(4)),
-            BinaryPrimitives.ReadInt16BigEndian(bytes.Slice(6)),
+            BinaryPrimitives.ReadInt16BigEndian(bytes[4..]),
+            BinaryPrimitives.ReadInt16BigEndian(bytes[6..]),
             bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]);
 #endif
     }
@@ -155,7 +155,7 @@ public static class AvroLogicalValues
         uuid.TryWriteBytes(bytes, bigEndian: true, out _);
 #else
         uuid.ToByteArray().CopyTo(bytes);
-        bytes.Slice(0, 4).Reverse();
+        bytes[..4].Reverse();
         bytes.Slice(4, 2).Reverse();
         bytes.Slice(6, 2).Reverse();
 #endif
@@ -184,7 +184,7 @@ public static class AvroLogicalValues
     {
         Span<byte> bytes = stackalloc byte[16];
         var length = Unscaled(value, scale, precision, bytes);
-        writer.WriteBytes(bytes.Slice(16 - length));
+        writer.WriteBytes(bytes[(16 - length)..]);
     }
 
     /// <summary>Writes a <c>decimal</c> on <c>fixed</c>, sign-extended to the fixed size.</summary>
@@ -203,9 +203,9 @@ public static class AvroLogicalValues
         }
 
         Span<byte> destination = size <= 64 ? stackalloc byte[64] : new byte[size];
-        destination = destination.Slice(0, size);
+        destination = destination[..size];
         destination.Fill(value < 0 ? (byte)0xFF : (byte)0);
-        bytes.Slice(16 - Math.Min(size, 16)).CopyTo(destination.Slice(Math.Max(0, size - 16)));
+        bytes[(16 - Math.Min(size, 16))..].CopyTo(destination[Math.Max(0, size - 16)..]);
         writer.WriteFixed(destination);
     }
 
@@ -252,7 +252,7 @@ public static class AvroLogicalValues
         var extension = negative ? (byte)0xFF : (byte)0;
         while (bytes.Length > 12 && bytes[0] == extension)
         {
-            bytes = bytes.Slice(1);
+            bytes = bytes[1..];
         }
 
         if (bytes.Length > 13 || (bytes.Length == 13 && bytes[0] != extension))
@@ -263,9 +263,9 @@ public static class AvroLogicalValues
         // Sign-extend into 16 bytes, read as a 128-bit two's-complement number, then take the magnitude.
         Span<byte> wide = stackalloc byte[16];
         wide.Fill(extension);
-        bytes.CopyTo(wide.Slice(16 - bytes.Length));
+        bytes.CopyTo(wide[(16 - bytes.Length)..]);
         var high = BinaryPrimitives.ReadUInt64BigEndian(wide);
-        var low = BinaryPrimitives.ReadUInt64BigEndian(wide.Slice(8));
+        var low = BinaryPrimitives.ReadUInt64BigEndian(wide[8..]);
         if (negative)
         {
             high = ~high;
@@ -329,7 +329,7 @@ public static class AvroLogicalValues
         }
 
         BinaryPrimitives.WriteUInt64BigEndian(destination, high);
-        BinaryPrimitives.WriteUInt64BigEndian(destination.Slice(8), low);
+        BinaryPrimitives.WriteUInt64BigEndian(destination[8..], low);
 
         // Drop leading bytes that only repeat the sign, keeping the byte that carries it.
         var start = 0;

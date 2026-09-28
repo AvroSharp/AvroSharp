@@ -29,7 +29,7 @@ public static class AvroMessageReader
             var reader = readerSchema is null
                 ? GenericDatumReader.Create(writerSchema, options)
                 : GenericDatumReader.Create(writerSchema, readerSchema, options);
-            return (ref AvroReader r) => reader.Read(ref r);
+            return (ref r) => reader.Read(ref r);
         });
 }
 

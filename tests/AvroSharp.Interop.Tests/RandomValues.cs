@@ -68,7 +68,7 @@ internal sealed class RandomValues(int seed)
                     AvroSchemaType.Null => AvroValue.Null,
                     AvroSchemaType.Boolean => _random.Next(2) == 1,
                     AvroSchemaType.Int => Magnitude() switch { 0 => _random.Next(-64, 64), 1 => _random.Next(-100_000, 100_000), _ => _random.Next(int.MinValue, int.MaxValue) },
-                    AvroSchemaType.Long => Magnitude() switch { 0 => (long)_random.Next(-64, 64), 1 => _random.Next(), _ => _random.NextInt64(long.MinValue, long.MaxValue) },
+                    AvroSchemaType.Long => Magnitude() switch { 0 => _random.Next(-64, 64), 1 => _random.Next(), _ => _random.NextInt64(long.MinValue, long.MaxValue) },
                     AvroSchemaType.Float => (float)((_random.NextDouble() * 2e6) - 1e6),
                     AvroSchemaType.Double => (_random.NextDouble() * 2e12) - 1e12,
                     AvroSchemaType.Bytes => Bytes(_random.Next(0, 40)),

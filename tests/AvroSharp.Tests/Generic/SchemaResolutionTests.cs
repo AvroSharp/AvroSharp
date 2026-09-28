@@ -34,7 +34,7 @@ public class SchemaResolutionTests
     public async Task StringsAndBytes_ConvertToEachOther()
     {
         var asBytes = Resolve(AvroSchema.String, AvroSchema.Bytes, "日本");
-        var asString = Resolve(AvroSchema.Bytes, AvroSchema.String, new byte[] { 0x68, 0x69 });
+        var asString = Resolve(AvroSchema.Bytes, AvroSchema.String, "hi"u8.ToArray());
 
         await Assert.That(asBytes.AsBytes()).IsEquivalentTo(System.Text.Encoding.UTF8.GetBytes("日本"));
         await Assert.That(asString.AsString()).IsEqualTo("hi");
@@ -94,7 +94,9 @@ public class SchemaResolutionTests
             ["skipped_map"] = AvroValue.FromMap(new Dictionary<string, AvroValue>(StringComparer.Ordinal) { ["k"] = 2.5, ["n"] = AvroValue.Null }),
             ["skipped_misc"] = new GenericRecord(misc)
             {
-                ["b"] = true, ["f"] = 1f, ["by"] = new byte[] { 1, 2 },
+                ["b"] = true,
+                ["f"] = 1f,
+                ["by"] = new byte[] { 1, 2 },
                 ["fx"] = new GenericFixed((FixedSchema)misc.GetField("fx").Schema, [1, 2, 3]),
                 ["e"] = AvroValue.FromEnum((EnumSchema)misc.GetField("e").Schema, "Y"),
                 ["n"] = AvroValue.Null,

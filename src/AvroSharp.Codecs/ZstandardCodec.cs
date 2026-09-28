@@ -21,10 +21,10 @@ public sealed class ZstandardCodec : AvroCodec
     public const int DefaultLevel = 3;
 
     [ThreadStatic]
-    private static Compressor? t_compressor;
+    private static Compressor? s_compressor;
 
     [ThreadStatic]
-    private static Decompressor? t_decompressor;
+    private static Decompressor? s_decompressor;
 
     /// <summary>Creates a zstandard codec.</summary>
     /// <param name="level">
@@ -69,7 +69,7 @@ public sealed class ZstandardCodec : AvroCodec
     public override void Compress(ReadOnlyMemory<byte> source, IBufferWriter<byte> destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        var compressor = t_compressor ??= new Compressor(Level);
+        var compressor = s_compressor ??= new Compressor(Level);
         compressor.Level = Level;
         compressor.SetParameter(ZSTD_cParameter.ZSTD_c_checksumFlag, Checksum ? 1 : 0);
 
@@ -82,7 +82,7 @@ public sealed class ZstandardCodec : AvroCodec
     public override void Decompress(ReadOnlyMemory<byte> source, IBufferWriter<byte> destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        var decompressor = t_decompressor ??= new Decompressor();
+        var decompressor = s_decompressor ??= new Decompressor();
 
         // Streaming, because a frame need not record its decompressed size. A previous block that failed may have
         // left the context mid-frame.

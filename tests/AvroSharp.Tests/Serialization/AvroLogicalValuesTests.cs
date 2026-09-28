@@ -22,12 +22,12 @@ public class AvroLogicalValuesTests
     {
         var value = decimal.Parse(text, CultureInfo.InvariantCulture);
 
-        var bytes = Write((ref AvroWriter w) => AvroLogicalValues.WriteDecimalBytes(ref w, value, scale, precision));
-        var fromBytes = Read(bytes, (ref AvroReader r) => AvroLogicalValues.ReadDecimalBytes(ref r, scale));
+        var bytes = Write((ref w) => AvroLogicalValues.WriteDecimalBytes(ref w, value, scale, precision));
+        var fromBytes = Read(bytes, (ref r) => AvroLogicalValues.ReadDecimalBytes(ref r, scale));
 
         // A fixed larger than 16 bytes is sign-extended.
-        var fixedBytes = Write((ref AvroWriter w) => AvroLogicalValues.WriteDecimalFixed(ref w, value, scale, precision, 20));
-        var fromFixed = Read(fixedBytes, (ref AvroReader r) => AvroLogicalValues.ReadDecimalFixed(ref r, scale, 20));
+        var fixedBytes = Write((ref w) => AvroLogicalValues.WriteDecimalFixed(ref w, value, scale, precision, 20));
+        var fromFixed = Read(fixedBytes, (ref r) => AvroLogicalValues.ReadDecimalFixed(ref r, scale, 20));
 
         await Assert.That(fromBytes).IsEqualTo(value);
         await Assert.That(fromFixed).IsEqualTo(value);
@@ -37,9 +37,9 @@ public class AvroLogicalValuesTests
     [Test]
     public async Task Decimals_UseTheFewestBytes()
     {
-        await Assert.That(Convert.ToHexString(Write((ref AvroWriter w) => AvroLogicalValues.WriteDecimalBytes(ref w, -128m, 0, 3)))).IsEqualTo("0280");
-        await Assert.That(Convert.ToHexString(Write((ref AvroWriter w) => AvroLogicalValues.WriteDecimalBytes(ref w, 128m, 0, 3)))).IsEqualTo("040080");
-        await Assert.That(Convert.ToHexString(Write((ref AvroWriter w) => AvroLogicalValues.WriteDecimalBytes(ref w, 0m, 0, 3)))).IsEqualTo("0200");
+        await Assert.That(Convert.ToHexString(Write((ref w) => AvroLogicalValues.WriteDecimalBytes(ref w, -128m, 0, 3)))).IsEqualTo("0280");
+        await Assert.That(Convert.ToHexString(Write((ref w) => AvroLogicalValues.WriteDecimalBytes(ref w, 128m, 0, 3)))).IsEqualTo("040080");
+        await Assert.That(Convert.ToHexString(Write((ref w) => AvroLogicalValues.WriteDecimalBytes(ref w, 0m, 0, 3)))).IsEqualTo("0200");
     }
 
     [Test]
@@ -49,9 +49,9 @@ public class AvroLogicalValuesTests
         var bytes = new byte[20];
         bytes.AsSpan().Fill(0xFF);
         bytes[19] = 0x6A;
-        var encoded = Write((ref AvroWriter w) => w.WriteBytes(bytes));
+        var encoded = Write((ref w) => w.WriteBytes(bytes));
 
-        await Assert.That(Read(encoded, (ref AvroReader r) => AvroLogicalValues.ReadDecimalBytes(ref r, 2))).IsEqualTo(-1.50m);
+        await Assert.That(Read(encoded, (ref r) => AvroLogicalValues.ReadDecimalBytes(ref r, 2))).IsEqualTo(-1.50m);
     }
 
     [Test]
@@ -60,9 +60,9 @@ public class AvroLogicalValuesTests
         // 2^96 needs 13 significant bytes with a set top bit: 0x01 followed by twelve zero bytes.
         var tooLarge = new byte[13];
         tooLarge[0] = 0x01;
-        var encoded = Write((ref AvroWriter w) => w.WriteBytes(tooLarge));
+        var encoded = Write((ref w) => w.WriteBytes(tooLarge));
 
-        var ex = Assert.Throws<AvroDataException>(() => Read(encoded, (ref AvroReader r) => AvroLogicalValues.ReadDecimalBytes(ref r, 0)));
+        var ex = Assert.Throws<AvroDataException>(() => Read(encoded, (ref r) => AvroLogicalValues.ReadDecimalBytes(ref r, 0)));
         await Assert.That(ex.Message).Contains("does not fit in System.Decimal");
     }
 
@@ -71,10 +71,10 @@ public class AvroLogicalValuesTests
     {
         var uuid = new Guid("00112233-4455-6677-8899-aabbccddeeff");
 
-        var bytes = Write((ref AvroWriter w) => AvroLogicalValues.WriteUuidFixed(ref w, uuid));
+        var bytes = Write((ref w) => AvroLogicalValues.WriteUuidFixed(ref w, uuid));
 
         await Assert.That(Convert.ToHexString(bytes)).IsEqualTo("00112233445566778899AABBCCDDEEFF");
-        await Assert.That(Read(bytes, (ref AvroReader r) => AvroLogicalValues.ReadUuidFixed(ref r))).IsEqualTo(uuid);
+        await Assert.That(Read(bytes, AvroLogicalValues.ReadUuidFixed)).IsEqualTo(uuid);
     }
 
     [Test]

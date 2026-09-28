@@ -129,7 +129,7 @@ public class ContainerFileTests
     {
         using var stream = new MemoryStream();
         var datumWriter = GenericDatumWriter.Create(s_schema);
-        using (var writer = AvroFileWriter.Create<AvroValue>(stream, s_schema, (ref AvroWriter w, AvroValue value) =>
+        using (var writer = AvroFileWriter.Create<AvroValue>(stream, s_schema, (ref w, value) =>
         {
             datumWriter.Write(ref w, value);
             // Commit the bytes before failing, as a large value would: the writer must still discard them.

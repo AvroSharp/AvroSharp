@@ -99,7 +99,7 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
         {
             if (!ReadBlock())
             {
-                value = default!;
+                value = default;
                 return false;
             }
         }
@@ -165,8 +165,7 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
     internal void ReadHeader()
     {
-        string needed;
-        while (!TryParseHeader(out needed))
+        while (!TryParseHeader(out var needed))
         {
             // The stream may end before the requested amount; only a fill that adds nothing means truncation.
             var before = Buffered;
@@ -182,8 +181,7 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
     internal async ValueTask ReadHeaderAsync(CancellationToken cancellationToken)
     {
-        string needed;
-        while (!TryParseHeader(out needed))
+        while (!TryParseHeader(out var needed))
         {
             var before = Buffered;
             await FillAtLeastAsync(NextHeaderFill(), cancellationToken).ConfigureAwait(false);

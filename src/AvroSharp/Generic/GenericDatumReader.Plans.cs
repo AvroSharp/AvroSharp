@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 using AvroSharp.Serialization;
 
@@ -42,7 +41,7 @@ public sealed partial class GenericDatumReader
             if (readerField is null || assigned[readerField.Position])
             {
                 var skip = skips.BuildSkipNode(writerField.Schema);
-                steps[i] = new AvroRecordPlan.Step(-1, AvroConversion.None, (ref AvroReader r) =>
+                steps[i] = new AvroRecordPlan.Step(-1, AvroConversion.None, (ref r) =>
                 {
                     var state = new ReadState(GenericDatumReaderOptions.Default);
                     skip.Read(ref r, ref state);
@@ -84,7 +83,7 @@ public sealed partial class GenericDatumReader
         }
 
         var transcoder = new Transcoder(writer, reader, path);
-        AvroRecordPlan.StepTranscoder transcode = (ref AvroReader r) => transcoder.TranscodeToBuffer(ref r);
+        AvroRecordPlan.StepTranscoder transcode = transcoder.TranscodeToBuffer;
         if (writer is EnumSchema writerEnum && reader is EnumSchema readerEnum && ResolvingBuilder.NamesMatch(writerEnum, readerEnum))
         {
             return new AvroRecordPlan.Step(readerField.Position, AvroConversion.EnumRemap, skip: null, transcode,

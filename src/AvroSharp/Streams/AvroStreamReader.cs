@@ -45,7 +45,7 @@ public static class AvroStreamReader
         var datumReader = readerSchema is null
             ? GenericDatumReader.Create(writerSchema, readerOptions)
             : GenericDatumReader.Create(writerSchema, readerSchema, readerOptions);
-        return Open(stream, (ref AvroReader reader) => datumReader.Read(ref reader), options);
+        return Open(stream, datumReader.Read, options);
     }
 }
 

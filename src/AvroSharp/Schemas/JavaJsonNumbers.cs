@@ -152,7 +152,7 @@ internal static class JavaJsonNumbers
     // floor(log10(m * 2^exponent)), exactly.
     private static int DecimalExponent(BigInteger m, int exponent)
     {
-        var estimate = (int)Math.Floor((BigInteger.Log10(m) + (exponent * Math.Log10(2))) - 1e-9);
+        var estimate = (int)Math.Floor(BigInteger.Log10(m) + (exponent * Math.Log10(2)) - 1e-9);
         while (Compare(m, exponent, estimate + 1) >= 0)
         {
             estimate++;
@@ -267,12 +267,12 @@ internal static class JavaJsonNumbers
     private static (BigInteger Digits, long Exponent, int Count) ParseDecimal(string json)
     {
         var e = json.IndexOfAny(['e', 'E']);
-        var significand = e < 0 ? json : json.Substring(0, e);
+        var significand = e < 0 ? json : json[..e];
 
         // An exponent too large for an int is out of the double range either way.
         long decimalExponent = 0;
 #if NETSTANDARD2_0
-        var exponentText = e < 0 ? string.Empty : json.Substring(e + 1);
+        var exponentText = e < 0 ? string.Empty : json[(e + 1)..];
 #else
         var exponentText = e < 0 ? default : json.AsSpan(e + 1);
 #endif

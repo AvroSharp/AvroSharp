@@ -30,11 +30,11 @@ public class GetPutTests
         var order = TestData.CreateOrder();
         var schema = (RecordSchema)shop.Order.Schema;
 
-        await Assert.That(order.Get(schema.GetField("id").Position)).IsEqualTo((object)order.Id);
-        await Assert.That(order.Get(schema.GetField("customer_name").Position)).IsEqualTo((object)"Ada");
-        await Assert.That(order.Get(schema.GetField("status").Position)).IsEqualTo((object)shop.Status.@class);
+        await Assert.That(order.Get(schema.GetField("id").Position)).IsEqualTo(order.Id);
+        await Assert.That(order.Get(schema.GetField("customer_name").Position)).IsEqualTo("Ada");
+        await Assert.That(order.Get(schema.GetField("status").Position)).IsEqualTo(shop.Status.@class);
         await Assert.That(order.Get(schema.GetField("discount").Position)).IsNull();
-        await Assert.That(order.Get(schema.GetField("priority").Position)).IsEqualTo((object)7);
+        await Assert.That(order.Get(schema.GetField("priority").Position)).IsEqualTo(7);
         await Assert.That(ReferenceEquals(order.Get(schema.GetField("counters").Position), order.Counters)).IsTrue();
     }
 
@@ -76,7 +76,7 @@ public class GetPutTests
         var extra = ((RecordSchema)shop.Order.Schema).GetField("extra").Position;
 
         order.Put(extra, "text");
-        await Assert.That(order.Extra).IsEqualTo((object)"text");
+        await Assert.That(order.Extra).IsEqualTo("text");
 
         order.Put(extra, 3.5);
         Assert.Throws<AvroException>(() => order.ToAvroBytes());

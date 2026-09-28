@@ -23,7 +23,7 @@ Console.WriteLine($"Single-object message: {message.Length} bytes -> value {from
 
 // Schema-registry framing (here Confluent's: 0x00 and a 4-byte schema ID). The resolver maps IDs to schemas; a real
 // one would call the registry and cache the answers.
-var registry = new Samples.InMemoryRegistry { [1] = v1, [2] = v2 };
+var registry = new Messaging.InMemoryRegistry { [1] = v1, [2] = v2 };
 byte[] framed = AvroRegistryMessage.ToArray(AvroRegistryFraming.Confluent, AvroSchemaId.FromNumber(1), reading, writer);
 var framedReader = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.Confluent, registry);
 var fromRegistry = (await framedReader.ReadAsync(framed)).AsRecord();
@@ -60,7 +60,7 @@ var ok = Math.Abs(fromMessage["value"].AsDouble() - 21.5) < 1e-9 && string.Equal
 Console.WriteLine(ok ? "OK" : "FAILED");
 return ok ? 0 : 1;
 
-namespace Samples
+namespace Messaging
 {
     /// <summary>Schema IDs to schemas, in memory. A registry client would fetch unknown IDs and cache them.</summary>
     internal sealed class InMemoryRegistry : Dictionary<long, AvroSchema>, IAvroSchemaIdResolver

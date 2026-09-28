@@ -48,8 +48,8 @@ public class VarintPathTests
 
             // Reader: followed by padding (8-byte word path), alone (end of input), and one byte per segment.
             var padded = reference.Concat(new byte[16]).ToArray();
-            await Assert.That(ReadLong(padded)).IsEqualTo((value, (long)reference.Length));
-            await Assert.That(ReadLong(reference)).IsEqualTo((value, (long)reference.Length));
+            await Assert.That(ReadLong(padded)).IsEqualTo((value, reference.Length));
+            await Assert.That(ReadLong(reference)).IsEqualTo((value, reference.Length));
             await Assert.That(ReadLongSegmented(reference)).IsEqualTo(value);
         }
     }
@@ -70,8 +70,8 @@ public class VarintPathTests
             writer.Flush();
 
             await Assert.That(Convert.ToHexString(output.WrittenSpan.ToArray())).IsEqualTo(Convert.ToHexString(reference));
-            await Assert.That(ReadInt(padded)).IsEqualTo((value, (long)reference.Length));
-            await Assert.That(ReadInt(reference)).IsEqualTo((value, (long)reference.Length));
+            await Assert.That(ReadInt(padded)).IsEqualTo((value, reference.Length));
+            await Assert.That(ReadInt(reference)).IsEqualTo((value, reference.Length));
         }
     }
 

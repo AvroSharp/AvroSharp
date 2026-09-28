@@ -27,7 +27,7 @@ public sealed class SchemaName : IEquatable<SchemaName>
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        var dot = name.LastIndexOf('.');
+        var dot = name.AsSpan().LastIndexOf('.');
         if (dot == 0)
         {
             // ".foo": the null namespace may not be part of a dotted name.

@@ -175,7 +175,7 @@ public class RegistryFramingTests
         {
             calls++;
             var datum = GenericDatumReader.Create(schema);
-            return (ref AvroReader r) => datum.Read(ref r);
+            return (ref r) => datum.Read(ref r);
         });
         var writer = GenericDatumWriter.Create(s_schema);
 

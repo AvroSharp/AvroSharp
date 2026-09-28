@@ -30,7 +30,6 @@ internal static class TestData
                 vectors.Add(new SchemaTestVector(number++, input, canonical ?? throw new InvalidDataException($"Vector {number} has no canonical form."), fingerprint));
             }
 
-            input = null;
             canonical = null;
             fingerprint = null;
         }
