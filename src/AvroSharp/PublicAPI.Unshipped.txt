@@ -587,6 +587,7 @@ static AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(AvroSharp.Schemas.
 static AvroSharp.Serialization.AvroGeneratedCode.NullValue(string! field) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(object? value, string! field, string! expectedType) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref AvroSharp.IO.AvroReader reader, int minimumItemSize, int itemsSoFar) -> int
+static AvroSharp.Serialization.AvroGeneratedCode.BeginRead(ref AvroSharp.IO.AvroReader reader) -> void
 static AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref AvroSharp.IO.AvroReader reader, int symbolCount, string! enumName) -> int
 static AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.AvroDataException!
 static AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> System.ReadOnlySpan<byte>

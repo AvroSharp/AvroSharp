@@ -28,7 +28,10 @@ public static class AvroGeneratedCode
     /// <summary>The deepest nesting of records a generated serializer writes or reads, as in the generic model.</summary>
     public const int MaxDepth = 128;
 
-    /// <summary>The most zero-size items (for example <c>null</c>s) one array or map may hold; input size cannot bound them.</summary>
+    /// <summary>
+    /// The most zero-size array items (for example <c>null</c>s or empty records) one value may declare, across all of
+    /// its arrays, as in the generic model; input size cannot bound them.
+    /// </summary>
     public const int MaxZeroSizeItems = 1 << 16;
 
     // Items pre-allocated for an array or map before any are read; larger blocks grow as items arrive.
@@ -52,10 +55,18 @@ public static class AvroGeneratedCode
     }
 
     /// <summary>
+    /// Starts reading one value: resets the count of zero-size items that <see cref="ReadBlockItemCount"/> limits.
+    /// Generated <c>Read</c> methods call it, so a reader reused for a sequence of values (a container block) gives each
+    /// value the whole budget.
+    /// </summary>
+    /// <param name="reader">The source.</param>
+    public static void BeginRead(ref AvroReader reader) => reader.ZeroSizeItems = 0;
+
+    /// <summary>
     /// Reads the item count of the next array or map block (0 at the end) and checks it before anything is
     /// allocated: items of at least <paramref name="minimumItemSize"/> bytes must fit in the remaining input, zero-size
-    /// items are limited to <see cref="MaxZeroSizeItems"/> per collection, and no collection may exceed the largest
-    /// .NET array.
+    /// items are limited to <see cref="MaxZeroSizeItems"/> in the whole value being read (nested arrays share the
+    /// limit), and no collection may exceed the largest .NET array.
     /// </summary>
     /// <param name="reader">The source.</param>
     /// <param name="minimumItemSize">The smallest encoded size of one item (a map entry includes its key).</param>
@@ -76,9 +87,16 @@ public static class AvroGeneratedCode
                 throw new AvroDataException($"Block count {count} is larger than the remaining input can hold.");
             }
         }
-        else if (itemsSoFar + count > MaxZeroSizeItems)
+        else
         {
-            throw new AvroDataException($"A collection declares more than {MaxZeroSizeItems} zero-size items.");
+            // Charged to the whole value, not to this collection: an array of records that each hold an array of
+            // nulls would otherwise declare MaxZeroSizeItems per record, from a few bytes each.
+            if (count > MaxZeroSizeItems - reader.ZeroSizeItems)
+            {
+                throw new AvroDataException($"The value declares more than {MaxZeroSizeItems} zero-size items.");
+            }
+
+            reader.ZeroSizeItems += count;
         }
 
         if (itemsSoFar + count > MaxCollectionCount)

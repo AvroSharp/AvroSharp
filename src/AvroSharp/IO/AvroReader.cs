@@ -46,6 +46,10 @@ public ref struct AvroReader
     private long _consumedBefore;
     private SequencePosition _nextSegment;
 
+    // Zero-size array items (nulls, empty records) declared so far in the value being read by generated code. They
+    // take no input bytes, so only this count bounds them; see AvroGeneratedCode.ReadBlockItemCount.
+    private long _zeroSizeItems;
+
     /// <summary>Initializes a reader over contiguous data.</summary>
     /// <param name="data">The Avro binary data.</param>
     public AvroReader(ReadOnlySpan<byte> data)
@@ -57,6 +61,7 @@ public ref struct AvroReader
         _position = 0;
         _consumedBefore = 0;
         _nextSegment = default;
+        _zeroSizeItems = 0;
     }
 
     /// <summary>Initializes a reader over a sequence of buffers, such as the result of a <c>PipeReader</c> read.</summary>
@@ -66,6 +71,7 @@ public ref struct AvroReader
         _length = data.Length;
         _position = 0;
         _consumedBefore = 0;
+        _zeroSizeItems = 0;
         if (data.IsSingleSegment)
         {
             _sequence = default;
@@ -91,6 +97,13 @@ public ref struct AvroReader
 
     /// <summary>Gets a value indicating whether all input has been read.</summary>
     public readonly bool IsAtEnd => BytesRemaining == 0;
+
+    /// <summary>Gets or sets the zero-size array items declared so far in the value being read by generated code.</summary>
+    internal long ZeroSizeItems
+    {
+        readonly get => _zeroSizeItems;
+        set => _zeroSizeItems = value;
+    }
 
     /// <summary>Reads <c>null</c>, which is encoded as zero bytes.</summary>
 #pragma warning disable CA1822 // Part of the decoding API for symmetry with the other types.

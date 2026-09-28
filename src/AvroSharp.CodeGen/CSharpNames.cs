@@ -83,6 +83,38 @@ internal sealed class CSharpNames(CodeGenOptions options)
     public static string Xml(string text) =>
         text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 
+    /// <summary>
+    /// Splits schema text (a <c>doc</c>) into lines that are safe inside <c>//</c> or <c>///</c> comments. C# ends a
+    /// comment at any of its line terminators (\r, \n, U+0085, U+2028, U+2029), so each one starts a new line here;
+    /// otherwise the text after it would be compiled as code. Other control characters, which are not valid in XML
+    /// documentation, are dropped.
+    /// </summary>
+    /// <param name="text">The schema text.</param>
+    public static IEnumerable<string> CommentLines(string text)
+    {
+        var line = new StringBuilder();
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c is '\r' or '\n' or '\u0085' or '\u2028' or '\u2029')
+            {
+                if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
+                {
+                    i++;
+                }
+
+                yield return line.ToString();
+                line.Clear();
+            }
+            else if (c == '\t' || !char.IsControl(c))
+            {
+                line.Append(c);
+            }
+        }
+
+        yield return line.ToString();
+    }
+
     /// <summary>Gets the C# namespace for a named type, or <see langword="null"/> for the global namespace.</summary>
     public string? Namespace(NamedSchema schema)
     {

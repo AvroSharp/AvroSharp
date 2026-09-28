@@ -13,6 +13,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - Bulk booleans (#26): `AvroReader.ReadBooleans` checks and copies a block of booleans as one span, and `AvroWriter.WriteBooleans` writes one as a single copy. Generated code uses them for `boolean` arrays, and the generic reader and writer use them for boolean arrays.
 
+### Fixed
+
+- Generated code: a line terminator other than `\n` in a schema's `doc` text (`\r`, U+0085, U+2028 or U+2029) ended the generated `///` comment, so the rest of the doc was compiled as C#. For a field's doc, that could add members to the generated type. Doc text is now split on every C# line terminator, and other control characters are dropped (#110).
+- Generated readers limited zero-size array items (`null`s, empty records) per array, not per value. Arrays nested in arrays multiplied the limit: an 8 KB input could declare about 131 million items and allocate about 2 GB. The limit of 65,536 now covers the whole value, as in the generic reader. Each generated `Read` starts a new budget, so values read one after another from the same reader, as in a container block, each get the full limit (#109).
+- The generator reports a union whose branches map to the same C# type, for example a `uuid` string and a `uuid` fixed (both `Guid`), as error AVROGEN003. Before, it generated code that didn't compile (CS8120), and whose writer couldn't have chosen the branch anyway. The message suggests `AvroSharpLogicalTypes=raw` (#108).
+
 ## [0.1.1] - 2026-09-28
 
 The first complete release of all four packages. 0.1.0's publish stopped partway, so `AvroSharp.CodeGen` 0.1.0 was never published; use 0.1.1. The code is the same as 0.1.0.

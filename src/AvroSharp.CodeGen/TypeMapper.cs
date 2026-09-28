@@ -137,6 +137,32 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
             return IsValueType(branch) ? type + "?" : Nullable(type);
         }
 
+        // An object? union is written by switching on the value's runtime type, so two branches with the same C# type
+        // (a string and a fixed uuid are both Guid) can be neither told apart nor compiled (CS8120).
+        var seen = new Dictionary<string, AvroSchema>(System.StringComparer.Ordinal);
+        foreach (var index in others)
+        {
+            var branch = union.Branches[index];
+            var type = TypeOf(branch);
+            if (seen.TryGetValue(type, out var earlier))
+            {
+                throw new AvroException(
+                    $"The union branches {Describe(earlier)} and {Describe(branch)} both map to the C# type {type}, so generated code " +
+                    "cannot tell them apart. Change the schema, or map logical types to their underlying types " +
+                    "(AvroSharpLogicalTypes=raw, not available with AvroSharpApacheCompatible).");
+            }
+
+            seen.Add(type, branch);
+        }
+
         return Nullable("object");
     }
+
+    // A named type by its full name, anything else as its JSON (for example {"type":"string","logicalType":"uuid"}).
+    private static string Describe(AvroSchema schema) => schema switch
+    {
+        NamedSchema named when schema.LogicalType is { } logical => $"'{named.FullName}' ({logical.Name})",
+        NamedSchema named => $"'{named.FullName}'",
+        _ => schema.ToString(),
+    };
 }
