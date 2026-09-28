@@ -69,6 +69,12 @@ namespace app.events
                 return ReadCore(ref reader, 0);
             }
 
+            var plan = global::AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(writerSchema, Schema);
+            if (plan != null)
+            {
+                return ReadResolved(ref reader, plan, 0);
+            }
+
             return FromAvroBytes(global::AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref reader, writerSchema, Schema));
         }
 
@@ -281,6 +287,266 @@ namespace app.events
                     throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index7, 3);
             }
             return value;
+        }
+
+        internal static Event ReadResolved(ref global::AvroSharp.IO.AvroReader reader, global::AvroSharp.Serialization.AvroRecordPlan plan, int depth)
+        {
+            if (depth > global::AvroSharp.Serialization.AvroGeneratedCode.MaxDepth)
+            {
+                throw global::AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep();
+            }
+
+            var value = new Event();
+            for (var step = 0; step < plan.StepCount; step++)
+            {
+                switch (plan.Target(step))
+                {
+                    case 0:
+                        switch (plan.Conversion(step))
+                        {
+                            case global::AvroSharp.Serialization.AvroConversion.None:
+                                value.Id = ReadResolvedField0(ref reader, depth);
+                                break;
+                            case global::AvroSharp.Serialization.AvroConversion.FromInt:
+                                value.Id = reader.ReadInt();
+                                break;
+                            default:
+                                {
+                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                                    value.Id = ReadResolvedField0(ref field, depth);
+                                    break;
+                                }
+                        }
+                        break;
+                    case 1:
+                        switch (plan.Conversion(step))
+                        {
+                            case global::AvroSharp.Serialization.AvroConversion.None:
+                                value.Kind = ReadResolvedField1(ref reader, depth);
+                                break;
+                            case global::AvroSharp.Serialization.AvroConversion.EnumRemap:
+                                value.Kind = (global::app.events.Kind)plan.MapEnum(step, reader.ReadEnum());
+                                break;
+                            default:
+                                {
+                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                                    value.Kind = ReadResolvedField1(ref field, depth);
+                                    break;
+                                }
+                        }
+                        break;
+                    case 2:
+                        switch (plan.Conversion(step))
+                        {
+                            case global::AvroSharp.Serialization.AvroConversion.None:
+                                value.Hash = ReadResolvedField2(ref reader, depth);
+                                break;
+                            default:
+                                {
+                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                                    value.Hash = ReadResolvedField2(ref field, depth);
+                                    break;
+                                }
+                        }
+                        break;
+                    case 3:
+                        switch (plan.Conversion(step))
+                        {
+                            case global::AvroSharp.Serialization.AvroConversion.None:
+                                value.Tags = ReadResolvedField3(ref reader, depth);
+                                break;
+                            default:
+                                {
+                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                                    value.Tags = ReadResolvedField3(ref field, depth);
+                                    break;
+                                }
+                        }
+                        break;
+                    case 4:
+                        switch (plan.Conversion(step))
+                        {
+                            case global::AvroSharp.Serialization.AvroConversion.None:
+                                value.Scores = ReadResolvedField4(ref reader, depth);
+                                break;
+                            default:
+                                {
+                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                                    value.Scores = ReadResolvedField4(ref field, depth);
+                                    break;
+                                }
+                        }
+                        break;
+                    case 5:
+                        switch (plan.Conversion(step))
+                        {
+                            case global::AvroSharp.Serialization.AvroConversion.None:
+                                value.Parent = ReadResolvedField5(ref reader, depth);
+                                break;
+                            default:
+                                {
+                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                                    value.Parent = ReadResolvedField5(ref field, depth);
+                                    break;
+                                }
+                        }
+                        break;
+                    case 6:
+                        switch (plan.Conversion(step))
+                        {
+                            case global::AvroSharp.Serialization.AvroConversion.None:
+                                value.Payload = ReadResolvedField6(ref reader, depth);
+                                break;
+                            default:
+                                {
+                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                                    value.Payload = ReadResolvedField6(ref field, depth);
+                                    break;
+                                }
+                        }
+                        break;
+                    default:
+                        plan.Skip(step, ref reader);
+                        break;
+                }
+            }
+
+            for (var index = 0; index < plan.DefaultCount; index++)
+            {
+                var field = new global::AvroSharp.IO.AvroReader(plan.DefaultValue(index));
+                switch (plan.DefaultTarget(index))
+                {
+                    case 0:
+                        value.Id = ReadResolvedField0(ref field, depth);
+                        break;
+                    case 1:
+                        value.Kind = ReadResolvedField1(ref field, depth);
+                        break;
+                    case 2:
+                        value.Hash = ReadResolvedField2(ref field, depth);
+                        break;
+                    case 3:
+                        value.Tags = ReadResolvedField3(ref field, depth);
+                        break;
+                    case 4:
+                        value.Scores = ReadResolvedField4(ref field, depth);
+                        break;
+                    case 5:
+                        value.Parent = ReadResolvedField5(ref field, depth);
+                        break;
+                    case 6:
+                        value.Payload = ReadResolvedField6(ref field, depth);
+                        break;
+                }
+            }
+
+            return value;
+        }
+
+        private static long ReadResolvedField0(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        {
+            long result;
+            result = reader.ReadLong();
+            return result;
+        }
+
+        private static global::app.events.Kind ReadResolvedField1(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        {
+            global::app.events.Kind result;
+            result = (global::app.events.Kind)global::AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref reader, 2, "app.events.Kind");
+            return result;
+        }
+
+        private static global::app.events.Hash ReadResolvedField2(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        {
+            global::app.events.Hash result;
+            result = new global::app.events.Hash(reader.ReadFixedSpan(2).ToArray());
+            return result;
+        }
+
+        private static global::System.Collections.Generic.List<string> ReadResolvedField3(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        {
+            global::System.Collections.Generic.List<string> result;
+            {
+                var items8 = new global::System.Collections.Generic.List<string>();
+                int count8;
+                while ((count8 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 1, items8.Count)) != 0)
+                {
+                    if (items8.Count == 0)
+                    {
+                        items8.Capacity = global::AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(count8);
+                    }
+                    for (var i8 = 0; i8 < count8; i8++)
+                    {
+                        string item8;
+                        item8 = reader.ReadString();
+                        items8.Add(item8);
+                    }
+                }
+                result = items8;
+            }
+            return result;
+        }
+
+        private static global::System.Collections.Generic.Dictionary<string, double> ReadResolvedField4(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        {
+            global::System.Collections.Generic.Dictionary<string, double> result;
+            {
+                var count9 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, 0);
+                var map9 = new global::System.Collections.Generic.Dictionary<string, double>(global::AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(count9), global::System.StringComparer.Ordinal);
+                while (count9 != 0)
+                {
+                    for (var i9 = 0; i9 < count9; i9++)
+                    {
+                        var key9 = reader.ReadString();
+                        double value9;
+                        value9 = reader.ReadDouble();
+                        map9[key9] = value9;
+                    }
+                    count9 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, map9.Count);
+                }
+                result = map9;
+            }
+            return result;
+        }
+
+        private static global::app.events.Event? ReadResolvedField5(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        {
+            global::app.events.Event? result;
+            var index10 = reader.ReadUnionIndex();
+            switch (index10)
+            {
+                case 0:
+                    result = null;
+                    break;
+                case 1:
+                    result = global::app.events.Event.ReadCore(ref reader, depth + 1);
+                    break;
+                default:
+                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index10, 2);
+            }
+            return result;
+        }
+
+        private static object? ReadResolvedField6(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        {
+            object? result;
+            var index11 = reader.ReadUnionIndex();
+            switch (index11)
+            {
+                case 0:
+                    result = null;
+                    break;
+                case 1:
+                    result = reader.ReadInt();
+                    break;
+                case 2:
+                    result = reader.ReadString();
+                    break;
+                default:
+                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index11, 3);
+            }
+            return result;
         }
     }
 }

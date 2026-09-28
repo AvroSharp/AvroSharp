@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using AvroSharp.Buffers;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
+using AvroSharp.Serialization;
 
 namespace AvroSharp.Generic;
 
@@ -34,7 +35,15 @@ public sealed partial class GenericDatumReader
 
         private readonly TranscodeNode _root;
 
-        internal Transcoder(AvroSchema writerSchema, AvroSchema readerSchema) => _root = new TranscodingBuilder().Build(writerSchema, readerSchema, "$");
+        internal Transcoder(AvroSchema writerSchema, AvroSchema readerSchema, string path = "$") => _root = new TranscodingBuilder().Build(writerSchema, readerSchema, path);
+
+        /// <summary>Transcodes one value into the per-thread buffer of <see cref="AvroGeneratedCode"/> and returns it.</summary>
+        public System.ReadOnlySpan<byte> TranscodeToBuffer(ref AvroReader reader)
+        {
+            var buffer = AvroGeneratedCode.ResolvedBuffer();
+            Transcode(ref reader, buffer);
+            return buffer.WrittenSpan;
+        }
 
         public void Transcode(ref AvroReader reader, IBufferWriter<byte> output)
         {

@@ -171,6 +171,29 @@ public static class AvroGeneratedCode
     {
         ArgumentNullException.ThrowIfNull(writerSchema);
         ArgumentNullException.ThrowIfNull(readerSchema);
+        var buffer = ResolvedBuffer();
+        GenericDatumReader.GetTranscoder(writerSchema, readerSchema).Transcode(ref reader, buffer);
+        return buffer.WrittenSpan;
+    }
+
+    /// <summary>
+    /// Gets the plan for reading a generated record from data of another version of its schema, or <see langword="null"/>
+    /// when <paramref name="writerSchema"/> is not a record of the same name (then use <see cref="ResolveToReaderEncoding"/>).
+    /// Plans are built once per pair of schemas.
+    /// </summary>
+    /// <param name="writerSchema">The schema the data was written with.</param>
+    /// <param name="readerSchema">The generated type's schema.</param>
+    /// <exception cref="AvroSchemaException">The schemas cannot be resolved.</exception>
+    public static AvroRecordPlan? GetRecordPlan(AvroSchema writerSchema, AvroSchema readerSchema)
+    {
+        ArgumentNullException.ThrowIfNull(writerSchema);
+        ArgumentNullException.ThrowIfNull(readerSchema);
+        return GenericDatumReader.GetRecordPlan(writerSchema, readerSchema);
+    }
+
+    // The per-thread buffer that resolved values are written to, emptied.
+    internal static PooledBufferWriter ResolvedBuffer()
+    {
         var buffer = t_resolved;
         if (buffer is null || buffer.Capacity > MaxRetainedResolvedBuffer)
         {
@@ -179,8 +202,7 @@ public static class AvroGeneratedCode
         }
 
         buffer.Clear();
-        GenericDatumReader.GetTranscoder(writerSchema, readerSchema).Transcode(ref reader, buffer);
-        return buffer.WrittenSpan;
+        return buffer;
     }
 
     // A buffer grown past this by one large value is replaced on the next call instead of being kept by the thread.
