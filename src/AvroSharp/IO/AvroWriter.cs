@@ -381,84 +381,79 @@ public ref struct AvroWriter
             return;
         }
 
-        WriteVarintMulti(value);
+        _buffered += WriteVarintMulti(ref destination, value);
     }
 
-    /// <summary>A varint of 3 or more bytes; kept out of line so the inlined call sites stay small.</summary>
+    /// <summary>
+    /// A varint of 3 or more bytes at <paramref name="destination"/>, which has room for 10; returns its length. Kept
+    /// out of line so the inlined call sites stay small, and written through <c>ref</c> stores with no bounds checks.
+    /// </summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void WriteVarintMulti(ulong value)
+    private static int WriteVarintMulti(ref byte destination, ulong value)
     {
-        var buffer = _buffer[_buffered..];
-
-        // Three or four bytes: direct stores, cheaper than the word path for short values.
-        if (value < 1UL << 21)
+        if (BitConverter.IsLittleEndian)
         {
-            buffer[0] = (byte)(value | 0x80);
-            buffer[1] = (byte)((value >> 7) | 0x80);
-            buffer[2] = (byte)(value >> 14);
-            _buffered += 3;
-            return;
-        }
+            // Three to five bytes: spread the first four 7-bit groups into one 4-byte store, cheaper than the word
+            // path for short values. Bytes past the varint are overwritten by the next value.
+            var low = (uint)(value & 0x7F) | ((uint)(value << 1) & 0x7F00) | ((uint)(value << 2) & 0x7F0000) | ((uint)(value << 3) & 0x7F000000);
+            if (value < 1UL << 21)
+            {
+                Unsafe.WriteUnaligned(ref destination, low | 0x8080);
+                return 3;
+            }
 
-        if (value < 1UL << 28)
-        {
-            buffer[0] = (byte)(value | 0x80);
-            buffer[1] = (byte)((value >> 7) | 0x80);
-            buffer[2] = (byte)((value >> 14) | 0x80);
-            buffer[3] = (byte)(value >> 21);
-            _buffered += 4;
-            return;
+            if (value < 1UL << 28)
+            {
+                Unsafe.WriteUnaligned(ref destination, low | 0x808080);
+                return 4;
+            }
+
+            if (value < 1UL << 35)
+            {
+                Unsafe.WriteUnaligned(ref destination, low | 0x80808080);
+                Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
+                return 5;
+            }
         }
 
 #if NET8_0_OR_GREATER
         if (value < 1UL << 56)
         {
             // 5 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
-            // one write. Bytes past the varint are overwritten by the next value.
+            // one write.
             var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
             var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
-            WriteWord(buffer, SpreadVarint(value) | continuation);
-            _buffered += length;
-            return;
+            WriteWord(ref destination, SpreadVarint(value) | continuation);
+            return length;
         }
 
-        _buffered += WriteLongVarint(buffer, value);
+        return WriteLongVarint(ref destination, value);
 #else
-        _buffered += WriteVarintLoop(buffer, value);
+        return WriteVarintLoop(ref destination, value);
 #endif
     }
 
 #if NET8_0_OR_GREATER
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteWord(Span<byte> buffer, ulong word)
-    {
-        if (BitConverter.IsLittleEndian)
-        {
-            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(buffer), word);
-        }
-        else
-        {
-            BinaryPrimitives.WriteUInt64LittleEndian(buffer, word);
-        }
-    }
-#endif
-#if NET8_0_OR_GREATER
+    private static void WriteWord(ref byte destination, ulong word) =>
+        Unsafe.WriteUnaligned(ref destination, BitConverter.IsLittleEndian ? word : BinaryPrimitives.ReverseEndianness(word));
+
     /// <summary>
     /// Writes a 9- or 10-byte varint (a value of 2^56 or more): the low 56 bits as a full word of continued bytes,
     /// then bits 56-62 and bit 63. Returns the number of bytes written.
     /// </summary>
-    private static int WriteLongVarint(Span<byte> buffer, ulong value)
+    private static int WriteLongVarint(ref byte destination, ulong value)
     {
-        WriteWord(buffer, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
+        WriteWord(ref destination, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
         var high = value >> 56;
         if (high < 0x80)
         {
-            buffer[8] = (byte)high;
+            Unsafe.Add(ref destination, 8) = (byte)high;
             return 9;
         }
 
-        buffer[8] = (byte)(high | 0x80);
-        buffer[9] = (byte)(high >> 7);
+        Unsafe.Add(ref destination, 8) = (byte)(high | 0x80);
+        Unsafe.Add(ref destination, 9) = (byte)(high >> 7);
         return MaxVarint64Length;
     }
 
@@ -508,6 +503,21 @@ public ref struct AvroWriter
         destination[position++] = (byte)value;
         return position;
     }
+
+#if !NET8_0_OR_GREATER
+    private static int WriteVarintLoop(ref byte destination, ulong value)
+    {
+        var position = 0;
+        while (value >= 0x80)
+        {
+            Unsafe.Add(ref destination, position++) = (byte)(value | 0x80);
+            value >>= 7;
+        }
+
+        Unsafe.Add(ref destination, position++) = (byte)value;
+        return position;
+    }
+#endif
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void WriteVarintExact(ulong value)
