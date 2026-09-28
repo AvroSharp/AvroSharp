@@ -86,7 +86,7 @@ await using var asyncReader = await AvroFileReader.OpenGenericAsync(stream);
 await foreach (var value in asyncReader.ReadAllAsync(cancellationToken)) { ... }
 ```
 
-Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound.
+Generated types use their own serializers: on .NET 8 and later `AvroFileWriter.Create<Order>(stream)` and `AvroFileReader.Open<Order>(stream)`, and on every target `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound.
 
 **Codecs.** `null` and `deflate` are built in. The `AvroSharp.Codecs` package adds the specification's other codecs (snappy, zstandard, bzip2 and xz) on fully managed libraries, with no native binaries:
 
@@ -170,17 +170,33 @@ var copy = shop.Order.FromAvroBytes(bytes);
 var writer = new AvroWriter(bufferWriter);   // or write into your own IBufferWriter<byte>
 shop.Order.Write(ref writer, order);
 writer.Flush();
+
+// Without allocating: into caller memory, or into a reused buffer writer.
+Span<byte> buffer = stackalloc byte[512];
+if (order.TryWriteAvroBytes(buffer, out var written)) { /* buffer[..written] */ }
+order.WriteAvroBytes(bufferWriter);
+
+// Reuse one instance for a stream of values: its lists, dictionaries and records are filled again.
+var reader = new AvroReader(data);
+order.ReadFrom(ref reader);
+
+// On .NET 8 and later, generic code needs no delegates (IAvroSerializable<T>).
+byte[] same = AvroSerializer.Serialize(order);
+using var file = AvroFileWriter.Create<shop.Order>(stream);
 ```
 
 - **Cross-file references:** schema files may refer to named types defined in other files. A type repeated identically in several files (as schema sets written for Apache's tooling often do) is generated once.
 - **Namespaces:** types without an Avro namespace go into the namespace set by the MSBuild property `AvroSharpNamespace`, or the global namespace.
 - **Unions:** a union of `null` and one other type becomes a nullable property; other unions become `object?`.
 - **Logical types:** `date` becomes `DateOnly` and `time-millis`/`time-micros` become `TimeOnly` (`DateTime`/`TimeSpan` on .NET Framework and netstandard); `timestamp-millis`/`-micros` become `DateTimeOffset` and the `local-` variants `DateTime`; `uuid` becomes `Guid`; `decimal` with a precision up to 28 becomes `decimal`. Decimals are written exactly or rejected, never rounded. Other logical types keep their underlying type. Set `AvroSharpLogicalTypes` to `raw` to keep the underlying types everywhere.
-- **Property names:** PascalCase by default (`customer_name` becomes `CustomerName`). Set `AvroSharpPropertyNames` to `avro` to keep the Avro field names as written, as Apache's `avrogen` does (C# keywords are escaped: `@class`).
+- **Defaults:** `new Order()` gives every field with a schema default its default (primitives, strings, bytes, enums, nullable unions, and arrays and maps of those), as reading data that lacks the field would.
+- **Property names:** PascalCase by default (`customer_name` becomes `CustomerName`). Set `AvroSharpPropertyNames` to `avro` to keep the Avro field names as written, as Apache's `avrogen` does (C# keywords are escaped: `@class`), or to `pascal` to force PascalCase.
+- **Interfaces:** every record implements `IAvroSpecificRecord`, `IAvroWritable` and `IAvroReadable`, and on .NET 8 and later `IAvroSerializable<T>`, which `AvroSerializer`, the container and stream readers and writers, and the message helpers accept without delegates.
 - **Schema evolution:** `Order.FromAvroBytes(bytes, writerSchema)` reads data written with another version of the schema (added fields take their defaults, removed fields are skipped, numbers are promoted).
 - **Field access by position:** every generated record implements `IAvroSpecificRecord` (`Schema`, `Get(int)`, `Put(int, object?)`), following the contract of Apache.Avro's `ISpecificRecord`.
 - **Apache.Avro compatibility mode:** set `<AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>` in a project that references Apache.Avro, and the same generated classes also work with Apache's `SpecificDatumWriter<T>`/`SpecificDatumReader<T>`, so code can move to AvroSharp one call site at a time.
   - **What changes:**
+    - code written for `avrogen` classes compiles unchanged: property names are avrogen's (the Avro field names) unless `AvroSharpPropertyNames` says otherwise, and types have avrogen's static `_SCHEMA` and instance `Schema` (Apache's `Avro.Schema`); AvroSharp's schema is `AvroSharpSchema`;
     - records also implement `Avro.Specific.ISpecificRecord`;
     - fixed types derive from `Avro.Specific.SpecificFixed`;
     - logical types use Apache's .NET types (`DateTime`, `TimeSpan`, `Guid`, `Avro.AvroDecimal`).

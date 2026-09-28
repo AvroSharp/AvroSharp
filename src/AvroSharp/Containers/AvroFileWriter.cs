@@ -48,6 +48,17 @@ public static class AvroFileWriter
         var datumWriter = GenericDatumWriter.Create(schema, writerOptions);
         return Create<AvroValue>(stream, schema, (ref writer, value) => datumWriter.Write(ref writer, value), options);
     }
+
+#if NET8_0_OR_GREATER
+    /// <summary>Creates a container file of a generated type, with its schema.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="stream">The destination.</param>
+    /// <param name="options">The file options, or <see langword="null"/> for the defaults.</param>
+    /// <exception cref="ArgumentException">The metadata uses a reserved key.</exception>
+    public static AvroFileWriter<T> Create<T>(Stream stream, AvroFileWriterOptions? options = null)
+        where T : IAvroSerializable<T> =>
+        Create(stream, T.Schema, AvroSerializable<T>.Write, options);
+#endif
 }
 
 /// <summary>

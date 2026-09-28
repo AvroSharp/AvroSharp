@@ -28,12 +28,9 @@ internal sealed class CSharpNames(CodeGenOptions options)
     public static string Pascal(string name)
     {
         var result = new StringBuilder(name.Length);
-        foreach (var part in name.Split('_'))
+        foreach (var part in name.Split('_').Where(part => part.Length > 0))
         {
-            if (part.Length > 0)
-            {
-                result.Append(char.ToUpperInvariant(part[0])).Append(part, 1, part.Length - 1);
-            }
+            result.Append(char.ToUpperInvariant(part[0])).Append(part, 1, part.Length - 1);
         }
 
         return result.Length == 0 || char.IsDigit(result[0]) ? "Field" + result : result.ToString();

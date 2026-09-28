@@ -80,6 +80,7 @@ public sealed partial class AvroFileReader<T>
             }
             catch (OperationCanceledException)
             {
+                // Expected: CancelAsync above stopped the producer. Its other failures were already handed to the reader.
             }
 
             ReleaseUnread(channel.Reader);

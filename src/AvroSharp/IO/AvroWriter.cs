@@ -30,10 +30,15 @@ public ref struct AvroWriter
     private const int MinimumBufferSize = 256;
     private const int MaxVarint64Length = 10;
 
-    private readonly IBufferWriter<byte>? _output;
+    private IBufferWriter<byte>? _output;
     private Span<byte> _buffer;
     private int _buffered;
     private long _committed;
+
+    // A span writer created for a Try* write: running out of room switches to a discarding output instead of throwing,
+    // and Overflowed reports it afterwards.
+    private readonly bool _discardOverflow;
+    private bool _overflowed;
 
     /// <summary>Initializes a writer that appends to <paramref name="output"/>.</summary>
     /// <param name="output">The destination; call <see cref="Flush"/> to commit the final bytes to it.</param>
@@ -49,12 +54,23 @@ public ref struct AvroWriter
     /// <summary>Initializes a writer over a fixed destination. Writing more than it holds throws <see cref="AvroException"/>.</summary>
     /// <param name="destination">The buffer to write into.</param>
     public AvroWriter(Span<byte> destination)
+        : this(destination, discardOverflow: false)
+    {
+    }
+
+    /// <summary>Initializes a writer over a fixed destination that, when <paramref name="discardOverflow"/> is set, records overflow instead of throwing.</summary>
+    internal AvroWriter(Span<byte> destination, bool discardOverflow)
     {
         _output = null;
         _buffer = destination;
         _buffered = 0;
         _committed = 0;
+        _discardOverflow = discardOverflow;
+        _overflowed = false;
     }
+
+    /// <summary>Gets a value indicating whether a writer created to discard overflow ran out of room; its output is then incomplete.</summary>
+    internal readonly bool Overflowed => _overflowed;
 
     /// <summary>Gets the total number of bytes written, including bytes not yet flushed.</summary>
     public readonly long BytesWritten => _committed + _buffered;
@@ -239,6 +255,26 @@ public ref struct AvroWriter
         foreach (var value in values)
         {
             WriteBoolean(value);
+        }
+    }
+
+    /// <summary>Writes <c>int</c> array items, each as a zig-zag varint.</summary>
+    /// <param name="values">The items; write the block count first.</param>
+    public void WriteInts(scoped ReadOnlySpan<int> values)
+    {
+        foreach (var value in values)
+        {
+            WriteInt(value);
+        }
+    }
+
+    /// <summary>Writes <c>long</c> array items, each as a zig-zag varint.</summary>
+    /// <param name="values">The items; write the block count first.</param>
+    public void WriteLongs(scoped ReadOnlySpan<long> values)
+    {
+        foreach (var value in values)
+        {
+            WriteLong(value);
         }
     }
 
@@ -503,7 +539,15 @@ public ref struct AvroWriter
     {
         if (_output is null)
         {
-            throw new AvroException($"The destination buffer is too small: {count} more byte(s) needed, {_buffer.Length - _buffered} available.");
+            if (!_discardOverflow)
+            {
+                throw new AvroException($"The destination buffer is too small: {count} more byte(s) needed, {_buffer.Length - _buffered} available.");
+            }
+
+            // Keep going into scratch memory, so every write path behaves as with an IBufferWriter; the caller
+            // checks Overflowed and ignores the result.
+            _overflowed = true;
+            _output = DiscardBufferWriter.Instance;
         }
 
         Flush();

@@ -39,6 +39,17 @@ public static class AvroRegistryMessageReader
                 : GenericDatumReader.Create(writerSchema, readerSchema, readerOptions);
             return (ref r) => reader.Read(ref r);
         }, options);
+
+#if NET8_0_OR_GREATER
+    /// <summary>Creates a reader of schema-registry messages of a generated type, resolving other writer schemas.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="framing">The message framing.</param>
+    /// <param name="resolver">Finds each message's writer schema by its ID.</param>
+    /// <param name="options">Limits, or <see langword="null"/> for the defaults.</param>
+    public static AvroRegistryMessageReader<T> Create<T>(AvroRegistryFraming framing, IAvroSchemaIdResolver resolver, AvroRegistryReaderOptions? options = null)
+        where T : IAvroSerializable<T> =>
+        Create(framing, resolver, AvroSerializable<T>.For, options);
+#endif
 }
 
 /// <summary>

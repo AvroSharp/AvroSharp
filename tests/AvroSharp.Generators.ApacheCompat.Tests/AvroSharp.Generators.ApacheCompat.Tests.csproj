@@ -8,6 +8,8 @@
     <OutputType>Exe</OutputType>
     <NoWarn>$(NoWarn);CS8002</NoWarn>
     <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <!-- These tests use PascalCase names; the mode's default, avrogen's names, is covered by the generator tests. -->
+    <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 

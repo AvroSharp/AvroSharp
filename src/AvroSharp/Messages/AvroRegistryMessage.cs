@@ -67,4 +67,25 @@ public static class AvroRegistryMessage
         var copy = value;
         return ToArray(framing, id, copy, (ref w, v) => writer.Write(ref w, v));
     }
+
+#if NET8_0_OR_GREATER
+    /// <summary>Writes a schema-registry message of a generated type.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="output">The destination.</param>
+    /// <param name="framing">The message framing.</param>
+    /// <param name="id">The schema's ID in the registry.</param>
+    /// <param name="value">The value.</param>
+    public static void Write<T>(IBufferWriter<byte> output, AvroRegistryFraming framing, AvroSchemaId id, T value)
+        where T : IAvroSerializable<T> =>
+        Write(output, framing, id, value, AvroSerializable<T>.Write);
+
+    /// <summary>Writes a schema-registry message of a generated type to a new array.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="framing">The message framing.</param>
+    /// <param name="id">The schema's ID in the registry.</param>
+    /// <param name="value">The value.</param>
+    public static byte[] ToArray<T>(AvroRegistryFraming framing, AvroSchemaId id, T value)
+        where T : IAvroSerializable<T> =>
+        ToArray(framing, id, value, AvroSerializable<T>.Write);
+#endif
 }

@@ -37,6 +37,16 @@ public sealed class CodeGenOptions
     /// </summary>
     public bool NullableAnnotations { get; init; } = true;
 
-    /// <summary>Gets how record fields become property names. Defaults to <see cref="PropertyNaming.PascalCase"/>.</summary>
-    public PropertyNaming PropertyNaming { get; init; } = PropertyNaming.PascalCase;
+    /// <summary>
+    /// Gets how record fields become property names, or <see langword="null"/> (the default) for the mode's own:
+    /// <see cref="PropertyNaming.PascalCase"/>, or with <see cref="ApacheCompatible"/> <see cref="PropertyNaming.Avro"/>,
+    /// the names Apache.Avro's avrogen uses.
+    /// </summary>
+    public PropertyNaming? PropertyNaming { get; init; }
+
+    /// <summary>
+    /// Gets the major C# version the generated code may use. With 11 or later it adds, for .NET 8 and later, the schema
+    /// as a UTF-8 literal and <c>IAvroSerializable&lt;T&gt;</c>. Defaults to 14.
+    /// </summary>
+    public int LanguageVersion { get; init; } = 14;
 }

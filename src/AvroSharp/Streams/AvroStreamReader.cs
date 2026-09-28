@@ -47,6 +47,16 @@ public static class AvroStreamReader
             : GenericDatumReader.Create(writerSchema, readerSchema, readerOptions);
         return Open(stream, datumReader.Read, options);
     }
+
+#if NET8_0_OR_GREATER
+    /// <summary>Creates a reader of the objects of a generated type in a stream, one after another.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="stream">The source.</param>
+    /// <param name="options">The stream options, or <see langword="null"/> for the defaults.</param>
+    public static AvroStreamReader<T> Open<T>(Stream stream, AvroStreamOptions? options = null)
+        where T : IAvroSerializable<T> =>
+        Open(stream, AvroSerializable<T>.Read, options);
+#endif
 }
 
 /// <summary>

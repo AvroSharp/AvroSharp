@@ -9,29 +9,68 @@ namespace app.events
     /// Something that happened.
     /// </summary>
     [global::System.CodeDom.Compiler.GeneratedCode("AvroSharp.CodeGen", "0.0.0.0")]
-    public sealed partial class Event : global::AvroSharp.Serialization.IAvroSpecificRecord
+    public sealed partial class Event : global::AvroSharp.Serialization.IAvroSpecificRecord, global::AvroSharp.Serialization.IAvroWritable, global::AvroSharp.Serialization.IAvroReadable
+#if NET8_0_OR_GREATER
+        , global::AvroSharp.Serialization.IAvroSerializable<Event>
+#endif
     {
-        /// <summary>The Avro schema of this type, as JSON.</summary>
-        public const string SchemaJson = "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"app.events\",\"doc\":\"Something that happened.\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"kind\",\"type\":{\"type\":\"enum\",\"name\":\"Kind\",\"symbols\":[\"CREATED\",\"DELETED\"]}},{\"name\":\"hash\",\"type\":{\"type\":\"fixed\",\"name\":\"Hash\",\"size\":2}},{\"name\":\"tags\",\"type\":{\"type\":\"array\",\"items\":\"string\"}},{\"name\":\"scores\",\"type\":{\"type\":\"map\",\"values\":\"double\"}},{\"name\":\"parent\",\"type\":[\"null\",\"Event\"]},{\"name\":\"payload\",\"type\":[\"null\",\"int\",\"string\"]}]}";
-
         private static global::AvroSharp.Schemas.AvroSchema? s_schema;
+
+#if NET8_0_OR_GREATER
+        private static global::System.ReadOnlySpan<byte> SchemaUtf8 =>
+            "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"app.events\",\"doc\":\"Something that happened.\",\"fields\":["u8 +
+            "{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"kind\",\"type\":{\"type\":\"enum\",\"name\":\"Kind\",\"symbols\":[\"CREATED\","u8 +
+            "\"DELETED\"]}},{\"name\":\"hash\",\"type\":{\"type\":\"fixed\",\"name\":\"Hash\",\"size\":2}},{\"name\":\"tags\",\"type\":{\""u8 +
+            "type\":\"array\",\"items\":\"string\"}},{\"name\":\"scores\",\"type\":{\"type\":\"map\",\"values\":\"double\"}},{\"name\":\""u8 +
+            "parent\",\"type\":[\"null\",\"Event\"]},{\"name\":\"payload\",\"type\":[\"null\",\"int\",\"string\"]}]}"u8;
+
+        private static string? s_schemaJson;
+
+        /// <summary>Gets the Avro schema of this type, as JSON.</summary>
+        public static string SchemaJson => s_schemaJson ??= global::System.Text.Encoding.UTF8.GetString(SchemaUtf8);
+
+        /// <summary>Gets the Avro schema of this type.</summary>
+        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ??= global::AvroSharp.Schemas.AvroSchema.Parse(SchemaUtf8);
+#else
+        /// <summary>Gets the Avro schema of this type, as JSON.</summary>
+        public static string SchemaJson =>
+            "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"app.events\",\"doc\":\"Something that happened.\",\"fields\":[" +
+            "{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"kind\",\"type\":{\"type\":\"enum\",\"name\":\"Kind\",\"symbols\":[\"CREATED\"," +
+            "\"DELETED\"]}},{\"name\":\"hash\",\"type\":{\"type\":\"fixed\",\"name\":\"Hash\",\"size\":2}},{\"name\":\"tags\",\"type\":{\"" +
+            "type\":\"array\",\"items\":\"string\"}},{\"name\":\"scores\",\"type\":{\"type\":\"map\",\"values\":\"double\"}},{\"name\":\"" +
+            "parent\",\"type\":[\"null\",\"Event\"]},{\"name\":\"payload\",\"type\":[\"null\",\"int\",\"string\"]}]}";
 
         /// <summary>Gets the Avro schema of this type.</summary>
         public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? (s_schema = global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
+#endif
 
         public long Id { get; set; }
 
         public global::app.events.Kind Kind { get; set; }
 
-        public global::app.events.Hash Hash { get; set; } = null!;
+        public global::app.events.Hash Hash { get; set; }
 
-        public global::System.Collections.Generic.List<string> Tags { get; set; } = new global::System.Collections.Generic.List<string>();
+        public global::System.Collections.Generic.List<string> Tags { get; set; }
 
-        public global::System.Collections.Generic.Dictionary<string, double> Scores { get; set; } = new global::System.Collections.Generic.Dictionary<string, double>();
+        public global::System.Collections.Generic.Dictionary<string, double> Scores { get; set; }
 
         public global::app.events.Event? Parent { get; set; }
 
         public object? Payload { get; set; }
+
+        /// <summary>Creates a value in which every field with a default in the schema has it.</summary>
+        public Event()
+        {
+            Hash = null!;
+            Tags = new global::System.Collections.Generic.List<string>();
+            Scores = new global::System.Collections.Generic.Dictionary<string, double>();
+        }
+
+#pragma warning disable CS8618 // Readers set every field.
+        private Event(global::AvroSharp.Serialization.AvroUninitialized _)
+        {
+        }
+#pragma warning restore CS8618
 
         /// <summary>Writes a value in Avro binary encoding.</summary>
         public static void Write(ref global::AvroSharp.IO.AvroWriter writer, Event value)
@@ -48,18 +87,71 @@ namespace app.events
         public static Event Read(ref global::AvroSharp.IO.AvroReader reader)
         {
             global::AvroSharp.Serialization.AvroGeneratedCode.BeginRead(ref reader);
-            return ReadCore(ref reader, 0);
+            return ReadCore(ref reader, null, 0);
         }
 
         /// <summary>Writes this value to a new array, in Avro binary encoding.</summary>
         public byte[] ToAvroBytes() => global::AvroSharp.Serialization.AvroGeneratedCode.SerializeToArray(this, Write);
 
+        /// <summary>Writes this value into <paramref name="destination"/>, allocating nothing.</summary>
+        /// <returns><see langword="true"/> when it fit; otherwise <paramref name="bytesWritten"/> is 0.</returns>
+        public bool TryWriteAvroBytes(global::System.Span<byte> destination, out int bytesWritten)
+        {
+            var writer = global::AvroSharp.Serialization.AvroGeneratedCode.BeginTryWrite(destination);
+            WriteCore(ref writer, this, 0);
+            return global::AvroSharp.Serialization.AvroGeneratedCode.EndTryWrite(ref writer, out bytesWritten);
+        }
+
+        /// <summary>Writes this value into <paramref name="destination"/> and returns the bytes written; throws when it does not fit.</summary>
+        public int WriteAvroBytes(global::System.Span<byte> destination)
+        {
+            var writer = new global::AvroSharp.IO.AvroWriter(destination);
+            WriteCore(ref writer, this, 0);
+            return (int)writer.BytesWritten;
+        }
+
+        /// <summary>Writes this value to <paramref name="output"/>, allocating nothing for a reused buffer writer.</summary>
+        public void WriteAvroBytes(global::System.Buffers.IBufferWriter<byte> output)
+        {
+            var writer = new global::AvroSharp.IO.AvroWriter(output);
+            WriteCore(ref writer, this, 0);
+            writer.Flush();
+        }
+
+        /// <summary>Writes this value (<c>IAvroWritable</c>).</summary>
+        public void WriteTo(ref global::AvroSharp.IO.AvroWriter writer) => WriteCore(ref writer, this, 0);
+
+        /// <summary>Reads a value into this instance, filling its lists, dictionaries and records again (<c>IAvroReadable</c>).</summary>
+        public void ReadFrom(ref global::AvroSharp.IO.AvroReader reader)
+        {
+            global::AvroSharp.Serialization.AvroGeneratedCode.BeginRead(ref reader);
+            ReadCore(ref reader, this, 0);
+        }
+
         /// <summary>Reads a value from Avro binary data written with this type's schema.</summary>
         public static Event FromAvroBytes(global::System.ReadOnlySpan<byte> data)
         {
             var reader = new global::AvroSharp.IO.AvroReader(data);
-            return ReadCore(ref reader, 0);
+            return ReadCore(ref reader, null, 0);
         }
+
+        /// <summary>Reads a value from the start of <paramref name="data"/> and reports how many bytes it took.</summary>
+        public static Event FromAvroBytes(global::System.ReadOnlySpan<byte> data, out int bytesConsumed)
+        {
+            var reader = new global::AvroSharp.IO.AvroReader(data);
+            var value = ReadCore(ref reader, null, 0);
+            bytesConsumed = (int)reader.BytesConsumed;
+            return value;
+        }
+
+        /// <summary>Reads a value from a sequence of buffers, such as a <c>PipeReader</c> result.</summary>
+        public static Event FromAvroBytes(in global::System.Buffers.ReadOnlySequence<byte> data)
+        {
+            var reader = new global::AvroSharp.IO.AvroReader(data);
+            return ReadCore(ref reader, null, 0);
+        }
+
+        private static global::AvroSharp.Serialization.AvroPlanCache? s_plan;
 
         /// <summary>
         /// Reads a value written with <paramref name="writerSchema"/>, another version of this type's schema, resolving the
@@ -71,10 +163,10 @@ namespace app.events
             global::AvroSharp.Serialization.AvroGeneratedCode.BeginRead(ref reader);
             if (global::AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writerSchema, Schema))
             {
-                return ReadCore(ref reader, 0);
+                return ReadCore(ref reader, null, 0);
             }
 
-            var plan = global::AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(writerSchema, Schema);
+            var plan = global::AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(writerSchema, Schema, ref s_plan);
             if (plan != null)
             {
                 return ReadResolved(ref reader, plan, 0);
@@ -122,22 +214,22 @@ namespace app.events
             switch (fieldPos)
             {
                 case 0:
-                    this.Id = fieldValue is long v0 ? v0 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.id", "long");
+                    this.Id = fieldValue is long v0 ? v0 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, Schema, 0, "long");
                     break;
                 case 1:
-                    this.Kind = fieldValue is global::app.events.Kind v1 ? v1 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.kind", "app.events.Kind");
+                    this.Kind = fieldValue is global::app.events.Kind v1 ? v1 : throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, Schema, 1, "app.events.Kind");
                     break;
                 case 2:
-                    this.Hash = fieldValue as global::app.events.Hash ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.hash", "app.events.Hash");
+                    this.Hash = fieldValue as global::app.events.Hash ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, Schema, 2, "app.events.Hash");
                     break;
                 case 3:
-                    this.Tags = fieldValue as global::System.Collections.Generic.List<string> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.tags", "System.Collections.Generic.List<string>");
+                    this.Tags = fieldValue as global::System.Collections.Generic.List<string> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, Schema, 3, "System.Collections.Generic.List<string>");
                     break;
                 case 4:
-                    this.Scores = fieldValue as global::System.Collections.Generic.Dictionary<string, double> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.scores", "System.Collections.Generic.Dictionary<string, double>");
+                    this.Scores = fieldValue as global::System.Collections.Generic.Dictionary<string, double> ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, Schema, 4, "System.Collections.Generic.Dictionary<string, double>");
                     break;
                 case 5:
-                    this.Parent = fieldValue == null ? (global::app.events.Event?)null : fieldValue as global::app.events.Event ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, "app.events.Event.parent", "app.events.Event?");
+                    this.Parent = fieldValue == null ? (global::app.events.Event?)null : fieldValue as global::app.events.Event ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(fieldValue, Schema, 5, "app.events.Event?");
                     break;
                 case 6:
                     this.Payload = fieldValue;
@@ -145,6 +237,15 @@ namespace app.events
                 default:
                     throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(fieldPos, 7, "app.events.Event");
             }
+        }
+
+        /// <summary>Reads and writes this type for the collection and union helpers of <c>AvroGeneratedCode</c>.</summary>
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        internal readonly struct AvroCodec : global::AvroSharp.Serialization.IAvroCodec<Event>
+        {
+            public Event Read(ref global::AvroSharp.IO.AvroReader reader, int depth) => ReadCore(ref reader, null, depth);
+
+            public void Write(ref global::AvroSharp.IO.AvroWriter writer, Event value, int depth) => WriteCore(ref writer, value, depth);
         }
 
         internal static void WriteCore(ref global::AvroSharp.IO.AvroWriter writer, Event value, int depth)
@@ -156,128 +257,51 @@ namespace app.events
 
             writer.WriteLong(value.Id);
 
-            writer.WriteEnum((int)value.Kind);
+            writer.WriteEnum(global::AvroSharp.Serialization.AvroGeneratedCode.CheckEnumOrdinal((int)value.Kind, 2, "app.events.Event.kind"));
 
             writer.WriteFixed((value.Hash ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.hash")).Value);
 
-            {
-                var items0 = (value.Tags ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.tags"));
-                if (items0.Count > 0)
-                {
-                    writer.WriteBlockCount(items0.Count);
-#if NET8_0_OR_GREATER
-                    foreach (var item0 in global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(items0))
-#else
-                    foreach (var item0 in items0)
-#endif
-                    {
-                        writer.WriteString((item0 ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.tags")));
-                    }
-                }
-                writer.WriteBlockEnd();
-            }
+            global::AvroSharp.Serialization.AvroGeneratedCode.WriteList<string, global::AvroSharp.Serialization.AvroStringCodec>(ref writer, value.Tags, "app.events.Event.tags", depth + 1);
 
-            {
-                var map1 = (value.Scores ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.scores"));
-                if (map1.Count > 0)
-                {
-                    writer.WriteBlockCount(map1.Count);
-                    foreach (var entry1 in map1)
-                    {
-                        writer.WriteString(entry1.Key);
-                        writer.WriteDouble(entry1.Value);
-                    }
-                }
-                writer.WriteBlockEnd();
-            }
+            global::AvroSharp.Serialization.AvroGeneratedCode.WriteMap<double, global::AvroSharp.Serialization.AvroDoubleCodec>(ref writer, value.Scores, "app.events.Event.scores", depth + 1);
 
-            if (value.Parent is global::app.events.Event value2)
-            {
-                writer.WriteUnionIndex(1);
-                global::app.events.Event.WriteCore(ref writer, (value2 ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.parent")), depth + 1);
-            }
-            else
-            {
-                writer.WriteUnionIndex(0);
-            }
+            global::AvroSharp.Serialization.AvroGeneratedCode.WriteNullable<global::app.events.Event, global::app.events.Event.AvroCodec>(ref writer, value.Parent, 1, depth + 1);
 
             switch (value.Payload)
             {
                 case null:
                     writer.WriteUnionIndex(0);
                     break;
-                case int value3_1:
+                case int value0_1:
                     writer.WriteUnionIndex(1);
-                    writer.WriteInt(value3_1);
+                    writer.WriteInt(value0_1);
                     break;
-                case string value3_2:
+                case string value0_2:
                     writer.WriteUnionIndex(2);
-                    writer.WriteString((value3_2 ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.payload")));
+                    writer.WriteString((value0_2 ?? throw global::AvroSharp.Serialization.AvroGeneratedCode.NullValue("app.events.Event.payload")));
                     break;
                 default:
                     throw global::AvroSharp.Serialization.AvroGeneratedCode.UnionValueMismatch(value.Payload, "app.events.Event.payload");
             }
         }
 
-        internal static Event ReadCore(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        /// <summary>Reads a value into <paramref name="reuse"/> (its collections and records are filled again), or into a new instance.</summary>
+        internal static Event ReadCore(ref global::AvroSharp.IO.AvroReader reader, Event? reuse, int depth)
         {
             if (depth > global::AvroSharp.Serialization.AvroGeneratedCode.MaxDepth)
             {
                 throw global::AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep();
             }
 
-            var value = new Event();
+            var value = reuse ?? new Event(default(global::AvroSharp.Serialization.AvroUninitialized));
             value.Id = reader.ReadLong();
             value.Kind = (global::app.events.Kind)global::AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref reader, 2, "app.events.Kind");
-            value.Hash = new global::app.events.Hash(reader.ReadFixedSpan(2).ToArray());
-            {
-                var items4 = new global::System.Collections.Generic.List<string>();
-                int count4;
-                while ((count4 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 1, items4.Count)) != 0)
-                {
-                    if (items4.Count == 0)
-                    {
-                        items4.Capacity = global::AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(count4);
-                    }
-                    for (var i4 = 0; i4 < count4; i4++)
-                    {
-                        string item4;
-                        item4 = reader.ReadString();
-                        items4.Add(item4);
-                    }
-                }
-                value.Tags = items4;
-            }
-            {
-                var count5 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, 0);
-                var map5 = new global::System.Collections.Generic.Dictionary<string, double>(global::AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(count5), global::System.StringComparer.Ordinal);
-                while (count5 != 0)
-                {
-                    for (var i5 = 0; i5 < count5; i5++)
-                    {
-                        var key5 = reader.ReadString();
-                        double value5;
-                        value5 = reader.ReadDouble();
-                        map5[key5] = value5;
-                    }
-                    count5 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, map5.Count);
-                }
-                value.Scores = map5;
-            }
-            var index6 = reader.ReadUnionIndex();
-            switch (index6)
-            {
-                case 0:
-                    value.Parent = null;
-                    break;
-                case 1:
-                    value.Parent = global::app.events.Event.ReadCore(ref reader, depth + 1);
-                    break;
-                default:
-                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index6, 2);
-            }
-            var index7 = reader.ReadUnionIndex();
-            switch (index7)
+            value.Hash = new global::app.events.Hash(global::AvroSharp.Serialization.AvroGeneratedCode.ReadFixedBytes(ref reader, 2));
+            value.Tags = global::AvroSharp.Serialization.AvroGeneratedCode.ReadList<string, global::AvroSharp.Serialization.AvroStringCodec>(ref reader, value.Tags, 1, depth + 1);
+            value.Scores = global::AvroSharp.Serialization.AvroGeneratedCode.ReadMap<double, global::AvroSharp.Serialization.AvroDoubleCodec>(ref reader, value.Scores, 9, depth + 1);
+            value.Parent = global::AvroSharp.Serialization.AvroGeneratedCode.ReadNullable<global::app.events.Event, global::app.events.Event.AvroCodec>(ref reader, 1, depth + 1);
+            var index1 = reader.ReadUnionIndex();
+            switch (index1)
             {
                 case 0:
                     value.Payload = null;
@@ -289,7 +313,7 @@ namespace app.events
                     value.Payload = reader.ReadString();
                     break;
                 default:
-                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index7, 3);
+                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index1, 3);
             }
             return value;
         }
@@ -301,257 +325,100 @@ namespace app.events
                 throw global::AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep();
             }
 
-            var value = new Event();
+            var value = new Event(default(global::AvroSharp.Serialization.AvroUninitialized));
             for (var step = 0; step < plan.StepCount; step++)
             {
-                switch (plan.Target(step))
+                var target = plan.Target(step, out var conversion);
+                if (target < 0)
                 {
-                    case 0:
-                        switch (plan.Conversion(step))
-                        {
-                            case global::AvroSharp.Serialization.AvroConversion.None:
-                                value.Id = ReadResolvedField0(ref reader, depth);
-                                break;
-                            case global::AvroSharp.Serialization.AvroConversion.FromInt:
-                                value.Id = reader.ReadInt();
-                                break;
-                            default:
-                                {
-                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
-                                    value.Id = ReadResolvedField0(ref field, depth);
-                                    break;
-                                }
-                        }
-                        break;
-                    case 1:
-                        switch (plan.Conversion(step))
-                        {
-                            case global::AvroSharp.Serialization.AvroConversion.None:
-                                value.Kind = ReadResolvedField1(ref reader, depth);
-                                break;
-                            case global::AvroSharp.Serialization.AvroConversion.EnumRemap:
-                                value.Kind = (global::app.events.Kind)plan.MapEnum(step, reader.ReadEnum());
-                                break;
-                            default:
-                                {
-                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
-                                    value.Kind = ReadResolvedField1(ref field, depth);
-                                    break;
-                                }
-                        }
-                        break;
-                    case 2:
-                        switch (plan.Conversion(step))
-                        {
-                            case global::AvroSharp.Serialization.AvroConversion.None:
-                                value.Hash = ReadResolvedField2(ref reader, depth);
-                                break;
-                            default:
-                                {
-                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
-                                    value.Hash = ReadResolvedField2(ref field, depth);
-                                    break;
-                                }
-                        }
-                        break;
-                    case 3:
-                        switch (plan.Conversion(step))
-                        {
-                            case global::AvroSharp.Serialization.AvroConversion.None:
-                                value.Tags = ReadResolvedField3(ref reader, depth);
-                                break;
-                            default:
-                                {
-                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
-                                    value.Tags = ReadResolvedField3(ref field, depth);
-                                    break;
-                                }
-                        }
-                        break;
-                    case 4:
-                        switch (plan.Conversion(step))
-                        {
-                            case global::AvroSharp.Serialization.AvroConversion.None:
-                                value.Scores = ReadResolvedField4(ref reader, depth);
-                                break;
-                            default:
-                                {
-                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
-                                    value.Scores = ReadResolvedField4(ref field, depth);
-                                    break;
-                                }
-                        }
-                        break;
-                    case 5:
-                        switch (plan.Conversion(step))
-                        {
-                            case global::AvroSharp.Serialization.AvroConversion.None:
-                                value.Parent = ReadResolvedField5(ref reader, depth);
-                                break;
-                            default:
-                                {
-                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
-                                    value.Parent = ReadResolvedField5(ref field, depth);
-                                    break;
-                                }
-                        }
-                        break;
-                    case 6:
-                        switch (plan.Conversion(step))
-                        {
-                            case global::AvroSharp.Serialization.AvroConversion.None:
-                                value.Payload = ReadResolvedField6(ref reader, depth);
-                                break;
-                            default:
-                                {
-                                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
-                                    value.Payload = ReadResolvedField6(ref field, depth);
-                                    break;
-                                }
-                        }
-                        break;
-                    default:
-                        plan.Skip(step, ref reader);
-                        break;
+                    plan.Skip(step, ref reader);
+                }
+                else if (conversion == global::AvroSharp.Serialization.AvroConversion.None)
+                {
+                    ReadField(ref reader, value, target, depth);
+                }
+                else if (!ReadPromoted(ref reader, value, target, conversion, plan, step))
+                {
+                    var field = new global::AvroSharp.IO.AvroReader(plan.Transcode(step, ref reader));
+                    ReadField(ref field, value, target, depth);
                 }
             }
 
             for (var index = 0; index < plan.DefaultCount; index++)
             {
                 var field = new global::AvroSharp.IO.AvroReader(plan.DefaultValue(index));
-                switch (plan.DefaultTarget(index))
-                {
-                    case 0:
-                        value.Id = ReadResolvedField0(ref field, depth);
-                        break;
-                    case 1:
-                        value.Kind = ReadResolvedField1(ref field, depth);
-                        break;
-                    case 2:
-                        value.Hash = ReadResolvedField2(ref field, depth);
-                        break;
-                    case 3:
-                        value.Tags = ReadResolvedField3(ref field, depth);
-                        break;
-                    case 4:
-                        value.Scores = ReadResolvedField4(ref field, depth);
-                        break;
-                    case 5:
-                        value.Parent = ReadResolvedField5(ref field, depth);
-                        break;
-                    case 6:
-                        value.Payload = ReadResolvedField6(ref field, depth);
-                        break;
-                }
+                ReadField(ref field, value, plan.DefaultTarget(index), depth);
             }
 
             return value;
         }
 
-        private static long ReadResolvedField0(ref global::AvroSharp.IO.AvroReader reader, int depth)
+        private static void ReadField(ref global::AvroSharp.IO.AvroReader reader, Event value, int field, int depth)
         {
-            long result;
-            result = reader.ReadLong();
-            return result;
-        }
-
-        private static global::app.events.Kind ReadResolvedField1(ref global::AvroSharp.IO.AvroReader reader, int depth)
-        {
-            global::app.events.Kind result;
-            result = (global::app.events.Kind)global::AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref reader, 2, "app.events.Kind");
-            return result;
-        }
-
-        private static global::app.events.Hash ReadResolvedField2(ref global::AvroSharp.IO.AvroReader reader, int depth)
-        {
-            global::app.events.Hash result;
-            result = new global::app.events.Hash(reader.ReadFixedSpan(2).ToArray());
-            return result;
-        }
-
-        private static global::System.Collections.Generic.List<string> ReadResolvedField3(ref global::AvroSharp.IO.AvroReader reader, int depth)
-        {
-            global::System.Collections.Generic.List<string> result;
-            {
-                var items8 = new global::System.Collections.Generic.List<string>();
-                int count8;
-                while ((count8 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 1, items8.Count)) != 0)
-                {
-                    if (items8.Count == 0)
-                    {
-                        items8.Capacity = global::AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(count8);
-                    }
-                    for (var i8 = 0; i8 < count8; i8++)
-                    {
-                        string item8;
-                        item8 = reader.ReadString();
-                        items8.Add(item8);
-                    }
-                }
-                result = items8;
-            }
-            return result;
-        }
-
-        private static global::System.Collections.Generic.Dictionary<string, double> ReadResolvedField4(ref global::AvroSharp.IO.AvroReader reader, int depth)
-        {
-            global::System.Collections.Generic.Dictionary<string, double> result;
-            {
-                var count9 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, 0);
-                var map9 = new global::System.Collections.Generic.Dictionary<string, double>(global::AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(count9), global::System.StringComparer.Ordinal);
-                while (count9 != 0)
-                {
-                    for (var i9 = 0; i9 < count9; i9++)
-                    {
-                        var key9 = reader.ReadString();
-                        double value9;
-                        value9 = reader.ReadDouble();
-                        map9[key9] = value9;
-                    }
-                    count9 = global::AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref reader, 9, map9.Count);
-                }
-                result = map9;
-            }
-            return result;
-        }
-
-        private static global::app.events.Event? ReadResolvedField5(ref global::AvroSharp.IO.AvroReader reader, int depth)
-        {
-            global::app.events.Event? result;
-            var index10 = reader.ReadUnionIndex();
-            switch (index10)
+            switch (field)
             {
                 case 0:
-                    result = null;
+                    value.Id = reader.ReadLong();
                     break;
                 case 1:
-                    result = global::app.events.Event.ReadCore(ref reader, depth + 1);
-                    break;
-                default:
-                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index10, 2);
-            }
-            return result;
-        }
-
-        private static object? ReadResolvedField6(ref global::AvroSharp.IO.AvroReader reader, int depth)
-        {
-            object? result;
-            var index11 = reader.ReadUnionIndex();
-            switch (index11)
-            {
-                case 0:
-                    result = null;
-                    break;
-                case 1:
-                    result = reader.ReadInt();
+                    value.Kind = (global::app.events.Kind)global::AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref reader, 2, "app.events.Kind");
                     break;
                 case 2:
-                    result = reader.ReadString();
+                    value.Hash = new global::app.events.Hash(global::AvroSharp.Serialization.AvroGeneratedCode.ReadFixedBytes(ref reader, 2));
                     break;
-                default:
-                    throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index11, 3);
+                case 3:
+                    value.Tags = global::AvroSharp.Serialization.AvroGeneratedCode.ReadList<string, global::AvroSharp.Serialization.AvroStringCodec>(ref reader, null, 1, depth + 1);
+                    break;
+                case 4:
+                    value.Scores = global::AvroSharp.Serialization.AvroGeneratedCode.ReadMap<double, global::AvroSharp.Serialization.AvroDoubleCodec>(ref reader, null, 9, depth + 1);
+                    break;
+                case 5:
+                    value.Parent = global::AvroSharp.Serialization.AvroGeneratedCode.ReadNullable<global::app.events.Event, global::app.events.Event.AvroCodec>(ref reader, 1, depth + 1);
+                    break;
+                case 6:
+                    var index2 = reader.ReadUnionIndex();
+                    switch (index2)
+                    {
+                        case 0:
+                            value.Payload = null;
+                            break;
+                        case 1:
+                            value.Payload = reader.ReadInt();
+                            break;
+                        case 2:
+                            value.Payload = reader.ReadString();
+                            break;
+                        default:
+                            throw global::AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(index2, 3);
+                    }
+                    break;
             }
-            return result;
+        }
+
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+        private static bool ReadPromoted(ref global::AvroSharp.IO.AvroReader reader, Event value, int field, global::AvroSharp.Serialization.AvroConversion conversion, global::AvroSharp.Serialization.AvroRecordPlan plan, int step)
+        {
+            switch (field)
+            {
+                case 0:
+                    switch (conversion)
+                    {
+                        case global::AvroSharp.Serialization.AvroConversion.FromInt:
+                            value.Id = reader.ReadInt();
+                            return true;
+                    }
+                    break;
+                case 1:
+                    switch (conversion)
+                    {
+                        case global::AvroSharp.Serialization.AvroConversion.EnumRemap:
+                            value.Kind = (global::app.events.Kind)plan.MapEnum(step, reader.ReadEnum());
+                            return true;
+                    }
+                    break;
+            }
+
+            return false;
         }
     }
 }

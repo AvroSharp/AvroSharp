@@ -102,6 +102,31 @@ var message = AvroSharp.Messages.AvroMessage.ToArray(alice, AvroSharp.Generic.Ge
 var fromMessage = AvroSharp.Messages.AvroMessageReader.CreateGeneric(new AvroSharp.Messages.AvroSchemaStore(person)).Read(message);
 Check(fromMessage.Equals((AvroSharp.Generic.AvroValue)alice) && message.Length == encoded.Length + AvroSharp.Messages.AvroMessage.HeaderLength, "single-object encoding");
 
+// Generated types: IAvroSerializable<T> through AvroSerializer and the container file, writing into caller memory,
+// and reading into a reused instance.
+var reading = new smoke.Reading { Sensor = "t1", Value = 21.5, Samples = { 1, 2, 3 }, Tags = { ["room"] = "lab" }, Next = new smoke.Reading { Sensor = "t2" } };
+var readingBytes = AvroSharp.Serialization.AvroSerializer.Serialize(reading);
+Check(AvroSharp.Serialization.AvroSerializer.Deserialize<smoke.Reading>(readingBytes).ToAvroBytes().AsSpan().SequenceEqual(readingBytes), "generated type round trip");
+Check(new smoke.Reading().Unit == smoke.Unit.C && new smoke.Reading().Samples.Count == 0, "generated defaults");
+Span<byte> stackBuffer = stackalloc byte[128];
+Check(reading.TryWriteAvroBytes(stackBuffer, out var readingWritten) && stackBuffer[..readingWritten].SequenceEqual(readingBytes), "writing into caller memory");
+Check(!reading.TryWriteAvroBytes(stackBuffer[..4], out _), "reporting that a value does not fit");
+var reused = new smoke.Reading();
+var readingReader = new AvroSharp.IO.AvroReader(readingBytes);
+reused.ReadFrom(ref readingReader);
+Check(reused.ToAvroBytes().AsSpan().SequenceEqual(readingBytes), "reading into a reused instance");
+using (var readingFile = new MemoryStream())
+{
+    using (var writer = AvroSharp.Containers.AvroFileWriter.Create<smoke.Reading>(readingFile, new AvroSharp.Containers.AvroFileWriterOptions { Codec = AvroSharp.Codecs.ZstandardCodec.Default, LeaveOpen = true }))
+    {
+        writer.Write(reading);
+    }
+
+    readingFile.Position = 0;
+    using var reader = AvroSharp.Containers.AvroFileReader.Open<smoke.Reading>(readingFile, new AvroSharp.Containers.AvroFileReaderOptions { Codecs = AvroSharp.Codecs.AvroCodecs.All });
+    Check(reader.ReadAll().Single().ToAvroBytes().AsSpan().SequenceEqual(readingBytes), "container file of a generated type");
+}
+
 static bool Same(string? a, string? b) => string.Equals(a, b, StringComparison.Ordinal);
 
 Console.WriteLine(failures == 0 ? "AOT smoke test passed" : $"AOT smoke test failed ({failures})");

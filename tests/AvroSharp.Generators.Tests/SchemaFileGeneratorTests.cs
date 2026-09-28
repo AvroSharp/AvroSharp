@@ -228,7 +228,9 @@ public class SchemaFileGeneratorTests
         // The embedded schema of every record that uses Address carries its definition, so it parses on its own.
         foreach (var record in new[] { "crm.Customer.g.cs", "retail.Shop.g.cs", "ops.Warehouse.g.cs" })
         {
-            await Assert.That(sources.Single(s => string.Equals(s.HintName, record, StringComparison.Ordinal)).SourceText.ToString()).Contains("{\\\"type\\\":\\\"record\\\",\\\"name\\\":\\\"Address\\\"");
+            // The JSON is split into concatenated literals; join them back.
+            var text = sources.Single(s => string.Equals(s.HintName, record, StringComparison.Ordinal)).SourceText.ToString();
+            await Assert.That(System.Text.RegularExpressions.Regex.Replace(text, "\"(?:u8)?\\s*\\+\\s*\"", string.Empty, System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(5))).Contains("{\\\"type\\\":\\\"record\\\",\\\"name\\\":\\\"Address\\\"");
         }
     }
 
@@ -273,8 +275,8 @@ public class SchemaFileGeneratorTests
 
     [Test]
     [Arguments(null, "public global::System.DateOnly Day { get; set; }", "public global::System.Guid Id { get; set; }")]
-    [Arguments("raw", "public int Day { get; set; }", "public string Id { get; set; } = \"\";")]
-    [Arguments("RAW", "public int Day { get; set; }", "public string Id { get; set; } = \"\";")]
+    [Arguments("raw", "public int Day { get; set; }", "Id = \"\";")]
+    [Arguments("RAW", "public int Day { get; set; }", "Id = \"\";")]
     public async Task AvroSharpLogicalTypes_SelectsNativeOrRawMapping(string? setting, string day, string id)
     {
         var (sources, _, compileDiagnostics) = GeneratorHarness.Run(
@@ -307,6 +309,44 @@ public class SchemaFileGeneratorTests
         await Assert.That(byName["app.events.Hash.g.cs"]).Contains(": global::Avro.Specific.SpecificFixed");
         await Assert.That(byName.ContainsKey("AvroSharp.Generated.ApacheDecimals.g.cs")).IsTrue();
         await Assert.That(compileDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => d.ToString())).IsEmpty();
+    }
+
+    /// <summary>
+    /// Code written against avrogen's generated classes compiles unchanged against the compatibility mode's output
+    /// (#116): the static <c>_SCHEMA</c>, the instance <c>Schema</c>, avrogen's (Avro) property names, and Apache's
+    /// specific writer and reader created from them.
+    /// </summary>
+    [Test]
+    public async Task ApacheCompatible_AcceptsCodeWrittenForAvrogenClasses()
+    {
+        const string AvrogenStyle = """
+            using Avro.IO;
+            using Avro.Specific;
+
+            internal static class AvrogenStyle
+            {
+                public static byte[] RoundTrip(app.events.Event value)
+                {
+                    value.id = 1;
+                    value.tags.Add("t");
+                    var writer = new SpecificDatumWriter<app.events.Event>(value.Schema);
+                    var stream = new System.IO.MemoryStream();
+                    writer.Write(value, new BinaryEncoder(stream));
+                    stream.Position = 0;
+                    var reader = new SpecificDatumReader<app.events.Event>(app.events.Event._SCHEMA, app.events.Event._SCHEMA);
+                    var copy = reader.Read(null!, new BinaryDecoder(stream));
+                    global::AvroSharp.Schemas.AvroSchema own = app.events.Event.AvroSharpSchema;
+                    Avro.Schema fixedSchema = app.events.Hash._SCHEMA;
+                    return copy.ToAvroBytes();
+                }
+            }
+            """;
+        var compilation = GeneratorHarness.CreateCompilation(referenceAvroSharp: true, referenceApache: true, LanguageVersion.Latest, AvrogenStyle);
+        GeneratorHarness.CreateDriver([("event.avsc", EventSchema)], apacheCompatible: true)
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(output.GetDiagnostics().Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
     }
 
     private const string NamingSchema = """

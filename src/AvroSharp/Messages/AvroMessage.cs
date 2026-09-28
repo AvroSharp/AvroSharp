@@ -95,4 +95,21 @@ public static class AvroMessage
         writer.Write(output, value);
         return output.ToArray();
     }
+
+#if NET8_0_OR_GREATER
+    /// <summary>Writes a single-object message of a generated type, with its schema's fingerprint.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="output">The destination.</param>
+    /// <param name="value">The value.</param>
+    public static void Write<T>(IBufferWriter<byte> output, T value)
+        where T : IAvroSerializable<T> =>
+        Write(output, value, T.Schema, AvroSerializable<T>.Write);
+
+    /// <summary>Writes a single-object message of a generated type to a new array.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="value">The value.</param>
+    public static byte[] ToArray<T>(T value)
+        where T : IAvroSerializable<T> =>
+        ToArray(value, T.Schema, AvroSerializable<T>.Write);
+#endif
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.CodeGen;
@@ -14,6 +15,17 @@ namespace AvroSharp.CodeGen;
 public static class CSharpCodeGenerator
 {
     private const string Tool = "AvroSharp.CodeGen";
+
+    // Records with more fields are serialized by several methods of at most this many fields each. One method per
+    // record runs past the JIT's limit on tracked locals for very large records, after which it stops inlining the
+    // reader and writer calls; chunks keep every method well under it.
+    private const int FieldsPerMethod = 32;
+
+    // Doc comment lines are wrapped at this many characters of text.
+    private const int DocWidth = 110;
+
+    // Schema JSON literals are split into lines of this many characters.
+    private const int LiteralWidth = 100;
 
     /// <summary>Generates one source file per named type reachable from <paramref name="schemas"/>.</summary>
     /// <param name="schemas">The schemas. A named type reachable from several of them is generated once.</param>
@@ -121,31 +133,95 @@ public static class CSharpCodeGenerator
     private const string Writer = "global::AvroSharp.IO.AvroWriter";
     private const string Reader = "global::AvroSharp.IO.AvroReader";
     private const string Support = "global::AvroSharp.Serialization.AvroGeneratedCode";
+    private const string Serialization = "global::AvroSharp.Serialization";
 
     private static void EmitRecord(CodeWriter w, RecordSchema record, string name, CSharpNames names, TypeMapper types, bool apache)
     {
         var properties = PropertyNames(record, name, types.Naming);
-        w.Open($"public sealed partial class {name} : global::AvroSharp.Serialization.IAvroSpecificRecord{(apache ? ", " + ApacheSupport.SpecificRecord : string.Empty)}");
-        EmitSchemaMembers(w, record, "Schema", apache, types);
+
+        // Apache's ISpecificRecord has an instance Schema (and avrogen a static _SCHEMA), so AvroSharp's static schema
+        // is AvroSharpSchema in that mode, as on fixed types.
+        var schemaProperty = apache ? "AvroSharpSchema" : "Schema";
+        w.Line($"public sealed partial class {name} : {Serialization}.IAvroSpecificRecord, {Serialization}.IAvroWritable, {Serialization}.IAvroReadable{(apache ? ", " + ApacheSupport.SpecificRecord : string.Empty)}");
+        if (types.Modern)
+        {
+            w.Directive("#if NET8_0_OR_GREATER");
+            w.Line($"    , {Serialization}.IAvroSerializable<{name}>");
+            w.Directive("#endif");
+        }
+
+        w.Open();
+        EmitSchemaMembers(w, record, schemaProperty, apache, types);
+        if (apache)
+        {
+            ApacheSupport.EmitRecordSchema(w, types);
+        }
 
         for (var i = 0; i < record.Fields.Count; i++)
         {
-            var field = record.Fields[i];
             w.Line();
-            Doc(w, field.Doc);
-            var initializer = types.Initializer(field.Schema);
-            w.Line($"public {types.TypeOf(field.Schema)} {properties[i]} {{ get; set; }}{(initializer is null ? string.Empty : " = " + initializer + ";")}");
+            Doc(w, record.Fields[i].Doc);
+            w.Line($"public {types.TypeOf(record.Fields[i].Schema)} {properties[i]} {{ get; set; }}");
         }
 
+        EmitConstructors(w, record, name, properties, types);
         EmitRecordApi(w, name);
-        EmitRecordAccess(w, record, properties, types, apache);
+        EmitResolvingApi(w, name, schemaProperty, types);
+        if (types.Modern && apache)
+        {
+            w.Line();
+            w.Directive("#if NET8_0_OR_GREATER");
+            w.Line($"static global::AvroSharp.Schemas.AvroSchema {Serialization}.IAvroSerializable<{name}>.Schema => AvroSharpSchema;");
+            w.Directive("#endif");
+        }
+
+        EmitRecordAccess(w, record, properties, types, schemaProperty, apache);
         if (apache)
         {
             ApacheSupport.EmitRecordMembers(w, types);
         }
 
-        EmitRecordCore(w, record, name, properties, new SerializerEmitter(names, types));
+        EmitCodec(w, name);
+        EmitRecordCore(w, record, name, properties, new SerializerEmitter(names, types), types);
         w.Close();
+    }
+
+    /// <summary>
+    /// The public constructor gives each field its schema default, or a valid empty value when it has none; the
+    /// readers' constructor skips all of it, since a reader sets every field (so collections are not allocated twice).
+    /// </summary>
+    private static void EmitConstructors(CodeWriter w, RecordSchema record, string name, string[] properties, TypeMapper types)
+    {
+        w.Line();
+        w.Line("/// <summary>Creates a value in which every field with a default in the schema has it.</summary>");
+        w.Open($"public {name}()");
+        for (var i = 0; i < record.Fields.Count; i++)
+        {
+            var field = record.Fields[i];
+            if (types.DefaultValue(field) is { } value)
+            {
+                w.Line($"{properties[i]} = {value};");
+            }
+            else if (types.Initializer(field.Schema) is { } initializer)
+            {
+                w.Line($"{properties[i]} = {initializer};");
+            }
+        }
+
+        w.Close();
+
+        w.Line();
+        if (types.Annotations)
+        {
+            w.Directive("#pragma warning disable CS8618 // Readers set every field.");
+        }
+
+        w.Open($"private {name}({Serialization}.AvroUninitialized _)");
+        w.Close();
+        if (types.Annotations)
+        {
+            w.Directive("#pragma warning restore CS8618");
+        }
     }
 
     /// <summary>The public entry points; they delegate to the depth-tracking cores.</summary>
@@ -165,29 +241,92 @@ public static class CSharpCodeGenerator
         w.Line("/// <summary>Reads a value written with this type's schema.</summary>");
         w.Open($"public static {name} Read(ref {Reader} reader)");
         w.Line($"{Support}.BeginRead(ref reader);");
-        w.Line("return ReadCore(ref reader, 0);");
+        w.Line("return ReadCore(ref reader, null, 0);");
         w.Close();
 
         w.Line();
         w.Line("/// <summary>Writes this value to a new array, in Avro binary encoding.</summary>");
         w.Line($"public byte[] ToAvroBytes() => {Support}.SerializeToArray(this, Write);");
 
+        EmitMemoryApi(w);
+        EmitFromBytes(w, name);
+    }
+
+    /// <summary>Writing into caller memory and reuse of instances (<c>IAvroWritable</c>, <c>IAvroReadable</c>).</summary>
+    private static void EmitMemoryApi(CodeWriter w)
+    {
+        w.Line();
+        w.Line("/// <summary>Writes this value into <paramref name=\"destination\"/>, allocating nothing.</summary>");
+        w.Line("/// <returns><see langword=\"true\"/> when it fit; otherwise <paramref name=\"bytesWritten\"/> is 0.</returns>");
+        w.Open("public bool TryWriteAvroBytes(global::System.Span<byte> destination, out int bytesWritten)");
+        w.Line($"var writer = {Support}.BeginTryWrite(destination);");
+        w.Line("WriteCore(ref writer, this, 0);");
+        w.Line($"return {Support}.EndTryWrite(ref writer, out bytesWritten);");
+        w.Close();
+
+        w.Line();
+        w.Line("/// <summary>Writes this value into <paramref name=\"destination\"/> and returns the bytes written; throws when it does not fit.</summary>");
+        w.Open("public int WriteAvroBytes(global::System.Span<byte> destination)");
+        w.Line($"var writer = new {Writer}(destination);");
+        w.Line("WriteCore(ref writer, this, 0);");
+        w.Line("return (int)writer.BytesWritten;");
+        w.Close();
+
+        w.Line();
+        w.Line("/// <summary>Writes this value to <paramref name=\"output\"/>, allocating nothing for a reused buffer writer.</summary>");
+        w.Open("public void WriteAvroBytes(global::System.Buffers.IBufferWriter<byte> output)");
+        w.Line($"var writer = new {Writer}(output);");
+        w.Line("WriteCore(ref writer, this, 0);");
+        w.Line("writer.Flush();");
+        w.Close();
+
+        w.Line();
+        w.Line("/// <summary>Writes this value (<c>IAvroWritable</c>).</summary>");
+        w.Line($"public void WriteTo(ref {Writer} writer) => WriteCore(ref writer, this, 0);");
+
+        w.Line();
+        w.Line("/// <summary>Reads a value into this instance, filling its lists, dictionaries and records again (<c>IAvroReadable</c>).</summary>");
+        w.Open($"public void ReadFrom(ref {Reader} reader)");
+        w.Line($"{Support}.BeginRead(ref reader);");
+        w.Line("ReadCore(ref reader, this, 0);");
+        w.Close();
+    }
+
+    /// <summary>Reading a value from memory: a span, a span that holds more, or a sequence of buffers.</summary>
+    private static void EmitFromBytes(CodeWriter w, string name)
+    {
         w.Line();
         w.Line("/// <summary>Reads a value from Avro binary data written with this type's schema.</summary>");
         w.Open($"public static {name} FromAvroBytes(global::System.ReadOnlySpan<byte> data)");
         w.Line($"var reader = new {Reader}(data);");
-        w.Line("return ReadCore(ref reader, 0);");
+        w.Line("return ReadCore(ref reader, null, 0);");
         w.Close();
 
-        EmitResolvingApi(w, name);
+        w.Line();
+        w.Line("/// <summary>Reads a value from the start of <paramref name=\"data\"/> and reports how many bytes it took.</summary>");
+        w.Open($"public static {name} FromAvroBytes(global::System.ReadOnlySpan<byte> data, out int bytesConsumed)");
+        w.Line($"var reader = new {Reader}(data);");
+        w.Line("var value = ReadCore(ref reader, null, 0);");
+        w.Line("bytesConsumed = (int)reader.BytesConsumed;");
+        w.Line("return value;");
+        w.Close();
+
+        w.Line();
+        w.Line("/// <summary>Reads a value from a sequence of buffers, such as a <c>PipeReader</c> result.</summary>");
+        w.Open($"public static {name} FromAvroBytes(in global::System.Buffers.ReadOnlySequence<byte> data)");
+        w.Line($"var reader = new {Reader}(data);");
+        w.Line("return ReadCore(ref reader, null, 0);");
+        w.Close();
     }
 
     /// <summary>
-    /// Schema resolution: data of another version of the schema is read by the pair's plan, or resolved to this type's
-    /// schema first when the writer schema is not a record of the same name.
+    /// Schema resolution: data of another version of the schema is read by the pair's plan (the last one is cached per
+    /// type), or resolved to this type's schema first when the writer schema is not a record of the same name.
     /// </summary>
-    private static void EmitResolvingApi(CodeWriter w, string name)
+    private static void EmitResolvingApi(CodeWriter w, string name, string schemaProperty, TypeMapper types)
     {
+        w.Line();
+        w.Line($"private static {types.Nullable($"{Serialization}.AvroPlanCache")} s_plan;");
         w.Line();
         w.Line("/// <summary>");
         w.Line("/// Reads a value written with <paramref name=\"writerSchema\"/>, another version of this type's schema, resolving the");
@@ -196,16 +335,16 @@ public static class CSharpCodeGenerator
         w.Line("/// </summary>");
         w.Open($"public static {name} Read(ref {Reader} reader, global::AvroSharp.Schemas.AvroSchema writerSchema)");
         w.Line($"{Support}.BeginRead(ref reader);");
-        w.Open($"if ({Support}.IsSameSchema(writerSchema, Schema))");
-        w.Line("return ReadCore(ref reader, 0);");
+        w.Open($"if ({Support}.IsSameSchema(writerSchema, {schemaProperty}))");
+        w.Line("return ReadCore(ref reader, null, 0);");
         w.Close();
         w.Line();
-        w.Line($"var plan = {Support}.GetRecordPlan(writerSchema, Schema);");
+        w.Line($"var plan = {Support}.GetRecordPlan(writerSchema, {schemaProperty}, ref s_plan);");
         w.Open("if (plan != null)");
         w.Line("return ReadResolved(ref reader, plan, 0);");
         w.Close();
         w.Line();
-        w.Line($"return FromAvroBytes({Support}.ResolveToReaderEncoding(ref reader, writerSchema, Schema));");
+        w.Line($"return FromAvroBytes({Support}.ResolveToReaderEncoding(ref reader, writerSchema, {schemaProperty}));");
         w.Close();
 
         w.Line();
@@ -220,14 +359,14 @@ public static class CSharpCodeGenerator
     /// <c>IAvroSpecificRecord</c>: field access by position, like Apache.Avro's <c>ISpecificRecord</c>. <c>Put</c> checks
     /// the value's type and names the field in its error. Uses only C# 7.3 syntax.
     /// </summary>
-    private static void EmitRecordAccess(CodeWriter w, RecordSchema record, string[] properties, TypeMapper types, bool apache)
+    private static void EmitRecordAccess(CodeWriter w, RecordSchema record, string[] properties, TypeMapper types, string schemaProperty, bool apache)
     {
         const string Interface = "global::AvroSharp.Serialization.IAvroSpecificRecord";
         var count = record.Fields.Count.ToString(CultureInfo.InvariantCulture);
         var invalid = $"throw {Support}.InvalidFieldPosition(fieldPos, {count}, {CSharpNames.Literal(record.FullName)});";
 
         w.Line();
-        w.Line($"global::AvroSharp.Schemas.RecordSchema {Interface}.Schema => (global::AvroSharp.Schemas.RecordSchema)Schema;");
+        w.Line($"global::AvroSharp.Schemas.RecordSchema {Interface}.Schema => (global::AvroSharp.Schemas.RecordSchema){schemaProperty};");
 
         w.Line();
         w.Line("/// <summary>Gets the value of the field at a position in the schema, boxed.</summary>");
@@ -235,7 +374,7 @@ public static class CSharpCodeGenerator
         w.Open("switch (fieldPos)");
         for (var i = 0; i < properties.Length; i++)
         {
-            w.Line($"case {i.ToString(CultureInfo.InvariantCulture)}:");
+            w.Line($"case {Int(i)}:");
             w.Indent();
             w.Line($"return this.{properties[i]};");
             w.Outdent();
@@ -248,16 +387,32 @@ public static class CSharpCodeGenerator
         w.Close();
         w.Close();
 
+        EmitPut(w, record, properties, types, schemaProperty, apache, invalid);
+    }
+
+    private static void EmitPut(CodeWriter w, RecordSchema record, string[] properties, TypeMapper types, string schemaProperty, bool apache, string invalid)
+    {
         w.Line();
         w.Line("/// <summary>Sets the value of the field at a position in the schema; the value must have the field's C# type.</summary>");
         w.Open($"public void Put(int fieldPos, {types.Nullable("object")} fieldValue)");
         w.Open("switch (fieldPos)");
         for (var i = 0; i < properties.Length; i++)
         {
-            var field = record.FullName + "." + record.Fields[i].Name;
-            w.Line($"case {i.ToString(CultureInfo.InvariantCulture)}:");
+            w.Line($"case {Int(i)}:");
             w.Indent();
-            w.Line($"this.{properties[i]} = {PutValue(record.Fields[i].Schema, types, field, "v" + i.ToString(CultureInfo.InvariantCulture), apache)};");
+            var schema = record.Fields[i].Schema;
+            if (schema.Type == AvroSchemaType.Null)
+            {
+                // The field always holds null; any other value would be dropped when writing.
+                w.Open("if (fieldValue != null)");
+                w.Line($"throw {Support}.PutTypeMismatch(fieldValue, {schemaProperty}, {Int(i)}, \"null\");");
+                w.Close();
+            }
+            else
+            {
+                w.Line($"this.{properties[i]} = {PutValue(schema, types, i, "v" + Int(i), schemaProperty, apache)};");
+            }
+
             w.Line("break;");
             w.Outdent();
         }
@@ -271,7 +426,7 @@ public static class CSharpCodeGenerator
     }
 
     /// <summary>The expression that converts <c>fieldValue</c> to a field's type, or throws naming the field.</summary>
-    private static string PutValue(AvroSchema schema, TypeMapper types, string field, string variable, bool apache)
+    private static string PutValue(AvroSchema schema, TypeMapper types, int position, string variable, string schemaProperty, bool apache)
     {
         var nullable = false;
         if (schema is UnionSchema union)
@@ -286,14 +441,10 @@ public static class CSharpCodeGenerator
             nullable = nullIndex >= 0;
             schema = union.Branches[others[0]];
         }
-        else if (schema.Type == AvroSchemaType.Null)
-        {
-            return "fieldValue";
-        }
 
         var type = types.TypeOf(schema);
         var display = type.Replace("global::", string.Empty) + (nullable ? "?" : string.Empty);
-        var mismatch = $"throw {Support}.PutTypeMismatch(fieldValue, {CSharpNames.Literal(field)}, {CSharpNames.Literal(display)})";
+        var mismatch = $"throw {Support}.PutTypeMismatch(fieldValue, {schemaProperty}, {Int(position)}, {CSharpNames.Literal(display)})";
         var converted = types.IsValueType(schema)
             ? $"fieldValue is {type} {variable} ? {variable} : {mismatch}"
             : $"fieldValue as {type} ?? {mismatch}";
@@ -310,63 +461,156 @@ public static class CSharpCodeGenerator
             var size = fixedDecimal.Size.ToString(CultureInfo.InvariantCulture);
             converted = $"fieldValue is {type} {variable} ? {variable} : fieldValue is global::Avro.AvroDecimal {variable}d ? new {type}(global::AvroSharp.Generated.ApacheDecimals.FixedBytes({variable}d, {scale}, {size})) : {mismatch}";
         }
+
         return nullable
             ? $"fieldValue == null ? ({(types.IsValueType(schema) ? type + "?" : types.Nullable(type))})null : {converted}"
             : converted;
     }
 
-    /// <summary>The serializers: each field in schema order, with the record depth checked on entry.</summary>
-    private static void EmitRecordCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter)
+    /// <summary>The struct codec that the collection and union helpers read and write this record with.</summary>
+    private static void EmitCodec(CodeWriter w, string name)
+    {
+        w.Line();
+        w.Line("/// <summary>Reads and writes this type for the collection and union helpers of <c>AvroGeneratedCode</c>.</summary>");
+        w.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+        w.Open($"internal readonly struct AvroCodec : {Serialization}.IAvroCodec<{name}>");
+        w.Line($"public {name} Read(ref {Reader} reader, int depth) => ReadCore(ref reader, null, depth);");
+        w.Line();
+        w.Line($"public void Write(ref {Writer} writer, {name} value, int depth) => WriteCore(ref writer, value, depth);");
+        w.Close();
+    }
+
+    /// <summary>
+    /// The serializers: each field in schema order, with the record depth checked on entry. Records with more than
+    /// <see cref="FieldsPerMethod"/> fields are split into chunk methods.
+    /// </summary>
+    private static void EmitRecordCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, TypeMapper types)
+    {
+        var chunks = Chunks(record.Fields.Count);
+        EmitWriteCore(w, record, name, properties, emitter, chunks);
+        EmitReadCore(w, record, name, properties, emitter, types, chunks);
+        EmitReadResolved(w, record, name, properties, emitter, chunks);
+    }
+
+    private static void EmitWriteCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Start, int End)> chunks)
     {
         w.Line();
         w.Open($"internal static void WriteCore(ref {Writer} writer, {name} value, int depth)");
         w.Open($"if (depth > {Support}.MaxDepth)");
         w.Line($"throw {Support}.WriteTooDeep();");
         w.Close();
-        for (var i = 0; i < record.Fields.Count; i++)
+        if (chunks.Count == 1)
+        {
+            WriteFields(w, record, properties, emitter, 0, record.Fields.Count);
+            w.Close();
+        }
+        else
         {
             w.Line();
-            emitter.Write(w, record.Fields[i].Schema, "value." + properties[i], record.FullName + "." + record.Fields[i].Name);
+            for (var k = 0; k < chunks.Count; k++)
+            {
+                w.Line($"WriteFields{Int(k)}(ref writer, value, depth);");
+            }
+
+            w.Close();
+            for (var k = 0; k < chunks.Count; k++)
+            {
+                w.Line();
+                w.Open($"private static void WriteFields{Int(k)}(ref {Writer} writer, {name} value, int depth)");
+                WriteFields(w, record, properties, emitter, chunks[k].Start, chunks[k].End);
+                w.Close();
+            }
         }
+    }
 
-        w.Close();
-
+    private static void EmitReadCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, TypeMapper types, List<(int Start, int End)> chunks)
+    {
         w.Line();
-        w.Open($"internal static {name} ReadCore(ref {Reader} reader, int depth)");
+        w.Line("/// <summary>Reads a value into <paramref name=\"reuse\"/> (its collections and records are filled again), or into a new instance.</summary>");
+        w.Open($"internal static {name} ReadCore(ref {Reader} reader, {types.Nullable(name)} reuse, int depth)");
         w.Open($"if (depth > {Support}.MaxDepth)");
         w.Line($"throw {Support}.ReadTooDeep();");
         w.Close();
         w.Line();
-        w.Line($"var value = new {name}();");
-        for (var i = 0; i < record.Fields.Count; i++)
+        w.Line($"var value = reuse ?? new {name}(default({Serialization}.AvroUninitialized));");
+        if (chunks.Count == 1)
         {
-            emitter.Read(w, record.Fields[i].Schema, "value." + properties[i]);
+            ReadFields(w, record, properties, emitter, 0, record.Fields.Count);
+        }
+        else
+        {
+            for (var k = 0; k < chunks.Count; k++)
+            {
+                w.Line($"ReadFields{Int(k)}(ref reader, value, depth);");
+            }
         }
 
         w.Line("return value;");
         w.Close();
+        if (chunks.Count > 1)
+        {
+            for (var k = 0; k < chunks.Count; k++)
+            {
+                w.Line();
+                w.Open($"private static void ReadFields{Int(k)}(ref {Reader} reader, {name} value, int depth)");
+                ReadFields(w, record, properties, emitter, chunks[k].Start, chunks[k].End);
+                w.Close();
+            }
+        }
+    }
 
-        EmitReadResolved(w, record, name, properties, emitter);
+    private static void WriteFields(CodeWriter w, RecordSchema record, string[] properties, SerializerEmitter emitter, int start, int end)
+    {
+        for (var i = start; i < end; i++)
+        {
+            w.Line();
+            emitter.Write(w, record.Fields[i].Schema, "value." + properties[i], record.FullName + "." + record.Fields[i].Name);
+        }
+    }
+
+    private static void ReadFields(CodeWriter w, RecordSchema record, string[] properties, SerializerEmitter emitter, int start, int end)
+    {
+        for (var i = start; i < end; i++)
+        {
+            emitter.Read(w, record.Fields[i].Schema, "value." + properties[i], reuse: true);
+        }
+    }
+
+    private static List<(int Start, int End)> Chunks(int count)
+    {
+        var chunks = new List<(int Start, int End)>();
+        for (var start = 0; start < count || chunks.Count == 0; start += FieldsPerMethod)
+        {
+            chunks.Add((start, Math.Min(start + FieldsPerMethod, count)));
+        }
+
+        return chunks;
     }
 
     /// <summary>
     /// Reading data of another schema version by its plan: writer fields in the writer's order, each read into its
-    /// reader property directly, promoted, remapped (enums) or, for other differences, transcoded and then read; the
-    /// reader fields the writer lacks take their defaults.
+    /// reader property directly (<c>ReadField</c>), promoted or remapped (<c>ReadPromoted</c>) or, for other
+    /// differences, transcoded and then read; the reader fields the writer lacks take their defaults.
     /// </summary>
-    private static void EmitReadResolved(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter)
+    private static void EmitReadResolved(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Start, int End)> chunks)
     {
+        const string Conversion = "global::AvroSharp.Serialization.AvroConversion";
+        var promotions = Enumerable.Range(0, record.Fields.Count)
+            .Select(i => (Field: i, Conversions: emitter.ResolvedConversions(record.Fields[i].Schema)))
+            .Where(p => p.Conversions.Count > 0)
+            .ToList();
+
         w.Line();
         w.Open($"internal static {name} ReadResolved(ref {Reader} reader, global::AvroSharp.Serialization.AvroRecordPlan plan, int depth)");
         w.Open($"if (depth > {Support}.MaxDepth)");
         w.Line($"throw {Support}.ReadTooDeep();");
         w.Close();
         w.Line();
-        w.Line($"var value = new {name}();");
+        w.Line($"var value = new {name}(default({Serialization}.AvroUninitialized));");
+        w.Open("for (var step = 0; step < plan.StepCount; step++)");
         if (record.Fields.Count == 0)
         {
             // Nothing to fill: skip whatever fields the writer has.
-            w.Open("for (var step = 0; step < plan.StepCount; step++)");
             w.Line("plan.Skip(step, ref reader);");
             w.Close();
             w.Line();
@@ -375,95 +619,117 @@ public static class CSharpCodeGenerator
             return;
         }
 
-        w.Open("for (var step = 0; step < plan.StepCount; step++)");
-        w.Open("switch (plan.Target(step))");
-        for (var i = 0; i < record.Fields.Count; i++)
-        {
-            EmitResolvedFieldCase(w, i, "value." + properties[i], record.Fields[i].Schema, emitter);
-        }
-
-        w.Line("default:");
-        w.Indent();
+        w.Line("var target = plan.Target(step, out var conversion);");
+        w.Open("if (target < 0)");
         w.Line("plan.Skip(step, ref reader);");
-        w.Line("break;");
-        w.Outdent();
+        w.Close();
+        w.Open($"else if (conversion == {Conversion}.None)");
+        w.Line("ReadField(ref reader, value, target, depth);");
+        w.Close();
+        w.Open(promotions.Count > 0 ? "else if (!ReadPromoted(ref reader, value, target, conversion, plan, step))" : "else");
+        w.Line($"var field = new {Reader}(plan.Transcode(step, ref reader));");
+        w.Line("ReadField(ref field, value, target, depth);");
         w.Close();
         w.Close();
-        EmitResolvedDefaults(w, record, properties);
+        w.Line();
+        w.Open("for (var index = 0; index < plan.DefaultCount; index++)");
+        w.Line($"var field = new {Reader}(plan.DefaultValue(index));");
+        w.Line("ReadField(ref field, value, plan.DefaultTarget(index), depth);");
+        w.Close();
         w.Line();
         w.Line("return value;");
         w.Close();
 
-        EmitResolvedFieldReaders(w, record, emitter);
+        EmitReadField(w, record, name, properties, emitter, chunks);
+        if (promotions.Count > 0)
+        {
+            EmitReadPromoted(w, record, name, properties, emitter, promotions);
+        }
     }
 
-    // The reader fields the writer lacks, from the plan's encoded defaults.
-    private static void EmitResolvedDefaults(CodeWriter w, RecordSchema record, string[] properties)
+    // One case per field: the same statements as ReadCore's, for direct, transcoded and default values.
+    private static void EmitReadField(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Start, int End)> chunks)
     {
         w.Line();
-        w.Open("for (var index = 0; index < plan.DefaultCount; index++)");
-        w.Line($"var field = new {Reader}(plan.DefaultValue(index));");
-        w.Open("switch (plan.DefaultTarget(index))");
-        for (var i = 0; i < record.Fields.Count; i++)
+        w.Open($"private static void ReadField(ref {Reader} reader, {name} value, int field, int depth)");
+        if (chunks.Count == 1)
+        {
+            ReadFieldCases(w, record, properties, emitter, 0, record.Fields.Count);
+            w.Close();
+        }
+        else
+        {
+            w.Open($"switch (field / {Int(FieldsPerMethod)})");
+            for (var k = 0; k < chunks.Count; k++)
+            {
+                w.Line($"case {Int(k)}:");
+                w.Indent();
+                w.Line($"ReadField{Int(k)}(ref reader, value, field, depth);");
+                w.Line("break;");
+                w.Outdent();
+            }
+
+            w.Close();
+            w.Close();
+            for (var k = 0; k < chunks.Count; k++)
+            {
+                w.Line();
+                w.Open($"private static void ReadField{Int(k)}(ref {Reader} reader, {name} value, int field, int depth)");
+                ReadFieldCases(w, record, properties, emitter, chunks[k].Start, chunks[k].End);
+                w.Close();
+            }
+        }
+    }
+
+    // The conversions generated code performs itself: numeric promotions and enum remapping.
+    private static void EmitReadPromoted(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Field, IReadOnlyList<string> Conversions)> promotions)
+    {
+        const string Conversion = "global::AvroSharp.Serialization.AvroConversion";
+        w.Line();
+
+        // Only the fields with numeric promotions or enum remapping are here, so it is small enough to inline into
+        // ReadResolved's loop, as the conversions were before the loop called a method per field.
+        w.Line("[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
+        w.Open($"private static bool ReadPromoted(ref {Reader} reader, {name} value, int field, {Conversion} conversion, global::AvroSharp.Serialization.AvroRecordPlan plan, int step)");
+        w.Open("switch (field)");
+        foreach (var (field, conversions) in promotions)
+        {
+            w.Line($"case {Int(field)}:");
+            w.Indent();
+            w.Open("switch (conversion)");
+            foreach (var conversion in conversions)
+            {
+                w.Line($"case {Conversion}.{conversion}:");
+                w.Indent();
+                emitter.ReadConverted(w, record.Fields[field].Schema, conversion, "value." + properties[field]);
+                w.Line("return true;");
+                w.Outdent();
+            }
+
+            w.Close();
+            w.Line("break;");
+            w.Outdent();
+        }
+
+        w.Close();
+        w.Line();
+        w.Line("return false;");
+        w.Close();
+    }
+
+    private static void ReadFieldCases(CodeWriter w, RecordSchema record, string[] properties, SerializerEmitter emitter, int start, int end)
+    {
+        w.Open("switch (field)");
+        for (var i = start; i < end; i++)
         {
             w.Line($"case {Int(i)}:");
             w.Indent();
-            w.Line($"value.{properties[i]} = ReadResolvedField{Int(i)}(ref field, depth);");
+            emitter.Read(w, record.Fields[i].Schema, "value." + properties[i]);
             w.Line("break;");
             w.Outdent();
         }
 
         w.Close();
-        w.Close();
-    }
-
-    // One reader per field, the same code as ReadCore's, for the plan's direct, transcoded and default values.
-    private static void EmitResolvedFieldReaders(CodeWriter w, RecordSchema record, SerializerEmitter emitter)
-    {
-        for (var i = 0; i < record.Fields.Count; i++)
-        {
-            var type = emitter.TypeOf(record.Fields[i].Schema);
-            w.Line();
-            w.Open($"private static {type} ReadResolvedField{Int(i)}(ref {Reader} reader, int depth)");
-            w.Line($"{type} result;");
-            emitter.Read(w, record.Fields[i].Schema, "result");
-            w.Line("return result;");
-            w.Close();
-        }
-    }
-
-    // The case for reader field i: read as is, with a conversion the field's type allows, or transcoded first.
-    private static void EmitResolvedFieldCase(CodeWriter w, int i, string target, AvroSchema schema, SerializerEmitter emitter)
-    {
-        const string Conversion = "global::AvroSharp.Serialization.AvroConversion";
-        w.Line($"case {Int(i)}:");
-        w.Indent();
-        w.Open("switch (plan.Conversion(step))");
-        w.Line($"case {Conversion}.None:");
-        w.Indent();
-        w.Line($"{target} = ReadResolvedField{Int(i)}(ref reader, depth);");
-        w.Line("break;");
-        w.Outdent();
-        foreach (var conversion in emitter.ResolvedConversions(schema))
-        {
-            w.Line($"case {Conversion}.{conversion}:");
-            w.Indent();
-            emitter.ReadConverted(w, schema, conversion, target);
-            w.Line("break;");
-            w.Outdent();
-        }
-
-        w.Line("default:");
-        w.Indent();
-        w.Open();
-        w.Line($"var field = new {Reader}(plan.Transcode(step, ref reader));");
-        w.Line($"{target} = ReadResolvedField{Int(i)}(ref field, depth);");
-        w.Line("break;");
-        w.Close();
-        w.Outdent();
-        w.Close();
-        w.Line("break;");
-        w.Outdent();
     }
 
     private static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
@@ -520,27 +786,91 @@ public static class CSharpCodeGenerator
     }
 
     /// <summary>
-    /// The schema JSON and a lazily parsed <c>AvroSchema</c> property named <paramref name="propertyName"/>. With
-    /// <paramref name="apache"/>, also the JSON that Apache.Avro can parse (see <see cref="ApacheSupport.SchemaJson"/>).
+    /// The schema JSON and a lazily parsed <c>AvroSchema</c> property named <paramref name="propertyName"/>. On .NET 8
+    /// and later (C# 11), the JSON is a UTF-8 literal, stored once as data and parsed without a UTF-16 copy;
+    /// <c>SchemaJson</c> is then made from it on first use. With <paramref name="apache"/>, also the JSON that
+    /// Apache.Avro can parse (see <see cref="ApacheSupport.SchemaJson"/>).
     /// </summary>
     private static void EmitSchemaMembers(CodeWriter w, NamedSchema schema, string propertyName, bool apache, TypeMapper types)
     {
+        const string AvroSchema = "global::AvroSharp.Schemas.AvroSchema";
         var json = schema.ToJson();
-        w.Line("/// <summary>The Avro schema of this type, as JSON.</summary>");
-        w.Line($"public const string SchemaJson = {CSharpNames.Literal(json)};");
+        w.Line($"private static {types.Nullable(AvroSchema)} s_schema;");
+        w.Line();
+        if (types.Modern)
+        {
+            w.Directive("#if NET8_0_OR_GREATER");
+            w.Line("private static global::System.ReadOnlySpan<byte> SchemaUtf8 =>");
+            SplitLiteral(w, json, "u8");
+            w.Line();
+            w.Line($"private static {types.Nullable("string")} s_schemaJson;");
+            w.Line();
+            w.Line("/// <summary>Gets the Avro schema of this type, as JSON.</summary>");
+            w.Line("public static string SchemaJson => s_schemaJson ??= global::System.Text.Encoding.UTF8.GetString(SchemaUtf8);");
+            w.Line();
+            w.Line("/// <summary>Gets the Avro schema of this type.</summary>");
+            w.Line($"public static {AvroSchema} {propertyName} => s_schema ??= {AvroSchema}.Parse(SchemaUtf8);");
+            w.Directive("#else");
+        }
+
+        w.Line("/// <summary>Gets the Avro schema of this type, as JSON.</summary>");
+        w.Line("public static string SchemaJson =>");
+        SplitLiteral(w, json, string.Empty);
+        w.Line();
+        w.Line("/// <summary>Gets the Avro schema of this type.</summary>");
+        w.Line($"public static {AvroSchema} {propertyName} => s_schema ?? (s_schema = {AvroSchema}.Parse(SchemaJson));");
+        if (types.Modern)
+        {
+            w.Directive("#endif");
+        }
+
         if (apache)
         {
             var apacheJson = ApacheSupport.SchemaJson(json);
             w.Line();
             w.Line("/// <summary>The schema as Apache.Avro parses it (it rejects uuid on fixed, which the specification allows).</summary>");
-            w.Line($"internal const string ApacheSchemaJson = {(string.Equals(apacheJson, json, StringComparison.Ordinal) ? "SchemaJson" : CSharpNames.Literal(apacheJson))};");
+            if (string.Equals(apacheJson, json, StringComparison.Ordinal))
+            {
+                w.Line("internal static string ApacheSchemaJson => SchemaJson;");
+            }
+            else
+            {
+                w.Line("internal static string ApacheSchemaJson =>");
+                SplitLiteral(w, apacheJson, string.Empty);
+            }
+        }
+    }
+
+    // A long string as concatenated literals of LiteralWidth characters (the compiler joins them), one per line.
+    private static void SplitLiteral(CodeWriter w, string text, string suffix)
+    {
+        var parts = new List<string>();
+        for (var start = 0; start < text.Length;)
+        {
+            var length = Math.Min(LiteralWidth, text.Length - start);
+
+            // Never split a surrogate pair.
+            if (start + length < text.Length && char.IsHighSurrogate(text[start + length - 1]))
+            {
+                length--;
+            }
+
+            parts.Add(text.Substring(start, length));
+            start += length;
         }
 
-        w.Line();
-        w.Line($"private static {types.Nullable("global::AvroSharp.Schemas.AvroSchema")} s_schema;");
-        w.Line();
-        w.Line("/// <summary>Gets the Avro schema of this type.</summary>");
-        w.Line($"public static global::AvroSharp.Schemas.AvroSchema {propertyName} => s_schema ?? (s_schema = global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));");
+        if (parts.Count == 0)
+        {
+            parts.Add(string.Empty);
+        }
+
+        w.Indent();
+        for (var i = 0; i < parts.Count; i++)
+        {
+            w.Line(CSharpNames.Literal(parts[i]) + suffix + (i == parts.Count - 1 ? ";" : " +"));
+        }
+
+        w.Outdent();
     }
 
     /// <summary>
@@ -551,21 +881,26 @@ public static class CSharpCodeGenerator
     {
         var used = new HashSet<string>(StringComparer.Ordinal)
         {
-            typeName.TrimStart('@'), "SchemaJson", "Schema", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
-            "FromAvroBytes", "ReadResolved", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
+            typeName.TrimStart('@'), "SchemaJson", "SchemaUtf8", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA",
+            "s_schema", "s_schemaJson", "s_apacheSchema", "s_plan", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
+            "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo", "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField",
+            "ReadPromoted", "AvroCodec", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
         };
-        for (var i = 0; i < record.Fields.Count; i++)
+        for (var k = 0; k < Chunks(record.Fields.Count).Count; k++)
         {
-            used.Add("ReadResolvedField" + i.ToString(CultureInfo.InvariantCulture));
+            used.Add("WriteFields" + Int(k));
+            used.Add("ReadFields" + Int(k));
+            used.Add("ReadField" + Int(k));
         }
 
         var result = new string[record.Fields.Count];
         for (var i = 0; i < result.Length; i++)
         {
-            var candidate = naming == PropertyNaming.Avro ? record.Fields[i].Name : CSharpNames.Pascal(record.Fields[i].Name);
-            while (!used.Add(candidate))
+            var name = naming == PropertyNaming.Avro ? record.Fields[i].Name : CSharpNames.Pascal(record.Fields[i].Name);
+            var candidate = name;
+            for (var suffix = 1; !used.Add(candidate); suffix++)
             {
-                candidate += "_";
+                candidate = name + new string('_', suffix);
             }
 
             // Avro names are valid C# identifiers except for keywords, which are escaped.
@@ -585,9 +920,41 @@ public static class CSharpCodeGenerator
         w.Line("/// <summary>");
         foreach (var line in CSharpNames.CommentLines(doc!))
         {
-            w.Line("/// " + CSharpNames.Xml(line.Trim()));
+            foreach (var wrapped in Wrap(CSharpNames.Xml(line.Trim())))
+            {
+                w.Line("/// " + wrapped);
+            }
         }
 
         w.Line("/// </summary>");
+    }
+
+    // Wraps text at spaces into lines of at most DocWidth characters; a longer word keeps its own line.
+    private static IEnumerable<string> Wrap(string text)
+    {
+        if (text.Length <= DocWidth)
+        {
+            yield return text;
+            yield break;
+        }
+
+        var line = new StringBuilder();
+        foreach (var word in text.Split(' '))
+        {
+            if (line.Length > 0 && line.Length + 1 + word.Length > DocWidth)
+            {
+                yield return line.ToString();
+                line.Clear();
+            }
+
+            if (line.Length > 0)
+            {
+                line.Append(' ');
+            }
+
+            line.Append(word);
+        }
+
+        yield return line.ToString();
     }
 }

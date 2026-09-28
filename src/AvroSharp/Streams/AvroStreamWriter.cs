@@ -41,6 +41,16 @@ public static class AvroStreamWriter
         var datumWriter = GenericDatumWriter.Create(schema, writerOptions);
         return Create<AvroValue>(stream, (ref writer, value) => datumWriter.Write(ref writer, value), options);
     }
+
+#if NET8_0_OR_GREATER
+    /// <summary>Creates a writer of objects of a generated type, one after another.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="stream">The destination.</param>
+    /// <param name="options">The stream options, or <see langword="null"/> for the defaults.</param>
+    public static AvroStreamWriter<T> Create<T>(Stream stream, AvroStreamOptions? options = null)
+        where T : IAvroSerializable<T> =>
+        Create(stream, AvroSerializable<T>.Write, options);
+#endif
 }
 
 /// <summary>

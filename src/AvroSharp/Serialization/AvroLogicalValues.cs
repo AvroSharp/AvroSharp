@@ -246,7 +246,13 @@ public static class AvroLogicalValues
             throw new AvroDataException($"A decimal scale of {scale} is outside the range of System.Decimal (0 to 28).");
         }
 
-        var negative = bytes.Length > 0 && bytes[0] >= 0x80;
+        // The unscaled value is a two's-complement integer, which has at least one byte (Java's BigInteger rejects none).
+        if (bytes.IsEmpty)
+        {
+            throw new AvroDataException("A decimal has no bytes; its unscaled value needs at least one.");
+        }
+
+        var negative = bytes[0] >= 0x80;
 
         // Leading bytes that only repeat the sign carry no value.
         var extension = negative ? (byte)0xFF : (byte)0;
@@ -333,14 +339,18 @@ public static class AvroLogicalValues
 
         // Drop leading bytes that only repeat the sign, keeping the byte that carries it.
         var start = 0;
-        while (start < 15
-            && ((destination[start] == 0 && destination[start + 1] < 0x80) || (destination[start] == 0xFF && destination[start + 1] >= 0x80)))
+        while (start < 15 && RepeatsSign(destination[start], destination[start + 1]))
         {
             start++;
         }
 
         return 16 - start;
     }
+
+    // A leading byte of a two's-complement number carries no value when it only repeats the sign of the next byte:
+    // 0x00 before a byte whose top bit is clear, or 0xFF before one whose top bit is set.
+    private static bool RepeatsSign(byte leading, byte next) =>
+        leading == 0 ? next < 0x80 : leading == 0xFF && next >= 0x80;
 
     private static decimal Pow10(int exponent)
     {

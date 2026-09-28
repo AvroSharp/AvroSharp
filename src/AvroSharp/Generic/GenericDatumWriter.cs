@@ -289,19 +289,13 @@ public sealed class GenericDatumWriter
                     break;
                 case (Int64Array longs, LongNode):
                     writer.WriteBlockCount(longs.Count);
-                    foreach (var item in longs.Items.Span)
-                    {
-                        writer.WriteLong(item);
-                    }
+                    writer.WriteLongs(longs.Items.Span);
 
                     break;
                 case (Int32Array ints, IntNode or LongNode):
                     // An int and a long with the same value have the same encoding.
                     writer.WriteBlockCount(ints.Count);
-                    foreach (var item in ints.Items.Span)
-                    {
-                        writer.WriteInt(item);
-                    }
+                    writer.WriteInts(ints.Items.Span);
 
                     break;
                 case (DoubleArray doubles, DoubleNode):

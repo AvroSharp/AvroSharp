@@ -31,6 +31,15 @@ public static class AvroMessageReader
                 : GenericDatumReader.Create(writerSchema, readerSchema, options);
             return (ref r) => reader.Read(ref r);
         });
+
+#if NET8_0_OR_GREATER
+    /// <summary>Creates a reader of single-object messages of a generated type, resolving other writer schemas.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="store">Finds each message's writer schema.</param>
+    public static AvroMessageReader<T> Create<T>(IAvroSchemaStore store)
+        where T : IAvroSerializable<T> =>
+        new(store, AvroSerializable<T>.For);
+#endif
 }
 
 /// <summary>

@@ -16,4 +16,11 @@
     <TrimmerRootAssembly Include="AvroSharp.Codecs" />
   </ItemGroup>
 
+  <!-- Generated types, through the local source generator, as a consumer uses them. -->
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+  <ItemGroup>
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
 </Project>

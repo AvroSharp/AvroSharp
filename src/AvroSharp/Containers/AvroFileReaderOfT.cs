@@ -203,7 +203,12 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
         {
             if (!FillAtLeast(Buffered + 1))
             {
-                return Buffered == 0 ? false : throw Truncated("block header");
+                if (Buffered == 0)
+                {
+                    return false;
+                }
+
+                throw Truncated("block header");
             }
         }
 

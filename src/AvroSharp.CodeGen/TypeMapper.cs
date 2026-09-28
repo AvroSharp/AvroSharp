@@ -18,8 +18,176 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// <summary>Makes a reference type nullable: <c>T?</c> with nullable annotations (C# 8 and later), otherwise <c>T</c>.</summary>
     public string Nullable(string referenceType) => options.NullableAnnotations ? referenceType + "?" : referenceType;
 
-    /// <summary>Gets how record fields become property names.</summary>
-    public PropertyNaming Naming => options.PropertyNaming;
+    /// <summary>Gets how record fields become property names: the option, or the mode's default (avrogen's names for Apache).</summary>
+    public PropertyNaming Naming => options.PropertyNaming ?? (options.ApacheCompatible ? PropertyNaming.Avro : PropertyNaming.PascalCase);
+
+    /// <summary>
+    /// Gets whether the generated code may use C# 11 for .NET 8 and later (behind <c>#if NET8_0_OR_GREATER</c>): UTF-8
+    /// literals and static abstract interface members.
+    /// </summary>
+    public bool Modern => options.LanguageVersion >= 11;
+
+    /// <summary>
+    /// Gets the struct codec type for values of <paramref name="schema"/>, used by the collection and union helpers,
+    /// or <see langword="null"/> when there is none (logical types, enums, fixed, collections and unions stay inline).
+    /// </summary>
+    public string? Codec(AvroSchema schema) => schema switch
+    {
+        _ when Logical(schema) is not null => null,
+        RecordSchema record => names.TypeName(record) + ".AvroCodec",
+        PrimitiveSchema => schema.Type switch
+        {
+            AvroSchemaType.Boolean => Support + "AvroBooleanCodec",
+            AvroSchemaType.Int => Support + "AvroIntCodec",
+            AvroSchemaType.Long => Support + "AvroLongCodec",
+            AvroSchemaType.Float => Support + "AvroFloatCodec",
+            AvroSchemaType.Double => Support + "AvroDoubleCodec",
+            AvroSchemaType.String => Support + "AvroStringCodec",
+            AvroSchemaType.Bytes => Support + "AvroBytesCodec",
+            _ => null,
+        },
+        _ => null,
+    };
+
+    /// <summary>
+    /// For a union of <c>null</c> and one type that a helper reads and writes, the helper's name suffix
+    /// (<c>Int</c> for <c>ReadNullableInt</c>, or empty for the generic record helper) and the value's branch index;
+    /// otherwise <see langword="null"/>.
+    /// </summary>
+    public (string Suffix, int ValueIndex)? NullableHelper(UnionSchema union)
+    {
+        var (nullIndex, others) = Classify(union);
+        if (nullIndex < 0 || others.Count != 1 || union.Branches.Count != 2)
+        {
+            return null;
+        }
+
+        var branch = union.Branches[others[0]];
+        if (Logical(branch) is not null)
+        {
+            return null;
+        }
+
+        string? suffix = branch switch
+        {
+            RecordSchema => string.Empty,
+            PrimitiveSchema => branch.Type switch
+            {
+                AvroSchemaType.Boolean => "Boolean",
+                AvroSchemaType.Int => "Int",
+                AvroSchemaType.Long => "Long",
+                AvroSchemaType.Float => "Float",
+                AvroSchemaType.Double => "Double",
+                AvroSchemaType.String => "String",
+                AvroSchemaType.Bytes => "Bytes",
+                _ => null,
+            },
+            _ => null,
+        };
+        return suffix is null ? null : (suffix, others[0]);
+    }
+
+    private const string Support = "global::AvroSharp.Serialization.";
+
+    /// <summary>
+    /// Gets a field's schema default as a C# expression for the constructor, or <see langword="null"/> when there is
+    /// none or it cannot be written as one (logical types, records, fixed values, and unions whose default is null).
+    /// A union's default is for its first branch, as the specification says.
+    /// </summary>
+    public string? DefaultValue(RecordField field)
+    {
+        if (field.DefaultValue is not { } json)
+        {
+            return null;
+        }
+
+        var schema = field.Schema is UnionSchema union ? union.Branches[0] : field.Schema;
+        return Literal(schema, json);
+    }
+
+    private string? Literal(AvroSchema schema, System.Text.Json.JsonElement json)
+    {
+        if (Logical(schema) is not null)
+        {
+            return null;
+        }
+
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        switch (schema)
+        {
+            case EnumSchema enumSchema when json.ValueKind == System.Text.Json.JsonValueKind.String:
+                return names.TypeName(enumSchema) + "." + CSharpNames.Identifier(json.GetString()!);
+            case ArraySchema array when json.ValueKind == System.Text.Json.JsonValueKind.Array:
+                {
+                    var items = json.EnumerateArray().Select(item => Literal(array.Items, item)).ToList();
+                    return items.Any(item => item is null)
+                        ? null
+                        : items.Count == 0 ? $"new {TypeOf(schema)}()" : $"new {TypeOf(schema)} {{ {string.Join(", ", items)} }}";
+                }
+
+            case MapSchema map when json.ValueKind == System.Text.Json.JsonValueKind.Object:
+                {
+                    var entries = json.EnumerateObject().Select(entry => (entry.Name, Value: Literal(map.Values, entry.Value))).ToList();
+                    return entries.Any(entry => entry.Value is null)
+                        ? null
+                        : entries.Count == 0
+                            ? $"new {TypeOf(schema)}()"
+                            : $"new {TypeOf(schema)} {{ {string.Join(", ", entries.Select(entry => $"[{CSharpNames.Literal(entry.Name)}] = {entry.Value}"))} }}";
+                }
+
+            case PrimitiveSchema:
+                return schema.Type switch
+                {
+                    AvroSchemaType.Boolean when json.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False => json.GetBoolean() ? "true" : "false",
+                    AvroSchemaType.Int when json.TryGetInt32(out var i) => i == int.MinValue ? "int.MinValue" : i.ToString(invariant),
+                    AvroSchemaType.Long when json.TryGetInt64(out var l) => l == long.MinValue ? "long.MinValue" : l.ToString(invariant) + "L",
+                    AvroSchemaType.Float => Floating(json, "float", "f"),
+                    AvroSchemaType.Double => Floating(json, "double", "d"),
+                    AvroSchemaType.String when json.ValueKind == System.Text.Json.JsonValueKind.String => CSharpNames.Literal(json.GetString()!),
+                    AvroSchemaType.Bytes when json.ValueKind == System.Text.Json.JsonValueKind.String => Bytes(json.GetString()!),
+                    _ => null,
+                };
+            default:
+                return null;
+        }
+    }
+
+    // A floating-point default: a JSON number, or NaN/Infinity/-Infinity as a string (as Java writes them).
+    private static string? Floating(System.Text.Json.JsonElement json, string type, string suffix)
+    {
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        if (json.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            return json.GetString() switch
+            {
+                "NaN" => type + ".NaN",
+                "Infinity" => type + ".PositiveInfinity",
+                "-Infinity" => type + ".NegativeInfinity",
+                _ => null,
+            };
+        }
+
+        if (json.ValueKind != System.Text.Json.JsonValueKind.Number || !json.TryGetDouble(out var value))
+        {
+            return null;
+        }
+
+        var text = string.Equals(suffix, "f", System.StringComparison.Ordinal) ? ((float)value).ToString("R", invariant) : value.ToString("R", invariant);
+        return text.IndexOf('E') >= 0 || text.IndexOf('.') >= 0 ? text + suffix : text + ".0" + suffix;
+    }
+
+    // A bytes default is a JSON string whose characters are the bytes (code points 0 to 255).
+    private static string? Bytes(string text)
+    {
+        if (text.Any(c => c > 0xFF))
+        {
+            return null;
+        }
+
+        return text.Length == 0
+            ? "global::System.Array.Empty<byte>()"
+            : "new byte[] { " + string.Join(", ", text.Select(c => ((int)c).ToString(System.Globalization.CultureInfo.InvariantCulture))) + " }";
+    }
 
     /// <summary>Gets whether nullable reference type annotations are emitted (C# 8 and later).</summary>
     public bool Annotations => options.NullableAnnotations;
@@ -140,9 +308,8 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         // An object? union is written by switching on the value's runtime type, so two branches with the same C# type
         // (a string and a fixed uuid are both Guid) can be neither told apart nor compiled (CS8120).
         var seen = new Dictionary<string, AvroSchema>(System.StringComparer.Ordinal);
-        foreach (var index in others)
+        foreach (var branch in others.Select(index => union.Branches[index]))
         {
-            var branch = union.Branches[index];
             var type = TypeOf(branch);
             if (seen.TryGetValue(type, out var earlier))
             {

@@ -106,7 +106,7 @@ public class LogicalTypesTests
     }
 
     [Test]
-    [Arguments("day", "outside the range of DateTime")]
+    [Arguments("day", "outside the range of Date")]
     [Arguments("id", "is not a UUID")]
     [Arguments("clock_millis", "not a time of day")]
     public async Task ValuesOutsideTheDotNetRange_AreRejectedWhenReading(string field, string message)

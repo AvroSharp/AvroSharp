@@ -67,6 +67,15 @@ public class AvroLogicalValuesTests
     }
 
     [Test]
+    public async Task DecimalsWithNoBytes_AreRejected()
+    {
+        // The unscaled value is a two's-complement integer of at least one byte, as Java's BigInteger requires (#111).
+        var encoded = Write((ref w) => w.WriteBytes([]));
+        var ex = Assert.Throws<AvroDataException>(() => Read(encoded, (ref r) => AvroLogicalValues.ReadDecimalBytes(ref r, 2)));
+        await Assert.That(ex.Message).Contains("has no bytes");
+    }
+
+    [Test]
     public async Task Uuids_UseRfc4122ByteOrderOnFixed()
     {
         var uuid = new Guid("00112233-4455-6677-8899-aabbccddeeff");
