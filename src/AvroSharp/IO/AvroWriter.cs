@@ -260,22 +260,83 @@ public ref struct AvroWriter
 
     /// <summary>Writes <c>int</c> array items, each as a zig-zag varint.</summary>
     /// <param name="values">The items; write the block count first.</param>
+    /// <remarks>See <see cref="WriteLongs"/>.</remarks>
     public void WriteInts(scoped ReadOnlySpan<int> values)
     {
-        foreach (var value in values)
+        var i = 0;
+        while (i < values.Length)
         {
-            WriteInt(value);
+            var room = (_buffer.Length - _buffered) / MaxVarint64Length;
+            if (room == 0)
+            {
+                // Grows the buffer, or near the end of a fixed span writes only the bytes the value needs.
+                WriteInt(values[i++]);
+                continue;
+            }
+
+            var end = Math.Min(values.Length, i + room);
+            ref var buffer = ref MemoryMarshal.GetReference(_buffer);
+            var position = _buffered;
+            for (; i < end; i++)
+            {
+                var value = values[i];
+                position += WriteVarintAt(ref Unsafe.Add(ref buffer, position), (uint)((value << 1) ^ (value >> 31)));
+            }
+
+            _buffered = position;
         }
     }
 
     /// <summary>Writes <c>long</c> array items, each as a zig-zag varint.</summary>
+    /// <remarks>
+    /// PERF: the position is kept in a local while the buffer has room for whole values, so it is not stored to and
+    /// reloaded from the writer after every value. That round trip through memory limits one-at-a-time writes on
+    /// CPUs without memory renaming for such addresses (the EPYC 7543 in #27).
+    /// </remarks>
     /// <param name="values">The items; write the block count first.</param>
     public void WriteLongs(scoped ReadOnlySpan<long> values)
     {
-        foreach (var value in values)
+        var i = 0;
+        while (i < values.Length)
         {
-            WriteLong(value);
+            var room = (_buffer.Length - _buffered) / MaxVarint64Length;
+            if (room == 0)
+            {
+                WriteLong(values[i++]);
+                continue;
+            }
+
+            var end = Math.Min(values.Length, i + room);
+            ref var buffer = ref MemoryMarshal.GetReference(_buffer);
+            var position = _buffered;
+            for (; i < end; i++)
+            {
+                var value = values[i];
+                position += WriteVarintAt(ref Unsafe.Add(ref buffer, position), (ulong)((value << 1) ^ (value >> 63)));
+            }
+
+            _buffered = position;
         }
+    }
+
+    /// <summary>Writes a varint at <paramref name="destination"/>, which has room for 10 bytes; returns its length.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int WriteVarintAt(ref byte destination, ulong value)
+    {
+        if (value < 0x80)
+        {
+            destination = (byte)value;
+            return 1;
+        }
+
+        if (value < 0x4000)
+        {
+            destination = (byte)(value | 0x80);
+            Unsafe.Add(ref destination, 1) = (byte)(value >> 7);
+            return 2;
+        }
+
+        return WriteVarintMulti(ref destination, value);
     }
 
     /// <summary>
@@ -337,13 +398,16 @@ public ref struct AvroWriter
     /// <remarks>
     /// PERF: hot path for every int, long, length, index and count.
     /// <list type="bullet">
-    /// <item>One and two bytes are written inline, and three and four bytes with direct stores, each behind its own
-    /// length branch. In records each field's length is usually stable, so these branches predict well. A
-    /// branchless one- and two-byte store (57c987c) was slower for uniform lengths on every machine measured, and
-    /// won only on randomly mixed lengths (docs/reviews/2026-09-26-branchless-varints.md).</item>
-    /// <item>Five to eight bytes (net8+) are one 8-byte store; the 7-bit groups are spread with BMI2 PDEP where it is
-    /// fast (see <c>FastBmi2</c>), or with shifts and masks otherwise.</item>
-    /// <item>Nine and ten bytes add one or two bytes after the word.</item>
+    /// <item>One and two bytes are written inline with direct stores, each behind its own length branch. In records
+    /// each field's length is usually stable, so these branches predict well. A branchless one- and two-byte store
+    /// (57c987c) was slower for uniform lengths on every machine measured, and won only on randomly mixed lengths
+    /// (docs/reviews/2026-09-26-branchless-varints.md).</item>
+    /// <item>Three to eight bytes (net8+, little-endian) are inline too, as one 8-byte store; the 7-bit groups are
+    /// spread with BMI2 PDEP where it is fast (see <c>FastBmi2</c>), or with shifts and masks otherwise. Out of
+    /// line, the call cost more than the store (#102): on the EPYC 7543 this made 3- to 8-byte values 26-35%
+    /// faster and 1- and 2-byte values about 5% slower, with record writes unchanged or faster.</item>
+    /// <item>Nine and ten bytes, and every length above two on netstandard and big-endian hosts, are out of line in
+    /// <see cref="WriteVarintMulti"/>.</item>
     /// </list>
     /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
     /// </remarks>
@@ -380,6 +444,18 @@ public ref struct AvroWriter
             _buffered += 2;
             return;
         }
+
+#if NET8_0_OR_GREATER
+        if (BitConverter.IsLittleEndian && value < 1UL << 56)
+        {
+            // Bytes past the varint are overwritten by the next value.
+            var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
+            var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
+            Unsafe.WriteUnaligned(ref destination, SpreadVarint(value) | continuation);
+            _buffered += length;
+            return;
+        }
+#endif
 
         _buffered += WriteVarintMulti(ref destination, value);
     }

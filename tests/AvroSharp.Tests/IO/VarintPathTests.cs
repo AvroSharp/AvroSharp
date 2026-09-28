@@ -55,6 +55,45 @@ public class VarintPathTests
     }
 
     [Test]
+    public async Task BulkWrites_OfEveryLength_MatchOneAtATimeWrites_InAnyBuffer()
+    {
+        // Every length shuffled together, enough values to cross buffer-writer growth, and an exactly sized span
+        // whose last values no longer have room for a whole 10-byte varint.
+        var random = new Random(77);
+        var all = ValuesByLength().SelectMany(values => values()).ToArray();
+        var longs = Enumerable.Range(0, 3000).Select(_ => all[random.Next(all.Length)]).Select(z => (long)(z >> 1) ^ -(long)(z & 1)).ToArray();
+        var ints = longs.Select(v => unchecked((int)v)).ToArray();
+
+        var expected = new ArrayBufferWriter<byte>();
+        var single = new AvroWriter(expected);
+        foreach (var value in longs)
+        {
+            single.WriteLong(value);
+        }
+
+        foreach (var value in ints)
+        {
+            single.WriteInt(value);
+        }
+
+        single.Flush();
+
+        var output = new ArrayBufferWriter<byte>(16);
+        var bulk = new AvroWriter(output);
+        bulk.WriteLongs(longs);
+        bulk.WriteInts(ints);
+        bulk.Flush();
+        await Assert.That(Convert.ToHexString(output.WrittenSpan)).IsEqualTo(Convert.ToHexString(expected.WrittenSpan));
+
+        var exact = new byte[expected.WrittenCount];
+        var span = new AvroWriter(exact);
+        span.WriteLongs(longs);
+        span.WriteInts(ints);
+        await Assert.That(span.BytesWritten).IsEqualTo(expected.WrittenCount);
+        await Assert.That(Convert.ToHexString(exact)).IsEqualTo(Convert.ToHexString(expected.WrittenSpan));
+    }
+
+    [Test]
     [MethodDataSource(nameof(ValuesByLength))]
     public async Task Int_EveryPath_MatchesTheReferenceEncoding(ulong[] zigZagValues)
     {
