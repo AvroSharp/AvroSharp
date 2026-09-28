@@ -53,6 +53,14 @@ AvroSharp.Containers.AvroFileWriterOptions.Metadata.get -> System.Collections.Ge
 AvroSharp.Containers.AvroFileWriterOptions.Metadata.init -> void
 AvroSharp.Containers.AvroFileWriterOptions.SyncInterval.get -> int
 AvroSharp.Containers.AvroFileWriterOptions.SyncInterval.init -> void
+AvroSharp.Generic.AvroFieldContext
+AvroSharp.Generic.AvroFieldContext.AvroFieldContext() -> void
+AvroSharp.Generic.AvroFieldContext.Equals(AvroSharp.Generic.AvroFieldContext other) -> bool
+AvroSharp.Generic.AvroFieldContext.Field.get -> AvroSharp.Schemas.RecordField!
+AvroSharp.Generic.AvroFieldContext.FullName.get -> string!
+AvroSharp.Generic.AvroFieldContext.Record.get -> AvroSharp.Schemas.RecordSchema!
+AvroSharp.Generic.AvroFieldContext.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.AvroFieldTransform
 AvroSharp.Generic.AvroValue
 AvroSharp.Generic.AvroValue.AsArray() -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.Generic.AvroValue.AsBoolean() -> bool
@@ -87,6 +95,7 @@ AvroSharp.Generic.AvroValueKind.Map = 11 -> AvroSharp.Generic.AvroValueKind
 AvroSharp.Generic.AvroValueKind.Null = 0 -> AvroSharp.Generic.AvroValueKind
 AvroSharp.Generic.AvroValueKind.Record = 8 -> AvroSharp.Generic.AvroValueKind
 AvroSharp.Generic.AvroValueKind.String = 7 -> AvroSharp.Generic.AvroValueKind
+AvroSharp.Generic.AvroValueTransformer
 AvroSharp.Generic.GenericDatumJsonReader
 AvroSharp.Generic.GenericDatumJsonReader.Read(ref System.Text.Json.Utf8JsonReader reader) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumJsonReader.Read(string! json) -> AvroSharp.Generic.AvroValue
@@ -435,6 +444,8 @@ const AvroSharp.Serialization.AvroGeneratedCode.MaxZeroSizeItems = 65536 -> int
 const AvroSharp.Streams.AvroStreamOptions.DefaultBufferSize = 65536 -> int
 const AvroSharp.Streams.AvroStreamOptions.DefaultMaxDatumLength = 67108864 -> int
 override AvroSharp.Containers.AvroCodec.ToString() -> string!
+override AvroSharp.Generic.AvroFieldContext.Equals(object? obj) -> bool
+override AvroSharp.Generic.AvroFieldContext.GetHashCode() -> int
 override AvroSharp.Generic.AvroValue.Equals(object? obj) -> bool
 override AvroSharp.Generic.AvroValue.GetHashCode() -> int
 override AvroSharp.Generic.AvroValue.ToString() -> string!
@@ -470,6 +481,8 @@ static AvroSharp.Containers.AvroFileReaderOptions.Default.get -> AvroSharp.Conta
 static AvroSharp.Containers.AvroFileWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Containers.AvroFileWriterOptions? options = null) -> AvroSharp.Containers.AvroFileWriter<T>!
 static AvroSharp.Containers.AvroFileWriter.CreateGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Containers.AvroFileWriterOptions? options = null, AvroSharp.Generic.GenericDatumWriterOptions? writerOptions = null) -> AvroSharp.Containers.AvroFileWriter<AvroSharp.Generic.AvroValue>!
 static AvroSharp.Containers.AvroFileWriterOptions.Default.get -> AvroSharp.Containers.AvroFileWriterOptions!
+static AvroSharp.Generic.AvroFieldContext.operator !=(AvroSharp.Generic.AvroFieldContext left, AvroSharp.Generic.AvroFieldContext right) -> bool
+static AvroSharp.Generic.AvroFieldContext.operator ==(AvroSharp.Generic.AvroFieldContext left, AvroSharp.Generic.AvroFieldContext right) -> bool
 static AvroSharp.Generic.AvroValue.FromArray(System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>! items) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromBoolean(bool value) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromByteArray(byte[]? value) -> AvroSharp.Generic.AvroValue
@@ -495,6 +508,7 @@ static AvroSharp.Generic.AvroValue.implicit operator AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.Null.get -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.operator !=(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
 static AvroSharp.Generic.AvroValue.operator ==(AvroSharp.Generic.AvroValue left, AvroSharp.Generic.AvroValue right) -> bool
+static AvroSharp.Generic.AvroValueTransformer.Transform(AvroSharp.Schemas.AvroSchema! schema, in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.AvroFieldTransform! transform, int maxDepth = 128) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.GenericDatumJsonReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumJsonReader!
 static AvroSharp.Generic.GenericDatumJsonWriter.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumWriterOptions? options = null) -> AvroSharp.Generic.GenericDatumJsonWriter!
 static AvroSharp.Generic.GenericDatumReader.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.GenericDatumReader!
@@ -606,5 +620,6 @@ static AvroSharp.Streams.AvroStreamReader.Open<T>(System.IO.Stream! stream, Avro
 static AvroSharp.Streams.AvroStreamReader.OpenGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema? readerSchema = null, AvroSharp.Streams.AvroStreamOptions? options = null, AvroSharp.Generic.GenericDatumReaderOptions? readerOptions = null) -> AvroSharp.Streams.AvroStreamReader<AvroSharp.Generic.AvroValue>!
 static AvroSharp.Streams.AvroStreamWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Streams.AvroStreamOptions? options = null) -> AvroSharp.Streams.AvroStreamWriter<T>!
 static AvroSharp.Streams.AvroStreamWriter.CreateGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Streams.AvroStreamOptions? options = null, AvroSharp.Generic.GenericDatumWriterOptions? writerOptions = null) -> AvroSharp.Streams.AvroStreamWriter<AvroSharp.Generic.AvroValue>!
+virtual AvroSharp.Generic.AvroFieldTransform.Invoke(in AvroSharp.Generic.AvroFieldContext field, in AvroSharp.Generic.AvroValue value) -> AvroSharp.Generic.AvroValue
 virtual AvroSharp.Serialization.AvroReadFunc<T>.Invoke(ref AvroSharp.IO.AvroReader reader) -> T
 virtual AvroSharp.Serialization.AvroWriteAction<T>.Invoke(ref AvroSharp.IO.AvroWriter writer, T value) -> void
