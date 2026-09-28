@@ -9,7 +9,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - object container files (synchronous and asynchronous) with every codec in the specification;
 > - single-object encoding.
 >
-> See [the design](docs/design.md) for the roadmap.
+> See [the roadmap](docs/roadmap.md) for what is next, and [the docs](docs/README.md) for the design and reviews.
 
 ## Goals
 
