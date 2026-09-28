@@ -14,11 +14,14 @@
     <PackageReference Include="Apache.Avro" />
     <!-- Confluent's serializer, to check that Confluent framing is byte-identical to it. -->
     <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Apache.Avro.File.Snappy" />
+    <PackageReference Include="Apache.Avro.File.BZip2" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Codecs\AvroSharp.Codecs.csproj" />
   </ItemGroup>
 
   <ItemGroup>

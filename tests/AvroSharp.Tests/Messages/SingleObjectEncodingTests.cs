@@ -118,6 +118,26 @@ public class SingleObjectEncodingTests
     }
 
     [Test]
+    public async Task MessagesThatAlternateBetweenSchemas_UseEachSchemasReader()
+    {
+        var calls = 0;
+        var reader = AvroMessageReader.Create<string>(new AvroSchemaStore(s_v1, s_v2), schema =>
+        {
+            calls++;
+            var datumReader = GenericDatumReader.Create(schema);
+            var version = ReferenceEquals(schema, s_v1) ? "v1" : "v2";
+            return (ref AvroReader r) => $"{version}:{datumReader.Read(ref r).AsRecord()["name"].AsString()}";
+        });
+        var old = AvroMessage.ToArray(User(s_v1, 1, "a"), GenericDatumWriter.Create(s_v1));
+        var current = AvroMessage.ToArray(new GenericRecord(s_v2) { ["id"] = 2L, ["name"] = "b", ["active"] = true }, GenericDatumWriter.Create(s_v2));
+
+        var read = new[] { old, current, current, old, current }.Select(m => reader.Read(m)).ToArray();
+
+        await Assert.That(string.Join(",", read)).IsEqualTo("v1:a,v2:b,v2:b,v1:a,v2:b");
+        await Assert.That(calls).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task AStoreThatReturnsTheWrongSchema_IsReported()
     {
         var message = AvroMessage.ToArray(User(s_v1, 1, "a"), GenericDatumWriter.Create(s_v1));

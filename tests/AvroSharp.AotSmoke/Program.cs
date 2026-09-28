@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using AvroSharp;
 using AvroSharp.Schemas;
@@ -73,8 +74,8 @@ var decoded = AvroSharp.Generic.GenericDatumReader.Create(person).Read(encoded);
 Check(decoded.Equals((AvroSharp.Generic.AvroValue)alice), "generic record round trip");
 Check(Same(Convert.ToHexString(encoded), "0A416C6963653C06029003050000"), "generic record bytes");
 
-// Object container files with each built-in codec.
-foreach (var codec in new[] { AvroSharp.Containers.AvroCodec.Null, AvroSharp.Containers.AvroCodec.Deflate })
+// Object container files with every codec: the built-in ones and those of AvroSharp.Codecs.
+foreach (var codec in new[] { AvroSharp.Containers.AvroCodec.Null, AvroSharp.Containers.AvroCodec.Deflate }.Concat(AvroSharp.Codecs.AvroCodecs.All))
 {
     using var file = new MemoryStream();
     using (var writer = AvroSharp.Containers.AvroFileWriter.CreateGeneric(file, person, new AvroSharp.Containers.AvroFileWriterOptions { Codec = codec, SyncInterval = 16, LeaveOpen = true }))
@@ -86,7 +87,7 @@ foreach (var codec in new[] { AvroSharp.Containers.AvroCodec.Null, AvroSharp.Con
     }
 
     file.Position = 0;
-    using var reader = AvroSharp.Containers.AvroFileReader.OpenGeneric(file);
+    using var reader = AvroSharp.Containers.AvroFileReader.OpenGeneric(file, options: new AvroSharp.Containers.AvroFileReaderOptions { Codecs = AvroSharp.Codecs.AvroCodecs.All });
     var count = 0;
     foreach (var record in reader.ReadAll())
     {

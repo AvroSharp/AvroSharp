@@ -90,7 +90,20 @@ public sealed partial class AvroFileReader<T>
     public bool PastSync(long position)
     {
         RequireSeekable();
-        return PreviousSync >= position + AvroContainerFormat.SyncSize || PreviousSync >= _stream.Length;
+        var previous = PreviousSync;
+        if (previous >= position + AvroContainerFormat.SyncSize)
+        {
+            return true;
+        }
+
+        // The split loop asks for every object, and Stream.Length can be a system call: check it once per block.
+        if (previous != _endCheckedFor)
+        {
+            _endCheckedFor = previous;
+            _blockIsAtEnd = previous >= _stream.Length;
+        }
+
+        return _blockIsAtEnd;
     }
 
     private long LogicalPosition => _stream.Position - Buffered;

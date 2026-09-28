@@ -34,7 +34,32 @@ public sealed partial class AvroFileReader<T>
             throw NotAContainer();
         }
 
-        var metadata = new Dictionary<string, ReadOnlyMemory<byte>>(StringComparer.Ordinal);
+        // Entries are recorded as positions in the buffer, and turned into strings and copies only once the whole
+        // header is buffered: an attempt that runs out of data costs no allocations.
+        var entries = _headerEntries ??= [];
+        entries.Clear();
+        if (!TryParseMetadataEntries(ref cursor, entries, out needed))
+        {
+            return false;
+        }
+
+        needed = "sync marker";
+        if (!cursor.TrySlice(AvroContainerFormat.SyncSize, out var sync))
+        {
+            return false;
+        }
+
+        var metadata = BuildMetadata(_input.AsSpan(_inputStart, cursor.Position), entries);
+        _headerEntries = null;
+        sync.CopyTo(_sync);
+        _inputStart += cursor.Position;
+        SetHeader(metadata);
+        return true;
+    }
+
+    // The metadata map: blocks of key/value pairs, ended by a zero count.
+    private bool TryParseMetadataEntries(ref Cursor cursor, List<((int Start, int Length) Key, (int Start, int Length) Value)> entries, out string needed)
+    {
         while (true)
         {
             needed = "metadata block count";
@@ -45,7 +70,7 @@ public sealed partial class AvroFileReader<T>
 
             if (count == 0)
             {
-                break;
+                return true;
             }
 
             if (count < 0)
@@ -60,32 +85,35 @@ public sealed partial class AvroFileReader<T>
 
             for (var i = 0L; i < count; i++)
             {
-                if (!TryReadLengthPrefixed(ref cursor, "metadata key", out var key, out needed)
-                    || !TryReadLengthPrefixed(ref cursor, "metadata value", out var value, out needed))
+                if (!TryReadLengthPrefixed(ref cursor, "metadata key", "metadata key length", out var key, out needed)
+                    || !TryReadLengthPrefixed(ref cursor, "metadata value", "metadata value length", out var value, out needed))
                 {
                     return false;
                 }
 
-                metadata[Encoding.UTF8.GetString(key)] = value.ToArray();
+                entries.Add((key, value));
             }
         }
-
-        needed = "sync marker";
-        if (!cursor.TrySlice(AvroContainerFormat.SyncSize, out var sync))
-        {
-            return false;
-        }
-
-        sync.CopyTo(_sync);
-        _inputStart += cursor.Position;
-        SetHeader(metadata);
-        return true;
     }
 
-    private bool TryReadLengthPrefixed(ref Cursor cursor, string what, out ReadOnlySpan<byte> bytes, out string needed)
+    private static Dictionary<string, ReadOnlyMemory<byte>> BuildMetadata(
+        ReadOnlySpan<byte> header, List<((int Start, int Length) Key, (int Start, int Length) Value)> entries)
     {
-        bytes = default;
-        needed = what + " length";
+        var metadata = new Dictionary<string, ReadOnlyMemory<byte>>(entries.Count, StringComparer.Ordinal);
+        foreach (var (key, value) in entries)
+        {
+            metadata[Encoding.UTF8.GetString(header.Slice(key.Start, key.Length))] = header.Slice(value.Start, value.Length).ToArray();
+        }
+
+        return metadata;
+    }
+
+    // Reads a length and skips that many bytes; `range` is where they are, relative to the cursor's start. The names
+    // are constants, so a retried parse allocates nothing for them.
+    private bool TryReadLengthPrefixed(ref Cursor cursor, string what, string whatLength, out (int Start, int Length) range, out string needed)
+    {
+        range = default;
+        needed = whatLength;
         if (!cursor.TryReadLong(needed, out var length))
         {
             return false;
@@ -97,7 +125,14 @@ public sealed partial class AvroFileReader<T>
         }
 
         needed = what;
-        return cursor.TrySlice((int)length, out bytes);
+        var start = cursor.Position;
+        if (!cursor.TrySlice((int)length, out _))
+        {
+            return false;
+        }
+
+        range = (start, (int)length);
+        return true;
     }
 
     private void SetHeader(Dictionary<string, ReadOnlyMemory<byte>> metadata)
@@ -118,9 +153,12 @@ public sealed partial class AvroFileReader<T>
 
         Metadata = metadata;
         var codecName = GetMetadataString(AvroContainerFormat.CodecKey) ?? AvroCodecNames.Null;
-        _codec = FindCodec(codecName, _codecs)
-            ?? throw new AvroException($"The file is compressed with the '{codecName}' codec, which is not available; add it to AvroFileReaderOptions.Codecs.");
+        _codec = FindCodec(codecName, _codecs) ?? throw CodecNotAvailable(codecName);
     }
+
+    private static AvroException CodecNotAvailable(string name) => AvroCodecNames.IsStandard(name)
+        ? new($"The file is compressed with the '{name}' codec, which is not available. Reference the AvroSharp.Codecs package and set AvroFileReaderOptions.Codecs to AvroCodecs.All.")
+        : new($"The file is compressed with the '{name}' codec, which is not available; add it to AvroFileReaderOptions.Codecs.");
 
     // The header is parsed again after each fill, so the buffered amount grows geometrically, up to the limit.
     private int NextHeaderFill()
@@ -165,8 +203,13 @@ public sealed partial class AvroFileReader<T>
             throw new AvroDataException($"A block of {size} bytes is larger than the limit of {_maxBlockLength} bytes (AvroFileReaderOptions.MaxBlockLength).");
         }
 
-        ReturnRaw();
-        _raw = ArrayPool<byte>.Shared.Rent(Math.Max((int)size, 1));
+        // Kept from block to block while it is large enough; blocks near the sync interval rarely need a new one.
+        if (_raw.Length < size || _raw.Length == 0)
+        {
+            ReturnRaw();
+            _raw = ArrayPool<byte>.Shared.Rent(Math.Max((int)size, 1));
+        }
+
         var copied = Math.Min(Buffered, (int)size);
         _input.AsSpan(_inputStart, copied).CopyTo(_raw);
         _inputStart += copied;
@@ -182,42 +225,43 @@ public sealed partial class AvroFileReader<T>
         }
 
         _inputStart += AvroContainerFormat.SyncSize;
-        _blockData = Decompress(_raw.AsMemory(0, size));
+        _blockData = Decompress(new ArraySegment<byte>(_raw, 0, size));
 
         // Every object takes at least one byte except zero-size ones (null, empty records), which input cannot bound.
-        if (count > _blockData.Length && count > AvroGeneratedCode.MaxZeroSizeItems)
+        if (count > _blockData.Count && count > AvroGeneratedCode.MaxZeroSizeItems)
         {
-            throw new AvroDataException($"A block declares {count} objects in {_blockData.Length} bytes.");
+            throw new AvroDataException($"A block declares {count} objects in {_blockData.Count} bytes.");
         }
 
-        if (count == 0 && _blockData.Length != 0)
+        if (count == 0 && _blockData.Count != 0)
         {
-            throw new AvroDataException($"A block declares no objects but holds {_blockData.Length} bytes.");
+            throw new AvroDataException($"A block declares no objects but holds {_blockData.Count} bytes.");
         }
 
         _position = 0;
         _objectsLeft = count;
     }
 
-    private ReadOnlyMemory<byte> Decompress(ReadOnlyMemory<byte> raw)
+    private ArraySegment<byte> Decompress(ArraySegment<byte> raw)
     {
         if (ReferenceEquals(_codec, AvroCodec.Null))
         {
             return raw;
         }
 
-        _decompressed ??= new PooledBufferWriter(Math.Max(raw.Length * 4, 256));
+        _decompressed ??= new PooledBufferWriter(Math.Max(raw.Count * 4, 256));
+        _limited ??= new LimitedBufferWriter(_decompressed, _maxBlockLength);
         _decompressed.Clear();
         try
         {
-            _codec.Decompress(raw, new LimitedBufferWriter(_decompressed, _maxBlockLength));
+            _codec.Decompress(raw, _limited);
         }
         catch (InvalidDataException ex)
         {
             throw new AvroDataException($"A block cannot be decompressed with the '{_codec.Name}' codec: {ex.Message}", ex);
         }
 
-        return _decompressed.WrittenMemory;
+        return _decompressed.WrittenSegment;
     }
 
     private static AvroCodec? FindCodec(string name, IReadOnlyList<AvroCodec> extra)

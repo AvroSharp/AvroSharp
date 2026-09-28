@@ -6,10 +6,10 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - schemas (parsing, writing, canonical form, fingerprints);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files;
-> - object container files (synchronous and asynchronous) with the `null` and `deflate` codecs;
+> - object container files (synchronous and asynchronous) with every codec in the specification;
 > - single-object encoding.
 >
-> Not implemented yet: the codecs besides `null` and `deflate`. See [the design](docs/design.md) for the roadmap.
+> See [the design](docs/design.md) for the roadmap.
 
 ## Goals
 
@@ -19,6 +19,52 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 - Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and `System.IO.Pipelines`.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
 - Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
+
+## Getting started
+
+Parse a schema, then write and read values of it with the generic data model. `AvroValue` holds any Avro value without boxing, and a `GenericRecord` holds a record's fields by name or position.
+
+```csharp
+using AvroSharp.Generic;
+using AvroSharp.Schemas;
+
+var schema = (RecordSchema)AvroSchema.Parse("""
+    {"type":"record","name":"User","namespace":"example","fields":[
+      {"name":"id","type":"int"},
+      {"name":"name","type":"string"}]}
+    """);
+
+var user = new GenericRecord(schema) { ["id"] = 1, ["name"] = "Ada" };
+byte[] bytes = GenericDatumWriter.Create(schema).WriteToArray(user);
+
+GenericRecord copy = GenericDatumReader.Create(schema).Read(bytes).AsRecord();
+string name = copy["name"].AsString();
+```
+
+**Schema evolution.** Data written with one version of a schema can be read as another. Fields are matched by name or alias, removed fields are skipped, added fields take their defaults, and numbers are promoted:
+
+```csharp
+var v2 = AvroSchema.Parse("""
+    {"type":"record","name":"User","namespace":"example","fields":[
+      {"name":"id","type":"long"},
+      {"name":"name","type":"string"},
+      {"name":"active","type":"boolean","default":true}]}
+    """);
+
+GenericRecord upgraded = GenericDatumReader.Create(writerSchema: schema, readerSchema: v2).Read(bytes).AsRecord();
+bool active = upgraded["active"].AsBoolean();   // true, the default
+```
+
+Readers and writers are cached per schema (or schema pair) and are thread-safe, so they can be shared.
+
+**JSON.** The specification's JSON encoding, with wrapped union values:
+
+```csharp
+string json = GenericDatumJsonWriter.Create(schema).WriteToString(user);   // {"id":1,"name":"Ada"}
+AvroValue fromJson = GenericDatumJsonReader.Create(schema).Read(json);
+```
+
+For your own types, [generate C# classes from the schema files](#code-generation-from-schema-files): they read and write without the generic model.
 
 ## Object container files
 
@@ -34,7 +80,19 @@ await using var asyncReader = await AvroFileReader.OpenGenericAsync(stream);
 await foreach (var value in asyncReader.ReadAllAsync(cancellationToken)) { ... }
 ```
 
-Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound. Other codecs can be plugged in by subclassing `AvroCodec`.
+Generated types use their own serializers: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The reader checks every block against the file's sync marker, and limits block sizes (`AvroFileReaderOptions.MaxBlockLength`) so a malformed or hostile file cannot make it allocate without bound.
+
+**Codecs.** `null` and `deflate` are built in. The `AvroSharp.Codecs` package adds the specification's other codecs (snappy, zstandard, bzip2 and xz) on fully managed libraries, with no native binaries:
+
+```csharp
+// Reading: a file's codec is not known until it is opened, so give the reader all of them.
+using var reader = AvroFileReader.OpenGeneric(stream, options: new AvroFileReaderOptions { Codecs = AvroCodecs.All });
+
+// Writing: pick one, with the same defaults as Apache Avro Java.
+var options = new AvroFileWriterOptions { Codec = ZstandardCodec.Default };      // or new ZstandardCodec(level: 9, checksum: true)
+```
+
+The codecs are checked against files written by Apache Avro Java, and Java reads the files they write. Other codecs can be plugged in by subclassing `AvroCodec`.
 
 ## Single-object encoding
 

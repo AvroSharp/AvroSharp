@@ -43,7 +43,11 @@ public sealed class AvroMessageReader<T>
 {
     private readonly IAvroSchemaStore _store;
     private readonly Func<AvroSchema, AvroReadFunc<T>> _createReader;
-    private readonly ConcurrentDictionary<long, AvroReadFunc<T>> _readers = new();
+    private readonly ConcurrentDictionary<long, CachedReader> _readers = new();
+
+    // Messages usually repeat one schema, so the last entry used is checked before the dictionary. Entries are
+    // immutable and the field is read once per message, so concurrent readers always see a matching pair.
+    private CachedReader? _last;
 
     internal AvroMessageReader(IAvroSchemaStore store, Func<AvroSchema, AvroReadFunc<T>> createReader)
     {
@@ -66,9 +70,15 @@ public sealed class AvroMessageReader<T>
             throw new AvroDataException("The data is not a single-object encoded Avro message: it does not start with C3 01 and an 8-byte fingerprint.");
         }
 
-        var read = _readers.TryGetValue(fingerprint, out var cached) ? cached : CreateReader(fingerprint);
+        var cached = _last;
+        if (cached is null || cached.Fingerprint != fingerprint)
+        {
+            cached = _readers.TryGetValue(fingerprint, out var found) ? found : CreateReader(fingerprint);
+            _last = cached;
+        }
+
         var reader = new AvroReader(message[AvroMessage.HeaderLength..]);
-        var value = read(ref reader);
+        var value = cached.Read(ref reader);
         if (!reader.IsAtEnd)
         {
             throw new AvroDataException($"The message has {reader.BytesRemaining} bytes left after its object.");
@@ -77,7 +87,7 @@ public sealed class AvroMessageReader<T>
         return value;
     }
 
-    private AvroReadFunc<T> CreateReader(long fingerprint)
+    private CachedReader CreateReader(long fingerprint)
     {
         var schema = _store.GetSchema(fingerprint)
             ?? throw new AvroDataException($"The message was written with a schema whose fingerprint (0x{fingerprint:X16}) is not in the schema store.");
@@ -86,6 +96,14 @@ public sealed class AvroMessageReader<T>
             throw new AvroException($"The schema store returned a schema whose fingerprint is 0x{schema.Fingerprint64:X16}, not 0x{fingerprint:X16}.");
         }
 
-        return _readers.GetOrAdd(fingerprint, _createReader(schema) ?? throw new InvalidOperationException("createReader returned null."));
+        var read = _createReader(schema) ?? throw new InvalidOperationException("createReader returned null.");
+        return _readers.GetOrAdd(fingerprint, new CachedReader(fingerprint, read));
+    }
+
+    private sealed class CachedReader(long fingerprint, AvroReadFunc<T> read)
+    {
+        public long Fingerprint { get; } = fingerprint;
+
+        public AvroReadFunc<T> Read { get; } = read;
     }
 }

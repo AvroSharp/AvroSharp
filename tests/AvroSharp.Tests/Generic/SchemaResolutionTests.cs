@@ -318,6 +318,62 @@ public class SchemaResolutionTests
     }
 
     [Test]
+    public async Task Transcoding_ReordersNestedRecordFields_RepeatedlyOnOneThread()
+    {
+        // The reader orders the fields differently at both levels and adds one, so every record takes the reordering
+        // path, whose slot arrays are pooled: repeated values must not see a previous value's fields.
+        var writer = (RecordSchema)AvroSchema.Parse("""
+            {"type":"record","name":"Outer","fields":[
+              {"name":"a","type":"int"},
+              {"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"x","type":"string"},{"name":"y","type":"int"}]}},
+              {"name":"b","type":"string"}]}
+            """);
+        var reader = AvroSchema.Parse("""
+            {"type":"record","name":"Outer","fields":[
+              {"name":"b","type":"string"},
+              {"name":"added","type":"int","default":42},
+              {"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"y","type":"long"},{"name":"x","type":"string"}]}},
+              {"name":"a","type":"long"}]}
+            """);
+        var innerSchema = (RecordSchema)writer.Fields[1].Schema;
+
+        for (var i = 0; i < 3; i++)
+        {
+            var value = new GenericRecord(writer)
+            {
+                ["a"] = i,
+                ["inner"] = new GenericRecord(innerSchema) { ["x"] = $"x{i}", ["y"] = i * 10 },
+                ["b"] = $"b{i}",
+            };
+
+            var resolved = Resolve(writer, reader, value).AsRecord();
+
+            await Assert.That(resolved["a"].AsInt64()).IsEqualTo(i);
+            await Assert.That(resolved["b"].AsString()).IsEqualTo($"b{i}");
+            await Assert.That(resolved["added"].AsInt32()).IsEqualTo(42);
+            await Assert.That(resolved["inner"].AsRecord()["x"].AsString()).IsEqualTo($"x{i}");
+            await Assert.That(resolved["inner"].AsRecord()["y"].AsInt64()).IsEqualTo(i * 10L);
+        }
+    }
+
+    [Test]
+    public async Task IsSameSchema_ComparesCanonicalForms_AndStaysCorrectWhenReaderSchemasAlternate()
+    {
+        const string V1 = """{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}""";
+        var writer = AvroSchema.Parse(V1);
+        var sameAsWriter = AvroSchema.Parse(V1);
+        var other = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"long"}]}""");
+
+        // Repeated checks, as a reader of generated types makes once per record, alternating between reader schemas.
+        for (var i = 0; i < 3; i++)
+        {
+            await Assert.That(AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writer, sameAsWriter)).IsTrue();
+            await Assert.That(AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writer, other)).IsFalse();
+            await Assert.That(AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writer, writer)).IsTrue();
+        }
+    }
+
+    [Test]
     public async Task ReadersForTheSameSchemaPair_AreCached()
     {
         var writer = AvroSchema.Parse("\"int\"");

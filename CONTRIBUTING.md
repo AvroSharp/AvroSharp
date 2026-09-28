@@ -15,7 +15,7 @@
 ## Building and testing
 
 ```shell
-dotnet build -c Release -f net10.0
+dotnet build -c Release
 dotnet test --solution AvroSharp.slnx -c Release -f net10.0
 ```
 

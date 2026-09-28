@@ -17,6 +17,10 @@ public abstract class AvroSchema
 
     private CanonicalData? _canonical;
 
+    // The last schema found to have this schema's canonical form, so that repeated checks against it (once per record
+    // when reading generated types from a file or messages) compare references instead of the canonical text.
+    private AvroSchema? _sameCanonicalForm;
+
     private protected AvroSchema(AvroSchemaType type, AvroLogicalType? logicalType, IReadOnlyDictionary<string, JsonElement>? properties)
     {
         Type = type;
@@ -123,6 +127,23 @@ public abstract class AvroSchema
 
     // Benign race: concurrent callers compute identical values and one reference wins.
     private CanonicalData GetCanonical() => _canonical ??= CanonicalData.Create(this);
+
+    /// <summary>Gets whether <paramref name="other"/> has this schema's Parsing Canonical Form (and so the same encoding).</summary>
+    internal bool HasSameCanonicalForm(AvroSchema other)
+    {
+        if (ReferenceEquals(this, other) || ReferenceEquals(_sameCanonicalForm, other))
+        {
+            return true;
+        }
+
+        if (Fingerprint64 != other.Fingerprint64 || !string.Equals(CanonicalForm, other.CanonicalForm, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        _sameCanonicalForm = other;
+        return true;
+    }
 
     private sealed class CanonicalData
     {
