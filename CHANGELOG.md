@@ -46,7 +46,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Full schema JSON writer, Parsing Canonical Form, and CRC-64-AVRO, MD5 and SHA-256 fingerprints.
 - Tests against Apache Avro's `schema-tests.txt` vectors, property-based interop tests against Apache.Avro (C#), a Native AOT smoke test, and schema-parse benchmarks gated against Apache.Avro.
 - `AvroCodecNames`: the codec names defined by the specification.
-- Repository skeleton: build settings, analyzers, public API tracking, strong naming, TUnit tests on .NET 8/9/10 and .NET Framework 4.8.1, and CI on Linux (x64 and Arm64); Windows and .NET Framework are tested locally until the Windows runners are re-enabled (#72).
+- Repository skeleton: build settings, analyzers, public API tracking, strong naming, TUnit tests on .NET 8/9/10 and .NET Framework 4.8.1, and CI on Linux and Windows (x64 and Arm64), including .NET Framework 4.8.1 on Windows (#72).
 
 ### Changed
 

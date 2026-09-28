@@ -25,18 +25,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows runners are disabled for now: they are slow, and Windows (including net481) is tested locally.
-        # Re-enable them before publishing packages.
-        os: [ubuntu-latest, ubuntu-24.04-arm] # , windows-latest, windows-11-arm
+        # Linux and Windows, x64 and Arm64. On Windows the tests also run on net481: the netstandard2.0 build on
+        # .NET Framework.
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm]
         include:
           - os: ubuntu-latest
             rid: linux-x64
           - os: ubuntu-24.04-arm
             rid: linux-arm64
-          # - os: windows-latest
-          #   rid: win-x64
-          # - os: windows-11-arm
-          #   rid: win-arm64
+          - os: windows-latest
+            rid: win-x64
+          - os: windows-11-arm
+            rid: win-arm64
 
     steps:
       - uses: actions/checkout@v7
