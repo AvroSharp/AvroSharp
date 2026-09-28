@@ -13,7 +13,7 @@ The live status of each milestone. The milestones and their exit criteria come f
 | M5: container files, codecs, single-object encoding | Mostly done | Pipelined reading through Channels; the benchmark gate for every codec (#32) |
 | M6: CLI tool and protocols | Not started | #33 |
 | M7: hardening and 1.0 | Started | #35: API review (#73), package metadata (#66), docs site (#74), coverage (#75), release workflows (#76), fuzzing nightly (#34) |
-| Integrations | Planned | #77: Confluent (#79), and the core features it needs (#80, #81, #82, #31) |
+| Integrations | Started | #77: Confluent (#79). Done: schema references (#80) and registry wire framing (#81). Remaining core work: the field walker (#82) and the typed serializer lookup (#31) |
 
 ## Done, in more detail
 
@@ -21,6 +21,7 @@ The live status of each milestone. The milestones and their exit criteria come f
 - **Encoding:** `AvroWriter`/`AvroReader` over spans, `IBufferWriter<byte>` and `ReadOnlySequence<byte>`. The generic model (`AvroValue`, `GenericRecord`) is binary and JSON, with schema resolution.
 - **Code generation:** records, enums and fixed types with direct serializers, the Apache.Avro compatibility mode, logical types, and resolution for generated types.
 - **Files and messages:**
+  - schema-registry wire framing (Confluent, Apicurio, AWS Glue) and schema references;
   - container files, sync and async, with seeking and splitting;
   - every codec: `null` and `deflate` built in, and snappy, zstandard, bzip2 and xz in `AvroSharp.Codecs`;
   - single-object encoding;
