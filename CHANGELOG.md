@@ -48,6 +48,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Changed
 
 - `AvroSchema.ToJson()` now gives the text of Apache Avro Java's `Schema.toString()`: a named type's `aliases` come after its custom properties, numbers with a fraction or exponent in defaults and properties are printed as Java prints them (`1e10` becomes `1.0E10`, computed exactly on every runtime), and only `"`, `` and control characters are escaped. The parsed schema and its canonical form are unchanged.
+- `AvroWriter.WriteString` encodes in one pass when the buffer has room for the longest possible encoding. It reserves the prefix for 3 bytes per char, encodes, then writes the real length, moving the bytes down when the prefix is shorter. Otherwise it counts first, as before, so a fixed-size span destination that holds exactly the encoding still works. On the string encode benchmark (i7, ShortRun), it went from 0.88x to 0.83x Apache.Avro's time (#25).
 - Container files use their streams less:
   - The writer writes each block, with its count, size and sync marker, in one stream write instead of three. That is one call or one await per block. Its block buffer is sized from the sync interval (#62).
   - The reader keeps its block buffer between blocks while it is large enough, reuses the buffer that limits decompressed size, and decodes objects from an array segment (#62).
