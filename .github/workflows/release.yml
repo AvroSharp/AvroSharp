@@ -87,6 +87,20 @@ jobs:
             echo "No '## [$version]' section in CHANGELOG.md (fine for a rehearsal on an untagged ref)" > release-notes.md
           fi
 
+      # nuget.org rejects a symbol package without a .pdb, which the push step would only find out after publishing
+      # some packages; a rehearsal catches it here.
+      - name: Check the symbol packages
+        shell: bash
+        run: |
+          status=0
+          for symbols in artifacts/package/release/*.snupkg; do
+            if ! unzip -l "$symbols" | grep -q '\.pdb$'; then
+              echo "::error::$(basename "$symbols") contains no .pdb files; nuget.org would reject it"
+              status=1
+            fi
+          done
+          exit $status
+
       - uses: actions/upload-artifact@v7
         with:
           name: release
@@ -116,9 +130,21 @@ jobs:
         with:
           user: ${{ vars.NUGET_USER }}
 
-      # The symbol packages (.snupkg) are pushed with the packages.
+      # One push per package, each with its symbol package, so a rejected package does not stop the others. Already
+      # published versions are skipped, so the job can be run again after a partial publish.
       - name: Push to nuget.org
-        run: dotnet nuget push "artifacts/package/release/*.nupkg" --api-key "${{ steps.nuget.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.nuget.outputs.NUGET_API_KEY }}
+        run: |
+          status=0
+          for package in artifacts/package/release/*.nupkg; do
+            if ! dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate; then
+              echo "::error::$(basename "$package") was not published"
+              status=1
+            fi
+          done
+          exit $status
 
       - name: Create the GitHub release
         env:

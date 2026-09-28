@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- Releasing: `AvroSharp.Generators` no longer produces a symbol package. It had no `.pdb` in it, since the generator ships under `analyzers/`, and nuget.org's rejection stopped the 0.1.0 publish before `AvroSharp.CodeGen`. The generator's PDB is embedded in its DLL instead. The release workflow now pushes each package separately and checks, while packing, that every symbol package contains a PDB.
+
 ## [0.1.0] - 2026-09-28
 
 The first preview. It covers:
