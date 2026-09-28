@@ -135,4 +135,9 @@ Bulk long reads, schema parsing and varint decode are within ±5% of 7311fd2. Th
 4. **The `FastBmi2` inline path is not measured by either run.** The EPYC 7543 or the i7-12800H would cover it.
 5. **The nas's 1-byte encode gate failure** predates this branch and is unchanged.
 
+Addressed in the next commit, to be measured again on both machines:
+
+- **Follow-up 1:** `WriteMultiByteVarint` builds the 4-group value only below 2^35 (3 to 5 bytes). Longer values skip that block with one compare, as on main.
+- **Follow-up 2, a likely cause:** the tier-1 code of a loop that writes only 2-byte values contained `call [CORINFO_HELP_GET_NONGCSTATIC_BASE]`. `FastBmi2` had not been initialized, because nothing in that loop reached the 3-byte-and-up check, so the JIT could not fold `FastBmi2.IsSupported` to a constant and kept a class-initialization call in the loop. Main's loop has no such call. The reader and writer constructors now initialize `FastBmi2`, and the call is gone from the tier-1 code. Whether this was the nas's +26% needs the repeat run.
+
 The BenchmarkDotNet reports are not committed. They are in `BenchmarkDotNet.Artifacts` on each machine: `BenchmarkRun-20260928-160958.log` on the i5 and `BenchmarkRun-20260928-160955.log` on the nas.

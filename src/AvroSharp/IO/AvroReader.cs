@@ -54,6 +54,9 @@ public ref struct AvroReader
     /// <param name="data">The Avro binary data.</param>
     public AvroReader(ReadOnlySpan<byte> data)
     {
+#if NET8_0_OR_GREATER
+        FastBmi2.EnsureInitialized();
+#endif
         _sequence = default;
         _length = data.Length;
         _isMultiSegment = false;
@@ -68,6 +71,9 @@ public ref struct AvroReader
     /// <param name="data">The Avro binary data.</param>
     public AvroReader(in ReadOnlySequence<byte> data)
     {
+#if NET8_0_OR_GREATER
+        FastBmi2.EnsureInitialized();
+#endif
         _length = data.Length;
         _position = 0;
         _consumedBefore = 0;

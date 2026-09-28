@@ -45,6 +45,9 @@ public ref struct AvroWriter
     public AvroWriter(IBufferWriter<byte> output)
     {
         ArgumentNullException.ThrowIfNull(output);
+#if NET8_0_OR_GREATER
+        FastBmi2.EnsureInitialized();
+#endif
         _output = output;
         _buffer = default;
         _buffered = 0;
@@ -61,6 +64,9 @@ public ref struct AvroWriter
     /// <summary>Initializes a writer over a fixed destination that, when <paramref name="discardOverflow"/> is set, records overflow instead of throwing.</summary>
     internal AvroWriter(Span<byte> destination, bool discardOverflow)
     {
+#if NET8_0_OR_GREATER
+        FastBmi2.EnsureInitialized();
+#endif
         _output = null;
         _buffer = destination;
         _buffered = 0;
@@ -476,10 +482,12 @@ public ref struct AvroWriter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int WriteMultiByteVarint(ref byte destination, ulong value)
     {
-        if (BitConverter.IsLittleEndian)
+        // Three to five bytes: spread the first four 7-bit groups into one 4-byte store, cheaper than the word path for
+        // short values. Bytes past the varint are overwritten by the next value. Longer values skip this block with
+        // one compare, and do not pay for building the groups (#102: computing them first made 8-byte values 11-18%
+        // slower than on main).
+        if (BitConverter.IsLittleEndian && value < 1UL << 35)
         {
-            // Three to five bytes: spread the first four 7-bit groups into one 4-byte store, cheaper than the word
-            // path for short values. Bytes past the varint are overwritten by the next value.
             var low = (uint)(value & 0x7F) | ((uint)(value << 1) & 0x7F00) | ((uint)(value << 2) & 0x7F0000) | ((uint)(value << 3) & 0x7F000000);
             if (value < 1UL << 21)
             {
@@ -493,12 +501,9 @@ public ref struct AvroWriter
                 return 4;
             }
 
-            if (value < 1UL << 35)
-            {
-                Unsafe.WriteUnaligned(ref destination, low | 0x80808080);
-                Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
-                return 5;
-            }
+            Unsafe.WriteUnaligned(ref destination, low | 0x80808080);
+            Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
+            return 5;
         }
 
 #if NET8_0_OR_GREATER

@@ -1,4 +1,5 @@
 #if NET8_0_OR_GREATER
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
 
 namespace AvroSharp.IO;
@@ -18,6 +19,15 @@ internal static class FastBmi2
     /// constant in optimized code, so the check costs nothing on the hot path.
     /// </summary>
     public static readonly bool IsSupported = Bmi2.X64.IsSupported && !HasSlowPdepPext();
+
+    /// <summary>
+    /// Runs the class initializer. The JIT folds <see cref="IsSupported"/> to a constant only in code optimized after
+    /// the class is initialized. A varint loop that never reaches a longer value, such as one writing only 2-byte
+    /// values, would otherwise keep a class-initialization helper call in its body (seen in the tier-1 code; #102).
+    /// The reader and writer constructors call this.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void EnsureInitialized() => _ = IsSupported;
 
     /// <summary>Decides from the CPUID vendor string and family whether PEXT/PDEP are microcoded.</summary>
     /// <param name="vendor">The CPUID leaf 0 vendor string, for example "AuthenticAMD".</param>
