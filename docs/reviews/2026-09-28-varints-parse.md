@@ -111,4 +111,8 @@ The reads allocate 512 B and 144 B less. Nothing in this branch obviously accoun
 3. Run BinaryEncoding, Container and Showcase on this branch. They show whether the encode changes reach record writes.
 4. The nas's 1-byte encode gate failure predates this branch. The bulk path already beats Apache.Avro for 1-byte values; the single-value path does not.
 
+Follow-ups 1 and 2 are addressed in the next commit, to be measured again on these machines:
+- The inline 3- to 8-byte word path is kept only where PDEP is fast (`FastBmi2`). Other CPUs, including the i5, the nas and Arm64, send every length above 2 bytes to one out-of-line call, shaped as on main, with the 4-byte store for 3 to 5 bytes.
+- `WriteLongs`/`WriteInts` inline every length.
+
 The BenchmarkDotNet reports are not committed. They are in `BenchmarkDotNet.Artifacts` on each machine.

@@ -319,7 +319,10 @@ public ref struct AvroWriter
         }
     }
 
-    /// <summary>Writes a varint at <paramref name="destination"/>, which has room for 10 bytes; returns its length.</summary>
+    /// <summary>
+    /// Writes a varint at <paramref name="destination"/>, which has room for 10 bytes; returns its length. For the
+    /// bulk writers: every length is inlined into their one loop, so no value is slower than a single write (#102).
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int WriteVarintAt(ref byte destination, ulong value)
     {
@@ -336,7 +339,7 @@ public ref struct AvroWriter
             return 2;
         }
 
-        return WriteVarintMulti(ref destination, value);
+        return WriteMultiByteVarint(ref destination, value);
     }
 
     /// <summary>
@@ -402,12 +405,14 @@ public ref struct AvroWriter
     /// each field's length is usually stable, so these branches predict well. A branchless one- and two-byte store
     /// (57c987c) was slower for uniform lengths on every machine measured, and won only on randomly mixed lengths
     /// (docs/reviews/2026-09-26-branchless-varints.md).</item>
-    /// <item>Three to eight bytes (net8+, little-endian) are inline too, as one 8-byte store; the 7-bit groups are
-    /// spread with BMI2 PDEP where it is fast (see <c>FastBmi2</c>), or with shifts and masks otherwise. Out of
-    /// line, the call cost more than the store (#102): on the EPYC 7543 this made 3- to 8-byte values 26-35%
-    /// faster and 1- and 2-byte values about 5% slower, with record writes unchanged or faster.</item>
-    /// <item>Nine and ten bytes, and every length above two on netstandard and big-endian hosts, are out of line in
-    /// <see cref="WriteVarintMulti"/>.</item>
+    /// <item>Where PDEP is fast (see <c>FastBmi2</c>), three to eight bytes are inline too, as one 8-byte store of
+    /// the spread 7-bit groups. Out of line, the call cost more than the store: on the EPYC 7543, 3- to 8-byte
+    /// values were 26-35% faster inline (#102).</item>
+    /// <item>Everywhere else, and for nine and ten bytes, one out-of-line call (<see cref="WriteVarintMulti"/>). With
+    /// the shift-and-mask spread inline instead, 3 and 4 bytes were up to 15% slower on an i5-3570K (no BMI2), and
+    /// the larger call site made 2 bytes and Mixed1-2 13-14% slower on a Ryzen 5 3500U
+    /// (docs/reviews/2026-09-28-varints-parse.md). The call is a void instance call, as before #102: returning the
+    /// length to the call site instead cost 1- and 2-byte values about 7% on the EPYC.</item>
     /// </list>
     /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
     /// </remarks>
@@ -446,26 +451,30 @@ public ref struct AvroWriter
         }
 
 #if NET8_0_OR_GREATER
-        if (BitConverter.IsLittleEndian && value < 1UL << 56)
+        // FastBmi2 implies x64, so little-endian. Bytes past the varint are overwritten by the next value.
+        if (FastBmi2.IsSupported && value < 1UL << 56)
         {
-            // Bytes past the varint are overwritten by the next value.
             var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
             var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
-            Unsafe.WriteUnaligned(ref destination, SpreadVarint(value) | continuation);
+            Unsafe.WriteUnaligned(ref destination, Bmi2.X64.ParallelBitDeposit(value, 0x7F7F7F7F7F7F7F7FUL) | continuation);
             _buffered += length;
             return;
         }
 #endif
 
-        _buffered += WriteVarintMulti(ref destination, value);
+        WriteVarintMulti(value);
     }
 
-    /// <summary>
-    /// A varint of 3 or more bytes at <paramref name="destination"/>, which has room for 10; returns its length. Kept
-    /// out of line so the inlined call sites stay small, and written through <c>ref</c> stores with no bounds checks.
-    /// </summary>
+    /// <summary>A varint of 3 or more bytes, out of line so the inlined call sites stay small.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static int WriteVarintMulti(ref byte destination, ulong value)
+    private void WriteVarintMulti(ulong value) => _buffered += WriteMultiByteVarint(ref At(_buffered), value);
+
+    /// <summary>
+    /// A varint of 3 or more bytes at <paramref name="destination"/>, which has room for 10; returns its length.
+    /// Written through <c>ref</c> stores with no bounds checks.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int WriteMultiByteVarint(ref byte destination, ulong value)
     {
         if (BitConverter.IsLittleEndian)
         {
@@ -495,7 +504,7 @@ public ref struct AvroWriter
 #if NET8_0_OR_GREATER
         if (value < 1UL << 56)
         {
-            // 5 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
+            // 6 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
             // one write.
             var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
             var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
