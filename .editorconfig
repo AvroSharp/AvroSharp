@@ -70,6 +70,7 @@ dotnet_diagnostic.CA1303.severity = none     # no localisation of literals
 dotnet_diagnostic.MA0048.severity = none     # file name must match type name (partial/generated files)
 dotnet_diagnostic.RS0026.severity = none     # multiple overloads with optional parameters
 dotnet_diagnostic.RS0027.severity = none
+dotnet_diagnostic.CA1508.severity = none     # dead-code dataflow analysis: about 80% of all analyzer time, mostly false positives
 
 [tests/**.cs]
 dotnet_diagnostic.MA0002.severity = none     # test dictionaries and lists may use default comparers
