@@ -123,6 +123,22 @@ AvroValue value = await reader.ReadAsync(message);   // fetches schema 42 throug
 
 **References.** A schema that refers to named types registered under other subjects parses against them with `AvroSchemaParser.AddNamedSchemas` (or by parsing the referenced schemas first with the same parser). `schema.ToJson(referencedSchemas)` writes it with those types by name, as Java's `Schema.toString(referencedSchemas, false)` does, and `ToJson()` is Java's `Schema.toString()` byte for byte (attribute order, and numbers as Java prints them), so registering AvroSharp's text finds the version a Java client registered.
 
+## Streams of objects
+
+Objects written one after another with no container or framing, for sockets, pipes or files of concatenated objects. The stream doesn't record the schema, so both sides must know it:
+
+```csharp
+using (var writer = AvroStreamWriter.Create<Order>(stream, Order.Write))   // or CreateGeneric(stream, schema)
+{
+    foreach (var order in orders) writer.Write(order);
+}
+
+using var reader = AvroStreamReader.OpenGeneric(stream, writerSchema, readerSchema);   // readerSchema is optional
+await foreach (var value in reader.ReadAllAsync(cancellationToken)) { ... }
+```
+
+Nothing marks where an object ends, so the reader decodes each one to find its end, and reads more when an object runs past its buffer. `AvroStreamOptions.MaxDatumLength` bounds how much it buffers for one object.
+
 ## Code generation from schema files
 
 Reference the `AvroSharp.Generators` package and pass your schema files to the compiler:

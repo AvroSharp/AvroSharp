@@ -371,6 +371,30 @@ AvroSharp.Serialization.IAvroSpecificRecord
 AvroSharp.Serialization.IAvroSpecificRecord.Get(int fieldPos) -> object?
 AvroSharp.Serialization.IAvroSpecificRecord.Put(int fieldPos, object? fieldValue) -> void
 AvroSharp.Serialization.IAvroSpecificRecord.Schema.get -> AvroSharp.Schemas.RecordSchema!
+AvroSharp.Streams.AvroStreamOptions
+AvroSharp.Streams.AvroStreamOptions.AvroStreamOptions() -> void
+AvroSharp.Streams.AvroStreamOptions.BufferSize.get -> int
+AvroSharp.Streams.AvroStreamOptions.BufferSize.init -> void
+AvroSharp.Streams.AvroStreamOptions.LeaveOpen.get -> bool
+AvroSharp.Streams.AvroStreamOptions.LeaveOpen.init -> void
+AvroSharp.Streams.AvroStreamOptions.MaxDatumLength.get -> int
+AvroSharp.Streams.AvroStreamOptions.MaxDatumLength.init -> void
+AvroSharp.Streams.AvroStreamReader
+AvroSharp.Streams.AvroStreamReader<T>
+AvroSharp.Streams.AvroStreamReader<T>.Dispose() -> void
+AvroSharp.Streams.AvroStreamReader<T>.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AvroSharp.Streams.AvroStreamReader<T>.Position.get -> long
+AvroSharp.Streams.AvroStreamReader<T>.ReadAll() -> System.Collections.Generic.IEnumerable<T>!
+AvroSharp.Streams.AvroStreamReader<T>.ReadAllAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<T>!
+AvroSharp.Streams.AvroStreamReader<T>.TryRead(out T value) -> bool
+AvroSharp.Streams.AvroStreamWriter
+AvroSharp.Streams.AvroStreamWriter<T>
+AvroSharp.Streams.AvroStreamWriter<T>.Dispose() -> void
+AvroSharp.Streams.AvroStreamWriter<T>.DisposeAsync() -> System.Threading.Tasks.ValueTask
+AvroSharp.Streams.AvroStreamWriter<T>.Flush() -> void
+AvroSharp.Streams.AvroStreamWriter<T>.FlushAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+AvroSharp.Streams.AvroStreamWriter<T>.Write(T value) -> void
+AvroSharp.Streams.AvroStreamWriter<T>.WriteAsync(T value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 const AvroSharp.AvroCodecNames.Bzip2 = "bzip2" -> string!
 const AvroSharp.AvroCodecNames.Deflate = "deflate" -> string!
 const AvroSharp.AvroCodecNames.Null = "null" -> string!
@@ -387,6 +411,8 @@ const AvroSharp.Messages.ConfluentSchemaIdHeader.ValueHeaderName = "__value_sche
 const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
 const AvroSharp.Serialization.AvroGeneratedCode.MaxDepth = 128 -> int
 const AvroSharp.Serialization.AvroGeneratedCode.MaxZeroSizeItems = 65536 -> int
+const AvroSharp.Streams.AvroStreamOptions.DefaultBufferSize = 65536 -> int
+const AvroSharp.Streams.AvroStreamOptions.DefaultMaxDatumLength = 67108864 -> int
 override AvroSharp.Containers.AvroCodec.ToString() -> string!
 override AvroSharp.Generic.AvroValue.Equals(object? obj) -> bool
 override AvroSharp.Generic.AvroValue.GetHashCode() -> int
@@ -553,5 +579,10 @@ static AvroSharp.Serialization.AvroLogicalValues.WriteDecimalBytes(ref AvroSharp
 static AvroSharp.Serialization.AvroLogicalValues.WriteDecimalFixed(ref AvroSharp.IO.AvroWriter writer, decimal value, int scale, int precision, int size) -> void
 static AvroSharp.Serialization.AvroLogicalValues.WriteUuidFixed(ref AvroSharp.IO.AvroWriter writer, System.Guid uuid) -> void
 static AvroSharp.Serialization.AvroLogicalValues.WriteUuidString(ref AvroSharp.IO.AvroWriter writer, System.Guid uuid) -> void
+static AvroSharp.Streams.AvroStreamOptions.Default.get -> AvroSharp.Streams.AvroStreamOptions!
+static AvroSharp.Streams.AvroStreamReader.Open<T>(System.IO.Stream! stream, AvroSharp.Serialization.AvroReadFunc<T>! read, AvroSharp.Streams.AvroStreamOptions? options = null) -> AvroSharp.Streams.AvroStreamReader<T>!
+static AvroSharp.Streams.AvroStreamReader.OpenGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema? readerSchema = null, AvroSharp.Streams.AvroStreamOptions? options = null, AvroSharp.Generic.GenericDatumReaderOptions? readerOptions = null) -> AvroSharp.Streams.AvroStreamReader<AvroSharp.Generic.AvroValue>!
+static AvroSharp.Streams.AvroStreamWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Streams.AvroStreamOptions? options = null) -> AvroSharp.Streams.AvroStreamWriter<T>!
+static AvroSharp.Streams.AvroStreamWriter.CreateGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Streams.AvroStreamOptions? options = null, AvroSharp.Generic.GenericDatumWriterOptions? writerOptions = null) -> AvroSharp.Streams.AvroStreamWriter<AvroSharp.Generic.AvroValue>!
 virtual AvroSharp.Serialization.AvroReadFunc<T>.Invoke(ref AvroSharp.IO.AvroReader reader) -> T
 virtual AvroSharp.Serialization.AvroWriteAction<T>.Invoke(ref AvroSharp.IO.AvroWriter writer, T value) -> void
