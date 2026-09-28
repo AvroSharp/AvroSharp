@@ -2,7 +2,7 @@
 
 A C# source generator that turns Avro schema files (`.avsc`) into C# types with serializers for [AvroSharp](https://github.com/zcsizmadia/AvroSharp). The generated code uses no reflection, so it works with Native AOT and trimming.
 
-> **Status:** early development, not yet released.
+> **Status:** an early preview (0.1). The API may still change before 1.0.
 
 ## Usage
 

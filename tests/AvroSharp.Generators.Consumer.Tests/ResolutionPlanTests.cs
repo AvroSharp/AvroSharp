@@ -45,6 +45,20 @@ public class ResolutionPlanTests
         await Assert.That(AvroGeneratedCode.GetRecordPlan(evo.Person.Schema, evo.Person.Schema)).IsSameReferenceAs(AvroGeneratedCode.GetRecordPlan(evo.Person.Schema, evo.Person.Schema));
     }
 
+    [Test]
+    public async Task ASchemaParsedOnTwoThreads_IsPublishedOnce()
+    {
+        // Generated Schema properties keep the first instance stored, so a thread that lost the race to parse it
+        // returns the same instance as every other caller (plans are cached per instance).
+        AvroSchema? field = null;
+        var first = AvroSchema.Parse(evo.Person.SchemaJson);
+        var second = AvroSchema.Parse(evo.Person.SchemaJson);
+
+        await Assert.That(AvroGeneratedCode.PublishSchema(ref field, first)).IsSameReferenceAs(first);
+        await Assert.That(AvroGeneratedCode.PublishSchema(ref field, second)).IsSameReferenceAs(first);
+        await Assert.That(field).IsSameReferenceAs(first);
+    }
+
     private delegate byte[] GeneratedRead(ref AvroReader reader, AvroSchema writerSchema);
 
     private static int Check(string readerJson, AvroSchema readerSchema, GeneratedRead read)
