@@ -1,8 +1,14 @@
 # AvroSharp
 
+[![CI](https://github.com/zcsizmadia/AvroSharp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/zcsizmadia/AvroSharp/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/AvroSharp?logo=nuget&label=NuGet)](https://www.nuget.org/packages/AvroSharp)
+[![Downloads](https://img.shields.io/nuget/dt/AvroSharp?logo=nuget&label=Downloads)](https://www.nuget.org/packages/AvroSharp)
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0%20%7C%20netstandard2.0%20%7C%20netstandard2.1-512BD4?logo=dotnet)](#goals)
+[![License](https://img.shields.io/github/license/zcsizmadia/AvroSharp)](LICENSE)
+
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
 
-> **Status:** early development, not yet released. Working today:
+> **Status:** an early preview (0.1). The API may still change before 1.0. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files;
