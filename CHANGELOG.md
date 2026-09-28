@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-28
+
+The first preview. It covers:
+- **Schemas:** parsing, writing, canonical form and fingerprints.
+- **The generic data model:** binary and JSON encoding, and schema evolution.
+- **Code generation** from `.avsc` files.
+- **Container files** with every codec in the specification.
+- **Messages:** single-object messages and schema-registry framing.
+- **Streams** of objects.
+
+Packages: `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen` and `AvroSharp.Generators`. As a 0.x release, the API may still change before 1.0.
+
 ### Added
 
 - Nightly fuzzing (`.github/workflows/fuzz.yml`): every libFuzzer target runs for 30 minutes a night with SharpFuzz, keeping its corpus between runs and uploading crash inputs. The libFuzzer steps in `fuzz/README.md` are now verified; a first 20-minute run of all seven targets found no crashes.
@@ -69,3 +81,6 @@ All notable changes to this project are documented here. The format follows [Kee
 - `THIRD-PARTY-NOTICES.md` said the packages contain no third-party code, but they compile in source from Polyfill (MIT). The notice now includes Polyfill's copyright and license, and is packed into every package (#66).
 - Generated code needed C# 9 (`new()` initializers, `??=`, `is { }` and `is not` patterns), so it failed to compile in netstandard2.0 and .NET Framework projects, which default to C# 7.3. It now uses constructs every version accepts, and emits nullable annotations only for C# 8 and later.
 - Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.
+
+[Unreleased]: https://github.com/zcsizmadia/AvroSharp/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/zcsizmadia/AvroSharp/releases/tag/v0.1.0
