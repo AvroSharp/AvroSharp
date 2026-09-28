@@ -40,7 +40,8 @@ public class SchemaFileGeneratorTests
     public async Task Output_MatchesTheCommittedSnapshot(string hintName)
     {
         var (sources, _, _) = GeneratorHarness.Run([("event.avsc", EventSchema)]);
-        var actual = sources.Single(s => string.Equals(s.HintName, hintName, StringComparison.Ordinal)).SourceText.ToString();
+        // The generator's version, in [GeneratedCode], changes with every build; snapshots hold a placeholder.
+        var actual = WithoutVersion(sources.Single(s => string.Equals(s.HintName, hintName, StringComparison.Ordinal)).SourceText.ToString());
 
         // Snapshots are read from the copy in the output folder: CI builds map source paths to /_/ (deterministic
         // builds), so the source folder is only known, and only written, when updating snapshots locally.
@@ -51,7 +52,7 @@ public class SchemaFileGeneratorTests
             return;
         }
 
-        var expected = await File.ReadAllTextAsync(snapshot);
+        var expected = WithoutVersion(await File.ReadAllTextAsync(snapshot));
         if (!string.Equals(expected.Replace("\r\n", "\n", StringComparison.Ordinal), actual, StringComparison.Ordinal))
         {
             await File.WriteAllTextAsync(snapshot + ".received", actual);
@@ -349,6 +350,64 @@ public class SchemaFileGeneratorTests
         await Assert.That(output.GetDiagnostics().Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
     }
 
+    /// <summary>
+    /// Names (#117): capitals are title-cased, a property renamed to avoid a clash is reported (AVROGEN005), and an
+    /// all-lower-case type name compiles without CS8981.
+    /// </summary>
+    [Test]
+    public async Task Naming_TitleCasesCapitals_ReportsRenames_AndAllowsLowerCaseTypeNames()
+    {
+        const string Schema = """
+            {"type":"record","name":"block","namespace":"event","fields":[
+              {"name":"USER_ID","type":"long"},
+              {"name":"userId","type":"string"},
+              {"name":"HTTP2_PORT","type":"int"},
+              {"name":"txId","type":"long"}
+            ]}
+            """;
+
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run([("block.avsc", Schema)]);
+
+        var text = sources.Single().SourceText.ToString();
+        await Assert.That(text).Contains("public long UserId { get; set; }");
+        await Assert.That(text).Contains("public string UserId_ { get; set; }");
+        await Assert.That(text).Contains("public int Http2Port { get; set; }");
+        await Assert.That(text).Contains("public long TxId { get; set; }");
+        var renamed = generatorDiagnostics.Single();
+        await Assert.That(renamed.Id).IsEqualTo("AVROGEN005");
+        await Assert.That(renamed.Severity).IsEqualTo(DiagnosticSeverity.Info);
+        await Assert.That(renamed.Location.GetLineSpan().Path).IsEqualTo("block.avsc");
+        await Assert.That(renamed.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).IsEqualTo("Field 'event.block.userId' is property UserId_: UserId is taken by field 'USER_ID'.");
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
+    /// <summary>
+    /// Debugging and documentation (#117): records show their first fields in the debugger, the serializers are not
+    /// stepped into, and a logical type that keeps its raw type says what the value means.
+    /// </summary>
+    [Test]
+    public async Task Output_HasDebuggerAttributes_AndDocumentsRawLogicalTypes()
+    {
+        const string Schema = """
+            {"type":"record","name":"Reading","namespace":"d","fields":[
+              {"name":"id","type":"long"},
+              {"name":"tags","type":{"type":"array","items":"string"}},
+              {"name":"at","type":{"type":"long","logicalType":"timestamp-nanos"}},
+              {"name":"amount","type":{"type":"bytes","logicalType":"decimal","precision":30,"scale":2}}
+            ]}
+            """;
+
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run([("d.avsc", Schema)]);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        var text = sources.Single().SourceText.ToString();
+        await Assert.That(text).Contains("[global::System.Diagnostics.DebuggerDisplay(\"Id = {Id}, At = {At}\")]");
+        await Assert.That(text).Contains("[global::System.Diagnostics.DebuggerNonUserCode]\n        internal static void WriteCore(");
+        await Assert.That(text).Contains("/// <remarks>Avro timestamp-nanos: nanoseconds since 1970-01-01T00:00:00Z.</remarks>");
+        await Assert.That(text).Contains("/// <remarks>Avro decimal(30,2): the unscaled value as big-endian two's-complement bytes; the value is unscaled / 10^2.</remarks>");
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
     private const string NamingSchema = """
         {"type":"record","name":"Named","namespace":"naming","fields":[
           {"name":"customer_name","type":"string"},
@@ -434,6 +493,9 @@ public class SchemaFileGeneratorTests
         await Assert.That(kind.SourceText.ToString()).Contains("MOVED = 2,");
         await Assert.That(original.Single(s => string.Equals(s.HintName, "app.events.Kind.g.cs", StringComparison.Ordinal)).SourceText.ToString()).DoesNotContain("MOVED");
     }
+
+    private static string WithoutVersion(string source) => System.Text.RegularExpressions.Regex.Replace(
+        source, "GeneratedCode\\(\"AvroSharp\\.CodeGen\", \"[^\"]*\"\\)", "GeneratedCode(\"AvroSharp.CodeGen\", \"<version>\")", System.Text.RegularExpressions.RegexOptions.None, TimeSpan.FromSeconds(5));
 
     private static string SnapshotDirectory([CallerFilePath] string path = "") => Path.Combine(Path.GetDirectoryName(path)!, "Snapshots");
 }

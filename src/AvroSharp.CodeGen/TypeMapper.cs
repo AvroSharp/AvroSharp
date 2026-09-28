@@ -27,6 +27,9 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// </summary>
     public bool Modern => options.LanguageVersion >= 11;
 
+    /// <summary>Gets the major C# version the generated code may use.</summary>
+    public int LanguageVersion => options.LanguageVersion;
+
     /// <summary>
     /// Gets the struct codec type for values of <paramref name="schema"/>, used by the collection and union helpers,
     /// or <see langword="null"/> when there is none (logical types, enums, fixed, collections and unions stay inline).

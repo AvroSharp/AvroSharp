@@ -81,8 +81,11 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         _ => [],
     };
 
-    /// <summary>Writes <paramref name="expression"/>. <paramref name="field"/> (<c>Record.field</c>) names it in errors.</summary>
-    public void Write(CodeWriter w, AvroSchema schema, string expression, string field)
+    /// <summary>
+    /// Writes <paramref name="expression"/>. <paramref name="field"/> (<c>Record.field</c>) names it in errors. With
+    /// <paramref name="notNull"/>, the expression is known not to be null (a type pattern's variable), so it is not checked.
+    /// </summary>
+    public void Write(CodeWriter w, AvroSchema schema, string expression, string field, bool notNull = false)
     {
         // Logical types convert at the edge (AvroLogicalValues); every mapping is a non-nullable value type.
         if (types.Logical(schema) is { } logical)
@@ -94,26 +97,26 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         switch (schema)
         {
             case RecordSchema record:
-                w.Line($"{names.TypeName(record)}.WriteCore(ref writer, {NotNull(expression, field)}, depth + 1);");
+                w.Line($"{names.TypeName(record)}.WriteCore(ref writer, {NotNull(expression, field, notNull)}, depth + 1);");
                 break;
             case EnumSchema enumSchema:
                 // C# enums hold any number; only the symbols' ordinals are valid Avro.
                 w.Line($"writer.WriteEnum({Support}.CheckEnumOrdinal((int){expression}, {Int(enumSchema.Symbols.Count)}, {CSharpNames.Literal(field)}));");
                 break;
             case FixedSchema:
-                w.Line($"writer.WriteFixed({NotNull(expression, field)}.Value);");
+                w.Line($"writer.WriteFixed({(notNull ? expression : "(" + NotNull(expression, field) + ")")}.Value);");
                 break;
             case ArraySchema array:
-                WriteArray(w, array, expression, field);
+                WriteArray(w, array, expression, field, notNull);
                 break;
             case MapSchema map:
-                WriteMap(w, map, expression, field);
+                WriteMap(w, map, expression, field, notNull);
                 break;
             case UnionSchema union:
                 WriteUnion(w, union, expression, field);
                 break;
             default:
-                WritePrimitive(w, schema.Type, expression, field);
+                WritePrimitive(w, schema.Type, expression, field, notNull);
                 break;
         }
     }
@@ -158,10 +161,11 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
     private static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
 
-    private static string NotNull(string expression, string field) =>
-        $"({expression} ?? throw {Support}.NullValue({CSharpNames.Literal(field)}))";
+    // The expression, or, unless it is known not to be null, the expression with a null check that names the field.
+    private static string NotNull(string expression, string field, bool notNull = false) =>
+        notNull ? expression : $"{expression} ?? throw {Support}.NullValue({CSharpNames.Literal(field)})";
 
-    private static void WritePrimitive(CodeWriter w, AvroSchemaType type, string expression, string field)
+    private static void WritePrimitive(CodeWriter w, AvroSchemaType type, string expression, string field, bool notNull)
     {
         switch (type)
         {
@@ -184,10 +188,10 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
                 w.Line($"writer.WriteDouble({expression});");
                 break;
             case AvroSchemaType.Bytes:
-                w.Line($"writer.WriteBytes({NotNull(expression, field)});");
+                w.Line($"writer.WriteBytes({NotNull(expression, field, notNull)});");
                 break;
             default:
-                w.Line($"writer.WriteString({NotNull(expression, field)});");
+                w.Line($"writer.WriteString({NotNull(expression, field, notNull)});");
                 break;
         }
     }
@@ -216,7 +220,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         _ => null,
     };
 
-    private void WriteArray(CodeWriter w, ArraySchema array, string expression, string field)
+    private void WriteArray(CodeWriter w, ArraySchema array, string expression, string field, bool notNull)
     {
         if (PrimitiveList(array.Items) is { } list)
         {
@@ -232,7 +236,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
         var n = _next++;
         w.Open();
-        w.Line($"var items{n} = {NotNull(expression, field)};");
+        w.Line($"var items{n} = {NotNull(expression, field, notNull)};");
         w.Open($"if (items{n}.Count > 0)");
         w.Line($"writer.WriteBlockCount(items{n}.Count);");
         w.Directive("#if NET8_0_OR_GREATER");
@@ -248,7 +252,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         w.Close();
     }
 
-    private void WriteMap(CodeWriter w, MapSchema map, string expression, string field)
+    private void WriteMap(CodeWriter w, MapSchema map, string expression, string field, bool notNull)
     {
         if (types.Codec(map.Values) is { } codec)
         {
@@ -258,7 +262,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
         var n = _next++;
         w.Open();
-        w.Line($"var map{n} = {NotNull(expression, field)};");
+        w.Line($"var map{n} = {NotNull(expression, field, notNull)};");
         w.Open($"if (map{n}.Count > 0)");
         w.Line($"writer.WriteBlockCount(map{n}.Count);");
         w.Open($"foreach (var entry{n} in map{n})");
@@ -296,7 +300,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         {
             w.Open($"if ({expression} is {types.TypeOf(union.Branches[others[0]])} value{n})");
             w.Line($"writer.WriteUnionIndex({Int(others[0])});");
-            Write(w, union.Branches[others[0]], $"value{n}", field);
+            Write(w, union.Branches[others[0]], $"value{n}", field, notNull: true);
             w.Close();
             w.Open("else");
             w.Line($"writer.WriteUnionIndex({Int(nullIndex)});");
@@ -327,7 +331,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
             w.Line($"case {types.TypeOf(branch)} value{n}_{Int(index)}:");
             w.Indent();
             w.Line($"writer.WriteUnionIndex({Int(index)});");
-            Write(w, branch, $"value{n}_{Int(index)}", field);
+            Write(w, branch, $"value{n}_{Int(index)}", field, notNull: true);
             w.Line("break;");
             w.Outdent();
         }

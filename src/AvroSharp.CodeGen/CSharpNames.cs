@@ -24,13 +24,24 @@ internal sealed class CSharpNames(CodeGenOptions options)
     /// <summary>Escapes a C# keyword with <c>@</c>. Avro names are already valid C# identifier characters.</summary>
     public static string Identifier(string name) => s_keywords.Contains(name) ? "@" + name : name;
 
-    /// <summary>Converts <c>first_name</c> or <c>firstName</c> to <c>FirstName</c>.</summary>
+    /// <summary>
+    /// Converts <c>first_name</c>, <c>firstName</c> or <c>FIRST_NAME</c> to <c>FirstName</c>. A segment in capitals
+    /// (<c>USER</c>, <c>ID</c>, <c>HTTP2</c>) is title-cased; a segment with lower-case letters keeps its inner capitals.
+    /// </summary>
     public static string Pascal(string name)
     {
         var result = new StringBuilder(name.Length);
         foreach (var part in name.Split('_').Where(part => part.Length > 0))
         {
-            result.Append(char.ToUpperInvariant(part[0])).Append(part, 1, part.Length - 1);
+            var rest = part[1..];
+            if (part.Any(char.IsLetter) && !part.Any(char.IsLower))
+            {
+#pragma warning disable CA1308 // An identifier in capitals becomes title case, not a normalized comparison key.
+                rest = rest.ToLowerInvariant();
+#pragma warning restore CA1308
+            }
+
+            result.Append(char.ToUpperInvariant(part[0])).Append(rest);
         }
 
         return result.Length == 0 || char.IsDigit(result[0]) ? "Field" + result : result.ToString();
