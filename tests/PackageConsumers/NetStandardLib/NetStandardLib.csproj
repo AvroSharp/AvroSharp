@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A netstandard2.0 library on C# 7.3, the default for such projects, using the packed source generator (#136).
+       Built only: the generated code must compile there without warnings. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AvroSharp.Generators" Version="$(AvroSharpVersion)" />
+    <AdditionalFiles Include="order.avsc" />
+  </ItemGroup>
+
+</Project>

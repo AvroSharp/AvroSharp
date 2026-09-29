@@ -114,6 +114,13 @@ jobs:
       - name: Pack
         run: dotnet pack AvroSharp.slnx -c Release --no-build
 
+      # Restores small consumer projects from the packed packages alone and runs them, and installs and runs the
+      # tool: the packaging (dependency groups, the generator's analyzers folder, the tool's builds) is tested as a
+      # user meets it, which project references cannot show (#136).
+      - name: Package consumers
+        shell: bash
+        run: build/test-packages.sh
+
       - uses: actions/upload-artifact@v7
         if: always()
         with:

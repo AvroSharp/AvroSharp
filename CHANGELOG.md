@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- The API reference on the documentation site is built from the net10.0 build, so it shows the .NET 8+ API (`AvroSerializer`, `IAvroSerializable<T>` and the overloads that take no delegates), and lists those members with their equivalents on other targets (#136).
+
 ## [0.2.0] - 2026-09-29
 
 The `avrosharp` command-line tool; generated types that read older versions of their schema, write and read memory without allocating, and start with their schema defaults; and the fixes from an independent review: bounded memory and nesting for hostile input, schema resolution that follows the specification and Java, and code generation fixes. The source generator needs the .NET 10 SDK or Visual Studio 2026 and later; the generated code and the tool run on .NET 8 and later (and the code on .NET Standard 2.0).
