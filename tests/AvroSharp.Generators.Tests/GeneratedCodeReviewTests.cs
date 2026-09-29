@@ -125,6 +125,26 @@ public class GeneratedCodeReviewTests
     }
 
     /// <summary>
+    /// A decimal default beyond System.Decimal or the precision is valid in the schema, but the generated constructor
+    /// threw (#141). It is a generation error.
+    /// </summary>
+    [Test]
+    [Arguments("""{"type":"fixed","name":"Wide","size":16,"logicalType":"decimal","precision":28}""", "\"\\u007f\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\"", "does not fit in System.Decimal")]
+    [Arguments("""{"type":"array","items":{"type":"bytes","logicalType":"decimal","precision":2}}""", "[\"\\u0001\\u0000\"]", "digits")]
+    public async Task DecimalDefaultsTheCSharpDecimalCannotHold_AreAnError(string type, string defaultValue, string reason)
+    {
+        var schema = $$"""{"type":"record","name":"Big","namespace":"dec","fields":[{"name":"d","type":{{type}},"default":{{defaultValue}}}]}""";
+
+        var (sources, generatorDiagnostics, _) = GeneratorHarness.Run([("dec.avsc", schema)]);
+
+        var diagnostic = generatorDiagnostics.Single();
+        await Assert.That(diagnostic.Id).IsEqualTo("AVROGEN003");
+        await Assert.That(diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).Contains("The default of field 'd' has a decimal that the generated C# decimal cannot hold");
+        await Assert.That(diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).Contains(reason);
+        await Assert.That(sources).IsEmpty();
+    }
+
+    /// <summary>
     /// A type named like a member the generator adds to it (or an enum named like one of its symbols) did not compile
     /// (CS0542). It is renamed, with a note.
     /// </summary>
@@ -137,6 +157,7 @@ public class GeneratedCodeReviewTests
               {"name":"b","type":{"type":"record","name":"ToAvroBytes","fields":[{"name":"x","type":"int"}]}},
               {"name":"c","type":{"type":"fixed","name":"Size","size":2}},
               {"name":"d","type":{"type":"fixed","name":"Value","size":2}},
+              {"name":"f","type":{"type":"fixed","name":"Equals","size":2}},
               {"name":"e","type":{"type":"enum","name":"Color","symbols":["Red","Color"]}}
             ]}
             """;
@@ -147,7 +168,7 @@ public class GeneratedCodeReviewTests
         var notes = generatorDiagnostics.Where(d => string.Equals(d.Id, "AVROGEN005", StringComparison.Ordinal)).Select(d => d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).ToList();
         await Assert.That(notes).Contains("Type 'clash.Schema' is C# type Schema_: C# does not allow a member named like its type, and Schema is a member the generator adds to it.");
         await Assert.That(notes).Contains("Type 'clash.Color' is C# type Color_: C# does not allow a member named like its type, and Color is a symbol of the enum.");
-        await Assert.That(notes.Count).IsEqualTo(5);
+        await Assert.That(notes.Count).IsEqualTo(6);
 
         // The renamed types still read and write their schema.
         var type = GeneratorHarness.GenerateAndLoad([("clash.avsc", Schema)]).GetType("clash.Schema_")!;

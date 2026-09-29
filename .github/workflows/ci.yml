@@ -59,7 +59,10 @@ jobs:
         run: dotnet build AvroSharp.slnx -c Release --no-restore
 
       # On Windows this includes net481, which runs the netstandard2.0 build on .NET Framework.
+      # A failing random-schema batch (#141) is saved with the test results, which are uploaded below.
       - name: Test
+        env:
+          AVROSHARP_RANDOM_SCHEMA_FAILURES: ${{ github.workspace }}/TestResults/random-schema-failure
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
       # Line and branch coverage of the shipped assemblies, merged across the test projects and target frameworks, in

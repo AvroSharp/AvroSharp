@@ -128,7 +128,73 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
             return null;
         }
 
+        CheckDecimals(field, field.Schema, json);
         return GenericDatumWriter.Create(field.Schema).WriteToArray(GenericDatumJsonReader.ReadDefault(field.Schema, json));
+    }
+
+    // A decimal in a default that System.Decimal or the precision cannot hold is valid in the schema, but the
+    // constructor, or writing the value, would throw (#141): it is an error here instead.
+    private void CheckDecimals(RecordField field, AvroSchema schema, System.Text.Json.JsonElement json)
+    {
+        if (Logical(schema) is { Type: "decimal" } && schema.LogicalType is DecimalLogicalType dec)
+        {
+            var data = GenericDatumWriter.Create(schema).WriteToArray(GenericDatumJsonReader.ReadDefault(schema, json));
+            try
+            {
+                var reader = new AvroSharp.IO.AvroReader(data);
+                var scratch = new byte[data.Length + 16];
+                var writer = new AvroSharp.IO.AvroWriter(scratch);
+                if (schema is FixedSchema fixedSchema)
+                {
+                    AvroSharp.Serialization.AvroLogicalValues.WriteDecimalFixed(ref writer, AvroSharp.Serialization.AvroLogicalValues.ReadDecimalFixed(ref reader, dec.Scale, fixedSchema.Size), dec.Scale, dec.Precision, fixedSchema.Size);
+                }
+                else
+                {
+                    AvroSharp.Serialization.AvroLogicalValues.WriteDecimalBytes(ref writer, AvroSharp.Serialization.AvroLogicalValues.ReadDecimalBytes(ref reader, dec.Scale), dec.Scale, dec.Precision);
+                }
+            }
+            catch (AvroException ex)
+            {
+                throw new System.InvalidOperationException($"The default of field '{field.Name}' has a decimal that the generated C# decimal cannot hold: {ex.Message}", ex);
+            }
+
+            return;
+        }
+
+        switch (schema)
+        {
+            case UnionSchema union:
+                CheckDecimals(field, union.Branches[0], json);
+                break;
+            case ArraySchema array when json.ValueKind == System.Text.Json.JsonValueKind.Array:
+                foreach (var item in json.EnumerateArray())
+                {
+                    CheckDecimals(field, array.Items, item);
+                }
+
+                break;
+            case MapSchema map when json.ValueKind == System.Text.Json.JsonValueKind.Object:
+                foreach (var entry in json.EnumerateObject())
+                {
+                    CheckDecimals(field, map.Values, entry.Value);
+                }
+
+                break;
+            case RecordSchema record when json.ValueKind == System.Text.Json.JsonValueKind.Object:
+                foreach (var inner in record.Fields)
+                {
+                    if (json.TryGetProperty(inner.Name, out var value))
+                    {
+                        CheckDecimals(field, inner.Schema, value);
+                    }
+                    else if (inner.DefaultValue is { } innerDefault)
+                    {
+                        CheckDecimals(field, inner.Schema, innerDefault);
+                    }
+                }
+
+                break;
+        }
     }
 
     private string? Literal(AvroSchema schema, System.Text.Json.JsonElement json)

@@ -48,6 +48,12 @@ A crash leaves its input in a `crash-*` file. To reproduce it, add the input to 
 
 `.github/workflows/fuzz.yml` runs every target for 30 minutes each night (and on demand, with the time as an input), one job per target. Each target's corpus is kept in the Actions cache between runs, so coverage builds up night after night; a crash fails its job and uploads the input as the `crashes-<target>` artifact.
 
+The same workflow runs the random-schema code-generation test (`tests/AvroSharp.Generators.Tests/RandomSchemaCodeGenTests.cs`, #141) on 1,500 batches of 20 schemas; PR CI runs it on 5. Each schema is generated with the source generator, compiled for C# 7.3, C# 12 and the latest C# (and in the Apache.Avro compatibility mode), and its type round-trips random values against the generic reader and writer, through a container file, and from an older version of the schema. A failure prints its seed and schemas, and the failing batch (a file per schema, and the error) is uploaded: as the `random-schema-failure` artifact in the nightly run, and in the `results-<os>` artifact in PR CI (from `AVROSHARP_RANDOM_SCHEMA_FAILURES`). Set `AVROSHARP_RANDOM_SCHEMA_SEED` to the seed (and `AVROSHARP_RANDOM_SCHEMA_BATCHES` for more batches) to reproduce it:
+
+```sh
+AVROSHARP_RANDOM_SCHEMA_SEED=<seed> dotnet run --project tests/AvroSharp.Generators.Tests -c Release -f net10.0 -- --treenode-filter "/*/*/RandomSchemaCodeGenTests/*"
+```
+
 ## Results
 
 | Date | Where | Time per target | Executions per target | Crashes |

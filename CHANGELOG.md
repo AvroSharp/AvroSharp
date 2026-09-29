@@ -4,8 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- A fixed type named `Equals` or `GetHashCode` generated code that did not compile (CS0542); it is renamed, with a note, like the other generated member names (#141).
+- A decimal default that the generated C# `decimal` cannot hold (beyond 96 bits, or with more digits than the precision) generated code whose constructor threw; it is now a generation error (#141).
+
 ### Changed
 
+- The nightly fuzzing workflow also runs a random-schema code-generation test (#141): random schemas, with hostile names and every kind of default, are generated, compiled for C# 7.3, 12 and the latest version, and round-tripped. PR CI runs it on 100 schemas.
 - The API reference on the documentation site is built from the net10.0 build, so it shows the .NET 8+ API (`AvroSerializer`, `IAvroSerializable<T>` and the overloads that take no delegates), and lists those members with their equivalents on other targets (#136).
 
 ## [0.2.0] - 2026-09-29
