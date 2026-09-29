@@ -436,6 +436,7 @@ Order m = reader.Decode(bytes);
   - `AvroFileReader<T>.TryGetMetadataString` replaces `GetMetadataString`.
   - `ConfluentSchemaIdHeader.Encode` takes the `AvroSchemaId` that `TryDecode` gives, and rejects a numeric ID.
   - `GenericRecord.TryGetValue(int position, …)` names its parameter as the indexer does.
+  - **Limits:** each options class has public default constants (`GenericDatumReaderOptions.DefaultMaxDepth` and `DefaultMaxZeroSizeItems`, `GenericDatumWriterOptions.DefaultMaxDepth`, `AvroSchemaParseOptions.DefaultMaxDepth`), in place of the literal 128 in four places. The limits reject out-of-range values when set: a depth of at least 1, and zero or more items.
 
 ---
 

@@ -86,7 +86,7 @@ public static class AvroValueTransformer
     /// <param name="transform">Called for each value inside a record field; returns the value to keep.</param>
     /// <param name="maxDepth">The deepest nesting of records, arrays, maps and unions accepted, so a cyclic record cannot recurse without bound.</param>
     /// <exception cref="AvroException">The value does not match the schema, or it is nested more deeply than <paramref name="maxDepth"/>.</exception>
-    public static AvroValue Transform(AvroSchema schema, in AvroValue value, AvroFieldTransform transform, int maxDepth = 128)
+    public static AvroValue Transform(AvroSchema schema, in AvroValue value, AvroFieldTransform transform, int maxDepth = GenericDatumWriterOptions.DefaultMaxDepth)
     {
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentNullException.ThrowIfNull(transform);

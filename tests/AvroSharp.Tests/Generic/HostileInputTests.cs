@@ -226,6 +226,22 @@ public class HostileInputTests
         await Assert.That(ex.Message).Contains("nested more than 128 levels");
     }
 
+    /// <summary>A limit of zero depth (or negative items) would reject everything, or nothing: it is refused when set.</summary>
+    [Test]
+    public async Task Limits_OutOfRange_AreRejected_AndTheDefaultsAreTheConstants()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenericDatumReaderOptions { MaxDepth = 0 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenericDatumReaderOptions { MaxZeroSizeItems = -1 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => new GenericDatumWriterOptions { MaxDepth = 0 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => new AvroSchemaParseOptions { MaxDepth = 0 });
+
+        await Assert.That(new GenericDatumReaderOptions { MaxZeroSizeItems = 0 }.MaxZeroSizeItems).IsEqualTo(0);
+        await Assert.That(GenericDatumReaderOptions.Default.MaxDepth).IsEqualTo(GenericDatumReaderOptions.DefaultMaxDepth);
+        await Assert.That(GenericDatumReaderOptions.Default.MaxZeroSizeItems).IsEqualTo(GenericDatumReaderOptions.DefaultMaxZeroSizeItems);
+        await Assert.That(GenericDatumWriterOptions.Default.MaxDepth).IsEqualTo(GenericDatumWriterOptions.DefaultMaxDepth);
+        await Assert.That(AvroSchemaParseOptions.Default.MaxDepth).IsEqualTo(AvroSchemaParseOptions.DefaultMaxDepth);
+    }
+
     [Test]
     public async Task WriterMaxDepth_IsConfigurable()
     {
