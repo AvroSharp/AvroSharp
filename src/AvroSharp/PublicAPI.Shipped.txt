@@ -251,8 +251,8 @@ AvroSharp.Messages.ConfluentSchemaIdHeader
 AvroSharp.Messages.IAvroSchemaIdResolver
 AvroSharp.Messages.IAvroSchemaIdResolver.GetSchema(AvroSharp.Messages.AvroSchemaId id) -> AvroSharp.Schemas.AvroSchema?
 AvroSharp.Messages.IAvroSchemaIdResolver.GetSchemaAsync(AvroSharp.Messages.AvroSchemaId id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Schemas.AvroSchema?>
-AvroSharp.Messages.IAvroSchemaStore
-AvroSharp.Messages.IAvroSchemaStore.GetSchema(long fingerprint) -> AvroSharp.Schemas.AvroSchema?
+AvroSharp.Messages.IAvroSchemaResolver
+AvroSharp.Messages.IAvroSchemaResolver.GetSchema(long fingerprint) -> AvroSharp.Schemas.AvroSchema?
 AvroSharp.Schemas.ArraySchema
 AvroSharp.Schemas.ArraySchema.ArraySchema(AvroSharp.Schemas.AvroSchema! items, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
 AvroSharp.Schemas.ArraySchema.Items.get -> AvroSharp.Schemas.AvroSchema!
@@ -579,8 +579,8 @@ static AvroSharp.Messages.AvroMessage.ToArray<T>(T value, AvroSharp.Schemas.Avro
 static AvroSharp.Messages.AvroMessage.TryReadHeader(System.ReadOnlySpan<byte> message, out long fingerprint) -> bool
 static AvroSharp.Messages.AvroMessage.Write<T>(System.Buffers.IBufferWriter<byte>! output, T value, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroWriteAction<T>! write) -> void
 static AvroSharp.Messages.AvroMessage.WriteHeader(System.Span<byte> destination, AvroSharp.Schemas.AvroSchema! schema) -> void
-static AvroSharp.Messages.AvroMessageReader.Create<T>(AvroSharp.Messages.IAvroSchemaStore! store, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>! createReader) -> AvroSharp.Messages.AvroMessageReader<T>!
-static AvroSharp.Messages.AvroMessageReader.CreateGeneric(AvroSharp.Messages.IAvroSchemaStore! store, AvroSharp.Schemas.AvroSchema? readerSchema = null, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Messages.AvroMessageReader<AvroSharp.Generic.AvroValue>!
+static AvroSharp.Messages.AvroMessageReader.Create<T>(AvroSharp.Messages.IAvroSchemaResolver! resolver, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>! createReader) -> AvroSharp.Messages.AvroMessageReader<T>!
+static AvroSharp.Messages.AvroMessageReader.CreateGeneric(AvroSharp.Messages.IAvroSchemaResolver! resolver, AvroSharp.Schemas.AvroSchema? readerSchema = null, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Messages.AvroMessageReader<AvroSharp.Generic.AvroValue>!
 static AvroSharp.Messages.AvroRegistryFraming.Apicurio.get -> AvroSharp.Messages.AvroRegistryFraming!
 static AvroSharp.Messages.AvroRegistryFraming.Apicurio8Byte.get -> AvroSharp.Messages.AvroRegistryFraming!
 static AvroSharp.Messages.AvroRegistryFraming.AwsGlue.get -> AvroSharp.Messages.AvroRegistryFraming!

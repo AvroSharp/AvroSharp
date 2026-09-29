@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.Messages;
 
-/// <summary>A thread-safe, in-memory <see cref="IAvroSchemaStore"/>.</summary>
-public sealed class AvroSchemaStore : IAvroSchemaStore
+/// <summary>A thread-safe, in-memory <see cref="IAvroSchemaResolver"/>.</summary>
+public sealed class AvroSchemaStore : IAvroSchemaResolver
 {
     private readonly ConcurrentDictionary<long, AvroSchema> _schemas = new();
 
@@ -30,4 +32,11 @@ public sealed class AvroSchemaStore : IAvroSchemaStore
 
     /// <inheritdoc/>
     public AvroSchema? GetSchema(long fingerprint) => _schemas.TryGetValue(fingerprint, out var schema) ? schema : null;
+
+    /// <inheritdoc/>
+    public ValueTask<AvroSchema?> GetSchemaAsync(long fingerprint, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return new(GetSchema(fingerprint));
+    }
 }

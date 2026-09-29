@@ -1,1 +1,4 @@
 #nullable enable
+AvroSharp.Messages.AvroMessageReader<T>.ReadAsync(System.ReadOnlyMemory<byte> message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
+AvroSharp.Messages.AvroSchemaStore.GetSchemaAsync(long fingerprint, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Schemas.AvroSchema?>
+AvroSharp.Messages.IAvroSchemaResolver.GetSchemaAsync(long fingerprint, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Schemas.AvroSchema?>

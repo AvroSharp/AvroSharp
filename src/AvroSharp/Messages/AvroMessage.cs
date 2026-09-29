@@ -12,7 +12,7 @@ namespace AvroSharp.Messages;
 /// <summary>
 /// Avro single-object encoding: the marker bytes <c>C3 01</c>, the writer schema's 8-byte little-endian CRC-64-AVRO
 /// fingerprint, then the object's binary encoding. A reader looks the fingerprint up in an
-/// <see cref="IAvroSchemaStore"/> to find the writer schema (see <see cref="AvroMessageReader{T}"/>).
+/// <see cref="IAvroSchemaResolver"/> to find the writer schema (see <see cref="AvroMessageReader{T}"/>).
 /// </summary>
 public static class AvroMessage
 {

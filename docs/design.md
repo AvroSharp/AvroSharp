@@ -417,6 +417,11 @@ Order m = reader.Decode(bytes);
 - **"Codec" means block compression only:**
   - `IAvroCodec<T>` is now `IAvroValueSerializer<T>`, and the primitive codecs are `Avro…Serializer`.
   - The generated nested struct is now `ValueSerializer`. As `AvroCodec`, it hid `AvroSharp.Containers.AvroCodec` inside users' partial classes.
+- **Schema lookup:** one noun for each role.
+  - The interfaces are resolvers: `IAvroSchemaResolver` (by fingerprint, for single-object messages) and `IAvroSchemaIdResolver` (by registry ID).
+  - The `…Store` classes are their in-memory implementations.
+  - Both interfaces have a synchronous and an asynchronous lookup. On netstandard2.0, which has no default interface members, adding one after 1.0 would break every implementer.
+  - `AvroMessageReader<T>` has `ReadAsync`, like `AvroRegistryMessageReader<T>`. It fetches an unknown fingerprint once; a failed or cancelled fetch isn't cached.
 
 ---
 
