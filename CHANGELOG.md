@@ -42,6 +42,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - The generator reports a property renamed to avoid a clash (for example `user_id` and `userId` in one record) as informational diagnostic AVROGEN005, naming both fields; `GeneratedSource.Notes` carries these notes for other callers of `CSharpCodeGenerator` (#117).
 - Generated files suppress CS8981, so all-lower-case Avro type names compile without warnings (#117).
 - `AvroFileReaderOptions.MaxSchemaLength` and `MaxZeroSizeValuesPerBlock` (#129, #130).
+- `GenericDatumJsonReader.ReadDefault`: converts a schema default to an `AvroValue`, the value a reader gives a field that the data lacks (#131).
 
 ### Fixed
 
@@ -66,6 +67,20 @@ All notable changes to this project are documented here. The format follows [Kee
   - A writer union branch was read as the first reader branch of the same unqualified name, although another branch had its full name: `com.y.Event` in a union with `com.x.Event` failed to read, or was read as `com.x.Event` and changed branch when written again. Branches now match by full name (or a reader alias) across the whole union first, then by unqualified name, then by promotion, as in Java.
   - A reader field's alias takes the writer field before a reader field of the writer field's name does, as in Java: the specification defines aliases as rewriting the writer's schema.
   - Container blocks of more than 65,536 zero-size objects (`null`s, empty records), which Java and `AvroFileWriter` write, were rejected. They are now limited by `AvroFileReaderOptions.MaxZeroSizeValuesPerBlock` (16,777,216 values by default, counted as `MaxZeroSizeItems` is), and `AvroFileWriter` starts a new block every 65,536 objects. A block of objects that take at least a byte each can no longer declare more objects than it has bytes.
+- Code generation (#131):
+  - `new T()` gives every field its schema default, as reading data that lacks the field does. Before, defaults with no C# literal were dropped: records, fixed values, logical types (`date` of 0 became 0001-01-01, `uuid` became `Guid.Empty`, a decimal of 0.01 became 0), and collections and unions of them. A fixed default left the field `null`, so the new value could not be written. Such defaults are now stored as their Avro encoding and decoded by the field's reader.
+  - Arrays of enums, fixed values, unions, nullable values, logical types and nested collections are written with a loop over the list on C# 12 and earlier. The loop over the list's span, which needs C# 13 on .NET 9 and 10, made projects pinned to C# 12 fail to compile (CS9202).
+  - A float or double default beyond the type's range is `float.PositiveInfinity` (and the like), not the invalid `Infinityf`.
+  - A type named like a member the generator adds to it (`Schema`, `Read`, `ToAvroBytes`, a fixed type's `Size` or `Value`), an enum named like one of its symbols, and a type named `var` are renamed with a trailing `_` and reported as AVROGEN005. Before, they did not compile. In the Apache.Avro compatibility mode, which finds types by name, they are errors (AVROGEN003).
+  - Contextual keywords as type or namespace names (`record`, `file`, `scoped`, `required`, `partial`, `nameof`, `_` and others) are escaped with `@`, and generated code no longer uses `nameof`, which a namespace of that name captured.
+  - The source generator failed on two types whose names differ only by case (`cs.Order` and `cs.order`) and dropped all its output; they now generate as two types. `avrosharp gen` rejects them with exit code 1 instead of writing one file over the other on Windows and macOS.
+  - AVROGEN003 now also reports:
+    - two types that map to the same C# name (`-m a:M -m b:M` with `a.X` and `b.X`);
+    - a type whose C# name is also a namespace (`app.events` next to `app.events.Click`);
+    - an `AvroSharpNamespace` that is not a C# namespace.
+
+    `avrosharp gen --namespace` rejects such a namespace as a usage error (exit code 2).
+  - Two schema files that need each other's types are reported as a circular reference, naming the other file. Before, both errors only said that a type was not defined.
 
 ## [0.1.1] - 2026-09-28
 

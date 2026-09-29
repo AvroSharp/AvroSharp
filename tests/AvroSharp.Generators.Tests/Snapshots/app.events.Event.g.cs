@@ -61,7 +61,7 @@ namespace app.events
         {
             if (value is null)
             {
-                throw new global::System.ArgumentNullException(nameof(value));
+                throw new global::System.ArgumentNullException("value");
             }
 
             WriteCore(ref writer, value, 0);

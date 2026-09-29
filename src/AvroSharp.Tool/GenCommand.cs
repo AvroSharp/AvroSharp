@@ -88,7 +88,7 @@ internal static class GenCommand
             var path = set.DefinedIn.TryGetValue(typeName, out var file) ? file : null;
             foreach (var note in source.Notes)
             {
-                Diagnostics.Info(output, path, Diagnostics.PropertyRenamed, note);
+                Diagnostics.Info(output, path, Diagnostics.NameChanged, note);
             }
         }
 
@@ -116,6 +116,25 @@ internal static class GenCommand
 
     private static bool TryWrite(IReadOnlyList<GeneratedSource> sources, string outputFolder, bool flat, TextWriter error)
     {
+        // Paths that differ only by case are one file on Windows and macOS, where the second silently replaced the
+        // first (#131). They are rejected everywhere, since the output is often checked in and used on each.
+        var byPath = new Dictionary<string, GeneratedSource>(StringComparer.OrdinalIgnoreCase);
+        foreach (var source in sources)
+        {
+            var path = RelativePath(source, flat);
+            if (byPath.TryGetValue(path, out var other))
+            {
+                Diagnostics.Error(
+                    error,
+                    Diagnostics.GenerationFailed,
+                    $"The types '{other.HintName[..^Suffix.Length]}' and '{source.HintName[..^Suffix.Length]}' would both be written to {path}: their names differ only by case, which Windows and macOS file names don't tell apart. Rename one of the types, or map its namespace elsewhere.");
+                error.WriteLine("No files written.");
+                return false;
+            }
+
+            byPath.Add(path, source);
+        }
+
         try
         {
             foreach (var source in sources)

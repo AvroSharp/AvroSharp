@@ -86,6 +86,11 @@ internal sealed class GenOptions
             {
                 result.AddError("--namespace is the C# namespace for types without an Avro namespace; to map namespaces as avrogen's --namespace does, use --namespace-map avro.namespace:CSharp.Namespace.");
             }
+            else if (result.GetValue(_namespace) is { } other && !IsNamespace(other))
+            {
+                // "My Models" or "1abc" gave exit code 0 and code that did not compile (#131).
+                result.AddError($"--namespace '{other}' is not a C# namespace (names of letters, digits and underscores, separated by dots).");
+            }
 
             if (result.GetValue(_namespaceMap) is { Length: > 0 } && result.GetValue(_apache))
             {
@@ -151,7 +156,7 @@ internal sealed class GenOptions
         avro = colon < 0 ? string.Empty : value[..colon].Trim();
         csharp = colon < 0 ? string.Empty : value[(colon + 1)..].Trim();
         return IsNamespace(avro) && IsNamespace(csharp);
-
-        static bool IsNamespace(string text) => text.Length > 0 && text.Split('.').All(part => AvroNames.IsValidName(part));
     }
+
+    private static bool IsNamespace(string text) => text.Length > 0 && text.Split('.').All(part => AvroNames.IsValidName(part));
 }

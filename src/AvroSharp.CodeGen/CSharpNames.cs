@@ -21,8 +21,32 @@ internal sealed class CSharpNames(CodeGenOptions options)
         "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while",
     };
 
-    /// <summary>Escapes a C# keyword with <c>@</c>. Avro names are already valid C# identifier characters.</summary>
-    public static string Identifier(string name) => s_keywords.Contains(name) ? "@" + name : name;
+    // Contextual keywords, which are identifiers except where some construct gives them a meaning: as a type name
+    // (var, record, file, scoped, required, partial, _) or a namespace segment (nameof) they break the generated code
+    // (#131). Escaping any identifier with @ is always legal, so these are escaped too.
+    private static readonly HashSet<string> s_contextualKeywords = new(StringComparer.Ordinal)
+    {
+        "_", "add", "alias", "allows", "and", "ascending", "args", "async", "await", "by", "descending", "dynamic",
+        "equals", "extension", "field", "file", "from", "get", "global", "group", "init", "into", "join", "let",
+        "managed", "nameof", "nint", "not", "notnull", "nuint", "on", "or", "orderby", "partial", "record", "remove",
+        "required", "scoped", "select", "set", "unmanaged", "value", "var", "when", "where", "with", "yield",
+    };
+
+    // The C# name of each named type, by Avro full name, when it is not the Avro name (Generate assigns them).
+    private readonly Dictionary<string, string> _typeNames = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Escapes a C# keyword, reserved or contextual, with <c>@</c>. Avro names are already valid C# identifier
+    /// characters.
+    /// </summary>
+    public static string Identifier(string name) => s_keywords.Contains(name) || s_contextualKeywords.Contains(name) ? "@" + name : name;
+
+    /// <summary>Gives a named type a C# name other than its Avro name.</summary>
+    public void SetTypeName(NamedSchema schema, string name) => _typeNames[schema.FullName] = name;
+
+    /// <summary>Gets a named type's C# name, unqualified and escaped.</summary>
+    public string SimpleName(NamedSchema schema) =>
+        Identifier(_typeNames.TryGetValue(schema.FullName, out var name) ? name : schema.Name.Name);
 
     /// <summary>
     /// Converts <c>first_name</c>, <c>firstName</c> or <c>FIRST_NAME</c> to <c>FirstName</c>. A segment in capitals
@@ -156,6 +180,6 @@ internal sealed class CSharpNames(CodeGenOptions options)
     public string TypeName(NamedSchema schema)
     {
         var ns = Namespace(schema);
-        return "global::" + (ns is null ? string.Empty : ns + ".") + Identifier(schema.Name.Name);
+        return "global::" + (ns is null ? string.Empty : ns + ".") + SimpleName(schema);
     }
 }

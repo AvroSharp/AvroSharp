@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AvroSharp.Generic;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.CodeGen;
@@ -108,6 +109,28 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         return Literal(schema, json);
     }
 
+    /// <summary>
+    /// Gets the Avro encoding of a field's default when it has no C# literal (<see cref="DefaultValue"/> is
+    /// <see langword="null"/>): records, fixed values, logical types, and collections and unions of them. The
+    /// constructor decodes it with the field's reader, so it gets the value a reader gives the field when the data
+    /// lacks it (#131). <see langword="null"/> when there is no default, or it is <c>null</c>.
+    /// </summary>
+    public byte[]? DefaultBytes(RecordField field)
+    {
+        if (field.DefaultValue is not { } json || DefaultValue(field) is not null)
+        {
+            return null;
+        }
+
+        var first = field.Schema is UnionSchema union ? union.Branches[0] : field.Schema;
+        if (first.Type == AvroSchemaType.Null)
+        {
+            return null;
+        }
+
+        return GenericDatumWriter.Create(field.Schema).WriteToArray(GenericDatumJsonReader.ReadDefault(field.Schema, json));
+    }
+
     private string? Literal(AvroSchema schema, System.Text.Json.JsonElement json)
     {
         if (Logical(schema) is not null)
@@ -175,7 +198,15 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
             return null;
         }
 
-        var text = string.Equals(suffix, "f", System.StringComparison.Ordinal) ? ((float)value).ToString("R", invariant) : value.ToString("R", invariant);
+        // A number beyond the type's range reads as an infinity, and has no literal of its own (#131).
+        var isFloat = string.Equals(suffix, "f", System.StringComparison.Ordinal);
+        var rounded = isFloat ? (float)value : value;
+        if (double.IsInfinity(rounded))
+        {
+            return type + (rounded > 0 ? ".PositiveInfinity" : ".NegativeInfinity");
+        }
+
+        var text = isFloat ? ((float)value).ToString("R", invariant) : value.ToString("R", invariant);
         return text.IndexOf('E') >= 0 || text.IndexOf('.') >= 0 ? text + suffix : text + ".0" + suffix;
     }
 

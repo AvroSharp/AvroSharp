@@ -35,6 +35,7 @@ public static class CSharpCodeGenerator
         ArgumentNullException.ThrowIfNull(schemas);
         options ??= CodeGenOptions.Default;
         ValidateNamespaceMapping(options);
+        ValidateDefaultNamespace(options);
         var names = new CSharpNames(options);
         var types = new TypeMapper(names, options);
 
@@ -46,9 +47,16 @@ public static class CSharpCodeGenerator
 
         var version = Version();
         var apache = options.ApacheCompatible;
+        var renamed = AssignTypeNames(named.Values, names, apache);
+        CheckCSharpNames(named.Values, names);
         var sources = named.Values.Select(schema =>
         {
             var notes = new List<string>();
+            if (renamed.TryGetValue(schema.FullName, out var note))
+            {
+                notes.Add(note);
+            }
+
             return new GeneratedSource(schema.FullName + ".g.cs", Emit(schema, names, types, version, apache, notes), notes) { Namespace = names.Namespace(schema) };
         }).ToList();
         if (apache)
@@ -57,6 +65,127 @@ public static class CSharpCodeGenerator
         }
 
         return sources;
+    }
+
+    // The members the generator adds to each kind of type besides the fields' properties: a type may not have one
+    // of these names (CS0542, #131).
+    private static readonly string[] s_recordMembers =
+    [
+        "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema", "s_apacheSchema", "s_plan",
+        "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes", "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo",
+        "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField", "ReadPromoted", "AvroCodec", "Get", "Put",
+    ];
+
+    private static readonly string[] s_fixedMembers =
+    [
+        "Size", "Value", "AsSpan", "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema",
+        "s_apacheSchema",
+    ];
+
+    /// <summary>
+    /// Renames a type whose name is also a member the generator adds to it (or, for an enum, one of its symbols), with
+    /// a note for the type's source. In the Apache.Avro compatibility mode that is an error instead: Apache.Avro finds
+    /// generated types by the schema's full name.
+    /// </summary>
+    private static Dictionary<string, string> AssignTypeNames(IEnumerable<NamedSchema> schemas, CSharpNames names, bool apache)
+    {
+        var notes = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var schema in schemas)
+        {
+            // A type named var would also make the generated code's implicitly typed locals refer to it.
+            var taken = new HashSet<string>(MembersOf(schema), StringComparer.Ordinal) { "var" };
+            var name = schema.Name.Name;
+            if (!taken.Contains(name))
+            {
+                continue;
+            }
+
+            var why = string.Equals(name, "var", StringComparison.Ordinal)
+                ? "C# would read the generated code's implicitly typed locals as that type"
+                : "C# does not allow a member named like its type, and " + name + " is " + (schema is EnumSchema ? "a symbol of the enum" : "a member the generator adds to it");
+            if (apache)
+            {
+                throw new InvalidOperationException(
+                    $"The type '{schema.FullName}' cannot be generated in the Apache.Avro compatibility mode: {why}. Rename the type in the schema.");
+            }
+
+            var candidate = name;
+            for (var suffix = 1; taken.Contains(candidate); suffix++)
+            {
+                candidate = name + new string('_', suffix);
+            }
+
+            names.SetTypeName(schema, candidate);
+            notes[schema.FullName] = $"Type '{schema.FullName}' is C# type {candidate}: {why}.";
+        }
+
+        return notes;
+    }
+
+    private static IEnumerable<string> MembersOf(NamedSchema schema)
+    {
+        switch (schema)
+        {
+            case RecordSchema record:
+                var chunks = Chunks(record.Fields.Count).Count;
+                return s_recordMembers
+                    .Concat(Enumerable.Range(0, chunks).SelectMany(k => new[] { "WriteFields" + Int(k), "ReadFields" + Int(k), "ReadField" + Int(k) }))
+                    .Concat(Enumerable.Range(0, record.Fields.Count).Select(i => "s_default" + Int(i)));
+            case FixedSchema:
+                return s_fixedMembers;
+            case EnumSchema enumSchema:
+                return enumSchema.Symbols;
+            default:
+                return [];
+        }
+    }
+
+    /// <summary>
+    /// Rejects C# names that collide after namespace mapping and renaming: two types with the same C# full name, or a
+    /// type whose C# full name is also a namespace (CS0101, #131).
+    /// </summary>
+    private static void CheckCSharpNames(IEnumerable<NamedSchema> schemas, CSharpNames names)
+    {
+        var byName = new Dictionary<string, NamedSchema>(StringComparer.Ordinal);
+        var namespaces = new Dictionary<string, NamedSchema>(StringComparer.Ordinal);
+        foreach (var schema in schemas)
+        {
+            var fullName = names.TypeName(schema);
+            if (byName.TryGetValue(fullName, out var other))
+            {
+                throw new InvalidOperationException(
+                    $"The types '{other.FullName}' and '{schema.FullName}' are both the C# type {fullName["global::".Length..]}. Map their namespaces to different C# namespaces.");
+            }
+
+            byName.Add(fullName, schema);
+            if (names.Namespace(schema) is { } ns)
+            {
+                // The namespace and each namespace that contains it.
+                for (var end = ns.Length; end > 0; end = ns.LastIndexOf('.', end - 1))
+                {
+                    namespaces.TryAdd("global::" + ns[..end], schema);
+                }
+            }
+        }
+
+        foreach (var pair in byName)
+        {
+            if (namespaces.TryGetValue(pair.Key, out var inside))
+            {
+                throw new InvalidOperationException(
+                    $"The type '{pair.Value.FullName}' is the C# type {pair.Key["global::".Length..]}, which is also the namespace of '{inside.FullName}'. " +
+                    "C# does not allow a type and a namespace of the same name: rename the type, or map one of the namespaces.");
+            }
+        }
+    }
+
+    private static void ValidateDefaultNamespace(CodeGenOptions options)
+    {
+        var ns = options.DefaultNamespace;
+        if (!string.IsNullOrEmpty(ns) && !ns!.Split('.').All(part => AvroNames.IsValidName(part)))
+        {
+            throw new ArgumentException($"The namespace '{ns}' is not a C# namespace: names of letters, digits and underscores, separated by dots.", nameof(options));
+        }
     }
 
     private static void ValidateNamespaceMapping(CodeGenOptions options)
@@ -154,7 +283,7 @@ public static class CSharpCodeGenerator
 
         Doc(w, schema.Doc);
         w.Line($"[global::System.CodeDom.Compiler.GeneratedCode({CSharpNames.Literal(Tool)}, {CSharpNames.Literal(version)})]");
-        var name = CSharpNames.Identifier(schema.Name.Name);
+        var name = names.SimpleName(schema);
         switch (schema)
         {
             case RecordSchema record:
@@ -325,7 +454,33 @@ public static class CSharpCodeGenerator
             }
         }
 
+        // Defaults with no C# literal (records, fixed values, logical types, collections of them) are decoded from
+        // their Avro encoding by the field's reader, as reading data without the field does.
+        var encoded = new List<(int Index, byte[] Bytes)>();
+        for (var i = 0; i < record.Fields.Count; i++)
+        {
+            if (types.DefaultBytes(record.Fields[i]) is { } bytes)
+            {
+                encoded.Add((i, bytes));
+            }
+        }
+
+        foreach (var (index, _) in encoded)
+        {
+            w.Open();
+            w.Line($"var reader = new {Reader}(s_default{Int(index)});");
+            w.Line($"ReadField(ref reader, this, {Int(index)}, 0);");
+            w.Close();
+        }
+
         w.Close();
+
+        foreach (var (index, bytes) in encoded)
+        {
+            w.Line();
+            w.Line($"// The Avro encoding of {CSharpNames.Literal(record.Fields[index].Name)}'s default.");
+            w.Line($"private static global::System.ReadOnlySpan<byte> s_default{Int(index)} => new byte[] {{ {string.Join(", ", bytes.Select(b => "0x" + b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture)))} }};");
+        }
 
         w.Line();
         if (types.Annotations)
@@ -348,7 +503,8 @@ public static class CSharpCodeGenerator
         w.Line("/// <summary>Writes a value in Avro binary encoding.</summary>");
         w.Open($"public static void Write(ref {Writer} writer, {name} value)");
         w.Open("if (value is null)");
-        w.Line("throw new global::System.ArgumentNullException(nameof(value));");
+        // A literal, not nameof(value): a namespace named nameof would capture the operator (#131).
+        w.Line("throw new global::System.ArgumentNullException(\"value\");");
         w.Close();
         w.Line();
         w.Line("WriteCore(ref writer, value, 0);");
@@ -1022,6 +1178,11 @@ public static class CSharpCodeGenerator
             used.Add("WriteFields" + Int(k));
             used.Add("ReadFields" + Int(k));
             used.Add("ReadField" + Int(k));
+        }
+
+        for (var i = 0; i < record.Fields.Count; i++)
+        {
+            used.Add("s_default" + Int(i));
         }
 
         // Which field took each name, to explain a rename.

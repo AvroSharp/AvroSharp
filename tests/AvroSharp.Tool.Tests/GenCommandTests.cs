@@ -134,6 +134,8 @@ public class GenCommandTests
     [Arguments(new[] { "--namespace-map", "com.example:" }, "--namespace-map 'com.example:' is not avro.namespace:CSharp.Namespace")]
     [Arguments(new[] { "--namespace-map", "com..example:Example" }, "--namespace-map 'com..example:Example' is not avro.namespace:CSharp.Namespace")]
     [Arguments(new[] { "--namespace-map", "a:B", "-m", "a:C" }, "--namespace-map maps 'a' more than once.")]
+    [Arguments(new[] { "--namespace", "My Models" }, "--namespace 'My Models' is not a C# namespace")]
+    [Arguments(new[] { "--namespace", "1abc" }, "--namespace '1abc' is not a C# namespace")]
     public async Task Gen_InvalidNamespaceOptions_AreUsageErrors(string[] options, string message)
     {
         var result = ToolRunner.Run(["gen", "a.avsc", "-o", "out", .. options]);
@@ -239,5 +241,55 @@ public class GenCommandTests
 
         await Assert.That(result.ExitCode).IsEqualTo(1);
         await Assert.That(result.Error).Contains($"error: Cannot write to '{notAFolder}':");
+    }
+
+    /// <summary>
+    /// Names that differ only by case became one file on Windows and macOS, silently keeping the last type (#131).
+    /// </summary>
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Gen_TypesWhoseFilesDifferOnlyByCase_AreReported_AndWriteNothing(bool flat)
+    {
+        using var tool = new ToolRunner();
+        var upper = tool.Write("upper.avsc", """{"type":"record","name":"Order","namespace":"cs","fields":[{"name":"x","type":"int"}]}""");
+        var lower = tool.Write("lower.avsc", """{"type":"record","name":"order","namespace":"cs","fields":[{"name":"x","type":"int"}]}""");
+        var output = tool.PathOf("out");
+
+        var result = ToolRunner.Run(["gen", upper, lower, "-o", output, .. flat ? new[] { "--flat" } : []]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+        await Assert.That(result.Error).Contains("error AVROGEN003: The types 'cs.Order' and 'cs.order' would both be written to");
+        await Assert.That(result.Error).Contains(": their names differ only by case, which Windows and macOS file names don't tell apart.");
+        await Assert.That(Directory.Exists(output)).IsFalse();
+    }
+
+    [Test]
+    public async Task Gen_ANamespaceMapThatMergesTwoTypesOfOneName_IsReported()
+    {
+        using var tool = new ToolRunner();
+        var a = tool.Write("a.avsc", """{"type":"record","name":"X","namespace":"a","fields":[{"name":"x","type":"int"}]}""");
+        var b = tool.Write("b.avsc", """{"type":"record","name":"X","namespace":"b","fields":[{"name":"x","type":"int"}]}""");
+
+        var result = ToolRunner.Run("gen", a, b, "-o", tool.PathOf("out"), "-m", "a:M", "-m", "b:M");
+
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+        await Assert.That(result.Error).Contains("error AVROGEN003: The types 'a.X' and 'b.X' are both the C# type M.X.");
+        await Assert.That(Directory.Exists(tool.PathOf("out"))).IsFalse();
+    }
+
+    /// <summary>Two files that need each other's types can't be parsed in any order; the error now says so.</summary>
+    [Test]
+    public async Task Gen_FilesThatNeedEachOthersTypes_NameTheCycle()
+    {
+        using var tool = new ToolRunner();
+        var a = tool.Write("a.avsc", """{"type":"record","name":"A","namespace":"x.y","fields":[{"name":"b","type":["null","x.z.B"]}]}""");
+        var b = tool.Write("b.avsc", """{"type":"record","name":"B","namespace":"x.z","fields":[{"name":"a","type":["null","x.y.A"]}]}""");
+
+        var result = ToolRunner.Run("gen", a, b, "-o", tool.PathOf("out"));
+
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+        await Assert.That(result.Error).Contains("'x.z.B' is not a defined type.");
+        await Assert.That(result.Error).Contains($"It is defined in {b}, which itself needs 'x.y.A' from this file: circular references between files are not supported. Define the types that refer to each other in one file.");
     }
 }
