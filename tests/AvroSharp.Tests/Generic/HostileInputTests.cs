@@ -50,6 +50,46 @@ public class HostileInputTests
         await Assert.That(generous.Read(bytes).AsArray().Count).IsEqualTo(90_000);
     }
 
+    /// <summary>
+    /// A record of null fields takes no bytes but creates a value per field (#129): each item costs one value plus one
+    /// per field against MaxZeroSizeItems, on every read path, so 100 items of 1,000 fields exceed 65,536.
+    /// </summary>
+    [Test]
+    public async Task ZeroSizeRecords_CostTheirFields_OnEveryReadPath()
+    {
+        var fields = string.Join(",", Enumerable.Range(0, 1_000).Select(i => $$"""{"name":"f{{i}}","type":"null"}"""));
+        var wide = $$"""{"type":"record","name":"Wide","fields":[{{fields}}]}""";
+        var items = $$"""{"type":"array","items":{{wide}}}""";
+        var writer = AvroSchema.Parse($$"""{"type":"record","name":"R","fields":[{"name":"items","type":{{items}}}]}""");
+        var reader = AvroSchema.Parse($$"""{"type":"record","name":"R","fields":[{"name":"items","type":{{items}}}]}""");
+        var skipOnly = AvroSchema.Parse("""{"type":"record","name":"R","fields":[]}""");
+        byte[] Items(long count) => Encode(w =>
+        {
+            w.WriteBlockCount(count);
+            w.WriteBlockEnd();
+        });
+
+        var bytes = Items(100);
+        var failures = new[]
+        {
+            Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer).Read(bytes)),
+            Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer, reader).Read(bytes)),
+            Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer, skipOnly).Read(bytes)),
+            Assert.Throws<AvroDataException>(() =>
+            {
+                var input = new AvroReader(bytes);
+                AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
+            }),
+        };
+        foreach (var ex in failures)
+        {
+            await Assert.That(ex.Message).Contains("MaxZeroSizeItems");
+        }
+
+        // 65 items of 1,001 values fit.
+        await Assert.That(GenericDatumReader.Create(writer).Read(Items(65)).AsRecord()["items"].AsArray().Count).IsEqualTo(65);
+    }
+
     [Test]
     public async Task DeeplyNestedInput_IsRejectedInsteadOfOverflowingTheStack()
     {
@@ -58,6 +98,103 @@ public class HostileInputTests
 
         var ex = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(schema).Read(bytes));
         await Assert.That(ex.Message).Contains("nested more than 128 levels");
+    }
+
+    /// <summary>
+    /// A writer schema that nests arrays, maps or unions between recursive records (#129): only records counted
+    /// against MaxDepth, so 30 arrays per record level overflowed the stack and crashed the process on every path
+    /// that reads by the writer's schema, including skipping and transcoding for generated types.
+    /// </summary>
+    [Test]
+    [Arguments("array")]
+    [Arguments("map")]
+    [Arguments("union")]
+    public async Task NestingThroughCollectionsAndUnions_IsBounded_OnEveryReadPath(string kind)
+    {
+        const int Levels = 60;
+        var type = "\"R\"";
+        for (var i = 0; i < Levels; i++)
+        {
+            type = kind switch
+            {
+                "array" => $$"""{"type":"array","items":{{type}}}""",
+                "map" => $$"""{"type":"map","values":{{type}}}""",
+                _ => $$"""["null",{"type":"array","items":{{type}}}]""",
+            };
+        }
+
+        var writer = AvroSchema.Parse($$"""{"type":"record","name":"R","fields":[{"name":"f","type":{{type}}}]}""");
+        var reader = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"g","type":"int","default":0}]}""");
+
+        // Each level opens one item: a block count of 1 (and an empty map key), or the union's array branch and
+        // a block count of 1 (a union cannot hold a union directly).
+        var level = kind switch
+        {
+            "array" => new byte[] { 0x02 },
+            "map" => new byte[] { 0x02, 0x00 },
+            _ => new byte[] { 0x02, 0x02 },
+        };
+        var bytes = Enumerable.Repeat(level, 128 * Levels).SelectMany(b => b).ToArray();
+
+        var generic = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer).Read(bytes));
+        var resolving = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer, reader).Read(bytes));
+        var transcoded = Assert.Throws<AvroDataException>(() =>
+        {
+            var input = new AvroReader(bytes);
+            AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
+        });
+        var skipped = Assert.Throws<AvroDataException>(() =>
+        {
+            var plan = AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(writer, reader)!;
+            var input = new AvroReader(bytes);
+            plan.Skip(0, ref input);
+        });
+
+        foreach (var ex in new[] { generic, resolving, transcoded, skipped })
+        {
+#if NET
+            await Assert.That(ex.Message).Contains("nested more than 1024 levels deep, counting arrays, maps and records");
+#else
+            // .NET Framework's larger frames can reach the thread's stack check before the nesting limit, depending
+            // on the thread; either way the input is rejected instead of overflowing the stack.
+            await Assert.That(ex.Message.IndexOf("nested more than 1024 levels deep, counting arrays, maps and records", StringComparison.Ordinal) >= 0
+                || ex.Message.IndexOf("nested too deeply for the thread's stack", StringComparison.Ordinal) >= 0).IsTrue();
+#endif
+        }
+    }
+
+    /// <summary>
+    /// With the depth limits raised past what a thread's stack holds, the stack check reports the input instead of
+    /// the process ending in a stack overflow (#129). The check runs every few levels, not per record.
+    /// </summary>
+    [Test]
+    public async Task NestingBeyondTheThreadsStack_IsRejected()
+    {
+        var schema = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"children","type":{"type":"array","items":"Node"}}]}""");
+        var reader = GenericDatumReader.Create(schema, new GenericDatumReaderOptions { MaxDepth = 1_000_000 });
+        var bytes = NestedNodes(depth: 50_000);
+
+        Exception? failure = null;
+        var thread = new System.Threading.Thread(
+            () =>
+            {
+                try
+                {
+                    reader.Read(bytes);
+                }
+#pragma warning disable CA1031 // Handed to the test thread, which asserts on it.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    failure = ex;
+                }
+            },
+            maxStackSize: 512 * 1024);
+        thread.Start();
+        thread.Join();
+
+        await Assert.That(failure).IsTypeOf<AvroDataException>();
+        await Assert.That(failure!.Message).Contains("nested too deeply for the thread's stack");
     }
 
     [Test]

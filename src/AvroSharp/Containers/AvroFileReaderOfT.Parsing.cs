@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using AvroSharp.Buffers;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
-using AvroSharp.Serialization;
 
 namespace AvroSharp.Containers;
 
@@ -58,6 +57,8 @@ public sealed partial class AvroFileReader<T>
     }
 
     // The metadata map: blocks of key/value pairs, ended by a zero count.
+    private const int MaxMetadataEntries = 1024;
+
     private bool TryParseMetadataEntries(ref Cursor cursor, List<((int Start, int Length) Key, (int Start, int Length) Value)> entries, out string needed)
     {
         while (true)
@@ -81,6 +82,12 @@ public sealed partial class AvroFileReader<T>
                 {
                     return false;
                 }
+            }
+
+            // Files hold a handful of entries; without a bound, a header of empty pairs costs 16 bytes per 2 (#129).
+            if (count > MaxMetadataEntries - entries.Count)
+            {
+                throw new AvroDataException($"The file header declares more than {MaxMetadataEntries} metadata entries.");
             }
 
             for (var i = 0L; i < count; i++)
@@ -142,9 +149,15 @@ public sealed partial class AvroFileReader<T>
             throw new AvroDataException("The file header has no 'avro.schema' entry.");
         }
 
+        if (schemaJson.Length > _maxSchemaLength)
+        {
+            throw new AvroDataException($"The file's schema is {schemaJson.Length} bytes, more than the limit of {_maxSchemaLength} (AvroFileReaderOptions.MaxSchemaLength).");
+        }
+
         try
         {
             WriterSchema = AvroSchema.Parse(schemaJson.Span);
+            _zeroSizeCost = ZeroSizeValues.Count(WriterSchema);
         }
         catch (AvroSchemaException ex)
         {
@@ -237,12 +250,13 @@ public sealed partial class AvroFileReader<T>
         _inputStart += AvroContainerFormat.SyncSize;
     }
 
-    private static void CheckObjectCount(long count, int length)
+    private void CheckObjectCount(long count, int length)
     {
-        // Every object takes at least one byte except zero-size ones (null, empty records), which input cannot bound.
-        if (count > length && count > AvroGeneratedCode.MaxZeroSizeItems)
+        // Every object takes at least one byte unless the schema allows zero-size ones, which only the option bounds.
+        if (count > length && (_zeroSizeCost == 0 || count > _maxZeroSizeValues / _zeroSizeCost))
         {
-            throw new AvroDataException($"A block declares {count} objects in {length} bytes.");
+            var limit = _zeroSizeCost == 0 ? string.Empty : " (AvroFileReaderOptions.MaxZeroSizeValuesPerBlock)";
+            throw new AvroDataException($"A block declares {count} objects in {length} bytes{limit}.");
         }
 
         if (count == 0 && length != 0)

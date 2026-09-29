@@ -386,6 +386,90 @@ public class SchemaResolutionTests
         await Assert.That(GenericDatumReader.Create(writer, writer).ReaderSchema).IsSameReferenceAs(writer);
     }
 
+    private const string TwoEvents = """
+        [{"type":"record","name":"Event","namespace":"com.x","fields":[{"name":"x","type":"int"}]},
+         {"type":"record","name":"Event","namespace":"com.y","fields":[{"name":"y","type":"string"}]}]
+        """;
+
+    /// <summary>
+    /// A writer branch is read as the reader branch of its full name, wherever it is in the union, before one of the
+    /// same unqualified name (#130). Both unions are parsed separately, as a file's header and the reader's are.
+    /// </summary>
+    [Test]
+    public async Task UnionBranches_OfTheSameUnqualifiedName_ResolveByFullName()
+    {
+        var writer = (UnionSchema)AvroSchema.Parse(TwoEvents);
+        var reader = (UnionSchema)AvroSchema.Parse(TwoEvents);
+        var second = new GenericRecord((RecordSchema)writer.Branches[1]) { ["y"] = "hi" };
+
+        var read = Resolve(writer, reader, second).AsRecord();
+
+        await Assert.That(read.Schema).IsSameReferenceAs(reader.Branches[1]);
+        await Assert.That(read["y"].AsString()).IsEqualTo("hi");
+
+        // Written again, the value keeps its branch.
+        var bytes = GenericDatumWriter.Create(writer).WriteToArray(second);
+        await Assert.That(GenericDatumWriter.Create(reader).WriteToArray(read)).IsEquivalentTo(bytes);
+    }
+
+    [Test]
+    public async Task UnionBranches_ResolveByFullName_InAReorderedReaderUnion()
+    {
+        var writer = (UnionSchema)AvroSchema.Parse(TwoEvents);
+        var reader = AvroSchema.Parse("""
+            [{"type":"record","name":"Event","namespace":"com.y","fields":[{"name":"y","type":"string"}]},
+             {"type":"record","name":"Event","namespace":"com.x","fields":[{"name":"x","type":"int"}]}]
+            """);
+
+        var read = Resolve(writer, reader, new GenericRecord((RecordSchema)writer.Branches[0]) { ["x"] = 5 }).AsRecord();
+
+        await Assert.That(read.Schema.FullName).IsEqualTo("com.x.Event");
+        await Assert.That(read["x"].AsInt32()).IsEqualTo(5);
+    }
+
+    [Test]
+    public async Task EnumBranches_OfTheSameUnqualifiedName_ResolveByFullName()
+    {
+        const string Json = """["null",{"type":"enum","name":"E","namespace":"a","symbols":["A","B"]},{"type":"enum","name":"E","namespace":"b","symbols":["C","D"]}]""";
+        var writer = (UnionSchema)AvroSchema.Parse(Json);
+
+        var read = Resolve(writer, AvroSchema.Parse(Json), AvroValue.FromEnum((EnumSchema)writer.Branches[2], "D"));
+
+        await Assert.That(read.AsEnumSymbol()).IsEqualTo("D");
+    }
+
+    [Test]
+    public async Task AUnionBranch_WithOnlyTheUnqualifiedName_StillResolves()
+    {
+        var writer = AvroSchema.Parse("""{"type":"record","name":"Event","namespace":"com.z","fields":[{"name":"x","type":"int"}]}""");
+        var reader = AvroSchema.Parse("""["null",{"type":"record","name":"Event","namespace":"com.x","fields":[{"name":"x","type":"int"}]}]""");
+
+        var read = Resolve(writer, reader, new GenericRecord((RecordSchema)writer) { ["x"] = 7 }).AsRecord();
+
+        await Assert.That(read.Schema.FullName).IsEqualTo("com.x.Event");
+        await Assert.That(read["x"].AsInt32()).IsEqualTo(7);
+    }
+
+    /// <summary>
+    /// Aliases rewrite the writer's schema (the specification), so a reader field's alias takes the writer field before
+    /// a reader field of its name does, as in Java (#130).
+    /// </summary>
+    [Test]
+    public async Task AFieldAlias_TakesPrecedenceOverAFieldOfTheWritersName()
+    {
+        var writer = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}""");
+        var reader = AvroSchema.Parse("""
+            {"type":"record","name":"R","fields":[
+              {"name":"a","type":"int","default":-1},
+              {"name":"b","type":"int","aliases":["a"],"default":-2}]}
+            """);
+
+        var read = Resolve(writer, reader, new GenericRecord(writer) { ["a"] = 5 }).AsRecord();
+
+        await Assert.That(read["a"].AsInt32()).IsEqualTo(-1);
+        await Assert.That(read["b"].AsInt32()).IsEqualTo(5);
+    }
+
     /// <summary>
     /// Resolves with the generic reader, and checks that the transcoder generated types use (which writes the reader's
     /// encoding directly) gives the same bytes as the resolved value written again.

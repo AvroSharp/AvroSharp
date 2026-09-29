@@ -12,13 +12,15 @@ namespace AvroSharp.Generic;
 /// <summary>Schema resolution: reading data written with one schema as another (the specification's "Schema Resolution").</summary>
 public sealed partial class GenericDatumReader
 {
+    // Keyed by the reader's schema, then the writer's (#129): each value references both schemas, and a value lives as
+    // long as its key, so keyed the other way round a long-lived reader schema kept every writer schema alive.
     private static readonly ConditionalWeakTable<AvroSchema, ConditionalWeakTable<AvroSchema, GenericDatumReader>> s_resolvingCache = new();
 
     private GenericDatumReader(AvroSchema writerSchema, AvroSchema readerSchema, GenericDatumReaderOptions options)
     {
         Schema = writerSchema;
         ReaderSchema = readerSchema;
-        _options = options;
+        _limits = new ReadLimits(options);
         _root = new ResolvingBuilder().Build(writerSchema, readerSchema, "$");
     }
 
@@ -59,8 +61,8 @@ public sealed partial class GenericDatumReader
             return new GenericDatumReader(writerSchema, readerSchema, options);
         }
 
-        var byReader = s_resolvingCache.GetValue(writerSchema, static _ => new ConditionalWeakTable<AvroSchema, GenericDatumReader>());
-        return byReader.GetValue(readerSchema, reader => new GenericDatumReader(writerSchema, reader, GenericDatumReaderOptions.Default));
+        var byWriter = s_resolvingCache.GetValue(readerSchema, static _ => new ConditionalWeakTable<AvroSchema, GenericDatumReader>());
+        return byWriter.GetValue(writerSchema, writer => new GenericDatumReader(writer, readerSchema, GenericDatumReaderOptions.Default));
     }
 
     /// <summary>Builds reader nodes that read the writer's encoding and produce values of the reader schema.</summary>
@@ -70,6 +72,7 @@ public sealed partial class GenericDatumReader
         private readonly Dictionary<(RecordSchema Writer, RecordSchema Reader), ResolvedRecordNode> _records = [];
         private readonly Builder _identity = new();
         private readonly Dictionary<RecordSchema, SkipRecordNode> _skips = [];
+        private readonly Dictionary<RecordSchema, Dictionary<string, RecordField>> _fieldAliases = [];
 
         public ReaderNode Build(AvroSchema writer, AvroSchema reader, string path)
         {
@@ -191,15 +194,29 @@ public sealed partial class GenericDatumReader
             return node;
         }
 
-        public static RecordField? FindField(RecordSchema reader, string writerName)
+        /// <summary>
+        /// The reader field for a writer field. A reader field's aliases name the writer fields it replaces, and take
+        /// precedence over a reader field of the writer field's name (#130): the specification defines aliases as
+        /// rewriting the writer's schema, so the writer field is renamed before names are matched, as in Java.
+        /// </summary>
+        public RecordField? FindField(RecordSchema reader, string writerName)
         {
-            if (reader.TryGetField(writerName, out var field))
+            if (!_fieldAliases.TryGetValue(reader, out var aliases))
             {
-                return field;
+                // Built once per reader record, so a writer record of many fields costs no scan of the reader's per field.
+                aliases = new Dictionary<string, RecordField>(StringComparer.Ordinal);
+                foreach (var readerField in reader.Fields)
+                {
+                    foreach (var alias in readerField.Aliases)
+                    {
+                        aliases.TryAdd(alias, readerField);
+                    }
+                }
+
+                _fieldAliases.Add(reader, aliases);
             }
 
-            // A reader field's aliases name the writer fields it replaces.
-            return reader.Fields.FirstOrDefault(f => f.Aliases.Contains(writerName, StringComparer.Ordinal));
+            return aliases.TryGetValue(writerName, out var aliased) ? aliased : reader.TryGetField(writerName, out var field) ? field : null;
         }
 
         private static EnumRemapNode BuildEnum(EnumSchema writer, EnumSchema reader) => new(writer, reader, EnumMap(writer, reader));
@@ -218,14 +235,25 @@ public sealed partial class GenericDatumReader
         }
 
         /// <summary>
-        /// The reader union's branch for a writer schema: first a branch of the same type (or name), then one the writer
-        /// type promotes to, as the Java implementation chooses.
+        /// The reader union's branch for a writer schema, as the Java implementation chooses: a branch of the same type
+        /// and, for a named type, the same full name (or a reader alias for it); only when no branch has that, one of
+        /// the same unqualified name; then one the writer type promotes to. Each is looked for across the whole union,
+        /// so <c>com.y.Event</c> is not read as an earlier <c>com.x.Event</c> branch (#130).
         /// </summary>
         public static AvroSchema? BestBranch(AvroSchema writer, UnionSchema reader)
         {
             foreach (var branch in reader.Branches)
             {
-                if (branch.Type == writer.Type && (branch is not NamedSchema named || NamesMatch((NamedSchema)writer, named)))
+                if (branch.Type == writer.Type && (branch is not NamedSchema named || FullNamesMatch((NamedSchema)writer, named)))
+                {
+                    return branch;
+                }
+            }
+
+            foreach (var branch in reader.Branches)
+            {
+                if (branch.Type == writer.Type && branch is NamedSchema named
+                    && string.Equals(((NamedSchema)writer).Name.Name, named.Name.Name, StringComparison.Ordinal))
                 {
                     return branch;
                 }
@@ -243,8 +271,10 @@ public sealed partial class GenericDatumReader
         }
 
         public static bool NamesMatch(NamedSchema writer, NamedSchema reader) =>
+            FullNamesMatch(writer, reader) || string.Equals(writer.Name.Name, reader.Name.Name, StringComparison.Ordinal);
+
+        private static bool FullNamesMatch(NamedSchema writer, NamedSchema reader) =>
             string.Equals(writer.FullName, reader.FullName, StringComparison.Ordinal)
-            || string.Equals(writer.Name.Name, reader.Name.Name, StringComparison.Ordinal)
             || reader.Aliases.Any(alias => string.Equals(alias.FullName, writer.FullName, StringComparison.Ordinal));
 
         public ReaderNode BuildSkipNode(AvroSchema writer) => BuildSkip(writer);
@@ -324,12 +354,14 @@ public sealed partial class GenericDatumReader
 
         public override int MinimumSize => Size;
 
+        // The record, the writer's fields and the reader's defaults; a recursive record counts itself once.
+        public override long ZeroSizeCost => _zeroSizeCost != 0 ? _zeroSizeCost : _zeroSizeCost = RecordCost(Steps.Select(s => s.Node), Defaults.Length, ref _zeroSizeCost);
+
+        private long _zeroSizeCost;
+
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
-            if (++state.Depth > state.MaxDepth)
-            {
-                throw new AvroDataException($"Records are nested more than {state.MaxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
-            }
+            EnterRecord(ref state);
 
             var record = new GenericRecord(readerSchema, readerSchema.Fields.Count);
             foreach (var (target, node) in Steps)
@@ -346,7 +378,7 @@ public sealed partial class GenericDatumReader
                 record.ValueAt(fieldDefault.Target) = fieldDefault.Create();
             }
 
-            state.Depth--;
+            ExitRecord(ref state);
             return record;
         }
     }
@@ -386,9 +418,13 @@ public sealed partial class GenericDatumReader
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
             var index = reader.ReadUnionIndex();
-            return (uint)index < (uint)branches.Length
-                ? branches[index].Read(ref reader, ref state)
-                : throw new AvroDataException($"Union branch index {index} is out of range ({branches.Length} branches).");
+            if ((uint)index >= (uint)branches.Length)
+            {
+                throw new AvroDataException($"Union branch index {index} is out of range ({branches.Length} branches).");
+            }
+
+            // Not counted as nesting: a union cannot hold a union, so the arrays, maps and records in it count (#129).
+            return branches[index].Read(ref reader, ref state);
         }
     }
 
@@ -445,21 +481,40 @@ public sealed partial class GenericDatumReader
 
         public override int MinimumSize => Size;
 
+        // Skipping creates no values, but still visits each field.
+        public override long ZeroSizeCost => _zeroSizeCost != 0 ? _zeroSizeCost : _zeroSizeCost = RecordCost(Fields, 0, ref _zeroSizeCost);
+
+        private long _zeroSizeCost;
+
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
-            if (++state.Depth > state.MaxDepth)
-            {
-                throw new AvroDataException($"Records are nested more than {state.MaxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
-            }
+            EnterRecord(ref state);
 
             foreach (var field in Fields)
             {
                 field.Read(ref reader, ref state);
             }
 
-            state.Depth--;
+            ExitRecord(ref state);
             return AvroValue.Null;
         }
+    }
+
+    /// <summary>
+    /// The zero-size cost of a record whose fields are read by <paramref name="fields"/>, plus
+    /// <paramref name="extra"/>. <paramref name="cache"/> is set to 1 while the fields are summed, so a record that
+    /// holds itself counts as one value there instead of recursing.
+    /// </summary>
+    private static long RecordCost(IEnumerable<ReaderNode> fields, long extra, ref long cache)
+    {
+        cache = 1;
+        var total = ZeroSizeValues.Add(1, extra);
+        foreach (var field in fields)
+        {
+            total = ZeroSizeValues.Add(total, field.ZeroSizeCost);
+        }
+
+        return total;
     }
 
     /// <summary>Skips an array or map; a block whose byte size the writer recorded is skipped in one step.</summary>
@@ -469,6 +524,7 @@ public sealed partial class GenericDatumReader
 
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
+            EnterNesting(ref state);
             long count;
             while ((count = reader.ReadBlockCount(out var byteSize)) != 0)
             {
@@ -478,7 +534,7 @@ public sealed partial class GenericDatumReader
                     continue;
                 }
 
-                CheckBlockCount(ref reader, ref state, count, 0, (isMap ? 1 : 0) + items.MinimumSize);
+                CheckBlockCount(ref reader, ref state, count, 0, (isMap ? 1 : 0) + items.MinimumSize, items.ZeroSizeCost);
                 for (var i = 0L; i < count; i++)
                 {
                     if (isMap)
@@ -490,6 +546,7 @@ public sealed partial class GenericDatumReader
                 }
             }
 
+            state.Nesting--;
             return AvroValue.Null;
         }
     }

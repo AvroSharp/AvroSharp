@@ -65,6 +65,7 @@ public sealed class AvroRegistryMessageReader<T>
     private readonly Func<AvroSchema, AvroReadFunc<T>> _createReader;
     private readonly int _maxPayloadLength;
     private readonly ConcurrentDictionary<AvroSchemaId, Entry> _entries = new();
+    private readonly System.Threading.Lock _createLock = new();
     private Entry? _last;
 
     internal AvroRegistryMessageReader(AvroRegistryFraming framing, IAvroSchemaIdResolver resolver, Func<AvroSchema, AvroReadFunc<T>> createReader, AvroRegistryReaderOptions options)
@@ -153,7 +154,16 @@ public sealed class AvroRegistryMessageReader<T>
             throw new AvroDataException($"No schema with ID {id} is known to the resolver.");
         }
 
-        var entry = _entries.GetOrAdd(id, new Entry(id, _createReader(schema) ?? throw new InvalidOperationException("createReader returned null.")));
+        // Under a lock, so createReader runs once per schema, as documented, when several threads meet it at once.
+        Entry entry;
+        lock (_createLock)
+        {
+            if (!_entries.TryGetValue(id, out entry!))
+            {
+                entry = _entries.GetOrAdd(id, new Entry(id, _createReader(schema) ?? throw new InvalidOperationException("createReader returned null.")));
+            }
+        }
+
         Volatile.Write(ref _last, entry);
         return entry;
     }

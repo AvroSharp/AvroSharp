@@ -203,18 +203,97 @@ public class ContainerHostileInputTests
         await Assert.That(ex.Message).Contains("1 bytes left after its last object");
     }
 
+    /// <summary>
+    /// Zero-size objects are bounded by an option, counting each object's values (#129, #130): blocks of more than
+    /// 65,536 nulls, which Java and earlier AvroSharp versions write, are read.
+    /// </summary>
     [Test]
-    public async Task ZeroSizeObjects_AreLimitedPerBlock()
+    public async Task ZeroSizeObjects_AreLimitedPerBlock_ByTheValuesTheyCreate()
     {
-        var withinLimit = WithBlock(65_536, [], schema: "\"null\"");
-        var overLimit = WithBlock(65_537, [], schema: "\"null\"");
+        const string ThreeNulls = """{"type":"record","name":"R","fields":[{"name":"a","type":"null"},{"name":"b","type":"null"},{"name":"c","type":"null"}]}""";
+        var nulls = WithBlock(1_000_000, [], schema: "\"null\"");
+        var records = WithBlock(4_194_305, [], schema: ThreeNulls);
 
-        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(withinLimit));
-        using var hostile = AvroFileReader.OpenGeneric(new MemoryStream(overLimit));
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(nulls));
+        await Assert.That(reader.ReadAll().Count()).IsEqualTo(1_000_000);
+
+        // Each record creates four values, so 4,194,305 of them exceed 16,777,216.
+        using var hostile = AvroFileReader.OpenGeneric(new MemoryStream(records));
         var ex = Assert.Throws<AvroDataException>(() => hostile.ReadAll().ToList());
+        await Assert.That(ex.Message).Contains("declares 4194305 objects in 0 bytes (AvroFileReaderOptions.MaxZeroSizeValuesPerBlock)");
 
-        await Assert.That(reader.ReadAll().Count()).IsEqualTo(65_536);
-        await Assert.That(ex.Message).Contains("declares 65537 objects in 0 bytes");
+        using var strict = AvroFileReader.OpenGeneric(new MemoryStream(nulls), options: new AvroFileReaderOptions { MaxZeroSizeValuesPerBlock = 999_999 });
+        Assert.Throws<AvroDataException>(() => strict.ReadAll().ToList());
+    }
+
+    [Test]
+    public async Task ObjectsThatTakeABytePerObject_CannotOutnumberTheBlocksBytes()
+    {
+        // A union's branch index takes a byte, so a union of null cannot be zero-size.
+        var bytes = WithBlock(3, [0x00, 0x00], schema: """["null","long"]""");
+
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(bytes));
+        var ex = Assert.Throws<AvroDataException>(() => reader.ReadAll().ToList());
+        await Assert.That(ex.Message).IsEqualTo("A block declares 3 objects in 2 bytes.");
+    }
+
+    [Test]
+    public async Task TheWriter_StartsANewBlockEvery65536Objects()
+    {
+        var output = new MemoryStream();
+        using (var writer = AvroFileWriter.CreateGeneric(output, AvroSharp.Schemas.AvroSchema.Parse("\"null\"")))
+        {
+            for (var i = 0; i < 65_537; i++)
+            {
+                writer.Write(AvroSharp.Generic.AvroValue.Null);
+            }
+        }
+
+        // The strictest reader of zero-size items still reads each block.
+        var options = new AvroFileReaderOptions { MaxZeroSizeValuesPerBlock = 65_536 };
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(output.ToArray()), options: options);
+        await Assert.That(reader.ReadAll().Count()).IsEqualTo(65_537);
+    }
+
+    [Test]
+    public async Task AHeaderOfManyMetadataEntries_IsRejected()
+    {
+        // 2,000 empty keys and values, two bytes each (#129).
+        var bytes = Build((ref w) =>
+        {
+            w.WriteRaw("Obj\u0001"u8);
+            w.WriteBlockCount(2);
+            w.WriteString("avro.schema");
+            w.WriteString("\"long\"");
+            w.WriteString("avro.codec");
+            w.WriteString("null");
+            w.WriteBlockCount(2_000);
+            for (var i = 0; i < 2_000; i++)
+            {
+                w.WriteString(string.Empty);
+                w.WriteString(string.Empty);
+            }
+
+            w.WriteBlockEnd();
+            w.WriteRaw(new byte[SyncSize]);
+        });
+
+        var ex = Assert.Throws<AvroDataException>(() => AvroFileReader.OpenGeneric(new MemoryStream(bytes)));
+
+        await Assert.That(ex.Message).Contains("more than 1024 metadata entries");
+    }
+
+    [Test]
+    public async Task ASchemaLongerThanTheLimit_IsRejected()
+    {
+        var schema = """{"type":"record","name":"R","fields":[{"name":"a","type":"long"}]}""";
+        var bytes = WithBlock(1, [0x02], schema: schema);
+
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(bytes), options: new AvroFileReaderOptions { MaxSchemaLength = schema.Length });
+        var ex = Assert.Throws<AvroDataException>(() => AvroFileReader.OpenGeneric(new MemoryStream(bytes), options: new AvroFileReaderOptions { MaxSchemaLength = schema.Length - 1 }));
+
+        await Assert.That(reader.ReadAll().Count()).IsEqualTo(1);
+        await Assert.That(ex.Message).Contains("AvroFileReaderOptions.MaxSchemaLength");
     }
 
     /// <summary>A header for the schema <c>long</c> (or <paramref name="schema"/>) whose sync marker is all zeros.</summary>

@@ -41,6 +41,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Fixed types have `==`, `!=` and `AsSpan()` (#117).
 - The generator reports a property renamed to avoid a clash (for example `user_id` and `userId` in one record) as informational diagnostic AVROGEN005, naming both fields; `GeneratedSource.Notes` carries these notes for other callers of `CSharpCodeGenerator` (#117).
 - Generated files suppress CS8981, so all-lower-case Avro type names compile without warnings (#117).
+- `AvroFileReaderOptions.MaxSchemaLength` and `MaxZeroSizeValuesPerBlock` (#129, #130).
 
 ### Fixed
 
@@ -51,6 +52,20 @@ All notable changes to this project are documented here. The format follows [Kee
 - A `bytes` decimal with no bytes is rejected with `AvroDataException` instead of being read as 0, as in Java (#111). The Apache compatibility mode's decimals check the same.
 - `Put` on a generated record's `null`-typed field rejects values other than `null`, which were silently dropped on write (#111).
 - A generated type's `Schema` is one instance even when first read on several threads at once. Before, a thread that lost the race to parse it could keep its own instance, which missed the cache of resolution plans and the same-schema fast path. The new `AvroGeneratedCode.PublishSchema` stores the first one.
+- Hostile input (#129):
+  - A writer schema that nested arrays, maps or unions between recursive records overflowed the stack, which ends the process: `MaxDepth` counted only records. Values may now be nested 8 × `MaxDepth` levels deep (1,024 by default), counting arrays, maps and records, on every path that reads by the writer's schema: the generic and resolving readers, skipped fields, and the transcoder generated types use. The thread's stack is also checked every 16 levels of new depth.
+  - A record of many `null` fields takes no bytes but creates a value per field, so 3 bytes could allocate 160 MB. `MaxZeroSizeItems` now counts each zero-size item as the values reading it creates: one, plus one per field of each record in it.
+  - The bzip2 codec let `IndexOutOfRangeException` escape on corrupt blocks; bzip2, xz, zstandard and snappy now report every corrupt block as `InvalidDataException`. A snappy length of 2^31 or more is rejected instead of ending in `ArgumentOutOfRangeException`.
+  - The resolving-reader cache kept every writer schema alive for as long as its reader schema lived, so each file opened with `OpenGeneric(stream, readerSchema)` leaked its schema.
+  - Parsing allocated in proportion to the nesting depth for each field default, because it copied the JSON path; a deeply nested schema allocated 55 times its JSON, and now about 20 times at any depth.
+  - A container header may hold at most 1,024 metadata entries, and its `avro.schema` entry at most `AvroFileReaderOptions.MaxSchemaLength` bytes (4 MiB by default).
+  - Pipelined container reading reserved up to 4 × `MaxBlockLength` per block; it now reserves at most `MaxBlockLength`.
+  - `AvroStreamReader` decoded an object again after every read, so a stream that returned one byte per read made a 100 KB string cost 100,000 decodes. A decode cut off inside a string, bytes or fixed value now waits for that value's bytes.
+  - `createReader` of `AvroMessageReader` and `AvroRegistryMessageReader` could run more than once per schema when several threads met the schema at once; it runs once, as documented.
+- Schema resolution (#130):
+  - A writer union branch was read as the first reader branch of the same unqualified name, although another branch had its full name: `com.y.Event` in a union with `com.x.Event` failed to read, or was read as `com.x.Event` and changed branch when written again. Branches now match by full name (or a reader alias) across the whole union first, then by unqualified name, then by promotion, as in Java.
+  - A reader field's alias takes the writer field before a reader field of the writer field's name does, as in Java: the specification defines aliases as rewriting the writer's schema.
+  - Container blocks of more than 65,536 zero-size objects (`null`s, empty records), which Java and `AvroFileWriter` write, were rejected. They are now limited by `AvroFileReaderOptions.MaxZeroSizeValuesPerBlock` (16,777,216 values by default, counted as `MaxZeroSizeItems` is), and `AvroFileWriter` starts a new block every 65,536 objects. A block of objects that take at least a byte each can no longer declare more objects than it has bytes.
 
 ## [0.1.1] - 2026-09-28
 

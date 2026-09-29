@@ -158,7 +158,8 @@ public sealed partial class AvroFileReader<T>
             return new Block(count, new ArraySegment<byte>(raw, 0, size), raw, null);
         }
 
-        var decompressed = new PooledBufferWriter(Math.Max(size * 4, 256));
+        // A guess at the decompressed size, within the limit the decompressed block must meet anyway (#129).
+        var decompressed = new PooledBufferWriter((int)Math.Max(Math.Min(size * 4L, _maxBlockLength), 256));
         try
         {
             DecompressInto(new ArraySegment<byte>(raw, 0, size), new LimitedBufferWriter(decompressed, _maxBlockLength));

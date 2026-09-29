@@ -833,7 +833,7 @@ public ref struct AvroReader
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowTruncated(string what, long count, long offset, long remaining) =>
-        throw new AvroDataException($"Unexpected end of Avro data: {what} value needs {count} byte(s) at offset {offset}, {remaining} remain.");
+        throw new AvroTruncatedDataException($"Unexpected end of Avro data: {what} value needs {count} byte(s) at offset {offset}, {remaining} remain.", offset + count);
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]

@@ -34,6 +34,10 @@ AvroSharp.Containers.AvroFileReaderOptions.LeaveOpen.get -> bool
 AvroSharp.Containers.AvroFileReaderOptions.LeaveOpen.init -> void
 AvroSharp.Containers.AvroFileReaderOptions.MaxBlockLength.get -> int
 AvroSharp.Containers.AvroFileReaderOptions.MaxBlockLength.init -> void
+AvroSharp.Containers.AvroFileReaderOptions.MaxSchemaLength.get -> int
+AvroSharp.Containers.AvroFileReaderOptions.MaxSchemaLength.init -> void
+AvroSharp.Containers.AvroFileReaderOptions.MaxZeroSizeValuesPerBlock.get -> long
+AvroSharp.Containers.AvroFileReaderOptions.MaxZeroSizeValuesPerBlock.init -> void
 AvroSharp.Containers.AvroFileWriter
 AvroSharp.Containers.AvroFileWriter<T>
 AvroSharp.Containers.AvroFileWriter<T>.Dispose() -> void
@@ -432,6 +436,8 @@ const AvroSharp.AvroCodecNames.Snappy = "snappy" -> string!
 const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
 const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
 const AvroSharp.Containers.AvroFileReaderOptions.DefaultMaxBlockLength = 67108864 -> int
+const AvroSharp.Containers.AvroFileReaderOptions.DefaultMaxSchemaLength = 4194304 -> int
+const AvroSharp.Containers.AvroFileReaderOptions.DefaultMaxZeroSizeValuesPerBlock = 16777216 -> long
 const AvroSharp.Containers.AvroFileWriterOptions.DefaultSyncInterval = 65536 -> int
 const AvroSharp.Messages.AvroMessage.HeaderLength = 10 -> int
 const AvroSharp.Messages.AvroRegistryReaderOptions.DefaultMaxPayloadLength = 67108864 -> int

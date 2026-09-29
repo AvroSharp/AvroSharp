@@ -17,6 +17,9 @@ public sealed class SnappyCodec : AvroCodec
 {
     private const int ChecksumLength = 4;
 
+    // Above snappy's largest expansion: a 3-byte copy of 64 bytes.
+    private const int MaxExpansion = 32;
+
     private SnappyCodec()
     {
     }
@@ -49,9 +52,26 @@ public sealed class SnappyCodec : AvroCodec
         }
 
         var compressed = block[..^ChecksumLength];
-        var length = Snappy.GetUncompressedLength(compressed);
-        var span = destination.GetSpan(length)[..length];
-        var written = Snappy.Decompress(compressed, span);
+        // The preamble is a varint that the library returns as an int, so 2^31 or more arrives negative (#129).
+        // Snappy expands at most about 21 times, so a larger length is corrupt, however it would be read.
+        int length, written;
+        Span<byte> span;
+        try
+        {
+            length = Snappy.GetUncompressedLength(compressed);
+            if (length < 0 || length > (long)compressed.Length * MaxExpansion)
+            {
+                throw new InvalidDataException($"The block declares {length} uncompressed bytes in {compressed.Length} compressed ones.");
+            }
+
+            span = destination.GetSpan(length)[..length];
+            written = Snappy.Decompress(compressed, span);
+        }
+        catch (Exception ex) when (CodecStreams.IsCorruptData(ex))
+        {
+            throw new InvalidDataException($"The block is not valid Snappy data: {ex.Message}", ex);
+        }
+
         var data = span[..written];
 
         var expected = BinaryPrimitives.ReadUInt32BigEndian(block[^ChecksumLength..]);

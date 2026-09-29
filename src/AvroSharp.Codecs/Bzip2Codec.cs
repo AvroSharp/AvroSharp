@@ -64,6 +64,10 @@ public sealed class Bzip2Codec : AvroCodec
         {
             throw new InvalidDataException("The block ends inside a bzip2 stream.", ex);
         }
+        catch (Exception ex) when (CodecStreams.IsCorruptData(ex))
+        {
+            throw new InvalidDataException($"The block is not valid bzip2 data: {ex.Message}", ex);
+        }
     }
 
     /// <inheritdoc/>

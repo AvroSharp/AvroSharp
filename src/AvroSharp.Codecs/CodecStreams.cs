@@ -11,6 +11,15 @@ namespace AvroSharp.Codecs;
 /// </summary>
 internal static class CodecStreams
 {
+    /// <summary>
+    /// Gets whether an exception from a compression library reports corrupt input. Libraries index tables and buffers
+    /// with values read from the data, so corrupt blocks also end in <see cref="IndexOutOfRangeException"/> and the
+    /// like (#129). The exceptions excluded come from the destination (the reader's size limit is an
+    /// <see cref="AvroException"/>) or from no input at all.
+    /// </summary>
+    public static bool IsCorruptData(Exception ex) =>
+        ex is not (InvalidDataException or AvroException or OutOfMemoryException or OperationCanceledException);
+
     /// <summary>Returns a read-only stream over <paramref name="memory"/>, without copying when it is backed by an array.</summary>
     public static MemoryStream OpenRead(ReadOnlyMemory<byte> memory)
     {
