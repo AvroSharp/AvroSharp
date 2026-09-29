@@ -4,6 +4,8 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 
 > **Status:** an early preview (0.1). The API may still change before 1.0.
 
+**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Code generation](https://zcsizmadia.github.io/AvroSharp/docs/code-generation.html) · [Benchmarks](https://zcsizmadia.github.io/AvroSharp/docs/benchmarks.html) · [Compared with Apache.Avro](https://zcsizmadia.github.io/AvroSharp/docs/apache-avro.html)
+
 Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
 
 ## Getting started
@@ -57,7 +59,7 @@ var copy = shop.Order.FromAvroBytes(bytes);
 
 ## More
 
-- [Documentation and samples](https://github.com/zcsizmadia/AvroSharp#readme)
+- [Documentation](https://zcsizmadia.github.io/AvroSharp/) and [samples](https://github.com/zcsizmadia/AvroSharp/tree/main/samples)
 - [Changelog](https://github.com/zcsizmadia/AvroSharp/blob/main/CHANGELOG.md)
 - [Third-party notices](https://github.com/zcsizmadia/AvroSharp/blob/main/THIRD-PARTY-NOTICES.md) (also in the package)
 - Licensed under the [MIT license](https://github.com/zcsizmadia/AvroSharp/blob/main/LICENSE).

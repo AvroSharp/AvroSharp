@@ -15,6 +15,7 @@
         "files": [
           "index.md", "toc.yml", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
           "docs/api/**.yml", "docs/api/index.md", "docs/roadmap.md", "docs/design.md", "docs/README.md", "docs/reviews/*.md",
+          "docs/code-generation.md", "docs/cli.md", "docs/benchmarks.md", "docs/apache-avro.md",
           "samples/README.md", "fuzz/README.md"
         ]
       }

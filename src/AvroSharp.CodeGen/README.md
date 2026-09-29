@@ -4,6 +4,8 @@ The C# code generation engine behind [AvroSharp](https://github.com/zcsizmadia/A
 
 > **Status:** an early preview (0.1). The API may still change before 1.0. Most projects should reference `AvroSharp.Generators` instead, which runs this engine inside the compiler. Use this package to generate code from your own tools.
 
+**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Code generation guide](https://zcsizmadia.github.io/AvroSharp/docs/code-generation.html)
+
 ## Usage
 
 ```csharp

@@ -1,13 +1,19 @@
 # The DocFX site's top navigation (docfx.json builds from the repository root).
 - name: Guide
   href: README.md
+- name: Code generation
+  href: docs/code-generation.md
+- name: CLI tool
+  href: docs/cli.md
 - name: API reference
   href: docs/api/index.md
 - name: Samples
   href: samples/README.md
-- name: Roadmap
-  href: docs/roadmap.md
-- name: Design
-  href: docs/design.md
+- name: Benchmarks
+  href: docs/benchmarks.md
+- name: vs Apache.Avro
+  href: docs/apache-avro.md
+- name: Docs
+  href: docs/README.md
 - name: Changelog
   href: CHANGELOG.md

@@ -5,8 +5,11 @@
 [![Downloads](https://img.shields.io/nuget/dt/AvroSharp?logo=nuget&label=Downloads)](https://www.nuget.org/packages/AvroSharp)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0%20%7C%20netstandard2.0%20%7C%20netstandard2.1-512BD4?logo=dotnet)](#goals)
 [![License](https://img.shields.io/github/license/zcsizmadia/AvroSharp)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-zcsizmadia.github.io%2FAvroSharp-blue)](https://zcsizmadia.github.io/AvroSharp/)
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
+
+**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Samples](samples/README.md)
 
 > **Status:** an early preview (0.1). The API may still change before 1.0. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
@@ -15,12 +18,12 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - object container files (synchronous and asynchronous) with every codec in the specification;
 > - single-object encoding.
 >
-> See [the samples](samples/README.md) for runnable examples, [the roadmap](docs/roadmap.md) for what is next, and [the docs](docs/README.md) for the design and reviews.
+> See [the samples](samples/README.md) for runnable examples, [the roadmap](docs/roadmap.md) for what is next, and [the documentation](https://zcsizmadia.github.io/AvroSharp/) for guides, the API reference, benchmarks and the design.
 
 ## Goals
 
 - Complete Avro 1.12 support: schemas, binary and JSON encoding, schema resolution, object container files, single-object encoding, canonical form and fingerprints, and all logical types.
-- Faster than Apache.Avro on every scenario in the benchmark suite, with fewer allocations. This is a release gate; results will be published once the benchmarks exist.
+- Faster than Apache.Avro on every scenario in the benchmark suite, with no more allocations. This is a release gate: generated records read 3.95× and write 6.18× faster, and container files read up to 22× faster ([benchmarks](docs/benchmarks.md), [compared with Apache.Avro](docs/apache-avro.md)).
 - Serialization code produced by source generators: no reflection, Native AOT and trimming compatible.
 - Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and `System.IO.Pipelines`.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
@@ -147,7 +150,7 @@ Nothing marks where an object ends, so the reader decodes each one to find its e
 
 ## Code generation from schema files
 
-Reference the `AvroSharp.Generators` package and pass your schema files to the compiler:
+Reference the `AvroSharp.Generators` package and pass your schema files to the compiler. [The code generation guide](docs/code-generation.md) covers every option, the type mapping, diagnostics and moving from avrogen.
 
 ```xml
 <ItemGroup>
@@ -217,7 +220,21 @@ avrosharp schema canonical user.avsc
 avrosharp schema fingerprint user.avsc --algorithm sha256
 ```
 
-`gen` takes the generator's options (`--logical-types`, `--property-names`, `--apache-compatible` and others), and writes nothing if a schema is invalid. Errors are in the compiler's format, and the exit code is 0 on success, 1 on failure and 2 for an invalid command line. See [the tool's README](https://github.com/zcsizmadia/AvroSharp/blob/main/src/AvroSharp.Tool/README.md).
+`gen` takes the generator's options (`--logical-types`, `--property-names`, `--apache-compatible` and others), and writes nothing if a schema is invalid. Errors are in the compiler's format, and the exit code is 0 on success, 1 on failure and 2 for an invalid command line. [The tool's documentation](docs/cli.md) has every command and option, examples, and use in CI.
+
+## Benchmarks
+
+Measured against Apache.Avro 1.12.2 with BenchmarkDotNet (i7-12800H, .NET 10, 2026-09-28); every AvroSharp benchmark is faster and allocates no more:
+
+| Area | Faster than Apache.Avro |
+|---|---|
+| Records, generated code | read 3.95×, write 6.18× |
+| Records, generic model | read 1.95×, write 3.93× |
+| Schema evolution, generated code | 2.72× |
+| Container reads | 2.90–7.36× (null, deflate, snappy, zstandard), up to 22.39× (xz) |
+| Container writes | 3.46–10.35× (all codecs but bzip2) |
+
+[The benchmarks page](docs/benchmarks.md) has every area, what is measured, and how to run the suite yourself. [AvroSharp and Apache.Avro](docs/apache-avro.md) covers the other differences, and how to migrate.
 
 ## Building
 

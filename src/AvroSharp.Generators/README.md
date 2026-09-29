@@ -4,6 +4,8 @@ A C# source generator that turns Avro schema files (`.avsc`) into C# types with 
 
 > **Status:** an early preview (0.1). The API may still change before 1.0.
 
+**[Code generation guide](https://zcsizmadia.github.io/AvroSharp/docs/code-generation.html)**: every option, the type mapping, diagnostics, and moving from avrogen. Also: [the avrosharp tool](https://zcsizmadia.github.io/AvroSharp/docs/cli.html), [documentation](https://zcsizmadia.github.io/AvroSharp/).
+
 ## Usage
 
 Reference the package and pass your schema files to the compiler as `AdditionalFiles`:
@@ -36,4 +38,4 @@ var upgraded = shop.Order.FromAvroBytes(oldBytes, writerSchema);   // schema evo
 
 The generator needs the .NET 10 SDK or Visual Studio 2026, because it runs AvroSharp inside the compiler (see [#20](https://github.com/zcsizmadia/AvroSharp/issues/20)). The generated code works on every target AvroSharp supports: .NET 8, 9 and 10, .NET Standard 2.0 and 2.1, and .NET Framework.
 
-See the [repository README](https://github.com/zcsizmadia/AvroSharp#code-generation-from-schema-files) for unions, logical types and the Apache.Avro compatibility mode.
+See the [code generation guide](https://zcsizmadia.github.io/AvroSharp/docs/code-generation.html) for unions, logical types and the Apache.Avro compatibility mode.
