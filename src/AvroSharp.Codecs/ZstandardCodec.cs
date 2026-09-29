@@ -96,7 +96,18 @@ public sealed class ZstandardCodec : AvroCodec
         while (true)
         {
             // No size hint: a block may end just below the reader's limit, which a large hint would exceed.
-            var status = decompressor.UnwrapStream(input, destination.GetSpan(), out var consumed, out var written);
+            var span = destination.GetSpan();
+            OperationStatus status;
+            int consumed, written;
+            try
+            {
+                status = decompressor.UnwrapStream(input, span, out consumed, out written);
+            }
+            catch (Exception ex) when (CodecStreams.IsCorruptData(ex))
+            {
+                throw new InvalidDataException($"The block is not valid Zstandard data: {ex.Message}", ex);
+            }
+
             destination.Advance(written);
             input = input[consumed..];
             switch (status)

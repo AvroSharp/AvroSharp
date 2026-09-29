@@ -193,6 +193,32 @@ public class AvroStreamTests
         return file.ToArray();
     }
 
+    /// <summary>
+    /// A stream that returns one byte per read made each read decode the object again from its start: O(n^2) for a
+    /// long string (#129). A failed decode now says how many bytes the object needs, and the reader waits for them.
+    /// </summary>
+    [Test]
+    public async Task AStreamThatReturnsOneBytePerRead_DecodesALongValueAFewTimes()
+    {
+        var output = new System.Buffers.ArrayBufferWriter<byte>();
+        var writer = new AvroWriter(output);
+        writer.WriteString(new string('x', 100_000));
+        writer.WriteString("end");
+        writer.Flush();
+
+        var attempts = 0;
+        using var reader = AvroStreamReader.Open(new LimitedStream(output.WrittenSpan.ToArray(), 1), (ref r) =>
+        {
+            attempts++;
+            return (r.ReadString(), r.ReadString());
+        });
+
+        await Assert.That(reader.TryRead(out var value)).IsTrue();
+        await Assert.That(value.Item1.Length).IsEqualTo(100_000);
+        await Assert.That(value.Item2).IsEqualTo("end");
+        await Assert.That(attempts).IsLessThan(20);
+    }
+
     private static List<GenericRecord> Events(int count) =>
         Enumerable.Range(0, count).Select(i => new GenericRecord(s_schema)
         {

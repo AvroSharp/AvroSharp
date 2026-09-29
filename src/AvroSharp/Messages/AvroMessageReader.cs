@@ -53,6 +53,7 @@ public sealed class AvroMessageReader<T>
     private readonly IAvroSchemaStore _store;
     private readonly Func<AvroSchema, AvroReadFunc<T>> _createReader;
     private readonly ConcurrentDictionary<long, CachedReader> _readers = new();
+    private readonly System.Threading.Lock _createLock = new();
 
     // Messages usually repeat one schema, so the last entry used is checked before the dictionary. Entries are
     // immutable and the field is read once per message, so concurrent readers always see a matching pair.
@@ -105,8 +106,17 @@ public sealed class AvroMessageReader<T>
             throw new AvroException($"The schema store returned a schema whose fingerprint is 0x{schema.Fingerprint64:X16}, not 0x{fingerprint:X16}.");
         }
 
-        var read = _createReader(schema) ?? throw new InvalidOperationException("createReader returned null.");
-        return _readers.GetOrAdd(fingerprint, new CachedReader(fingerprint, read));
+        // Under a lock, so createReader runs once per schema, as documented, when several threads meet it at once.
+        lock (_createLock)
+        {
+            if (_readers.TryGetValue(fingerprint, out var cached))
+            {
+                return cached;
+            }
+
+            var read = _createReader(schema) ?? throw new InvalidOperationException("createReader returned null.");
+            return _readers.GetOrAdd(fingerprint, new CachedReader(fingerprint, read));
+        }
     }
 
     private sealed class CachedReader(long fingerprint, AvroReadFunc<T> read)

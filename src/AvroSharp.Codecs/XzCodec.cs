@@ -66,6 +66,10 @@ public sealed class XzCodec : AvroCodec
         {
             throw new InvalidDataException("The block ends inside an XZ stream.", ex);
         }
+        catch (Exception ex) when (CodecStreams.IsCorruptData(ex))
+        {
+            throw new InvalidDataException($"The block is not valid XZ data: {ex.Message}", ex);
+        }
     }
 
     /// <inheritdoc/>

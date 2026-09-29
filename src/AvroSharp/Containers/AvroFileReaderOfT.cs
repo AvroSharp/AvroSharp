@@ -29,6 +29,11 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     private readonly Stream _stream;
     private readonly bool _leaveOpen;
     private readonly int _maxBlockLength;
+    private readonly long _maxZeroSizeValues;
+    private readonly int _maxSchemaLength;
+
+    // What an object that takes no bytes costs against MaxZeroSizeValuesPerBlock; 0 when every object takes a byte.
+    private long _zeroSizeCost;
     private readonly IReadOnlyList<AvroCodec> _codecs;
     private readonly byte[] _sync = new byte[AvroContainerFormat.SyncSize];
     private AvroCodec _codec = AvroCodec.Null;
@@ -65,6 +70,8 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
         _stream = stream;
         _leaveOpen = options.LeaveOpen;
         _maxBlockLength = options.MaxBlockLength;
+        _maxZeroSizeValues = options.MaxZeroSizeValuesPerBlock;
+        _maxSchemaLength = options.MaxSchemaLength;
         _codecs = options.Codecs;
         _input = ArrayPool<byte>.Shared.Rent(InputBufferSize);
     }

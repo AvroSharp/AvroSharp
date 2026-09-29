@@ -77,17 +77,90 @@ public sealed partial class GenericDatumReader
         /// <summary>Gets the smallest number of bytes a value of this node can occupy.</summary>
         public abstract int MinimumSize { get; }
 
+        /// <summary>
+        /// Gets what a value of this node costs against the zero-size budget when <see cref="MinimumSize"/> is 0:
+        /// the number of values reading it creates (see <see cref="ZeroSizeValues"/>).
+        /// </summary>
+        public virtual long ZeroSizeCost => 1;
+
         public abstract AvroValue Read(ref AvroReader reader, ref ReadState state);
     }
 
-    /// <summary>Per-read limits: the current record depth and the remaining budget of zero-size items.</summary>
+    /// <summary>
+    /// Per-read limits: the current record depth, the current nesting of every kind, and the remaining budget of
+    /// zero-size items.
+    /// </summary>
     [StructLayout(LayoutKind.Auto)]
     private struct ReadState(GenericDatumReaderOptions options)
     {
         public readonly int MaxDepth = options.MaxDepth;
         public int Depth;
+
+        // Arrays, maps and unions nest too, and a hostile writer schema can nest them between records (#129): the
+        // total is bounded separately, at NestingPerDepth times MaxDepth, so the stack is bounded however the
+        // nesting is built.
+        public readonly int MaxNesting = (int)Math.Min((long)options.MaxDepth * NestingPerDepth, int.MaxValue);
+        public int Nesting;
         public long ZeroSizeItemsLeft = options.MaxZeroSizeItems;
     }
+
+    // Levels of any kind (records, arrays, maps, unions) allowed per record level of MaxDepth.
+    private const int NestingPerDepth = 8;
+
+    /// <summary>Enters an array, map or union: counts it against the nesting limit.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void EnterNesting(ref ReadState state)
+    {
+        if (++state.Nesting > state.MaxNesting)
+        {
+            ThrowNestedTooDeep(state.MaxNesting);
+        }
+    }
+
+    /// <summary>
+    /// Enters a record: counts it against the record depth and the nesting limit, and checks that the thread has
+    /// stack left, for threads with a small stack.
+    /// </summary>
+    private static void EnterRecord(ref ReadState state)
+    {
+        if (++state.Depth > state.MaxDepth)
+        {
+            throw new AvroDataException($"Records are nested more than {state.MaxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
+        }
+
+        EnterNesting(ref state);
+        EnsureStack();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ExitRecord(ref ReadState state)
+    {
+        state.Depth--;
+        state.Nesting--;
+    }
+
+    private static void EnsureStack()
+    {
+#if NET
+        if (!RuntimeHelpers.TryEnsureSufficientExecutionStack())
+        {
+            throw new AvroDataException("The value is nested too deeply for the thread's stack.");
+        }
+#else
+        try
+        {
+            RuntimeHelpers.EnsureSufficientExecutionStack();
+        }
+        catch (InsufficientExecutionStackException ex)
+        {
+            throw new AvroDataException("The value is nested too deeply for the thread's stack.", ex);
+        }
+#endif
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowNestedTooDeep(int maxNesting) =>
+        throw new AvroDataException($"Values are nested more than {maxNesting} levels deep, counting arrays, maps, unions and records ({NestingPerDepth} times GenericDatumReaderOptions.MaxDepth).");
 
     private sealed class Builder
     {
@@ -213,6 +286,8 @@ public sealed partial class GenericDatumReader
 
     private sealed class RecordNode(RecordSchema schema) : ReaderNode
     {
+        private long _zeroSizeCost;
+
         public ReaderNode[] Fields { get; set; } = [];
 
         /// <summary>Gets or sets the sum of the fields' minimum sizes; a lower bound, set once the fields are built.</summary>
@@ -220,13 +295,12 @@ public sealed partial class GenericDatumReader
 
         public override int MinimumSize => Size;
 
+        // A record of many null fields takes no bytes, but creates a value for each field (#129).
+        public override long ZeroSizeCost => _zeroSizeCost != 0 ? _zeroSizeCost : _zeroSizeCost = Math.Max(1, ZeroSizeValues.Count(schema));
+
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
-            if (++state.Depth > state.MaxDepth)
-            {
-                throw new AvroDataException($"Records are nested more than {state.MaxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
-            }
-
+            EnterRecord(ref state);
             var fields = Fields;
             var record = new GenericRecord(schema, fields.Length);
             for (var i = 0; i < fields.Length; i++)
@@ -234,7 +308,7 @@ public sealed partial class GenericDatumReader
                 record.ValueAt(i) = fields[i].Read(ref reader, ref state);
             }
 
-            state.Depth--;
+            ExitRecord(ref state);
             return record;
         }
     }
@@ -284,11 +358,12 @@ public sealed partial class GenericDatumReader
                     return AvroValue.FromBooleanArray(ReadBulkItems<bool, BooleanItems>(ref reader, ref state));
             }
 
+            EnterNesting(ref state);
             var list = new List<AvroValue>();
             long count;
             while ((count = reader.ReadBlockCount(out _)) != 0)
             {
-                CheckBlockCount(ref reader, ref state, count, list.Count, items.MinimumSize);
+                CheckBlockCount(ref reader, ref state, count, list.Count, items.MinimumSize, items.ZeroSizeCost);
                 var n = (int)count;
                 if (list.Count == 0)
                 {
@@ -301,6 +376,7 @@ public sealed partial class GenericDatumReader
                 }
             }
 
+            state.Nesting--;
             return AvroValue.FromArray(list);
         }
 
@@ -370,6 +446,7 @@ public sealed partial class GenericDatumReader
 
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
+            EnterNesting(ref state);
             Dictionary<string, AvroValue>? map = null;
             long count;
             while ((count = reader.ReadBlockCount(out _)) != 0)
@@ -385,7 +462,7 @@ public sealed partial class GenericDatumReader
             }
 
             map ??= new Dictionary<string, AvroValue>(StringComparer.Ordinal);
-
+            state.Nesting--;
             return AvroValue.FromMap(map);
         }
     }
@@ -402,16 +479,19 @@ public sealed partial class GenericDatumReader
                 throw new AvroDataException($"Union branch index {index} is out of range ({branches.Length} branches).");
             }
 
-            return branches[index].Read(ref reader, ref state);
+            EnterNesting(ref state);
+            var value = branches[index].Read(ref reader, ref state);
+            state.Nesting--;
+            return value;
         }
     }
 
     /// <summary>
     /// Rejects a block count before anything is allocated: items of at least <paramref name="minimumItemSize"/> bytes
-    /// must fit in the remaining input; zero-size items draw from the per-read budget; and the collection may not
-    /// exceed the largest array .NET can hold.
+    /// must fit in the remaining input; zero-size items draw <paramref name="zeroSizeCost"/> each from the per-read
+    /// budget; and the collection may not exceed the largest array .NET can hold.
     /// </summary>
-    private static void CheckBlockCount(ref AvroReader reader, ref ReadState state, long count, int itemsSoFar, int minimumItemSize)
+    private static void CheckBlockCount(ref AvroReader reader, ref ReadState state, long count, int itemsSoFar, int minimumItemSize, long zeroSizeCost = 1)
     {
         if (minimumItemSize > 0)
         {
@@ -422,11 +502,12 @@ public sealed partial class GenericDatumReader
         }
         else
         {
-            state.ZeroSizeItemsLeft -= count;
-            if (state.ZeroSizeItemsLeft < 0)
+            if (count > state.ZeroSizeItemsLeft / zeroSizeCost)
             {
-                throw new AvroDataException($"The input declares more zero-size items than allowed (GenericDatumReaderOptions.MaxZeroSizeItems).");
+                throw new AvroDataException($"The input declares more zero-size items than allowed (GenericDatumReaderOptions.MaxZeroSizeItems, which counts each item as the values it creates: one, plus one per field of each record in it).");
             }
+
+            state.ZeroSizeItemsLeft -= count * zeroSizeCost;
         }
 
         if (itemsSoFar + count > MaxCollectionCount)

@@ -209,6 +209,57 @@ public class CodecTests
         await Assert.That(compressed.WrittenCount).IsGreaterThan(4);
     }
 
+    /// <summary>
+    /// Corrupt blocks end in <see cref="InvalidDataException"/>, never in the libraries' own exceptions (#129): bzip2
+    /// let <see cref="IndexOutOfRangeException"/> escape on about 5% of blocks with a flipped bit.
+    /// </summary>
+    [Test]
+    [MethodDataSource(nameof(Codecs))]
+    public async Task BlocksWithFlippedBits_AreInvalidDataOrDecompress(AvroCodec codec)
+    {
+        var data = System.Text.Encoding.UTF8.GetBytes(string.Concat(Enumerable.Range(0, 400).Select(i => $"row {i % 37}:{i * 7919} ")));
+        var compressed = new System.Buffers.ArrayBufferWriter<byte>();
+        codec.Compress(data, compressed);
+
+        var random = new Random(129);
+        var unexpected = new List<string>();
+        for (var trial = 0; trial < 400; trial++)
+        {
+            var damaged = compressed.WrittenSpan.ToArray();
+            for (var flips = random.Next(1, 4); flips > 0; flips--)
+            {
+                damaged[random.Next(damaged.Length)] ^= (byte)(1 << random.Next(8));
+            }
+
+            try
+            {
+                codec.Decompress(damaged, new System.Buffers.ArrayBufferWriter<byte>());
+            }
+            catch (InvalidDataException)
+            {
+            }
+#pragma warning disable CA1031 // Collected, so the assertion names every exception type that escaped.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                unexpected.Add(ex.GetType().Name);
+            }
+        }
+
+        await Assert.That(unexpected).IsEmpty();
+    }
+
+    [Test]
+    public async Task ASnappyLengthOf2To31OrMore_IsInvalidData()
+    {
+        // The preamble 2^32 - 1, then no data and a checksum.
+        byte[] block = [0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0, 0, 0, 0];
+
+        var ex = Assert.Throws<InvalidDataException>(() => SnappyCodec.Default.Decompress(block, new System.Buffers.ArrayBufferWriter<byte>()));
+
+        await Assert.That(ex.Message).Contains("declares -1 uncompressed bytes");
+    }
+
     [Test]
     [MethodDataSource(nameof(Codecs))]
     public async Task BlocksNotBackedByAnArray_RoundTrip(AvroCodec codec)

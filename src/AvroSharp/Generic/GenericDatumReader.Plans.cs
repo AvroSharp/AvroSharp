@@ -11,6 +11,8 @@ namespace AvroSharp.Generic;
 /// </summary>
 public sealed partial class GenericDatumReader
 {
+    // Keyed by the reader's schema, then the writer's, like the resolving reader's cache (#129): a value lives as long
+    // as its key, so a value that referenced the outer key would keep it alive for as long as the inner key lives.
     private static readonly ConditionalWeakTable<AvroSchema, ConditionalWeakTable<AvroSchema, PlanHolder>> s_plans = new();
 
     /// <summary>
@@ -20,8 +22,8 @@ public sealed partial class GenericDatumReader
     /// <exception cref="AvroSchemaException">The schemas cannot be resolved.</exception>
     internal static AvroRecordPlan? GetRecordPlan(AvroSchema writerSchema, AvroSchema readerSchema)
     {
-        var byReader = s_plans.GetValue(writerSchema, static _ => new ConditionalWeakTable<AvroSchema, PlanHolder>());
-        return byReader.GetValue(readerSchema, reader => new PlanHolder(CreateRecordPlan(writerSchema, reader))).Plan;
+        var byWriter = s_plans.GetValue(readerSchema, static _ => new ConditionalWeakTable<AvroSchema, PlanHolder>());
+        return byWriter.GetValue(writerSchema, writer => new PlanHolder(CreateRecordPlan(writer, readerSchema))).Plan;
     }
 
     private static AvroRecordPlan? CreateRecordPlan(AvroSchema writerSchema, AvroSchema readerSchema)
@@ -37,7 +39,7 @@ public sealed partial class GenericDatumReader
         for (var i = 0; i < steps.Length; i++)
         {
             var writerField = writer.Fields[i];
-            var readerField = ResolvingBuilder.FindField(reader, writerField.Name);
+            var readerField = skips.FindField(reader, writerField.Name);
             if (readerField is null || assigned[readerField.Position])
             {
                 var skip = skips.BuildSkipNode(writerField.Schema);

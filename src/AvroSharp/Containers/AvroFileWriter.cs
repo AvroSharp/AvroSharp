@@ -64,7 +64,8 @@ public static class AvroFileWriter
 /// <summary>
 /// Writes an Avro object container file: a header holding the schema, then blocks of objects, each compressed with
 /// the file's codec and followed by the sync marker. Objects are buffered until a block reaches
-/// <see cref="AvroFileWriterOptions.SyncInterval"/>; <see cref="Flush"/> and <see cref="Dispose"/> write the rest.
+/// <see cref="AvroFileWriterOptions.SyncInterval"/> or 65,536 objects; <see cref="Flush"/> and <see cref="Dispose"/>
+/// write the rest.
 /// The header is written with the first block, or when the writer is flushed or disposed. The asynchronous members
 /// (<see cref="WriteAsync"/>, <see cref="FlushAsync"/>, <see cref="DisposeAsync"/>) do no synchronous I/O.
 /// </summary>
@@ -80,6 +81,9 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     // A block's count and size (two varints, at most 10 bytes each) are written right-aligned into this much room
     // left at the start of the block's buffer, and the sync marker after its data, so each block is one write.
     private const int PrefixRoom = 20;
+
+    // Matches the zero-size item limit of the other readers (AvroGeneratedCode.MaxZeroSizeItems).
+    private const int MaxObjectsPerBlock = 1 << 16;
 
     private readonly byte[] _sync = new byte[AvroContainerFormat.SyncSize];
     private readonly PooledBufferWriter _block;
@@ -214,8 +218,9 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
             throw;
         }
 
+        // The object limit keeps blocks of zero-size objects (nulls, empty records) readable by readers that bound them.
         _blockCount++;
-        return _block.WrittenCount - PrefixRoom >= _syncInterval;
+        return _block.WrittenCount - PrefixRoom >= _syncInterval || _blockCount >= MaxObjectsPerBlock;
     }
 
     private void ReleaseBuffers()

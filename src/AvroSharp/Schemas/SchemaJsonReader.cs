@@ -14,10 +14,13 @@ internal sealed class SchemaJsonReader
     private readonly Dictionary<string, NamedSchema> _committed;
     private readonly Dictionary<string, NamedSchema> _pending = new(StringComparer.Ordinal);
     private readonly List<JsonPathSegment> _path = [];
+
+    // _pathNodes[i] ends in _path[i]; built only when a path is kept (KeepPath), and shared by the paths kept after.
+    private readonly List<PathNode> _pathNodes = [];
     private readonly List<PendingDefault> _defaults = [];
 
     // Names that an earlier parse committed and this schema defines again (AllowIdenticalRedefinitions).
-    private readonly List<(NamedSchema Definition, NamedSchema Existing, JsonPathSegment[] Path)> _redefinitions = [];
+    private readonly List<(NamedSchema Definition, NamedSchema Existing, PathNode? Path)> _redefinitions = [];
 
     public SchemaJsonReader(AvroSchemaParseOptions options, Dictionary<string, NamedSchema> committed)
     {
@@ -36,7 +39,7 @@ internal sealed class SchemaJsonReader
             {
                 throw new ParseError(
                     $"The name '{definition.FullName}' is already defined differently: {existing.CanonicalForm}, not {definition.CanonicalForm}.",
-                    path);
+                    PathNode.ToArray(path));
             }
         }
 
@@ -50,7 +53,7 @@ internal sealed class SchemaJsonReader
                 {
                     throw new ParseError(
                         $"The default value {Abbreviate(pending.Value)} of field '{pending.FieldName}' does not match its schema {pending.Schema.CanonicalForm}.",
-                        pending.Path);
+                        PathNode.ToArray(pending.Path));
                 }
             }
         }
@@ -276,7 +279,7 @@ internal sealed class SchemaJsonReader
         if (attributes.Default is { } value)
         {
             Push("default");
-            _defaults.Add(new PendingDefault(name, schema, value, [.. _path]));
+            _defaults.Add(new PendingDefault(name, schema, value, KeepPath()));
             Pop();
         }
 
@@ -726,7 +729,7 @@ internal sealed class SchemaJsonReader
             }
 
             // Checked against the existing definition once this schema is complete (see Read).
-            _redefinitions.Add((schema, existing, [.. _path]));
+            _redefinitions.Add((schema, existing, KeepPath()));
         }
 
         _pending.Add(schema.FullName, schema);
@@ -748,7 +751,26 @@ internal sealed class SchemaJsonReader
 
     private void PushIndex(int index) => _path.Add(JsonPathSegment.ForIndex(index));
 
-    private void Pop() => _path.RemoveAt(_path.Count - 1);
+    private void Pop()
+    {
+        _path.RemoveAt(_path.Count - 1);
+        if (_pathNodes.Count > _path.Count)
+        {
+            _pathNodes.RemoveAt(_pathNodes.Count - 1);
+        }
+    }
+
+    // Keeps the current path for an error found later. Copying it for each default made parsing quadratic in the
+    // nesting depth (#129); the nodes cost only the segments pushed since the last kept path.
+    private PathNode? KeepPath()
+    {
+        for (var i = _pathNodes.Count; i < _path.Count; i++)
+        {
+            _pathNodes.Add(new PathNode(i == 0 ? null : _pathNodes[i - 1], _path[i]));
+        }
+
+        return _path.Count == 0 ? null : _pathNodes[_path.Count - 1];
+    }
 
     private ParseError Error(string message, Exception? inner = null) => new(message, [.. _path], inner);
 
@@ -763,7 +785,32 @@ internal sealed class SchemaJsonReader
         public Dictionary<string, JsonElement>? Properties;
     }
 
-    private readonly record struct PendingDefault(string FieldName, AvroSchema Schema, JsonElement Value, JsonPathSegment[] Path);
+    private readonly record struct PendingDefault(string FieldName, AvroSchema Schema, JsonElement Value, PathNode? Path);
+
+    /// <summary>A kept JSON path: its last segment, and the path before it.</summary>
+    private sealed class PathNode(PathNode? parent, JsonPathSegment segment)
+    {
+        public PathNode? Parent { get; } = parent;
+
+        public JsonPathSegment Segment { get; } = segment;
+
+        public static JsonPathSegment[] ToArray(PathNode? path)
+        {
+            var length = 0;
+            for (var node = path; node is not null; node = node.Parent)
+            {
+                length++;
+            }
+
+            var segments = new JsonPathSegment[length];
+            for (var node = path; node is not null; node = node.Parent)
+            {
+                segments[--length] = node.Segment;
+            }
+
+            return segments;
+        }
+    }
 
     /// <summary>An error with the JSON path where it occurred; converted to <see cref="AvroSchemaException"/> by the parser.</summary>
 #pragma warning disable CA1064, CA1032, RCS1194 // Internal control-flow exception, never escapes the parser.

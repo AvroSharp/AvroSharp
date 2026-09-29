@@ -17,14 +17,16 @@ namespace AvroSharp.Generic;
 /// </summary>
 public sealed partial class GenericDatumReader
 {
+    // Keyed by the reader's schema, then the writer's (#129): each value references both schemas, and a value lives as
+    // long as its key, so keyed the other way round a long-lived reader schema kept every writer schema alive.
     private static readonly ConditionalWeakTable<AvroSchema, ConditionalWeakTable<AvroSchema, Transcoder>> s_transcoders = new();
 
     /// <summary>Gets the cached transcoder from <paramref name="writerSchema"/>'s encoding to <paramref name="readerSchema"/>'s.</summary>
     /// <exception cref="AvroSchemaException">The schemas cannot be resolved.</exception>
     internal static Transcoder GetTranscoder(AvroSchema writerSchema, AvroSchema readerSchema)
     {
-        var byReader = s_transcoders.GetValue(writerSchema, static _ => new ConditionalWeakTable<AvroSchema, Transcoder>());
-        return byReader.GetValue(readerSchema, reader => new Transcoder(writerSchema, reader));
+        var byWriter = s_transcoders.GetValue(readerSchema, static _ => new ConditionalWeakTable<AvroSchema, Transcoder>());
+        return byWriter.GetValue(writerSchema, writer => new Transcoder(writer, readerSchema));
     }
 
     /// <summary>Rewrites one value from a writer schema's encoding into a reader schema's.</summary>
@@ -76,6 +78,9 @@ public sealed partial class GenericDatumReader
     {
         /// <summary>Gets the smallest number of bytes the writer's encoding of a value takes.</summary>
         public abstract int MinimumSize { get; }
+
+        /// <summary>Gets what a value costs against the zero-size budget when <see cref="MinimumSize"/> is 0.</summary>
+        public virtual long ZeroSizeCost => 1;
 
         public abstract void Transcode(ref AvroReader reader, ref AvroWriter writer, ref ReadState state, ScratchBuffers scratch);
     }
@@ -179,7 +184,7 @@ public sealed partial class GenericDatumReader
             var size = 0L;
             foreach (var writerField in writer.Fields)
             {
-                var readerField = ResolvingBuilder.FindField(reader, writerField.Name);
+                var readerField = _skips.FindField(reader, writerField.Name);
                 TranscodeNode child;
                 if (readerField is null || assigned[readerField.Position])
                 {
@@ -304,7 +309,9 @@ public sealed partial class GenericDatumReader
                 throw new AvroDataException($"Union branch index {index} is out of range ({branches.Length} branches).");
             }
 
+            EnterNesting(ref state);
             branches[index].Transcode(ref reader, ref writer, ref state, scratch);
+            state.Nesting--;
         }
     }
 
@@ -312,6 +319,8 @@ public sealed partial class GenericDatumReader
     private sealed class ReaderBranchTranscodeNode(int branch, TranscodeNode value) : TranscodeNode
     {
         public override int MinimumSize => value.MinimumSize;
+
+        public override long ZeroSizeCost => ZeroSizeValues.Add(1, value.ZeroSizeCost);
 
         public override void Transcode(ref AvroReader reader, ref AvroWriter writer, ref ReadState state, ScratchBuffers scratch)
         {
@@ -332,6 +341,8 @@ public sealed partial class GenericDatumReader
     {
         public override int MinimumSize => skip.MinimumSize;
 
+        public override long ZeroSizeCost => skip.ZeroSizeCost;
+
         public override void Transcode(ref AvroReader reader, ref AvroWriter writer, ref ReadState state, ScratchBuffers scratch) =>
             skip.Read(ref reader, ref state);
     }
@@ -343,11 +354,12 @@ public sealed partial class GenericDatumReader
 
         public override void Transcode(ref AvroReader reader, ref AvroWriter writer, ref ReadState state, ScratchBuffers scratch)
         {
+            EnterNesting(ref state);
             var itemsSoFar = 0;
             long count;
             while ((count = reader.ReadBlockCount(out _)) != 0)
             {
-                CheckBlockCount(ref reader, ref state, count, itemsSoFar, (isMap ? 1 : 0) + items.MinimumSize);
+                CheckBlockCount(ref reader, ref state, count, itemsSoFar, (isMap ? 1 : 0) + items.MinimumSize, items.ZeroSizeCost);
                 itemsSoFar += (int)count;
                 writer.WriteBlockCount(count);
                 for (var i = 0L; i < count; i++)
@@ -362,6 +374,7 @@ public sealed partial class GenericDatumReader
             }
 
             writer.WriteBlockEnd();
+            state.Nesting--;
         }
     }
 
@@ -379,13 +392,38 @@ public sealed partial class GenericDatumReader
 
         public override int MinimumSize => Size;
 
+        // The record, the writer's fields, and each byte of the reader's defaults it writes.
+        public override long ZeroSizeCost
+        {
+            get
+            {
+                if (_zeroSizeCost == 0)
+                {
+                    // Set while the fields are summed, so a record that holds itself counts once there.
+                    _zeroSizeCost = 1;
+                    var total = 1L;
+                    foreach (var (_, node) in Steps)
+                    {
+                        total = ZeroSizeValues.Add(total, node.ZeroSizeCost);
+                    }
+
+                    foreach (var encoded in Defaults)
+                    {
+                        total = ZeroSizeValues.Add(total, encoded?.Length ?? 0);
+                    }
+
+                    _zeroSizeCost = total;
+                }
+
+                return _zeroSizeCost;
+            }
+        }
+
+        private long _zeroSizeCost;
+
         public override void Transcode(ref AvroReader reader, ref AvroWriter writer, ref ReadState state, ScratchBuffers scratch)
         {
-            if (++state.Depth > state.MaxDepth)
-            {
-                throw new AvroDataException($"Records are nested more than {state.MaxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
-            }
-
+            EnterRecord(ref state);
             if (InOrder)
             {
                 TranscodeInOrder(ref reader, ref writer, ref state, scratch);
@@ -395,7 +433,7 @@ public sealed partial class GenericDatumReader
                 TranscodeReordered(ref reader, ref writer, ref state, scratch);
             }
 
-            state.Depth--;
+            ExitRecord(ref state);
         }
 
         private void TranscodeInOrder(ref AvroReader reader, ref AvroWriter writer, ref ReadState state, ScratchBuffers scratch)

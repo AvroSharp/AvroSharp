@@ -67,10 +67,12 @@ public static class AvroStreamReader
 /// <remarks>
 /// <para>
 /// Nothing in the encoding marks where an object ends, so each is decoded to find its end. When the buffered data
-/// ends inside an object, more is read and the object is decoded again from its start. Only when the stream has
-/// ended, or <see cref="AvroStreamOptions.MaxDatumLength"/> bytes are buffered, is a failure reported: truncated and
-/// corrupt data look alike until then. Objects that encode to no bytes (a <c>null</c> schema, an empty record) cannot
-/// be delimited, and reading one is an error.
+/// ends inside an object, more is read and the object is decoded again from its start, once the bytes of a string,
+/// bytes or fixed value it was cut off in have arrived. A stream that returns a few bytes per read still costs one
+/// decode per read for objects of many small values; a lower <see cref="AvroStreamOptions.MaxDatumLength"/> bounds that
+/// for untrusted peers. Only when the stream has ended, or <see cref="AvroStreamOptions.MaxDatumLength"/> bytes are
+/// buffered, is a failure reported: truncated and corrupt data look alike until then. Objects that encode to no bytes
+/// (a <c>null</c> schema, an empty record) cannot be delimited, and reading one is an error.
 /// </para>
 /// <para>The asynchronous members do no synchronous I/O; each object is decoded synchronously once it is in memory. Instances are not thread-safe.</para>
 /// </remarks>
@@ -89,6 +91,9 @@ public sealed class AvroStreamReader<T> : IDisposable, IAsyncDisposable
     private long _position;
     private bool _streamEnded;
     private bool _disposed;
+
+    // How many bytes the object at _start is known to need, from its last failed decode; 0 when not known.
+    private long _required;
 
     internal AvroStreamReader(Stream stream, AvroReadFunc<T> read, AvroStreamOptions options)
     {
@@ -194,14 +199,23 @@ public sealed class AvroStreamReader<T> : IDisposable, IAsyncDisposable
             return _streamEnded ? Step.End : Step.NeedMore;
         }
 
+        // Each attempt decodes the object from its start, so a stream that returns a few bytes per read made a long
+        // string or bytes value cost O(n^2) (#129). The object cannot be complete before the length a failed attempt
+        // found has arrived, so waiting for it never delays an object that could be read.
+        if (buffered < _required && !_streamEnded && buffered < _maxDatumLength)
+        {
+            return Step.NeedMore;
+        }
+
         var reader = new AvroReader(_buffer.AsSpan(_start, buffered));
         try
         {
             value = _read(ref reader);
         }
-        catch (AvroDataException) when (!_streamEnded && buffered < _maxDatumLength)
+        catch (AvroDataException ex) when (!_streamEnded && buffered < _maxDatumLength)
         {
             // The object may only be cut off by the end of the buffer: read more and decode it again.
+            _required = ex is AvroTruncatedDataException truncated ? truncated.RequiredLength : 0;
             return Step.NeedMore;
         }
         catch (AvroDataException ex)
@@ -217,6 +231,7 @@ public sealed class AvroStreamReader<T> : IDisposable, IAsyncDisposable
 
         _start += consumed;
         _position += consumed;
+        _required = 0;
         return Step.Read;
     }
 
