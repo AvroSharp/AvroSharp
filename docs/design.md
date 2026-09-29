@@ -433,6 +433,7 @@ Order m = reader.Decode(bytes);
 - **Exceptions:** `AvroException`, `AvroDataException` (malformed data) and `AvroSchemaException` (invalid schemas) are all in the `AvroSharp` namespace. Code in any `AvroSharp.*` namespace sees them without a `using`.
 - **Schema equality:** `AvroSchema.HasSameCanonicalForm(AvroSchema)` is public: it compares encodings, and remembers the last match. `Equals` stays reference equality by design, because schemas with the same canonical form can differ in docs, aliases, defaults and properties; `AvroSchema`'s docs say so. `AvroGeneratedCode.IsSameSchema` is gone, and generated code calls `HasSameCanonicalForm`.
 - **`DeflateCodec`:** the built-in codec is public, with the Codecs package's shape: `DeflateCodec.Default`, a constructor that takes the `CompressionLevel`, and `Level`. `AvroCodec.Deflate` stays as the short spelling, next to `AvroCodec.Null`. `AvroCodec.CreateDeflate` is gone.
+- **`RecordField`:** a field keeps `Record` and `Position`, which the readers and the generator use. A record given a field that already belongs to another one attaches a copy instead of throwing, so `new RecordSchema(name, other.Fields.Append(field))` works. Parsed schemas always create fresh fields, so they never copy.
 - **Small ones:**
   - `SchemaFingerprint.Crc64AvroEmpty` is a `long`, like every fingerprint. The polynomial isn't public.
   - `AvroFileReader<T>.TryGetMetadataString` replaces `GetMetadataString`.

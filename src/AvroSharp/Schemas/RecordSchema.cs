@@ -114,7 +114,7 @@ public sealed class RecordSchema : NamedSchema
                 throw new AvroSchemaException($"Record '{FullName}' has more than one field named '{field.Name}'.");
             }
 
-            field.Attach(this, i);
+            array[i] = field.Attach(this, i);
         }
 
         _fields = array;

@@ -39,13 +39,26 @@ public class SchemaConstructionTests
         await Assert.That(order.Fingerprint64).IsEqualTo(parsed.Fingerprint64);
     }
 
+    /// <summary>A record built from another record's fields takes copies, and the other record keeps its own (#134).</summary>
     [Test]
-    public async Task Field_CannotBelongToTwoRecords()
+    public async Task FieldsOfAnotherRecord_AreCopied_AndTheOtherRecordKeepsItsOwn()
     {
-        var field = new RecordField("a", AvroSchema.Int);
-        _ = new RecordSchema(new SchemaName("A"), [field]);
-        var ex = Assert.Throws<AvroSchemaException>(() => new RecordSchema(new SchemaName("B"), [field]));
-        await Assert.That(ex.Message).Contains("already belongs to record 'A'");
+        var field = new RecordField("a", AvroSchema.Int, doc: "the a", aliases: ["old_a"]);
+        var a = new RecordSchema(new SchemaName("A"), [field]);
+        var b = new RecordSchema(new SchemaName("B"), [.. a.Fields, new RecordField("b", AvroSchema.String)]);
+
+        await Assert.That(a.Fields[0]).IsSameReferenceAs(field);
+        await Assert.That(field.Record).IsSameReferenceAs(a);
+        await Assert.That(field.Position).IsEqualTo(0);
+
+        var copy = b.Fields[0];
+        await Assert.That(copy).IsNotSameReferenceAs(field);
+        await Assert.That(copy.Record).IsSameReferenceAs(b);
+        await Assert.That(copy.Position).IsEqualTo(0);
+        await Assert.That(b.Fields[1].Position).IsEqualTo(1);
+        await Assert.That(copy.Doc).IsEqualTo("the a");
+        await Assert.That(copy.Aliases[0]).IsEqualTo("old_a");
+        await Assert.That(b.CanonicalForm).IsEqualTo("""{"name":"B","type":"record","fields":[{"name":"a","type":"int"},{"name":"b","type":"string"}]}""");
     }
 
     [Test]
