@@ -346,11 +346,30 @@ public ref struct AvroWriter
         }
 
 #if NET8_0_OR_GREATER
-        // As for single values: without it, mixed lengths went through the 3/4/5/6-8 tests, and bulk Mixed1-10
-        // was up to 60% slower than single writes on the i7-12800H and the EPYC 7543.
-        if (FastBmi2.IsSupported && value < 1UL << 56)
+        // TEMPORARY (#102): three candidates for one benchmark run; see BulkWriteVariant. Remove before merging.
+        if (FastBmi2.IsSupported)
         {
-            return WriteSpreadWord(ref destination, value);
+            if (BulkWriteVariant.Value == 1)
+            {
+                // The length-tested path: 4-byte store for 3 to 5 bytes, word for 6 to 8.
+                return WriteMultiByteVarint(ref destination, value);
+            }
+
+            if (BulkWriteVariant.Value == 2 && value < 1UL << 35)
+            {
+                // 3 to 5 bytes without a jump on the length: the 4-group store, the fifth byte always (overwritten
+                // when the value is shorter), and the length and continuation bits from two compares.
+                var low = Bmi2.ParallelBitDeposit((uint)value, 0x7F7F7F7Fu);
+                var length = 3 + (int)(((1UL << 21) - 1 - value) >> 63) + (int)(((1UL << 28) - 1 - value) >> 63);
+                Unsafe.WriteUnaligned(ref destination, low | (0x80808080u >> ((5 - length) * 8)));
+                Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
+                return length;
+            }
+
+            if (value < 1UL << 56)
+            {
+                return WriteSpreadWord(ref destination, value);
+            }
         }
 #endif
 
