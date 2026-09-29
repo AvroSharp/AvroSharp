@@ -932,43 +932,27 @@ public static class CSharpCodeGenerator
     }
 
     /// <summary>
-    /// The schema JSON and a lazily parsed <c>AvroSchema</c> property named <paramref name="propertyName"/>. On .NET 8
-    /// and later (C# 11), the JSON is a UTF-8 literal, stored once as data and parsed without a UTF-16 copy;
-    /// <c>SchemaJson</c> is then made from it on first use. With <paramref name="apache"/>, also the JSON that
-    /// Apache.Avro can parse (see <see cref="ApacheSupport.SchemaJson"/>).
+    /// The schema JSON as a <c>const</c>, one literal for every target and C# version, and a lazily parsed
+    /// <c>AvroSchema</c> property named <paramref name="propertyName"/>. With <paramref name="apache"/>, also the JSON
+    /// that Apache.Avro can parse (see <see cref="ApacheSupport.SchemaJson"/>).
     /// </summary>
+    /// <remarks>
+    /// On .NET 8 and later the JSON was a UTF-8 literal, half the size in the assembly and parsed without a UTF-16 copy,
+    /// but then <c>SchemaJson</c> could not be a <c>const</c>, and the source held the schema twice (#114). Parsing
+    /// happens once per type, so the copy does not matter.
+    /// </remarks>
     private static void EmitSchemaMembers(CodeWriter w, NamedSchema schema, string propertyName, bool apache, TypeMapper types)
     {
         const string AvroSchema = "global::AvroSharp.Schemas.AvroSchema";
         var json = schema.ToJson();
         w.Line($"private static {types.Nullable(AvroSchema)} s_schema;");
         w.Line();
-        if (types.Modern)
-        {
-            w.Directive("#if NET8_0_OR_GREATER");
-            w.Line("private static global::System.ReadOnlySpan<byte> SchemaUtf8 =>");
-            SplitLiteral(w, json, "u8");
-            w.Line();
-            w.Line($"private static {types.Nullable("string")} s_schemaJson;");
-            w.Line();
-            w.Line("/// <summary>Gets the Avro schema of this type, as JSON.</summary>");
-            w.Line("public static string SchemaJson => s_schemaJson ??= global::System.Text.Encoding.UTF8.GetString(SchemaUtf8);");
-            w.Line();
-            w.Line("/// <summary>Gets the Avro schema of this type.</summary>");
-            w.Line($"public static {AvroSchema} {propertyName} => s_schema ?? {Support}.PublishSchema(ref s_schema, {AvroSchema}.Parse(SchemaUtf8));");
-            w.Directive("#else");
-        }
-
-        w.Line("/// <summary>Gets the Avro schema of this type, as JSON.</summary>");
-        w.Line("public static string SchemaJson =>");
-        SplitLiteral(w, json, string.Empty);
+        w.Line("/// <summary>The Avro schema of this type, as JSON.</summary>");
+        w.Line("public const string SchemaJson =");
+        SplitLiteral(w, json);
         w.Line();
         w.Line("/// <summary>Gets the Avro schema of this type.</summary>");
         w.Line($"public static {AvroSchema} {propertyName} => s_schema ?? {Support}.PublishSchema(ref s_schema, {AvroSchema}.Parse(SchemaJson));");
-        if (types.Modern)
-        {
-            w.Directive("#endif");
-        }
 
         if (apache)
         {
@@ -977,18 +961,19 @@ public static class CSharpCodeGenerator
             w.Line("/// <summary>The schema as Apache.Avro parses it (it rejects uuid on fixed, which the specification allows).</summary>");
             if (string.Equals(apacheJson, json, StringComparison.Ordinal))
             {
-                w.Line("internal static string ApacheSchemaJson => SchemaJson;");
+                w.Line("internal const string ApacheSchemaJson = SchemaJson;");
             }
             else
             {
-                w.Line("internal static string ApacheSchemaJson =>");
-                SplitLiteral(w, apacheJson, string.Empty);
+                w.Line("internal const string ApacheSchemaJson =");
+                SplitLiteral(w, apacheJson);
             }
         }
     }
 
-    // A long string as concatenated literals of LiteralWidth characters (the compiler joins them), one per line.
-    private static void SplitLiteral(CodeWriter w, string text, string suffix)
+    // A long string as concatenated literals of LiteralWidth characters (the compiler joins them, still a constant),
+    // one per line.
+    private static void SplitLiteral(CodeWriter w, string text)
     {
         var parts = new List<string>();
         for (var start = 0; start < text.Length;)
@@ -1013,7 +998,7 @@ public static class CSharpCodeGenerator
         w.Indent();
         for (var i = 0; i < parts.Count; i++)
         {
-            w.Line(CSharpNames.Literal(parts[i]) + suffix + (i == parts.Count - 1 ? ";" : " +"));
+            w.Line(CSharpNames.Literal(parts[i]) + (i == parts.Count - 1 ? ";" : " +"));
         }
 
         w.Outdent();
@@ -1027,8 +1012,8 @@ public static class CSharpCodeGenerator
     {
         var used = new HashSet<string>(StringComparer.Ordinal)
         {
-            typeName.TrimStart('@'), "SchemaJson", "SchemaUtf8", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA",
-            "s_schema", "s_schemaJson", "s_apacheSchema", "s_plan", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
+            typeName.TrimStart('@'), "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA",
+            "s_schema", "s_apacheSchema", "s_plan", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
             "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo", "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField",
             "ReadPromoted", "AvroCodec", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
         };

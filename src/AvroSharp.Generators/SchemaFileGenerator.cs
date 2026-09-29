@@ -76,7 +76,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             HasDateOnly: compilation.GetTypeByMetadataName("System.DateOnly") is not null,
             HasApache: compilation.GetTypeByMetadataName("Avro.Specific.ISpecificRecord") is not null));
 
-        // The project's major C# version: nullable annotations need 8, UTF-8 literals and static abstract members 11.
+        // The project's major C# version: nullable annotations need 8, static abstract members 11.
         // netstandard2.0 and .NET Framework projects default to C# 7.3.
         var language = context.ParseOptionsProvider.Select(static (options, _) =>
             options is CSharpParseOptions csharp ? (int)csharp.LanguageVersion.MapSpecifiedToEffectiveVersion() / 100 : 7);

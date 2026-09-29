@@ -19,6 +19,6 @@ foreach (var source in CSharpCodeGenerator.Generate(schemas, options))
 }
 ```
 
-`CodeGenOptions` also selects how logical types are mapped (`LogicalTypes`), the Apache.Avro compatibility mode (`ApacheCompatible`), property names (`PropertyNaming`), whether the target framework has `DateOnly`/`TimeOnly` (`TargetHasDateOnly`), and the C# version the code may use (`NullableAnnotations` for C# 8; `LanguageVersion`, where 11 or later adds the UTF-8 schema literal and `IAvroSerializable<T>` on .NET 8 and later).
+`CodeGenOptions` also selects how logical types are mapped (`LogicalTypes`), the Apache.Avro compatibility mode (`ApacheCompatible`), property names (`PropertyNaming`), whether the target framework has `DateOnly`/`TimeOnly` (`TargetHasDateOnly`), and the C# version the code may use (`NullableAnnotations` for C# 8; `LanguageVersion`, where 11 or later adds `IAvroSerializable<T>` on .NET 8 and later).
 
 The generated code needs the `AvroSharp` package at runtime. This package's public API will be reviewed before 1.0 ([#73](https://github.com/zcsizmadia/AvroSharp/issues/73)).

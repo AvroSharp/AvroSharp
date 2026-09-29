@@ -17,24 +17,8 @@ namespace app.events
     {
         private static global::AvroSharp.Schemas.AvroSchema? s_schema;
 
-#if NET8_0_OR_GREATER
-        private static global::System.ReadOnlySpan<byte> SchemaUtf8 =>
-            "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"app.events\",\"doc\":\"Something that happened.\",\"fields\":["u8 +
-            "{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"kind\",\"type\":{\"type\":\"enum\",\"name\":\"Kind\",\"symbols\":[\"CREATED\","u8 +
-            "\"DELETED\"]}},{\"name\":\"hash\",\"type\":{\"type\":\"fixed\",\"name\":\"Hash\",\"size\":2}},{\"name\":\"tags\",\"type\":{\""u8 +
-            "type\":\"array\",\"items\":\"string\"}},{\"name\":\"scores\",\"type\":{\"type\":\"map\",\"values\":\"double\"}},{\"name\":\""u8 +
-            "parent\",\"type\":[\"null\",\"Event\"]},{\"name\":\"payload\",\"type\":[\"null\",\"int\",\"string\"]}]}"u8;
-
-        private static string? s_schemaJson;
-
-        /// <summary>Gets the Avro schema of this type, as JSON.</summary>
-        public static string SchemaJson => s_schemaJson ??= global::System.Text.Encoding.UTF8.GetString(SchemaUtf8);
-
-        /// <summary>Gets the Avro schema of this type.</summary>
-        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? global::AvroSharp.Serialization.AvroGeneratedCode.PublishSchema(ref s_schema, global::AvroSharp.Schemas.AvroSchema.Parse(SchemaUtf8));
-#else
-        /// <summary>Gets the Avro schema of this type, as JSON.</summary>
-        public static string SchemaJson =>
+        /// <summary>The Avro schema of this type, as JSON.</summary>
+        public const string SchemaJson =
             "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"app.events\",\"doc\":\"Something that happened.\",\"fields\":[" +
             "{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"kind\",\"type\":{\"type\":\"enum\",\"name\":\"Kind\",\"symbols\":[\"CREATED\"," +
             "\"DELETED\"]}},{\"name\":\"hash\",\"type\":{\"type\":\"fixed\",\"name\":\"Hash\",\"size\":2}},{\"name\":\"tags\",\"type\":{\"" +
@@ -43,7 +27,6 @@ namespace app.events
 
         /// <summary>Gets the Avro schema of this type.</summary>
         public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? global::AvroSharp.Serialization.AvroGeneratedCode.PublishSchema(ref s_schema, global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
-#endif
 
         public long Id { get; set; }
 
