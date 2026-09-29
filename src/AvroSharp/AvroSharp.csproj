@@ -5,9 +5,14 @@
     <PackageId>AvroSharp</PackageId>
   </PropertyGroup>
 
+  <!-- System.Text.Json, built into .NET Core 3.0 and later. -->
   <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
-    <PackageReference Include="System.Memory" />
     <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <!-- Span and Memory, built into netstandard2.1 and later. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Memory" />
   </ItemGroup>
 
   <!-- Channels for pipelined container reading, built into .NET Core 3.0 and later. -->
