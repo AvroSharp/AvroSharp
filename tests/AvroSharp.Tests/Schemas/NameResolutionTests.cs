@@ -1,5 +1,7 @@
+using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.Schemas;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Schemas;
 
@@ -207,6 +209,21 @@ public class NameResolutionTests
         var schema = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"R","namespace":"ns","aliases":["Old","other.Older"],"fields":[]}""");
         await Assert.That(schema.Aliases[0].FullName).IsEqualTo("ns.Old");
         await Assert.That(schema.Aliases[1].FullName).IsEqualTo("other.Older");
+    }
+
+    /// <summary>Enums and fixed types have aliases too: parsed relative to the namespace, and written back.</summary>
+    [Test]
+    [Arguments("""{"type":"enum","name":"E","namespace":"ns","symbols":["A"],"aliases":["Old","other.Older"]}""")]
+    [Arguments("""{"type":"fixed","name":"F","namespace":"ns","size":2,"aliases":["Old","other.Older"]}""")]
+    public async Task EnumAndFixedAliases_AreParsedAndWritten(string json)
+    {
+        var schema = (NamedSchema)AvroSchema.Parse(json);
+        var written = schema.ToJson();
+        var reparsed = (NamedSchema)AvroSchema.Parse(written);
+
+        await Assert.That(schema.Aliases.Select(a => a.FullName)).IsEquivalentTo(new[] { "ns.Old", "other.Older" }, CollectionOrdering.Matching);
+        await Assert.That(written).Contains("\"aliases\":[\"Old\",\"other.Older\"]");
+        await Assert.That(reparsed.Aliases.Select(a => a.FullName)).IsEquivalentTo(new[] { "ns.Old", "other.Older" }, CollectionOrdering.Matching);
     }
 
     [Test]

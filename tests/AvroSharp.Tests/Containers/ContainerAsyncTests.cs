@@ -180,6 +180,23 @@ public class ContainerAsyncTests
         await Assert.That(notAFile.Message).Contains("not an Avro object container file");
     }
 
+    [Test]
+    public async Task ATruncatedBlock_IsRejectedAsynchronously()
+    {
+        var bytes = ContainerFileTests.WriteFile(ContainerFileTests.Rows(3), AvroFileWriterOptions.Default);
+        var headerLength = ContainerFileTests.WriteFile([], AvroFileWriterOptions.Default).Length;
+        for (var length = headerLength + 1; length < bytes.Length; length += 5)
+        {
+            await using var reader = await AvroFileReader.OpenGenericAsync(new AsyncOnlyStream(bytes.AsSpan(0, length).ToArray()));
+            var ex = await ThrowsAsync(() => ToListAsync(reader.ReadAllAsync()));
+            await Assert.That(ex.Message).StartsWith("The file ends inside a ");
+        }
+
+        // Cut inside the block's data, before its sync marker.
+        await using var cut = await AvroFileReader.OpenGenericAsync(new AsyncOnlyStream(bytes.AsSpan(0, bytes.Length - 16 - 1).ToArray()));
+        await Assert.That((await ThrowsAsync(() => ToListAsync(cut.ReadAllAsync()))).Message).IsEqualTo("The file ends inside a block.");
+    }
+
     private static async Task<AvroDataException> ThrowsAsync(Func<Task> action)
     {
         try

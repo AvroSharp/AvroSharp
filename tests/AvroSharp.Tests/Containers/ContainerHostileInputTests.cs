@@ -203,6 +203,42 @@ public class ContainerHostileInputTests
         await Assert.That(ex.Message).Contains("1 bytes left after its last object");
     }
 
+    [Test]
+    public async Task BytesLeftAfterABlocksLastObject_AreRejected_WhenPipelined()
+    {
+        var bytes = WithBlock(1, [0x02, 0x04]);
+
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(bytes));
+        var ex = await Assert.ThrowsAsync<AvroDataException>(async () =>
+        {
+            await foreach (var _ in reader.ReadAllPipelinedAsync())
+            {
+            }
+        });
+
+        await Assert.That(ex!.Message).IsEqualTo("A block has 1 bytes left after its last object.");
+    }
+
+    /// <summary>A varint of more than 10 bytes cannot be a long: it is rejected, in the header and before a block.</summary>
+    [Test]
+    public async Task OverlongVarints_AreRejected()
+    {
+        var overlong = Enumerable.Repeat((byte)0x80, 11).ToArray();
+        var inHeader = Build((ref w) =>
+        {
+            w.WriteRaw("Obj\u0001"u8);
+            w.WriteRaw(overlong);
+        });
+        var beforeABlock = Header().Concat(overlong).ToArray();
+
+        var header = Assert.Throws<AvroDataException>(() => AvroFileReader.OpenGeneric(new MemoryStream(inHeader)));
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(beforeABlock));
+        var block = Assert.Throws<AvroDataException>(() => reader.ReadAll().ToList());
+
+        await Assert.That(header.Message).IsEqualTo("The metadata block count is a varint longer than 10 bytes.");
+        await Assert.That(block.Message).IsEqualTo("The block count is a varint longer than 10 bytes.");
+    }
+
     /// <summary>
     /// Zero-size objects are bounded by an option, counting each object's values (#129, #130): blocks of more than
     /// 65,536 nulls, which Java and earlier AvroSharp versions write, are read.

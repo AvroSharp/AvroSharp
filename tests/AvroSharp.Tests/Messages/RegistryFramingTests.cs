@@ -164,6 +164,37 @@ public class RegistryFramingTests
     }
 
     [Test]
+    public async Task ReadAsync_WhenTheResolverFindsNoSchema_IsRejected_AndNotCached()
+    {
+        var resolver = new ScriptedResolver(_ => null);
+        var reader = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.Confluent, resolver);
+        var message = AvroRegistryMessage.ToArray(AvroRegistryFraming.Confluent, AvroSchemaId.FromNumber(5), User(1, "a"), GenericDatumWriter.Create(s_schema));
+
+        var first = await Assert.ThrowsAsync<AvroDataException>(async () => await reader.ReadAsync(message));
+        var second = await Assert.ThrowsAsync<AvroDataException>(async () => await reader.ReadPayloadAsync(AvroSchemaId.FromNumber(5), message.AsMemory(AvroRegistryFraming.Confluent.HeaderLength)));
+
+        await Assert.That(first!.Message).IsEqualTo("No schema with ID 5 is known to the resolver.");
+        await Assert.That(second!.Message).IsEqualTo("No schema with ID 5 is known to the resolver.");
+        await Assert.That(resolver.AsyncCalls).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task ReadAsync_PassesTheTokenToTheFetch_AndACancelledFetchIsNotCached()
+    {
+        // The first fetch waits until it is cancelled; the next one finds the schema.
+        var resolver = new ScriptedResolver(call => call == 1 ? null : s_schema, waitForCancellation: call => call == 1);
+        var reader = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.Confluent, resolver);
+        var message = AvroRegistryMessage.ToArray(AvroRegistryFraming.Confluent, AvroSchemaId.FromNumber(5), User(1, "a"), GenericDatumWriter.Create(s_schema));
+        using var cancellation = new CancellationTokenSource();
+
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await reader.ReadAsync(message, cancellation.Token));
+        await Assert.That(await reader.ReadAsync(message)).IsEqualTo(User(1, "a"));
+        await Assert.That(resolver.AsyncCalls).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task TheReadFunction_IsCreatedOncePerId_AcrossAlternatingIds()
     {
         var a = AvroSchemaId.FromNumber(1);
@@ -309,6 +340,26 @@ public class RegistryFramingTests
     }
 
     private static AvroValue User(long id, string name) => new GenericRecord(s_schema) { ["id"] = id, ["name"] = name };
+
+    /// <summary>Answers fetches asynchronously with what <c>answer</c> gives for the call number (from 1), optionally waiting for cancellation first.</summary>
+    private sealed class ScriptedResolver(Func<int, AvroSchema?> answer, Func<int, bool>? waitForCancellation = null) : IAvroSchemaIdResolver
+    {
+        public int AsyncCalls { get; private set; }
+
+        public AvroSchema? GetSchema(AvroSchemaId id) => null;
+
+        public async ValueTask<AvroSchema?> GetSchemaAsync(AvroSchemaId id, CancellationToken cancellationToken = default)
+        {
+            var call = ++AsyncCalls;
+            if (waitForCancellation?.Invoke(call) == true)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+
+            await Task.Yield();
+            return answer(call);
+        }
+    }
 
     private sealed class CountingResolver : IAvroSchemaIdResolver
     {
