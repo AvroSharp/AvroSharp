@@ -4,6 +4,8 @@
 
 > **Status:** an early preview (0.1). The API may still change before 1.0.
 
+**[Command-line tool documentation](https://zcsizmadia.github.io/AvroSharp/docs/cli.html)**: every command and option, examples, and use in CI. Also: [the source generator](https://zcsizmadia.github.io/AvroSharp/docs/code-generation.html), [documentation](https://zcsizmadia.github.io/AvroSharp/).
+
 ```shell
 dotnet tool install --global AvroSharp.Tool     # or without --global, in a tool manifest
 avrosharp --help

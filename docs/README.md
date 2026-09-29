@@ -1,9 +1,22 @@
 # Documentation
 
-- [Roadmap](roadmap.md): the status of each milestone and where the open work is tracked.
-- [Design](design.md): the design proposal, the decisions made since, and how the repository differs from the proposal.
-- [Fuzzing](../fuzz/README.md): the libFuzzer targets and how to run them.
+The documentation site is at **[zcsizmadia.github.io/AvroSharp](https://zcsizmadia.github.io/AvroSharp/)**, built from these pages and the API's XML documentation.
+
+## Guides
+
+- [Guide](../README.md): getting started, the generic data model, container files and codecs, single-object messages and schema registries, and streams.
+- [Code generation](code-generation.md): the `AvroSharp.Generators` source generator: setup, MSBuild properties, type mapping, schema evolution, diagnostics, and moving from avrogen.
+- [Command-line tool](cli.md): `avrosharp gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.
 - [Samples](../samples/README.md): runnable programs for the main APIs, run by CI.
+
+## Reference
+
+- [API reference](api/index.md): every public type, from the XML documentation.
+- [Benchmarks](benchmarks.md): the results against Apache.Avro, what is measured, and how to run the suite and the performance gate.
+- [AvroSharp and Apache.Avro](apache-avro.md): what differs, when Apache.Avro is the better fit, and how to migrate.
+- [Design](design.md): the design proposal, the decisions made since, and how the repository differs from the proposal.
+- [Roadmap](roadmap.md): the status of each milestone and where the open work is tracked.
+- [Fuzzing](../fuzz/README.md): the libFuzzer targets and how to run them.
 - [Contributing](../CONTRIBUTING.md): building, testing, formatting and pull requests.
 - [Changelog](../CHANGELOG.md): what changed, newest first.
 

@@ -4,6 +4,8 @@ The snappy, zstandard, bzip2 and xz codecs for [AvroSharp](https://github.com/zc
 
 > **Status:** an early preview (0.1). The API may still change before 1.0.
 
+**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Container files and codecs](https://github.com/zcsizmadia/AvroSharp#object-container-files) · [Benchmarks by codec](https://zcsizmadia.github.io/AvroSharp/docs/benchmarks.html)
+
 ## Reading
 
 A file's codec is not known until it is opened, so give the reader all of them:
