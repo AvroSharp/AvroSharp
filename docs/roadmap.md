@@ -12,7 +12,7 @@ The live status of each milestone. The milestones and their exit criteria come f
 | M4: attribute generator and `AvroSerializer<T>` | Not started | #31 |
 | M5: container files, codecs, single-object encoding | Done | |
 | M6: CLI tool and protocols | Started | The `avrosharp` tool (`gen`, `schema canonical`, `schema fingerprint`) ships in 0.2.0; protocols are open (#33) |
-| M7: hardening and 1.0 | Started | #35: API review (#73), docs site and samples (#74, #126), public API before 1.0 (#134), CI consuming the packages (#136), dev container (#139). Done: package metadata (#66), coverage (#75), release workflows (#76), weekly fuzzing (#34) |
+| M7: hardening and 1.0 | Started | #35: API review (#73), docs site and samples (#74, #126), public API before 1.0 (#134), CI consuming the packages (#136), dev container (#139). Done: package metadata (#66), coverage (#75), release workflows (#76), nightly fuzzing (#34) |
 | Integrations | Started | #77: Confluent (#79). Done: schema references (#80), registry wire framing (#81) and the field walker (#82). Remaining core work: the typed serializer lookup (#31) |
 
 ## Done, in more detail

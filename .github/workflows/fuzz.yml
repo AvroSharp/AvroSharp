@@ -1,6 +1,6 @@
 name: Fuzz
 
-# Weekly, and on demand:
+# Nightly, and on demand:
 # - coverage-guided fuzzing of every target in fuzz/AvroSharp.Fuzz with SharpFuzz and libFuzzer. Each target runs in
 #   its own job; its corpus is kept between runs in the Actions cache, and a crash fails the job and uploads the input
 #   that caused it. See fuzz/README.md for running a target locally.
@@ -8,7 +8,7 @@ name: Fuzz
 #   prints its seed; AVROSHARP_RANDOM_SCHEMA_SEED reproduces it locally.
 on:
   schedule:
-    - cron: '17 2 * * 0'
+    - cron: '17 2 * * *'
   workflow_dispatch:
     inputs:
       seconds:

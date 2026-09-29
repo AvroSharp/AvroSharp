@@ -11,7 +11,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- Fuzzing runs weekly instead of nightly, and the same workflow runs a random-schema code-generation test (#141): random schemas, with hostile names and every kind of default, are generated, compiled for C# 7.3, 12 and the latest version, and round-tripped. PR CI runs it on 100 schemas.
+- The nightly fuzzing workflow also runs a random-schema code-generation test (#141): random schemas, with hostile names and every kind of default, are generated, compiled for C# 7.3, 12 and the latest version, and round-tripped. PR CI runs it on 100 schemas.
 - The API reference on the documentation site is built from the net10.0 build, so it shows the .NET 8+ API (`AvroSerializer`, `IAvroSerializable<T>` and the overloads that take no delegates), and lists those members with their equivalents on other targets (#136).
 
 ## [0.2.0] - 2026-09-29
