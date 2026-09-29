@@ -17,12 +17,17 @@ namespace AvroSharp.CodeGen;
 /// </remarks>
 public sealed class SchemaFileSet
 {
-    private SchemaFileSet(IReadOnlyList<AvroSchema> schemas, IReadOnlyDictionary<string, AvroSchema> schemasByPath, IReadOnlyDictionary<string, AvroSchemaException> errors, IReadOnlyDictionary<string, string> definedIn)
+    // The named types each file that could not be parsed declares, by full name: for errors that name a type such a
+    // file defines (circular references between files, #131).
+    private readonly Dictionary<string, string> _declaredInFailed;
+
+    private SchemaFileSet(IReadOnlyList<AvroSchema> schemas, IReadOnlyDictionary<string, AvroSchema> schemasByPath, IReadOnlyDictionary<string, AvroSchemaException> errors, IReadOnlyDictionary<string, string> definedIn, Dictionary<string, string> declaredInFailed)
     {
         Schemas = schemas;
         SchemasByPath = schemasByPath;
         Errors = errors;
         DefinedIn = definedIn;
+        _declaredInFailed = declaredInFailed;
     }
 
     /// <summary>Gets the schemas of the files that parsed, in the order they parsed.</summary>
@@ -39,7 +44,8 @@ public sealed class SchemaFileSet
 
     /// <summary>
     /// Gets the error message of a file that could not be parsed. When the file defines again a type that another file
-    /// defines differently, the message names that other file.
+    /// defines differently, the message names that other file; when it uses a type that another file which could not
+    /// be parsed defines, it names that file, and says whether the two files need each other's types.
     /// </summary>
     /// <param name="path">The file's path, as given to <see cref="Parse"/>.</param>
     /// <exception cref="KeyNotFoundException">The file parsed, or is not in the set.</exception>
@@ -54,7 +60,80 @@ public sealed class SchemaFileSet
             }
         }
 
+        if (Undefined(message) is { } needed && _declaredInFailed.TryGetValue(needed, out var other) && !string.Equals(other, path, StringComparison.Ordinal))
+        {
+            // The other file failed too. If it needs one of this file's types, neither can be parsed first.
+            var neededBack = Errors.TryGetValue(other, out var otherError) ? Undefined(otherError.Message) : null;
+            return neededBack is not null && _declaredInFailed.TryGetValue(neededBack, out var back) && string.Equals(back, path, StringComparison.Ordinal)
+                ? message + $" It is defined in {other}, which itself needs '{neededBack}' from this file: circular references between files are not supported. Define the types that refer to each other in one file."
+                : message + $" It is defined in {other}, which could not be parsed either.";
+        }
+
         return message;
+    }
+
+    // The type an "is not a defined type" error names, or null.
+    private static string? Undefined(string message)
+    {
+        const string Marker = "' is not a defined type";
+        var end = message.IndexOf(Marker, StringComparison.Ordinal);
+        var start = end > 0 ? message.LastIndexOf('\'', end - 1) : -1;
+        return start >= 0 ? message.Substring(start + 1, end - start - 1) : null;
+    }
+
+    // The full names of the named types a schema's JSON declares, found without resolving references.
+    private static List<string> Declared(string json)
+    {
+        var names = new List<string>();
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            Walk(document.RootElement, enclosingNamespace: null, names);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // Not JSON: its parse error says so, and it declares nothing another file could need.
+        }
+
+        return names;
+    }
+
+    private static void Walk(System.Text.Json.JsonElement element, string? enclosingNamespace, List<string> names)
+    {
+        switch (element.ValueKind)
+        {
+            case System.Text.Json.JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    Walk(item, enclosingNamespace, names);
+                }
+
+                break;
+            case System.Text.Json.JsonValueKind.Object:
+                var ns = enclosingNamespace;
+                if (element.TryGetProperty("type", out var type) && type.ValueKind == System.Text.Json.JsonValueKind.String
+                    && type.GetString() is "record" or "error" or "enum" or "fixed"
+                    && element.TryGetProperty("name", out var nameElement) && nameElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var name = nameElement.GetString()!;
+                    if (name.IndexOf('.') < 0 && element.TryGetProperty("namespace", out var nsElement) && nsElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        ns = nsElement.GetString();
+                    }
+
+                    var fullName = name.IndexOf('.') >= 0 || string.IsNullOrEmpty(ns) ? name : ns + "." + name;
+                    names.Add(fullName);
+                    var dot = fullName.LastIndexOf('.');
+                    ns = dot < 0 ? null : fullName[..dot];
+                }
+
+                foreach (var property in element.EnumerateObject())
+                {
+                    Walk(property.Value, ns, names);
+                }
+
+                break;
+        }
     }
 
     /// <summary>Parses schema files together.</summary>
@@ -97,6 +176,15 @@ public sealed class SchemaFileSet
             }
         }
 
-        return new SchemaFileSet(schemas, schemasByPath, errors, definedIn);
+        var declaredInFailed = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var file in pending)
+        {
+            foreach (var name in Declared(file.Json))
+            {
+                declaredInFailed.TryAdd(name, file.Path);
+            }
+        }
+
+        return new SchemaFileSet(schemas, schemasByPath, errors, definedIn, declaredInFailed);
     }
 }

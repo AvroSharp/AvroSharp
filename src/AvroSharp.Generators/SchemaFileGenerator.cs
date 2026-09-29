@@ -37,7 +37,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         "AVROGEN003", "Avro code generation failed", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor s_renamed = new(
-        "AVROGEN005", "Generated property renamed", "{0}", Category, DiagnosticSeverity.Info, isEnabledByDefault: true);
+        "AVROGEN005", "Generated name changed", "{0}", Category, DiagnosticSeverity.Info, isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor s_missingApache = new(
         "AVROGEN004",
@@ -127,9 +127,19 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             return;
         }
 
+        // Hint names must be unique ignoring case, so types whose names differ only by case (cs.Order and cs.order)
+        // made the generator fail and drop all its output (#131). The later one gets a number: hint names only name
+        // the generated files.
+        var hintNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var source in result.Sources)
         {
-            output.AddSource(source.HintName, SourceText.From(source.Text, System.Text.Encoding.UTF8));
+            var hintName = source.HintName;
+            for (var n = 2; !hintNames.Add(hintName); n++)
+            {
+                hintName = source.HintName[..^".g.cs".Length] + "." + n.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".g.cs";
+            }
+
+            output.AddSource(hintName, SourceText.From(source.Text, System.Text.Encoding.UTF8));
         }
     }
 

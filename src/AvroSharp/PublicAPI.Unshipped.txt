@@ -721,3 +721,4 @@ AvroSharp.Serialization.AvroStringCodec.Read(ref AvroSharp.IO.AvroReader reader,
 AvroSharp.Serialization.AvroStringCodec.Write(ref AvroSharp.IO.AvroWriter writer, string! value, int depth) -> void
 AvroSharp.Serialization.AvroUninitialized
 AvroSharp.Serialization.AvroUninitialized.AvroUninitialized() -> void
+static AvroSharp.Generic.GenericDatumJsonReader.ReadDefault(AvroSharp.Schemas.AvroSchema! schema, System.Text.Json.JsonElement value) -> AvroSharp.Generic.AvroValue

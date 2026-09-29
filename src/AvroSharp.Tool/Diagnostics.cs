@@ -11,7 +11,7 @@ internal static class Diagnostics
 {
     public const string InvalidSchema = "AVROGEN001";
     public const string GenerationFailed = "AVROGEN003";
-    public const string PropertyRenamed = "AVROGEN005";
+    public const string NameChanged = "AVROGEN005";
 
     public static void SchemaError(TextWriter error, string path, AvroSchemaException exception, string? message = null) =>
         error.WriteLine($"{path}({exception.LineNumber ?? 1},{exception.BytePositionInLine ?? 1}): error {InvalidSchema}: {message ?? exception.Message}");

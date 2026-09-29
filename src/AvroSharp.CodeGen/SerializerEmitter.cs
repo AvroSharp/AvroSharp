@@ -239,11 +239,22 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         w.Line($"var items{n} = {NotNull(expression, field, notNull)};");
         w.Open($"if (items{n}.Count > 0)");
         w.Line($"writer.WriteBlockCount(items{n}.Count);");
-        w.Directive("#if NET8_0_OR_GREATER");
-        w.Line($"foreach (var item{n} in {CollectionsMarshal}.AsSpan(items{n}))");
-        w.Directive("#else");
-        w.Line($"foreach (var item{n} in items{n})");
-        w.Directive("#endif");
+
+        // Over the list's span on .NET 8+, which needs C# 13 there: .NET 9 and 10 declare the span's enumerator with
+        // ref struct interfaces, so a project pinned to C# 12 or earlier could not compile the loop (CS9202, #131).
+        if (types.LanguageVersion >= 13)
+        {
+            w.Directive("#if NET8_0_OR_GREATER");
+            w.Line($"foreach (var item{n} in {CollectionsMarshal}.AsSpan(items{n}))");
+            w.Directive("#else");
+            w.Line($"foreach (var item{n} in items{n})");
+            w.Directive("#endif");
+        }
+        else
+        {
+            w.Line($"foreach (var item{n} in items{n})");
+        }
+
         w.Open();
         Write(w, array.Items, $"item{n}", field);
         w.Close();
