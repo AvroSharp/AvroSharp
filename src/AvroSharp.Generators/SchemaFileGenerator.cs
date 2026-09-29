@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using AvroSharp.CodeGen;
-using AvroSharp.Schemas;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
@@ -134,46 +133,13 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         }
     }
 
-    /// <summary>
-    /// Parses every file with one parser, retrying files whose references are not defined yet, then generates code
-    /// for all of them together.
-    /// </summary>
+    /// <summary>Parses every file together (see <see cref="SchemaFileSet"/>), then generates code for all of them.</summary>
     private static GenerationResult Generate(ImmutableArray<SchemaFile> files, CodeGenOptions options, CancellationToken cancellationToken)
     {
-        // Schema sets written for Apache's one-file-at-a-time tooling repeat shared types in every file.
-        var parser = new AvroSchemaParser(new AvroSchemaParseOptions { AllowIdenticalRedefinitions = true });
-        var parsed = new List<AvroSchema>();
-        var pending = files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
-        var errors = new Dictionary<SchemaFile, AvroSchemaException>();
-
-        // Which file defined each named type, to name it when another file defines the type again.
-        var definedIn = new Dictionary<string, string>(StringComparer.Ordinal);
-        for (var progress = true; progress && pending.Count > 0;)
-        {
-            progress = false;
-            foreach (var file in pending.ToList())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                try
-                {
-                    parsed.Add(parser.Parse(file.Text));
-                    foreach (var name in parser.NamedSchemas.Keys.Where(name => !definedIn.ContainsKey(name)).ToList())
-                    {
-                        definedIn[name] = file.Path;
-                    }
-
-                    pending.Remove(file);
-                    errors.Remove(file);
-                    progress = true;
-                }
-                catch (AvroSchemaException ex)
-                {
-                    errors[file] = ex;
-                }
-            }
-        }
-
-        var diagnostics = pending.Select(file => DiagnosticInfo.InvalidSchema(file.Path, errors[file], definedIn)).ToList();
+        var set = SchemaFileSet.Parse(files.Select(file => (file.Path, file.Text)), cancellationToken);
+        var parsed = set.Schemas;
+        var definedIn = set.DefinedIn;
+        var diagnostics = set.Errors.Keys.OrderBy(path => path, StringComparer.Ordinal).Select(path => DiagnosticInfo.InvalidSchema(path, set)).ToList();
         IReadOnlyList<GeneratedSource> sources = [];
         try
         {
@@ -235,17 +201,10 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
 
         public long Column { get; } = column;
 
-        public static DiagnosticInfo InvalidSchema(string path, AvroSchemaException ex, Dictionary<string, string> definedIn)
+        public static DiagnosticInfo InvalidSchema(string path, SchemaFileSet set)
         {
-            // A name defined again: say where the first definition is.
-            var message = ex.Message;
-            var other = definedIn.FirstOrDefault(pair => message.IndexOf("'" + pair.Key + "' is already defined", StringComparison.Ordinal) >= 0 && !string.Equals(pair.Value, path, StringComparison.Ordinal));
-            if (other.Key is not null)
-            {
-                message += $" It is also defined in {other.Value}.";
-            }
-
-            return new(s_invalidSchema.Id, message, path, ex.LineNumber ?? 1, ex.BytePositionInLine ?? 1);
+            var ex = set.Errors[path];
+            return new(s_invalidSchema.Id, set.GetErrorMessage(path), path, ex.LineNumber ?? 1, ex.BytePositionInLine ?? 1);
         }
 
         public Diagnostic ToDiagnostic()

@@ -25,6 +25,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 
+- The `avrosharp` command-line tool, package `AvroSharp.Tool`: a `dotnet tool` like Apache.Avro's `avrogen`, for the .NET 10 runtime (#33).
+  - `avrosharp gen` writes the source generator's code for `.avsc` files, or folders of them, to a folder, with the generator's options.
+  - `avrosharp schema canonical` and `schema fingerprint` print the Parsing Canonical Form, and the CRC-64-AVRO, MD5 or SHA-256 fingerprint as hex, base64 or (CRC-64) the decimal Java prints.
+  - Files may refer to each other's types in any order. Errors are in the compiler's format, with the generator's diagnostic IDs. The exit code is 0 on success, 1 when the command fails and 2 for an invalid command line.
+- `SchemaFileSet` in `AvroSharp.CodeGen`: parses schema files that refer to each other's named types, in any order, as the source generator and the tool do.
 - Bulk booleans (#26): `AvroReader.ReadBooleans` checks and copies a block of booleans as one span, and `AvroWriter.WriteBooleans` writes one as a single copy. Generated code uses them for `boolean` arrays, and the generic reader and writer use them for boolean arrays.
 - Generated records implement new interfaces (#115): `IAvroWritable` (`WriteTo(ref AvroWriter)`) and `IAvroReadable` (`ReadFrom(ref AvroReader)`, which fills an existing instance and reuses its lists, dictionaries and records), and on .NET 8 and later `IAvroSerializable<T>` with the static `Schema`, `Write` and `Read` members. With it, `AvroSerializer.Serialize`/`TrySerialize`/`Deserialize`, `AvroFileWriter.Create<T>(stream)`, `AvroFileReader.Open<T>(stream)`/`OpenAsync<T>`, `AvroStreamWriter.Create<T>`, `AvroStreamReader.Open<T>`, `AvroMessage.ToArray<T>`/`Write<T>`, `AvroMessageReader.Create<T>`, `AvroRegistryMessage.ToArray<T>`/`Write<T>` and `AvroRegistryMessageReader.Create<T>` need no delegates. Readers of files and messages resolve other versions of the type's schema.
 - Generated records write and read memory without allocating (#115): `TryWriteAvroBytes(Span<byte>, out int)` (no exception when the value does not fit), `WriteAvroBytes(Span<byte>)`, `WriteAvroBytes(IBufferWriter<byte>)`, `FromAvroBytes(data, out int bytesConsumed)` and `FromAvroBytes(in ReadOnlySequence<byte>)`.

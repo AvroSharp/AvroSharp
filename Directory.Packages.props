@@ -36,6 +36,11 @@
     <PackageVersion Include="Lzma.Net" Version="5.8.4.3" />
   </ItemGroup>
 
+  <!-- Command-line tool -->
+  <ItemGroup>
+    <PackageVersion Include="System.CommandLine" Version="2.0.12" />
+  </ItemGroup>
+
   <!-- Tests and benchmarks only; never referenced from src/ (enforced in Directory.Build.targets). -->
   <ItemGroup>
     <PackageVersion Include="TUnit" Version="1.69.16" />
