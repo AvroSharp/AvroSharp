@@ -78,7 +78,7 @@ public static class CSharpCodeGenerator
 
     private static readonly string[] s_fixedMembers =
     [
-        "Size", "Value", "AsSpan", "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema",
+        "Size", "Value", "AsSpan", "Equals", "GetHashCode", "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema",
         "s_apacheSchema",
     ];
 

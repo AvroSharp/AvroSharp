@@ -25,7 +25,7 @@ On this page:
 | Codecs | null, deflate, snappy, zstandard, bzip2, xz: two packages, fully managed | null and deflate, and a satellite package per codec |
 | Schema registries | Confluent, Confluent GUID, Apicurio and AWS Glue framing, with no client dependency | not included |
 | Specification | follows it where Apache.Avro 1.12.2 deviates ([details](#following-the-specification)) | five deviations pinned by AvroSharp's tests |
-| Hostile input | bounded memory and nesting for malformed or hostile data and schemas; fuzzed nightly | — |
+| Hostile input | bounded memory and nesting for malformed or hostile data and schemas; fuzzed weekly | — |
 | Targets | .NET 8, 9 and 10, .NET Standard 2.0 and 2.1 (so .NET Framework) | .NET Standard 2.0 and 2.1 |
 | License | MIT | Apache 2.0 |
 | Maturity | an early preview (0.x); the API may change before 1.0 | the long-standing reference implementation |

@@ -17,7 +17,7 @@ The same targets run on every build as a seeded mutation smoke test (`tests/Avro
 ## Running with libFuzzer
 
 These steps were run on Linux (the `mcr.microsoft.com/dotnet/sdk:10.0` image) with SharpFuzz 2.3.0 and
-`libfuzzer-dotnet` v2025.05.02.0904. The nightly workflow (below) runs the same steps.
+`libfuzzer-dotnet` v2025.05.02.0904. The weekly workflow (below) runs the same steps.
 
 1. Install the instrumentation tool and download `libfuzzer-dotnet` for your platform from its [releases](https://github.com/Metalnem/libfuzzer-dotnet/releases) (`libfuzzer-dotnet-ubuntu`, `-debian` or `-windows.exe`):
 
@@ -44,9 +44,15 @@ These steps were run on Linux (the `mcr.microsoft.com/dotnet/sdk:10.0` image) wi
 
 A crash leaves its input in a `crash-*` file. To reproduce it, add the input to `FuzzSmokeTests` as a fixed case, fix the bug, and keep the case as a regression test.
 
-## Nightly runs
+## Weekly runs
 
-`.github/workflows/fuzz.yml` runs every target for 30 minutes each night (and on demand, with the time as an input), one job per target. Each target's corpus is kept in the Actions cache between runs, so coverage builds up night after night; a crash fails its job and uploads the input as the `crashes-<target>` artifact.
+`.github/workflows/fuzz.yml` runs every target for 30 minutes each week (and on demand, with the time as an input), one job per target. Each target's corpus is kept in the Actions cache between runs, so coverage builds up week after week; a crash fails its job and uploads the input as the `crashes-<target>` artifact.
+
+The same workflow runs the random-schema code-generation test (`tests/AvroSharp.Generators.Tests/RandomSchemaCodeGenTests.cs`, #141) on 1,500 batches of 20 schemas; PR CI runs it on 5. Each schema is generated with the source generator, compiled for C# 7.3, C# 12 and the latest C# (and in the Apache.Avro compatibility mode), and its type round-trips random values against the generic reader and writer, through a container file, and from an older version of the schema. A failure prints its seed and schemas, and the failing batch (a file per schema, and the error) is uploaded: as the `random-schema-failure` artifact in the weekly run, and in the `results-<os>` artifact in PR CI (from `AVROSHARP_RANDOM_SCHEMA_FAILURES`). Set `AVROSHARP_RANDOM_SCHEMA_SEED` to the seed (and `AVROSHARP_RANDOM_SCHEMA_BATCHES` for more batches) to reproduce it:
+
+```sh
+AVROSHARP_RANDOM_SCHEMA_SEED=<seed> dotnet run --project tests/AvroSharp.Generators.Tests -c Release -f net10.0 -- --treenode-filter "/*/*/RandomSchemaCodeGenTests/*"
+```
 
 ## Results
 
