@@ -52,7 +52,7 @@ public sealed partial class GenericDatumReader
 
         public void Transcode(ref AvroReader reader, IBufferWriter<byte> output)
         {
-            var state = new ReadState(ReadLimits.Default);
+            var state = ReadState.ForDefaultOptions();
             var scratch = ThreadScratch();
             var writer = new AvroWriter(output);
             _root.Transcode(ref reader, ref writer, ref state, scratch);

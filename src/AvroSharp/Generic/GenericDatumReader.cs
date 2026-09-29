@@ -120,6 +120,23 @@ public sealed partial class GenericDatumReader
             ZeroSizeItemsLeft = limits.MaxZeroSizeItems;
         }
 
+        private ReadState(int maxDepth, int firstCheck, long maxZeroSizeItems)
+        {
+            MaxDepth = maxDepth;
+            Depth = 0;
+            Nesting = 0;
+            NextCheck = firstCheck;
+            ZeroSizeItemsLeft = maxZeroSizeItems;
+        }
+
+        /// <summary>
+        /// The state for the default options, from constants: the transcoder and the plans' skip steps create one per
+        /// value, and loading a static struct of limits for each cost the generated schema-evolution read 5-9% (#129).
+        /// The first check is StackCheckInterval levels deep, since the default nesting limit (1,024) is deeper.
+        /// </summary>
+        public static ReadState ForDefaultOptions() => new(
+            GenericDatumReaderOptions.DefaultMaxDepth, StackCheckInterval, GenericDatumReaderOptions.DefaultMaxZeroSizeItems);
+
         // Computed, not stored, to keep the state at 24 bytes; only the out-of-line checks use it.
         public readonly int MaxNesting => MaxNestingFor(MaxDepth);
     }
@@ -128,8 +145,6 @@ public sealed partial class GenericDatumReader
     [StructLayout(LayoutKind.Auto)]
     private readonly struct ReadLimits(GenericDatumReaderOptions options)
     {
-        // For the transcoder and the plans' skip steps, which read with the default options.
-        public static readonly ReadLimits Default = new(GenericDatumReaderOptions.Default);
 
         public readonly int MaxDepth = options.MaxDepth;
         public readonly long MaxZeroSizeItems = options.MaxZeroSizeItems;
