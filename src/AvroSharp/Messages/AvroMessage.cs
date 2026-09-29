@@ -83,16 +83,26 @@ public static class AvroMessage
         return output.ToArray();
     }
 
+    /// <summary>Writes a generic value as a single-object encoded message.</summary>
+    /// <param name="output">The destination.</param>
+    /// <param name="value">The value.</param>
+    /// <param name="writer">The generic writer; its schema's fingerprint goes into the header.</param>
+    public static void Write(IBufferWriter<byte> output, in AvroValue value, GenericDatumWriter writer)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(writer);
+        WriteHeader(output.GetSpan(HeaderLength), writer.Schema);
+        output.Advance(HeaderLength);
+        writer.Write(output, value);
+    }
+
     /// <summary>Writes a generic value as a single-object encoded message to a new array.</summary>
     /// <param name="value">The value.</param>
     /// <param name="writer">The generic writer; its schema's fingerprint goes into the header.</param>
     public static byte[] ToArray(in AvroValue value, GenericDatumWriter writer)
     {
-        ArgumentNullException.ThrowIfNull(writer);
         using var output = new PooledBufferWriter();
-        WriteHeader(output.GetSpan(HeaderLength), writer.Schema);
-        output.Advance(HeaderLength);
-        writer.Write(output, value);
+        Write(output, value, writer);
         return output.ToArray();
     }
 

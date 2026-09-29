@@ -46,6 +46,11 @@ public class RegistryFramingTests
         // Compression shrinks the repetitive name; the others carry the plain Avro data after the header.
         var plain = GenericDatumWriter.Create(s_schema).WriteToArray(value);
         await Assert.That(framing.Compresses ? message.Length < plain.Length : message.AsSpan(framing.HeaderLength).SequenceEqual(plain)).IsTrue();
+
+        // Written into a buffer writer, the message is the same.
+        var output = new System.Buffers.ArrayBufferWriter<byte>();
+        AvroRegistryMessage.Write(output, framing, id, value, GenericDatumWriter.Create(s_schema));
+        await Assert.That(output.WrittenSpan.ToArray()).IsEquivalentTo(message, TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]

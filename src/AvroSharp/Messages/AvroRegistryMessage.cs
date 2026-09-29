@@ -56,6 +56,18 @@ public static class AvroRegistryMessage
         return output.ToArray();
     }
 
+    /// <summary>Writes a generic value as a framed message.</summary>
+    /// <param name="output">The destination.</param>
+    /// <param name="framing">The registry's framing.</param>
+    /// <param name="id">The schema ID the registry assigned to the writer's schema.</param>
+    /// <param name="value">The value.</param>
+    /// <param name="writer">The generic writer for the schema.</param>
+    public static void Write(IBufferWriter<byte> output, AvroRegistryFraming framing, AvroSchemaId id, in AvroValue value, GenericDatumWriter writer)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        Write(output, framing, id, value, (ref w, v) => writer.Write(ref w, v));
+    }
+
     /// <summary>Writes a generic value as a framed message to a new array.</summary>
     /// <param name="framing">The registry's framing.</param>
     /// <param name="id">The schema ID the registry assigned to the writer's schema.</param>
@@ -63,9 +75,9 @@ public static class AvroRegistryMessage
     /// <param name="writer">The generic writer for the schema.</param>
     public static byte[] ToArray(AvroRegistryFraming framing, AvroSchemaId id, in AvroValue value, GenericDatumWriter writer)
     {
-        ArgumentNullException.ThrowIfNull(writer);
-        var copy = value;
-        return ToArray(framing, id, copy, (ref w, v) => writer.Write(ref w, v));
+        using var output = new PooledBufferWriter();
+        Write(output, framing, id, value, writer);
+        return output.ToArray();
     }
 
 #if NET8_0_OR_GREATER

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -70,6 +71,14 @@ public sealed partial class GenericDatumReader
     /// <summary>Reads one value from contiguous data.</summary>
     /// <param name="data">The encoded value.</param>
     public AvroValue Read(ReadOnlySpan<byte> data)
+    {
+        var reader = new AvroReader(data);
+        return Read(ref reader);
+    }
+
+    /// <summary>Reads one value from a sequence of buffers.</summary>
+    /// <param name="data">The encoded value.</param>
+    public AvroValue Read(in ReadOnlySequence<byte> data)
     {
         var reader = new AvroReader(data);
         return Read(ref reader);

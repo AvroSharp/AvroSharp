@@ -30,6 +30,11 @@ public class SingleObjectEncodingTests
         await Assert.That(record["name"].AsString()).IsEqualTo("Bill");
         await Assert.That(record["tags"].AsArray().Select(t => t.AsString()).SequenceEqual(new[] { "dog_lover", "cat_hater" })).IsTrue();
         await Assert.That(written.AsSpan().SequenceEqual(message)).IsTrue();
+
+        // Written into a buffer writer, the message is the same.
+        var output = new System.Buffers.ArrayBufferWriter<byte>();
+        AvroMessage.Write(output, record, GenericDatumWriter.Create(schema));
+        await Assert.That(output.WrittenSpan.SequenceEqual(message)).IsTrue();
     }
 
     [Test]
