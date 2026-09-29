@@ -41,7 +41,7 @@ using (var writer = AvroFileWriter.Create<Order>(file, new AvroFileWriterOptions
 file.Position = 0;
 using var reader = AvroFileReader.Open<Order>(file, new AvroFileReaderOptions { Codecs = AvroCodecs.All });
 var read = reader.ReadAll().Single();
-if (reader.Codec != "zstandard" || !read.ToAvroBytes().AsSpan().SequenceEqual(bytes))
+if (reader.Codec.Name != "zstandard" || !read.ToAvroBytes().AsSpan().SequenceEqual(bytes))
 {
     failures.Add("zstandard container file");
 }

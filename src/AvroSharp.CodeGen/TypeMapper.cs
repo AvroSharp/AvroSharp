@@ -35,7 +35,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// Gets the struct codec type for values of <paramref name="schema"/>, used by the collection and union helpers,
     /// or <see langword="null"/> when there is none (logical types, enums, fixed, collections and unions stay inline).
     /// </summary>
-    public string? Codec(AvroSchema schema) => schema switch
+    public string? Serializer(AvroSchema schema) => schema switch
     {
         _ when Logical(schema) is not null => null,
         RecordSchema record => names.TypeName(record) + ".ValueSerializer",

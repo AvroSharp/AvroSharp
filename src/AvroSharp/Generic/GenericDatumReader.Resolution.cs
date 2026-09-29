@@ -18,7 +18,7 @@ public sealed partial class GenericDatumReader
 
     private GenericDatumReader(AvroSchema writerSchema, AvroSchema readerSchema, GenericDatumReaderOptions options)
     {
-        Schema = writerSchema;
+        WriterSchema = writerSchema;
         ReaderSchema = readerSchema;
         _limits = new ReadLimits(options);
         _root = new ResolvingBuilder().Build(writerSchema, readerSchema, "$");

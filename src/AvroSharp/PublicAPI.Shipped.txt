@@ -8,7 +8,7 @@ AvroSharp.Containers.AvroCodec
 AvroSharp.Containers.AvroCodec.AvroCodec() -> void
 AvroSharp.Containers.AvroFileReader
 AvroSharp.Containers.AvroFileReader<T>
-AvroSharp.Containers.AvroFileReader<T>.Codec.get -> string!
+AvroSharp.Containers.AvroFileReader<T>.Codec.get -> AvroSharp.Containers.AvroCodec!
 AvroSharp.Containers.AvroFileReader<T>.Dispose() -> void
 AvroSharp.Containers.AvroFileReader<T>.DisposeAsync() -> System.Threading.Tasks.ValueTask
 AvroSharp.Containers.AvroFileReader<T>.GetMetadataString(string! key) -> string?
@@ -49,7 +49,7 @@ AvroSharp.Containers.AvroFileWriterOptions.Codec.get -> AvroSharp.Containers.Avr
 AvroSharp.Containers.AvroFileWriterOptions.Codec.init -> void
 AvroSharp.Containers.AvroFileWriterOptions.LeaveOpen.get -> bool
 AvroSharp.Containers.AvroFileWriterOptions.LeaveOpen.init -> void
-AvroSharp.Containers.AvroFileWriterOptions.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, byte[]!>?
+AvroSharp.Containers.AvroFileWriterOptions.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.ReadOnlyMemory<byte>>?
 AvroSharp.Containers.AvroFileWriterOptions.Metadata.init -> void
 AvroSharp.Containers.AvroFileWriterOptions.SyncInterval.get -> int
 AvroSharp.Containers.AvroFileWriterOptions.SyncInterval.init -> void
@@ -105,7 +105,7 @@ AvroSharp.Generic.GenericDatumJsonReader
 AvroSharp.Generic.GenericDatumJsonReader.Read(System.ReadOnlySpan<byte> utf8Json) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumJsonReader.Read(ref System.Text.Json.Utf8JsonReader reader) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumJsonReader.Read(string! json) -> AvroSharp.Generic.AvroValue
-AvroSharp.Generic.GenericDatumJsonReader.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumJsonReader.WriterSchema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Generic.GenericDatumJsonWriter
 AvroSharp.Generic.GenericDatumJsonWriter.Schema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Generic.GenericDatumJsonWriter.Write(System.Text.Json.Utf8JsonWriter! writer, in AvroSharp.Generic.AvroValue value) -> void
@@ -115,7 +115,7 @@ AvroSharp.Generic.GenericDatumReader
 AvroSharp.Generic.GenericDatumReader.Read(System.ReadOnlySpan<byte> data) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumReader.Read(ref AvroSharp.IO.AvroReader reader) -> AvroSharp.Generic.AvroValue
 AvroSharp.Generic.GenericDatumReader.ReaderSchema.get -> AvroSharp.Schemas.AvroSchema!
-AvroSharp.Generic.GenericDatumReader.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumReader.WriterSchema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Generic.GenericDatumReaderOptions
 AvroSharp.Generic.GenericDatumReaderOptions.GenericDatumReaderOptions() -> void
 AvroSharp.Generic.GenericDatumReaderOptions.MaxDepth.get -> int

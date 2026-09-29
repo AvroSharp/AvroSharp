@@ -32,16 +32,16 @@ public sealed partial class GenericDatumReader
 
     private GenericDatumReader(AvroSchema schema, GenericDatumReaderOptions options)
     {
-        Schema = schema;
+        WriterSchema = schema;
         ReaderSchema = schema;
         _limits = new ReadLimits(options);
         _root = new Builder().Build(schema);
     }
 
     /// <summary>Gets the schema the data was written with.</summary>
-    public AvroSchema Schema { get; }
+    public AvroSchema WriterSchema { get; }
 
-    /// <summary>Gets the schema that values are read as: the same as <see cref="Schema"/> unless resolving between versions.</summary>
+    /// <summary>Gets the schema that values are read as: the same as <see cref="WriterSchema"/> unless resolving between versions.</summary>
     public AvroSchema ReaderSchema { get; }
 
     /// <summary>

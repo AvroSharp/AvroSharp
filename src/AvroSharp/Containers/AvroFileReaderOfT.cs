@@ -82,8 +82,8 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     /// <summary>Gets the header metadata, including the <c>avro.schema</c> and <c>avro.codec</c> entries.</summary>
     public IReadOnlyDictionary<string, ReadOnlyMemory<byte>> Metadata { get; private set; } = null!;
 
-    /// <summary>Gets the name of the codec the blocks are compressed with.</summary>
-    public string Codec => _codec.Name;
+    /// <summary>Gets the codec the blocks are compressed with; its <see cref="AvroCodec.Name"/> is the header's <c>avro.codec</c>.</summary>
+    public AvroCodec Codec => _codec;
 
     private int Buffered => _inputEnd - _inputStart;
 

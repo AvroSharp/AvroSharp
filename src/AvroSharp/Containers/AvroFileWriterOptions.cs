@@ -33,7 +33,7 @@ public sealed class AvroFileWriterOptions
     /// Gets the application metadata written to the file header. Keys beginning with <c>avro.</c> are reserved by the
     /// specification and rejected; strings are conventionally stored as UTF-8.
     /// </summary>
-    public IReadOnlyDictionary<string, byte[]>? Metadata { get; init; }
+    public IReadOnlyDictionary<string, ReadOnlyMemory<byte>>? Metadata { get; init; }
 
     /// <summary>Gets whether disposing the writer leaves the stream open. The default is <see langword="false"/>.</summary>
     public bool LeaveOpen { get; init; }

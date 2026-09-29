@@ -92,7 +92,7 @@ public class ApacheAvroCodecInteropTests
         using var reader = AvroFileReader.OpenGeneric(file, options: new AvroFileReaderOptions { Codecs = AvroCodecs.All });
         var rows = reader.ReadAll().Select(v => v.AsRecord()).ToList();
 
-        await Assert.That(reader.Codec).IsEqualTo(codec);
+        await Assert.That(reader.Codec.Name).IsEqualTo(codec);
         await Assert.That(rows.Count).IsEqualTo(1000);
         for (var i = 0; i < rows.Count; i++)
         {
