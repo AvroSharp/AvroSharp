@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- A dev container (`.devcontainer/`) and `build/ci-local.sh`, which build and test as the Linux CI job does. The container has Ubuntu 24.04 with the .NET 8, 9 and 10 SDKs, the Native AOT prerequisites, CI's variables and a cached NuGet volume; the script runs the job's steps in order. DocFX and ReportGenerator are pinned local tools (`.config/dotnet-tools.json`), used by CI, the docs workflow and the container alike (#139).
+
 ### Fixed
 
 - A fixed type named `Equals` or `GetHashCode` generated code that did not compile (CS0542); it is renamed, with a note, like the other generated member names (#141).
@@ -11,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- Tests for the remaining gaps of the test review (#142): enum and fixed aliases, the resolving reader's options, the JSON writer's widening, depth limit and shape errors, maps of any `IReadOnlyDictionary`, hostile container files (overlong varints, truncation on the async path, trailing bytes when pipelined), `AvroRegistryMessageReader.ReadAsync` with a missing schema or a cancelled fetch, logical-value range errors, and control characters in schemas.
 - The nightly fuzzing workflow also runs a random-schema code-generation test (#141): random schemas, with hostile names and every kind of default, are generated, compiled for C# 7.3, 12 and the latest version, and round-tripped. PR CI runs it on 100 schemas.
 - The API reference on the documentation site is built from the net10.0 build, so it shows the .NET 8+ API (`AvroSerializer`, `IAvroSerializable<T>` and the overloads that take no delegates), and lists those members with their equivalents on other targets (#136).
 

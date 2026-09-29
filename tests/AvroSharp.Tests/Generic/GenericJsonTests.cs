@@ -211,6 +211,111 @@ public class GenericJsonTests
         await Assert.That(ex.Message).StartsWith("Field 'n.R.a': A String value cannot be written as \"int\".");
     }
 
+    /// <summary>The JSON writer widens numbers as the binary writer does: int to long, float or double; long to float or double; float to double.</summary>
+    [Test]
+    [Arguments("long", "int")]
+    [Arguments("float", "int")]
+    [Arguments("float", "long")]
+    [Arguments("double", "int")]
+    [Arguments("double", "long")]
+    [Arguments("double", "float")]
+    public async Task Writer_WidensNumbers(string type, string from)
+    {
+        var schema = AvroSchema.Parse($"\"{type}\"");
+        // Each arm cast: a switch expression would give them their common type (float, or double).
+        var value = from switch { "int" => (AvroValue)7, "long" => (AvroValue)7L, _ => (AvroValue)7f };
+        var expected = type switch { "long" => (AvroValue)7L, "float" => (AvroValue)7f, _ => (AvroValue)7.0 };
+
+        var json = GenericDatumJsonWriter.Create(schema).WriteToString(value);
+
+        await Assert.That(GenericDatumJsonReader.Create(schema).Read(json)).IsEqualTo(expected);
+        await Assert.That(GenericDatumWriter.Create(schema).WriteToArray(value)).IsEquivalentTo(GenericDatumWriter.Create(schema).WriteToArray(expected), CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Arguments("union", "A String value cannot be written as [\"null\",\"int\"].")]
+    [Arguments("record", "A Record value cannot be written as {\"name\":\"R\",\"type\":\"record\",\"fields\":[]}.")]
+    [Arguments("enum", "A Enum value cannot be written as {\"name\":\"E\",\"type\":\"enum\",\"symbols\":[\"A\"]}.")]
+    [Arguments("fixed", "A Fixed value cannot be written as {\"name\":\"F\",\"type\":\"fixed\",\"size\":2}.")]
+    [Arguments("array", "A Int value cannot be written as an array.")]
+    [Arguments("map", "A Null value cannot be written as a map.")]
+    [Arguments("null", "A Int value cannot be written as \"null\".")]
+    [Arguments("narrowing", "A Long value cannot be written as \"int\".")]
+    public async Task Writer_RejectsValuesOfTheWrongShape(string what, string message)
+    {
+        var otherRecord = new GenericRecord((RecordSchema)AvroSchema.Parse("""{"type":"record","name":"Other","fields":[]}"""));
+        var (schema, value) = what switch
+        {
+            "union" => (AvroSchema.Parse("""["null","int"]"""), (AvroValue)"text"),
+            "record" => (AvroSchema.Parse("""{"type":"record","name":"R","fields":[]}"""), (AvroValue)otherRecord),
+            "enum" => (AvroSchema.Parse("""{"type":"enum","name":"E","symbols":["A"]}"""), AvroValue.FromEnum(new EnumSchema(new SchemaName("Other"), ["A"]), 0)),
+            "fixed" => (AvroSchema.Parse("""{"type":"fixed","name":"F","size":2}"""), (AvroValue)new GenericFixed(new FixedSchema(new SchemaName("G"), 2), new byte[2])),
+            "array" => (AvroSchema.Parse("""{"type":"array","items":"int"}"""), (AvroValue)5),
+            "map" => (AvroSchema.Parse("""{"type":"map","values":"int"}"""), AvroValue.Null),
+            "null" => (AvroSchema.Parse("\"null\""), (AvroValue)5),
+            _ => (AvroSchema.Parse("\"int\""), (AvroValue)5L),
+        };
+
+        // The binary writer rejects the same values with the same messages.
+        var json = Assert.Throws<AvroException>(() => GenericDatumJsonWriter.Create(schema).WriteToString(value));
+        var binary = Assert.Throws<AvroException>(() => GenericDatumWriter.Create(schema).WriteToArray(value));
+
+        await Assert.That(json.Message).IsEqualTo(message);
+        await Assert.That(binary.Message).IsEqualTo(message);
+    }
+
+    [Test]
+    public async Task WriterMaxDepth_IsConfigurable()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"List","fields":[{"name":"next","type":["null","List"]}]}""");
+        var head = new GenericRecord(schema);
+        var current = head;
+        for (var i = 1; i < 10; i++)
+        {
+            var next = new GenericRecord(schema);
+            current["next"] = next;
+            current = next;
+        }
+
+        // A chain of 10 records: 10 levels are allowed with MaxDepth = 10, and rejected with 9.
+        var ex = Assert.Throws<AvroException>(() => GenericDatumJsonWriter.Create(schema, new GenericDatumWriterOptions { MaxDepth = 9 }).WriteToString(head));
+        var json = GenericDatumJsonWriter.Create(schema, new GenericDatumWriterOptions { MaxDepth = 10 }).WriteToString(head);
+
+        await Assert.That(ex.Message).Contains("Records are nested more than 9 levels deep (GenericDatumWriterOptions.MaxDepth); a record may contain itself.");
+        await Assert.That(GenericDatumJsonReader.Create(schema).Read(json)).IsEqualTo((AvroValue)head);
+    }
+
+    [Test]
+    public async Task ARecordContainingItself_IsRejectedByTheWriter()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"Loop","fields":[{"name":"next","type":["null","Loop"]}]}""");
+        var record = new GenericRecord(schema);
+        record["next"] = record;
+
+        var ex = Assert.Throws<AvroException>(() => GenericDatumJsonWriter.Create(schema).WriteToString(record));
+
+        await Assert.That(ex.Message).Contains("nested more than 128 levels");
+    }
+
+    /// <summary>A map may be any <see cref="IReadOnlyDictionary{TKey, TValue}"/>, not only a <see cref="Dictionary{TKey, TValue}"/>.</summary>
+    [Test]
+    [Arguments("sorted")]
+    [Arguments("read-only")]
+    public async Task MapsOfAnyReadOnlyDictionary_AreWritten(string kind)
+    {
+        var schema = AvroSchema.Parse("""{"type":"map","values":"int"}""");
+        var entries = new Dictionary<string, AvroValue>(StringComparer.Ordinal) { ["a"] = 1, ["b"] = 2 };
+        IReadOnlyDictionary<string, AvroValue> other = string.Equals(kind, "sorted", StringComparison.Ordinal)
+            ? new SortedDictionary<string, AvroValue>(entries, StringComparer.Ordinal)
+            : new System.Collections.ObjectModel.ReadOnlyDictionary<string, AvroValue>(entries);
+
+        var binary = GenericDatumWriter.Create(schema).WriteToArray(AvroValue.FromMap(other));
+        var json = GenericDatumJsonWriter.Create(schema).WriteToString(AvroValue.FromMap(other));
+
+        await Assert.That(binary).IsEquivalentTo(GenericDatumWriter.Create(schema).WriteToArray(AvroValue.FromMap(entries)), CollectionOrdering.Matching);
+        await Assert.That(Normalize(json)).IsEqualTo(Normalize("""{"a":1,"b":2}"""));
+    }
+
     [Test]
     public async Task DeeplyNestedRecords_AreRejected_NotAStackOverflow()
     {

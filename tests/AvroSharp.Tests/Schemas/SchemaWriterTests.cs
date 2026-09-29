@@ -119,6 +119,27 @@ public class SchemaWriterTests
         await Assert.That(unchecked((ulong)SchemaFingerprint.Crc64Avro([]))).IsEqualTo(SchemaFingerprint.Crc64AvroEmpty);
     }
 
+    /// <summary>
+    /// Control characters are escaped wherever they appear: as Jackson writes them in the JSON (the short forms, else
+    /// upper-case \u00XX), and as the specification's canonical form requires (lower-case \u00xx, no short forms).
+    /// </summary>
+    [Test]
+    public async Task ControlCharacters_AreEscaped_InTheJsonAndTheCanonicalForm()
+    {
+        // Names with control characters are only reachable with name validation disabled.
+        const string Json = """{"type":"enum","name":"E\u001f","doc":"line\nbreak\u0001","symbols":["A\tB"],"k\u001e":"v\u0000"}""";
+        var schema = AvroSchema.Parse(Json, new AvroSchemaParseOptions { ValidateNames = false });
+
+        var written = schema.ToJson();
+        var reparsed = (EnumSchema)AvroSchema.Parse(written, new AvroSchemaParseOptions { ValidateNames = false });
+
+        await Assert.That(written).IsEqualTo("""{"type":"enum","name":"E\u001F","doc":"line\nbreak\u0001","symbols":["A\tB"],"k\u001E":"v\u0000"}""");
+        await Assert.That(reparsed.Name.Name).IsEqualTo("E\u001f");
+        await Assert.That(reparsed.Doc).IsEqualTo("line\nbreak\u0001");
+        await Assert.That(reparsed.Symbols[0]).IsEqualTo("A\tB");
+        await Assert.That(schema.CanonicalForm).IsEqualTo("""{"name":"E\u001f","type":"enum","symbols":["A\u0009B"]}""");
+    }
+
     [Test]
     public async Task CanonicalForm_EscapesOnlyWhatJsonRequires()
     {

@@ -34,8 +34,8 @@ jobs:
       - name: Build the site
         shell: bash
         run: |
-          dotnet tool install docfx --tool-path .tools
-          .tools/docfx docfx.json 2>&1 | tee docfx.log
+          dotnet tool restore
+          dotnet tool run docfx docfx.json 2>&1 | tee docfx.log
           if grep -E "InvalidFileLink|InvalidBookmark|UidNotFound" docfx.log; then
             echo "::error::The documentation has broken links"
             exit 1

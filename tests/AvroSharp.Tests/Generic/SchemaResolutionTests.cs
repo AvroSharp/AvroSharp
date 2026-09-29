@@ -158,6 +158,82 @@ public class SchemaResolutionTests
         await Assert.That(read.AsRecord()["a"].AsInt32()).IsEqualTo(5);
     }
 
+    /// <summary>Enums and fixed types match by a reader alias as records do: on their own, and as a union branch.</summary>
+    [Test]
+    [Arguments("enum")]
+    [Arguments("fixed")]
+    public async Task EnumsAndFixedTypes_MatchByAlias(string kind)
+    {
+        var isEnum = string.Equals(kind, "enum", StringComparison.Ordinal);
+        var (writerJson, readerJson, value) = isEnum
+            ? ("""{"type":"enum","name":"Color","namespace":"v1","symbols":["RED","BLUE"]}""",
+               """{"type":"enum","name":"Hue","namespace":"v2","aliases":["v1.Color"],"symbols":["BLUE","RED"]}""",
+               (Func<AvroSchema, AvroValue>)(s => AvroValue.FromEnum((EnumSchema)s, "BLUE")))
+            : ("""{"type":"fixed","name":"Hash","namespace":"v1","size":2}""",
+               """{"type":"fixed","name":"Digest","namespace":"v2","aliases":["v1.Hash"],"size":2}""",
+               s => (AvroValue)new GenericFixed((FixedSchema)s, [0xAB, 0xCD]));
+        var writer = AvroSchema.Parse(writerJson);
+        var reader = AvroSchema.Parse(readerJson);
+        var inUnion = AvroSchema.Parse($"""["null",{readerJson}]""");
+
+        var read = Resolve(writer, reader, value(writer));
+        var readAsBranch = Resolve(writer, inUnion, value(writer));
+
+        var expected = isEnum ? "BLUE" : "ABCD";
+        await Assert.That(isEnum ? read.AsEnumSymbol() : Convert.ToHexString(read.AsFixed().GetBytesUnsafe())).IsEqualTo(expected);
+        await Assert.That(isEnum ? readAsBranch.AsEnumSymbol() : Convert.ToHexString(readAsBranch.AsFixed().GetBytesUnsafe())).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task EnumsAndFixedTypes_WithoutAMatchingNameOrAlias_AreIncompatible()
+    {
+        var writer = AvroSchema.Parse("""{"type":"fixed","name":"Hash","namespace":"v1","size":2}""");
+        var reader = AvroSchema.Parse("""{"type":"fixed","name":"Digest","namespace":"v2","aliases":["v1.Other"],"size":2}""");
+
+        var ex = Assert.Throws<AvroSchemaException>(() => GenericDatumReader.Create(writer, reader));
+
+        await Assert.That(ex.Message).Contains("the names differ");
+    }
+
+    /// <summary>The resolving reader applies the options it is given (#129), not only the default limits.</summary>
+    [Test]
+    public async Task TheResolvingReader_UsesItsOptions()
+    {
+        // 90,000 empty records exceed the default zero-size budget of 65,536; a reader with a higher one reads them.
+        const string Empties = """{"type":"array","items":{"type":"record","name":"Empty","fields":[]}}""";
+        var writer = AvroSchema.Parse(Empties);
+        var reader = AvroSchema.Parse(Empties);
+        var output = new System.Buffers.ArrayBufferWriter<byte>();
+        var w = new AvroWriter(output);
+        w.WriteBlockCount(90_000);
+        w.WriteBlockEnd();
+        w.Flush();
+        var bytes = output.WrittenSpan.ToArray();
+
+        var limited = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(writer, reader).Read(bytes));
+        var generous = GenericDatumReader.Create(writer, reader, new GenericDatumReaderOptions { MaxZeroSizeItems = 100_000 }).Read(bytes);
+
+        // And MaxDepth: a chain of 10 records is rejected with a limit of 5.
+        var list = AvroSchema.Parse("""{"type":"record","name":"List","fields":[{"name":"next","type":["null","List"]}]}""");
+        var listReader = AvroSchema.Parse("""{"type":"record","name":"List","fields":[{"name":"next","type":["null","List"]},{"name":"extra","type":"int","default":0}]}""");
+        var head = new GenericRecord((RecordSchema)list);
+        var current = head;
+        for (var i = 1; i < 10; i++)
+        {
+            var next = new GenericRecord((RecordSchema)list);
+            current["next"] = next;
+            current = next;
+        }
+
+        var chain = GenericDatumWriter.Create(list).WriteToArray(head);
+        var deep = Assert.Throws<AvroDataException>(() => GenericDatumReader.Create(list, listReader, new GenericDatumReaderOptions { MaxDepth = 5 }).Read(chain));
+
+        await Assert.That(limited.Message).Contains("MaxZeroSizeItems");
+        await Assert.That(generous.AsArray().Count).IsEqualTo(90_000);
+        await Assert.That(deep.Message).Contains("nested more than 5 levels");
+        await Assert.That(GenericDatumReader.Create(list, listReader).Read(chain).AsRecord()["extra"].AsInt32()).IsEqualTo(0);
+    }
+
     [Test]
     public async Task EnumSymbols_AreMatchedByName_AndUnknownOnesTakeTheReaderDefault()
     {

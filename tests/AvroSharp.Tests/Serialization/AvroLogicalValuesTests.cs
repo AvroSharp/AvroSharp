@@ -106,11 +106,61 @@ public class AvroLogicalValuesTests
     }
 
     [Test]
+    public async Task ADecimalThatDoesNotFitTheFixedSize_IsRejected()
+    {
+        // 1000 needs two bytes; the precision allows it, the size does not.
+        var ex = Assert.Throws<AvroException>(() => Write((ref w) => AvroLogicalValues.WriteDecimalFixed(ref w, 1000m, 0, 4, 1)));
+        await Assert.That(ex.Message).IsEqualTo("The decimal 1000 does not fit in 1 bytes.");
+    }
+
+    [Test]
+    [Arguments(29, 29)]
+    [Arguments(0, 29)]
+    [Arguments(29, 1)]
+    public async Task DecimalScalesAndPrecisionsAbove28_AreRejectedWhenWriting(int scale, int precision)
+    {
+        var bytes = Assert.Throws<AvroException>(() => Write((ref w) => AvroLogicalValues.WriteDecimalBytes(ref w, 1m, scale, precision)));
+        var fixedSize = Assert.Throws<AvroException>(() => Write((ref w) => AvroLogicalValues.WriteDecimalFixed(ref w, 1m, scale, precision, 16)));
+
+        var expected = $"A decimal(precision {precision}, scale {scale}) is outside the range of System.Decimal.";
+        await Assert.That(bytes.Message).IsEqualTo(expected);
+        await Assert.That(fixedSize.Message).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task DecimalScalesAbove28_AreRejectedWhenReading()
+    {
+        var encoded = Write((ref w) => w.WriteBytes([0x01]));
+        var ex = Assert.Throws<AvroDataException>(() => Read(encoded, (ref r) => AvroLogicalValues.ReadDecimalBytes(ref r, 29)));
+        await Assert.That(ex.Message).IsEqualTo("A decimal scale of 29 is outside the range of System.Decimal (0 to 28).");
+    }
+
+    [Test]
     public async Task TimesOfDay_AreChecked()
     {
-        Assert.Throws<AvroException>(() => AvroLogicalValues.MillisecondsFromTime(TimeSpan.FromHours(24)));
-        Assert.Throws<AvroException>(() => AvroLogicalValues.MicrosecondsFromTime(TimeSpan.FromTicks(-1)));
+        var day = Assert.Throws<AvroException>(() => AvroLogicalValues.MillisecondsFromTime(TimeSpan.FromHours(24)));
+        var negative = Assert.Throws<AvroException>(() => AvroLogicalValues.MicrosecondsFromTime(TimeSpan.FromTicks(-1)));
+        await Assert.That(day.Message).EndsWith(" is not a time of day (from zero up to 24 hours).");
+        await Assert.That(negative.Message).EndsWith(" is not a time of day (from zero up to 24 hours).");
         await Assert.That(AvroLogicalValues.MicrosecondsFromTime(TimeSpan.FromTicks(19))).IsEqualTo(1L);
+    }
+
+    [Test]
+    [Arguments(-1)]
+    [Arguments(86_400_000)]
+    public async Task TimeMillisOutsideADay_AreRejectedWhenReading(int milliseconds)
+    {
+        var ex = Assert.Throws<AvroDataException>(() => AvroLogicalValues.TimeFromMilliseconds(milliseconds));
+        await Assert.That(ex.Message).IsEqualTo("The time-millis value is not a time of day.");
+    }
+
+    [Test]
+    [Arguments(-1L)]
+    [Arguments(86_400_000_000L)]
+    public async Task TimeMicrosOutsideADay_AreRejectedWhenReading(long microseconds)
+    {
+        var ex = Assert.Throws<AvroDataException>(() => AvroLogicalValues.TimeFromMicroseconds(microseconds));
+        await Assert.That(ex.Message).IsEqualTo($"The time-micros value {microseconds.ToString(CultureInfo.InvariantCulture)} is not a time of day.");
     }
 
     private static byte[] Write(WriteAction write)
