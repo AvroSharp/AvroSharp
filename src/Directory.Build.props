@@ -8,6 +8,7 @@
     <IsPackable>true</IsPackable>
     <EnablePackageValidation>true</EnablePackageValidation>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
     <!-- Polyfill: include the ArgumentNullException/ArgumentOutOfRangeException ThrowIf* helpers. -->
     <PolyArgumentExceptions>true</PolyArgumentExceptions>
     <!-- Mark polyfill types [Embedded] so they never leak into, or clash with, consumers' own polyfills. -->

@@ -486,7 +486,12 @@ AvroSharp/
     - generated union classes for multi-branch unions;
     - `required`/`init` members and records;
     - field-run fusion (§4.11).
-  - **Requirement:** the generator needs the .NET 10 SDK or Visual Studio 2026, because it loads AvroSharp's netstandard2.0 build, which references System.Text.Json 10, inside the compiler.
+  - **Requirement:** the generator needs the .NET 10 SDK or Visual Studio 2026 and later, because it runs inside the consumer's compiler, which brings its own Roslyn and System.Text.Json and cannot load newer ones (#20). The generator references a current Roslyn, and it loads AvroSharp's netstandard2.0 build, which references System.Text.Json 10. Measured with a consumer of the packed generator:
+    - the .NET 8 SDK (Roslyn 4.11) skips the generator with warning CS9057, so the generated types are missing;
+    - the .NET 9 SDK loads it, but it fails with warning CS8785 (FileNotFoundException for System.Text.Json 10.0.0.0);
+    - the .NET 10 SDK and Visual Studio 2026 work.
+
+    Older toolsets are not supported: dependency versions (Roslyn, System.Text.Json and the rest) are not held back for them.
 - **M3 — Resolution (1.5 weeks)**: `ResolvedSchema`, generic reader consumption, aliases, defaults, promotions. *Exit*: spec resolution table tests + Apache oracle property tests pass; E benchmark (generic) beats Apache.
 
   *Status*: part 1 is done (`GenericDatumReader.Create(writer, reader)`). The resolved plan is a tree of reader nodes built once per schema pair and cached, rather than a public `ResolvedSchema` type; it covers every rule in the specification's table, with union and enum mismatches deferred to read time as in Java. Part 2 added property tests against Apache.Avro's resolving reader on random schema evolutions (#51). Part 3 added resolution for generated types (`Read(ref reader, writerSchema)`): same-schema data is read directly, other data is transcoded into the type's own encoding (no generic values) and then read by the generated code. The evolution benchmark (#53) passes the gate for both the generic and generated paths. Generated types now read by a resolution plan built once per writer schema (#69): fields are read into the type directly, promoted or remapped in place, and only other differences are transcoded field by field; the generated path (387 ns) is faster than the generic resolving reader (506 ns) on that benchmark.
