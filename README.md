@@ -206,6 +206,19 @@ using var file = AvroFileWriter.Create<shop.Order>(stream);
     - it reads `local-timestamp` values as UTC instants in local time.
 - **Requirements:** the generator needs the .NET 10 SDK or Visual Studio 2026, because it runs AvroSharp inside the compiler. The generated code works on every target AvroSharp supports.
 
+## Command-line tool
+
+`avrosharp` is a `dotnet tool`, like Apache.Avro's `avrogen`. It writes the same code as the source generator, for code that is checked in or built outside MSBuild, and prints schemas' canonical forms and fingerprints:
+
+```shell
+dotnet tool install --global AvroSharp.Tool
+avrosharp gen schemas/ --output Generated/ --namespace Acme.Events
+avrosharp schema canonical user.avsc
+avrosharp schema fingerprint user.avsc --algorithm sha256
+```
+
+`gen` takes the generator's options (`--logical-types`, `--property-names`, `--apache-compatible` and others), and writes nothing if a schema is invalid. Errors are in the compiler's format, and the exit code is 0 on success, 1 on failure and 2 for an invalid command line. See [the tool's README](https://github.com/zcsizmadia/AvroSharp/blob/main/src/AvroSharp.Tool/README.md).
+
 ## Building
 
 Requires the .NET 10 SDK.

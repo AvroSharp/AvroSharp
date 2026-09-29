@@ -126,8 +126,30 @@ internal sealed class CSharpNames(CodeGenOptions options)
     /// <summary>Gets the C# namespace for a named type, or <see langword="null"/> for the global namespace.</summary>
     public string? Namespace(NamedSchema schema)
     {
-        var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? options.DefaultNamespace : schema.Name.Namespace;
+        var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? options.DefaultNamespace : Map(schema.Name.Namespace!);
         return string.IsNullOrEmpty(ns) ? null : string.Join(".", ns!.Split('.').Select(Identifier));
+    }
+
+    /// <summary>Applies <see cref="CodeGenOptions.NamespaceMapping"/>: the longest key that is the namespace or its prefix.</summary>
+    private string Map(string avroNamespace)
+    {
+        if (options.NamespaceMapping is not { Count: > 0 } mapping)
+        {
+            return avroNamespace;
+        }
+
+        string? best = null;
+        foreach (var key in mapping.Keys)
+        {
+            var matches = string.Equals(avroNamespace, key, StringComparison.Ordinal)
+                || (avroNamespace.StartsWith(key, StringComparison.Ordinal) && avroNamespace[key.Length] == '.');
+            if (matches && (best is null || key.Length > best.Length))
+            {
+                best = key;
+            }
+        }
+
+        return best is null ? avroNamespace : mapping[best] + avroNamespace[best.Length..];
     }
 
     /// <summary>Gets the fully qualified C# name of a named type.</summary>

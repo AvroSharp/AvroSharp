@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace AvroSharp.CodeGen;
 
 /// <summary>Options for <see cref="CSharpCodeGenerator"/>.</summary>
@@ -11,6 +13,16 @@ public sealed class CodeGenOptions
     /// types are generated in the global namespace.
     /// </summary>
     public string? DefaultNamespace { get; init; }
+
+    /// <summary>
+    /// Gets C# namespaces for Avro namespaces, as Apache.Avro's avrogen maps them with <c>--namespace avro:csharp</c>.
+    /// A type's namespace is replaced by the longest key that equals it or is a prefix of it at a <c>.</c>: with
+    /// <c>com.example</c> mapped to <c>Example</c>, <c>com.example.events</c> becomes <c>Example.events</c>. Only the C#
+    /// namespace changes; the schema, and so the data and fingerprints, do not. Not supported with
+    /// <see cref="ApacheCompatible"/>, since Apache.Avro finds generated types by the schema's full name. Defaults to
+    /// <see langword="null"/>: no mapping.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? NamespaceMapping { get; init; }
 
     /// <summary>Gets how values of logical types are represented. Defaults to <see cref="LogicalTypeMapping.Native"/>.</summary>
     public LogicalTypeMapping LogicalTypes { get; init; } = LogicalTypeMapping.Native;
