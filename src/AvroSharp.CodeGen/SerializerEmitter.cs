@@ -16,7 +16,7 @@ namespace AvroSharp.CodeGen;
 /// </remarks>
 internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 {
-    private const string Support = "global::AvroSharp.Serialization.AvroGeneratedCode";
+    private const string Support = "global::AvroSharp.Serialization.Generated.AvroGeneratedCode";
     private const string CollectionsMarshal = "global::System.Runtime.InteropServices.CollectionsMarshal";
 
     private int _next;

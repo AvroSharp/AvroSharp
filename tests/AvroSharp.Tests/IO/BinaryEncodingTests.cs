@@ -225,9 +225,9 @@ public class BinaryEncodingTests
 
     private static (bool Overflowed, int Written) TryWriteMixture(byte[] destination)
     {
-        var writer = AvroSharp.Serialization.AvroGeneratedCode.BeginTryWrite(destination);
+        var writer = AvroSharp.Serialization.Generated.AvroGeneratedCode.BeginTryWrite(destination);
         WriteMixtureValues(ref writer);
-        return (!AvroSharp.Serialization.AvroGeneratedCode.EndTryWrite(ref writer, out var written), written);
+        return (!AvroSharp.Serialization.Generated.AvroGeneratedCode.EndTryWrite(ref writer, out var written), written);
     }
 
     private static void WriteMixtureValues(ref AvroWriter w)

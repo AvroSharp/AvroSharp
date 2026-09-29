@@ -68,7 +68,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                 : (PropertyNaming?)null));
 
         var hasRuntime = context.CompilationProvider.Select(static (compilation, _) =>
-            compilation.GetTypeByMetadataName("AvroSharp.Serialization.AvroGeneratedCode") is not null);
+            compilation.GetTypeByMetadataName("AvroSharp.Serialization.Generated.AvroGeneratedCode") is not null);
 
         // A multi-targeted project runs the generator once per framework: DateOnly/TimeOnly exist from .NET 6.
         var target = context.CompilationProvider.Select(static (compilation, _) =>

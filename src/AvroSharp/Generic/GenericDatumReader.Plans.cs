@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using AvroSharp.Schemas;
-using AvroSharp.Serialization;
+using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Generic;
 

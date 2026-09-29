@@ -78,7 +78,7 @@ public class HostileInputTests
             Assert.Throws<AvroDataException>(() =>
             {
                 var input = new AvroReader(bytes);
-                AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
+                AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
             }),
         };
         foreach (var ex in failures)
@@ -141,11 +141,11 @@ public class HostileInputTests
         var transcoded = Assert.Throws<AvroDataException>(() =>
         {
             var input = new AvroReader(bytes);
-            AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
+            AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
         });
         var skipped = Assert.Throws<AvroDataException>(() =>
         {
-            var plan = AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(writer, reader)!;
+            var plan = GenericDatumReader.GetRecordPlan(writer, reader)!;
             var input = new AvroReader(bytes);
             plan.Skip(0, ref input);
         });

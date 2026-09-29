@@ -65,7 +65,7 @@ public class ApacheAvroResolutionInteropTests
 
                 // The transcoder that generated types use must produce the same reader encoding directly.
                 var bytesReader = new AvroSharp.IO.AvroReader(bytes);
-                var transcoded = AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref bytesReader, writer, reader).ToArray();
+                var transcoded = AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref bytesReader, writer, reader).ToArray();
                 if (!transcoded.AsSpan().SequenceEqual(ours) || !bytesReader.IsAtEnd)
                 {
                     throw new InvalidOperationException(

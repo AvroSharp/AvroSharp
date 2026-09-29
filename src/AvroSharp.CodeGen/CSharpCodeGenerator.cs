@@ -73,7 +73,7 @@ public static class CSharpCodeGenerator
     [
         "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema", "s_apacheSchema", "s_plan",
         "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes", "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo",
-        "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField", "ReadPromoted", "AvroCodec", "Get", "Put",
+        "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put",
     ];
 
     private static readonly string[] s_fixedMembers =
@@ -308,8 +308,9 @@ public static class CSharpCodeGenerator
 
     private const string Writer = "global::AvroSharp.IO.AvroWriter";
     private const string Reader = "global::AvroSharp.IO.AvroReader";
-    private const string Support = "global::AvroSharp.Serialization.AvroGeneratedCode";
+    private const string Support = "global::AvroSharp.Serialization.Generated.AvroGeneratedCode";
     private const string Serialization = "global::AvroSharp.Serialization";
+    private const string Generated = "global::AvroSharp.Serialization.Generated";
 
     // Step-into from user code skips the serializers, which are thousands of generated lines for large schemas.
     private const string NonUserCode = "[global::System.Diagnostics.DebuggerNonUserCode]";
@@ -489,7 +490,7 @@ public static class CSharpCodeGenerator
             w.Directive("#pragma warning disable CS8618 // Readers set every field.");
         }
 
-        w.Open($"private {name}({Serialization}.AvroUninitialized _)");
+        w.Open($"private {name}({Generated}.AvroUninitialized _)");
         w.Close();
         if (types.Annotations)
         {
@@ -600,7 +601,7 @@ public static class CSharpCodeGenerator
     private static void EmitResolvingApi(CodeWriter w, string name, string schemaProperty, TypeMapper types)
     {
         w.Line();
-        w.Line($"private static {types.Nullable($"{Serialization}.AvroPlanCache")} s_plan;");
+        w.Line($"private static {types.Nullable($"{Generated}.AvroPlanCache")} s_plan;");
         w.Line();
         w.Line("/// <summary>");
         w.Line("/// Reads a value written with <paramref name=\"writerSchema\"/>, another version of this type's schema, resolving the");
@@ -747,7 +748,7 @@ public static class CSharpCodeGenerator
         w.Line();
         w.Line("/// <summary>Reads and writes this type for the collection and union helpers of <c>AvroGeneratedCode</c>.</summary>");
         w.Line("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-        w.Open($"internal readonly struct AvroCodec : {Serialization}.IAvroCodec<{name}>");
+        w.Open($"internal readonly struct ValueSerializer : {Generated}.IAvroValueSerializer<{name}>");
         w.Line($"public {name} Read(ref {Reader} reader, int depth) => ReadCore(ref reader, null, depth);");
         w.Line();
         w.Line($"public void Write(ref {Writer} writer, {name} value, int depth) => WriteCore(ref writer, value, depth);");
@@ -809,7 +810,7 @@ public static class CSharpCodeGenerator
         w.Line($"throw {Support}.ReadTooDeep();");
         w.Close();
         w.Line();
-        w.Line($"var value = reuse ?? new {name}(default({Serialization}.AvroUninitialized));");
+        w.Line($"var value = reuse ?? new {name}(default({Generated}.AvroUninitialized));");
         if (chunks.Count == 1)
         {
             ReadFields(w, record, properties, emitter, 0, record.Fields.Count);
@@ -879,12 +880,12 @@ public static class CSharpCodeGenerator
 
         w.Line();
         w.Line(NonUserCode);
-        w.Open($"internal static {name} ReadResolved(ref {Reader} reader, global::AvroSharp.Serialization.AvroRecordPlan plan, int depth)");
+        w.Open($"internal static {name} ReadResolved(ref {Reader} reader, global::AvroSharp.Serialization.Generated.AvroRecordPlan plan, int depth)");
         w.Open($"if (depth > {Support}.MaxDepth)");
         w.Line($"throw {Support}.ReadTooDeep();");
         w.Close();
         w.Line();
-        w.Line($"var value = new {name}(default({Serialization}.AvroUninitialized));");
+        w.Line($"var value = new {name}(default({Generated}.AvroUninitialized));");
         w.Open("for (var step = 0; step < plan.StepCount; step++)");
         if (record.Fields.Count == 0)
         {
@@ -918,7 +919,7 @@ public static class CSharpCodeGenerator
     // The body of ReadResolved's loop: skip, read directly, convert, or transcode one writer field.
     private static void EmitResolvedStep(CodeWriter w, bool hasPromotions)
     {
-        const string Conversion = "global::AvroSharp.Serialization.AvroConversion";
+        const string Conversion = "global::AvroSharp.Serialization.Generated.AvroConversion";
         w.Line("var target = plan.Target(step, out var conversion);");
         w.Open("if (target < 0)");
         w.Line("plan.Skip(step, ref reader);");
@@ -971,14 +972,14 @@ public static class CSharpCodeGenerator
     // The conversions generated code performs itself: numeric promotions and enum remapping.
     private static void EmitReadPromoted(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Field, IReadOnlyList<string> Conversions)> promotions)
     {
-        const string Conversion = "global::AvroSharp.Serialization.AvroConversion";
+        const string Conversion = "global::AvroSharp.Serialization.Generated.AvroConversion";
         w.Line();
 
         // Only the fields with numeric promotions or enum remapping are here, so it is small enough to inline into
         // ReadResolved's loop, as the conversions were before the loop called a method per field.
         w.Line("[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
         w.Line(NonUserCode);
-        w.Open($"private static bool ReadPromoted(ref {Reader} reader, {name} value, int field, {Conversion} conversion, global::AvroSharp.Serialization.AvroRecordPlan plan, int step)");
+        w.Open($"private static bool ReadPromoted(ref {Reader} reader, {name} value, int field, {Conversion} conversion, global::AvroSharp.Serialization.Generated.AvroRecordPlan plan, int step)");
         w.Open("switch (field)");
         foreach (var (field, conversions) in promotions)
         {
@@ -1049,7 +1050,7 @@ public static class CSharpCodeGenerator
         w.Line();
         w.Line("/// <summary>Creates a value from exactly <see cref=\"Size\"/> bytes. The array is not copied.</summary>");
         w.Open($"public {name}(byte[] value)");
-        w.Line($"Value = global::AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(value, Size, {CSharpNames.Literal(schema.FullName)});");
+        w.Line($"Value = global::AvroSharp.Serialization.Generated.AvroGeneratedCode.CheckFixedSize(value, Size, {CSharpNames.Literal(schema.FullName)});");
         w.Close();
         w.Line();
         w.Line("/// <summary>Gets the bytes.</summary>");
@@ -1172,7 +1173,7 @@ public static class CSharpCodeGenerator
             typeName.TrimStart('@'), "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA",
             "s_schema", "s_apacheSchema", "s_plan", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
             "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo", "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField",
-            "ReadPromoted", "AvroCodec", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
+            "ReadPromoted", "ValueSerializer", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
         };
         for (var k = 0; k < Chunks(record.Fields.Count).Count; k++)
         {

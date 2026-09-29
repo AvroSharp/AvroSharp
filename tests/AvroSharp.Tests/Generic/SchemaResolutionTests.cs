@@ -367,7 +367,7 @@ public class SchemaResolutionTests
 
         var resolved = GenericDatumReader.Create(writer, reader).Read(bytes);
         var input = new AvroReader(bytes);
-        var transcoded = GenericDatumReader.Create(reader).Read(AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader));
+        var transcoded = GenericDatumReader.Create(reader).Read(AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader));
 
         await Assert.That(transcoded.AsInt64()).IsEqualTo(resolved.AsInt64());
     }
@@ -446,9 +446,9 @@ public class SchemaResolutionTests
         // Repeated checks, as a reader of generated types makes once per record, alternating between reader schemas.
         for (var i = 0; i < 3; i++)
         {
-            await Assert.That(AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writer, sameAsWriter)).IsTrue();
-            await Assert.That(AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writer, other)).IsFalse();
-            await Assert.That(AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(writer, writer)).IsTrue();
+            await Assert.That(AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(writer, sameAsWriter)).IsTrue();
+            await Assert.That(AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(writer, other)).IsFalse();
+            await Assert.That(AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(writer, writer)).IsTrue();
         }
     }
 
@@ -556,7 +556,7 @@ public class SchemaResolutionTests
         var bytes = GenericDatumWriter.Create(writer).WriteToArray(value);
         var resolved = GenericDatumReader.Create(writer, reader).Read(bytes);
         var input = new AvroReader(bytes);
-        var transcoded = AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader).ToArray();
+        var transcoded = AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader).ToArray();
         var expected = GenericDatumWriter.Create(reader).WriteToArray(resolved);
         if (!transcoded.AsSpan().SequenceEqual(expected) || !input.IsAtEnd)
         {
@@ -567,7 +567,7 @@ public class SchemaResolutionTests
         var segmented = new AvroReader(AvroSharp.Tests.IO.Segments.ByteByByte(bytes));
         var resolvedFromSegments = GenericDatumWriter.Create(reader).WriteToArray(GenericDatumReader.Create(writer, reader).Read(ref segmented));
         var segmentedInput = new AvroReader(AvroSharp.Tests.IO.Segments.ByteByByte(bytes));
-        var transcodedFromSegments = AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref segmentedInput, writer, reader).ToArray();
+        var transcodedFromSegments = AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref segmentedInput, writer, reader).ToArray();
         if (!resolvedFromSegments.AsSpan().SequenceEqual(expected) || !transcodedFromSegments.AsSpan().SequenceEqual(expected) || !segmented.IsAtEnd || !segmentedInput.IsAtEnd)
         {
             throw new InvalidOperationException($"From segments: resolved {Convert.ToHexString(resolvedFromSegments)}, transcoded {Convert.ToHexString(transcodedFromSegments)}, expected {Convert.ToHexString(expected)}.");
@@ -580,6 +580,6 @@ public class SchemaResolutionTests
         Assert.Throws<AvroDataException>(() =>
         {
             var input = new AvroReader(bytes);
-            AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
+            AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
         });
 }

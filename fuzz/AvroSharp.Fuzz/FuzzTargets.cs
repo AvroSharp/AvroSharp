@@ -8,7 +8,7 @@ using AvroSharp.Generic;
 using AvroSharp.IO;
 using AvroSharp.Messages;
 using AvroSharp.Schemas;
-using AvroSharp.Serialization;
+using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Fuzz;
 

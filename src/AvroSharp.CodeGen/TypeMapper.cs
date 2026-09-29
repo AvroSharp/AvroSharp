@@ -38,16 +38,16 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     public string? Codec(AvroSchema schema) => schema switch
     {
         _ when Logical(schema) is not null => null,
-        RecordSchema record => names.TypeName(record) + ".AvroCodec",
+        RecordSchema record => names.TypeName(record) + ".ValueSerializer",
         PrimitiveSchema => schema.Type switch
         {
-            AvroSchemaType.Boolean => Support + "AvroBooleanCodec",
-            AvroSchemaType.Int => Support + "AvroIntCodec",
-            AvroSchemaType.Long => Support + "AvroLongCodec",
-            AvroSchemaType.Float => Support + "AvroFloatCodec",
-            AvroSchemaType.Double => Support + "AvroDoubleCodec",
-            AvroSchemaType.String => Support + "AvroStringCodec",
-            AvroSchemaType.Bytes => Support + "AvroBytesCodec",
+            AvroSchemaType.Boolean => Support + "AvroBooleanSerializer",
+            AvroSchemaType.Int => Support + "AvroIntSerializer",
+            AvroSchemaType.Long => Support + "AvroLongSerializer",
+            AvroSchemaType.Float => Support + "AvroFloatSerializer",
+            AvroSchemaType.Double => Support + "AvroDoubleSerializer",
+            AvroSchemaType.String => Support + "AvroStringSerializer",
+            AvroSchemaType.Bytes => Support + "AvroBytesSerializer",
             _ => null,
         },
         _ => null,
@@ -91,7 +91,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         return suffix is null ? null : (suffix, others[0]);
     }
 
-    private const string Support = "global::AvroSharp.Serialization.";
+    private const string Support = "global::AvroSharp.Serialization.Generated.";
 
     /// <summary>
     /// Gets a field's schema default as a C# expression for the constructor, or <see langword="null"/> when there is

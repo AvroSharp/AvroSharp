@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
-using AvroSharp.Serialization;
+using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Tests.Generic;
 
@@ -48,7 +48,7 @@ public class CacheRetentionTests
         {
             var writer = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}""");
             _ = GenericDatumReader.Create(writer, reader).Read(new byte[] { 0x02 });
-            _ = AvroGeneratedCode.GetRecordPlan(writer, reader);
+            _ = GenericDatumReader.GetRecordPlan(writer, reader);
             var input = new AvroReader(new byte[] { 0x02 });
             _ = AvroGeneratedCode.ResolveToReaderEncoding(ref input, writer, reader);
             writers[i] = new WeakReference(writer);

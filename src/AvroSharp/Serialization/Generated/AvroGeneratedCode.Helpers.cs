@@ -5,16 +5,17 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 #endif
 using System.Threading;
+using AvroSharp.Generic;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
 
 #pragma warning disable CA1002, MA0016 // Generated types expose List<T> and Dictionary<TKey, TValue>; these helpers fill and write them.
 
-namespace AvroSharp.Serialization;
+namespace AvroSharp.Serialization.Generated;
 
 // Helpers that keep generated code small: a field that is a nullable primitive, a collection of primitives or records,
 // or a nullable record is one call instead of an inlined switch or loop. They are small and marked for inlining, and
-// the collection helpers take struct codecs, so the JIT specializes them per type and the machine code stays that of
+// the collection helpers take struct serializers, so the JIT specializes them per type and the machine code stays that of
 // the inlined version.
 public static partial class AvroGeneratedCode
 {
@@ -62,17 +63,17 @@ public static partial class AvroGeneratedCode
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static byte[]? ReadNullableBytes(ref AvroReader reader, int valueIndex) => IsValue(ref reader, valueIndex) ? reader.ReadBytes() : null;
 
-    /// <summary>Reads a union of <c>null</c> and a record (or any type with a codec).</summary>
+    /// <summary>Reads a union of <c>null</c> and a record (or any type with a serializer).</summary>
     /// <typeparam name="T">The value type.</typeparam>
-    /// <typeparam name="TCodec">Its codec.</typeparam>
+    /// <typeparam name="TSerializer">Its serializer.</typeparam>
     /// <param name="reader">The source.</param>
     /// <param name="valueIndex">The branch index of the non-null type (0 or 1).</param>
     /// <param name="depth">The nesting depth for the value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T? ReadNullable<T, TCodec>(ref AvroReader reader, int valueIndex, int depth)
+    public static T? ReadNullable<T, TSerializer>(ref AvroReader reader, int valueIndex, int depth)
         where T : class
-        where TCodec : struct, IAvroCodec<T> =>
-        IsValue(ref reader, valueIndex) ? default(TCodec).Read(ref reader, depth) : null;
+        where TSerializer : struct, IAvroValueSerializer<T> =>
+        IsValue(ref reader, valueIndex) ? default(TSerializer).Read(ref reader, depth) : null;
 
     /// <summary>Writes a union of <c>null</c> and <c>boolean</c>.</summary>
     /// <param name="writer">The destination.</param>
@@ -172,22 +173,22 @@ public static partial class AvroGeneratedCode
         }
     }
 
-    /// <summary>Writes a union of <c>null</c> and a record (or any type with a codec).</summary>
+    /// <summary>Writes a union of <c>null</c> and a record (or any type with a serializer).</summary>
     /// <typeparam name="T">The value type.</typeparam>
-    /// <typeparam name="TCodec">Its codec.</typeparam>
+    /// <typeparam name="TSerializer">Its serializer.</typeparam>
     /// <param name="writer">The destination.</param>
     /// <param name="value">The value.</param>
     /// <param name="valueIndex">The branch index of the non-null type (0 or 1).</param>
     /// <param name="depth">The nesting depth for the value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void WriteNullable<T, TCodec>(ref AvroWriter writer, T? value, int valueIndex, int depth)
+    public static void WriteNullable<T, TSerializer>(ref AvroWriter writer, T? value, int valueIndex, int depth)
         where T : class
-        where TCodec : struct, IAvroCodec<T>
+        where TSerializer : struct, IAvroValueSerializer<T>
     {
         writer.WriteUnionIndex(value is null ? 1 - valueIndex : valueIndex);
         if (value is not null)
         {
-            default(TCodec).Write(ref writer, value, depth);
+            default(TSerializer).Write(ref writer, value, depth);
         }
     }
 
@@ -216,23 +217,23 @@ public static partial class AvroGeneratedCode
     /// are added as they are read, so a hostile block count cannot allocate ahead of the input.
     /// </summary>
     /// <typeparam name="T">The item type.</typeparam>
-    /// <typeparam name="TCodec">Its codec.</typeparam>
+    /// <typeparam name="TSerializer">Its serializer.</typeparam>
     /// <param name="reader">The source.</param>
     /// <param name="reuse">A list to fill again, or <see langword="null"/>.</param>
     /// <param name="minimumItemSize">The smallest encoded size of one item.</param>
     /// <param name="depth">The nesting depth for the items.</param>
-    public static List<T> ReadList<T, TCodec>(ref AvroReader reader, List<T>? reuse, int minimumItemSize, int depth)
-        where TCodec : struct, IAvroCodec<T>
+    public static List<T> ReadList<T, TSerializer>(ref AvroReader reader, List<T>? reuse, int minimumItemSize, int depth)
+        where TSerializer : struct, IAvroValueSerializer<T>
     {
         var list = Reuse(reuse);
-        var codec = default(TCodec);
+        var serializer = default(TSerializer);
         int count;
         while ((count = ReadBlockItemCount(ref reader, minimumItemSize, list.Count)) != 0)
         {
             Reserve(list, count);
             for (var i = 0; i < count; i++)
             {
-                list.Add(codec.Read(ref reader, depth));
+                list.Add(serializer.Read(ref reader, depth));
             }
         }
 
@@ -241,13 +242,13 @@ public static partial class AvroGeneratedCode
 
     /// <summary>Writes a list as an array; a <see langword="null"/> list or item throws, naming <paramref name="field"/>.</summary>
     /// <typeparam name="T">The item type.</typeparam>
-    /// <typeparam name="TCodec">Its codec.</typeparam>
+    /// <typeparam name="TSerializer">Its serializer.</typeparam>
     /// <param name="writer">The destination.</param>
     /// <param name="items">The items.</param>
     /// <param name="field">The field, as <c>Record.field</c>, for errors.</param>
     /// <param name="depth">The nesting depth for the items.</param>
-    public static void WriteList<T, TCodec>(ref AvroWriter writer, List<T>? items, string field, int depth)
-        where TCodec : struct, IAvroCodec<T>
+    public static void WriteList<T, TSerializer>(ref AvroWriter writer, List<T>? items, string field, int depth)
+        where TSerializer : struct, IAvroValueSerializer<T>
     {
         if (items is null)
         {
@@ -257,7 +258,7 @@ public static partial class AvroGeneratedCode
         if (items.Count > 0)
         {
             writer.WriteBlockCount(items.Count);
-            var codec = default(TCodec);
+            var serializer = default(TSerializer);
 #if NET8_0_OR_GREATER
             foreach (var item in CollectionsMarshal.AsSpan(items))
 #else
@@ -269,7 +270,7 @@ public static partial class AvroGeneratedCode
                     throw NullValue(field);
                 }
 
-                codec.Write(ref writer, item, depth);
+                serializer.Write(ref writer, item, depth);
             }
         }
 
@@ -278,13 +279,13 @@ public static partial class AvroGeneratedCode
 
     /// <summary>Reads a map into a dictionary: <paramref name="reuse"/>, cleared, when there is one, otherwise a new one (ordinal keys).</summary>
     /// <typeparam name="T">The value type.</typeparam>
-    /// <typeparam name="TCodec">Its codec.</typeparam>
+    /// <typeparam name="TSerializer">Its serializer.</typeparam>
     /// <param name="reader">The source.</param>
     /// <param name="reuse">A dictionary to fill again, or <see langword="null"/>.</param>
     /// <param name="minimumEntrySize">The smallest encoded size of one entry, its key included.</param>
     /// <param name="depth">The nesting depth for the values.</param>
-    public static Dictionary<string, T> ReadMap<T, TCodec>(ref AvroReader reader, Dictionary<string, T>? reuse, int minimumEntrySize, int depth)
-        where TCodec : struct, IAvroCodec<T>
+    public static Dictionary<string, T> ReadMap<T, TSerializer>(ref AvroReader reader, Dictionary<string, T>? reuse, int minimumEntrySize, int depth)
+        where TSerializer : struct, IAvroValueSerializer<T>
     {
         // The first block's count sizes a new dictionary, as in the generic reader.
         var count = ReadBlockItemCount(ref reader, minimumEntrySize, 0);
@@ -299,13 +300,13 @@ public static partial class AvroGeneratedCode
             map.Clear();
         }
 
-        var codec = default(TCodec);
+        var serializer = default(TSerializer);
         while (count != 0)
         {
             for (var i = 0; i < count; i++)
             {
                 var key = reader.ReadString();
-                map[key] = codec.Read(ref reader, depth);
+                map[key] = serializer.Read(ref reader, depth);
             }
 
             count = ReadBlockItemCount(ref reader, minimumEntrySize, map.Count);
@@ -316,13 +317,13 @@ public static partial class AvroGeneratedCode
 
     /// <summary>Writes a dictionary as a map; a <see langword="null"/> dictionary or value throws, naming <paramref name="field"/>.</summary>
     /// <typeparam name="T">The value type.</typeparam>
-    /// <typeparam name="TCodec">Its codec.</typeparam>
+    /// <typeparam name="TSerializer">Its serializer.</typeparam>
     /// <param name="writer">The destination.</param>
     /// <param name="map">The entries.</param>
     /// <param name="field">The field, as <c>Record.field</c>, for errors.</param>
     /// <param name="depth">The nesting depth for the values.</param>
-    public static void WriteMap<T, TCodec>(ref AvroWriter writer, Dictionary<string, T>? map, string field, int depth)
-        where TCodec : struct, IAvroCodec<T>
+    public static void WriteMap<T, TSerializer>(ref AvroWriter writer, Dictionary<string, T>? map, string field, int depth)
+        where TSerializer : struct, IAvroValueSerializer<T>
     {
         if (map is null)
         {
@@ -332,7 +333,7 @@ public static partial class AvroGeneratedCode
         if (map.Count > 0)
         {
             writer.WriteBlockCount(map.Count);
-            var codec = default(TCodec);
+            var serializer = default(TSerializer);
             foreach (var entry in map)
             {
                 if (entry.Value is null)
@@ -341,7 +342,7 @@ public static partial class AvroGeneratedCode
                 }
 
                 writer.WriteString(entry.Key);
-                codec.Write(ref writer, entry.Value, depth);
+                serializer.Write(ref writer, entry.Value, depth);
             }
         }
 
@@ -351,27 +352,27 @@ public static partial class AvroGeneratedCode
     /// <summary>Reads an array of <c>boolean</c> into a list, a block at a time.</summary>
     /// <param name="reader">The source.</param>
     /// <param name="reuse">A list to fill again, or <see langword="null"/>.</param>
-    public static List<bool> ReadBooleanList(ref AvroReader reader, List<bool>? reuse) => ReadPrimitiveList<bool, AvroBooleanCodec>(ref reader, reuse, 1);
+    public static List<bool> ReadBooleanList(ref AvroReader reader, List<bool>? reuse) => ReadPrimitiveList<bool, AvroBooleanSerializer>(ref reader, reuse, 1);
 
     /// <summary>Reads an array of <c>int</c> into a list; runs of one-byte values are decoded together.</summary>
     /// <param name="reader">The source.</param>
     /// <param name="reuse">A list to fill again, or <see langword="null"/>.</param>
-    public static List<int> ReadIntList(ref AvroReader reader, List<int>? reuse) => ReadPrimitiveList<int, AvroIntCodec>(ref reader, reuse, 1);
+    public static List<int> ReadIntList(ref AvroReader reader, List<int>? reuse) => ReadPrimitiveList<int, AvroIntSerializer>(ref reader, reuse, 1);
 
     /// <summary>Reads an array of <c>long</c> into a list; runs of one-byte values are decoded together.</summary>
     /// <param name="reader">The source.</param>
     /// <param name="reuse">A list to fill again, or <see langword="null"/>.</param>
-    public static List<long> ReadLongList(ref AvroReader reader, List<long>? reuse) => ReadPrimitiveList<long, AvroLongCodec>(ref reader, reuse, 1);
+    public static List<long> ReadLongList(ref AvroReader reader, List<long>? reuse) => ReadPrimitiveList<long, AvroLongSerializer>(ref reader, reuse, 1);
 
     /// <summary>Reads an array of <c>float</c> into a list, one copy per block on little-endian hardware.</summary>
     /// <param name="reader">The source.</param>
     /// <param name="reuse">A list to fill again, or <see langword="null"/>.</param>
-    public static List<float> ReadFloatList(ref AvroReader reader, List<float>? reuse) => ReadPrimitiveList<float, AvroFloatCodec>(ref reader, reuse, sizeof(float));
+    public static List<float> ReadFloatList(ref AvroReader reader, List<float>? reuse) => ReadPrimitiveList<float, AvroFloatSerializer>(ref reader, reuse, sizeof(float));
 
     /// <summary>Reads an array of <c>double</c> into a list, one copy per block on little-endian hardware.</summary>
     /// <param name="reader">The source.</param>
     /// <param name="reuse">A list to fill again, or <see langword="null"/>.</param>
-    public static List<double> ReadDoubleList(ref AvroReader reader, List<double>? reuse) => ReadPrimitiveList<double, AvroDoubleCodec>(ref reader, reuse, sizeof(double));
+    public static List<double> ReadDoubleList(ref AvroReader reader, List<double>? reuse) => ReadPrimitiveList<double, AvroDoubleSerializer>(ref reader, reuse, sizeof(double));
 
     /// <summary>Writes a list of <c>boolean</c> as an array, one copy per block.</summary>
     /// <param name="writer">The destination.</param>
@@ -480,9 +481,9 @@ public static partial class AvroGeneratedCode
     }
 
     // The primitive lists: each block is decoded straight into the list's memory on net8+ (bulk varint and copy paths).
-    private static List<T> ReadPrimitiveList<T, TCodec>(ref AvroReader reader, List<T>? reuse, int minimumItemSize)
+    private static List<T> ReadPrimitiveList<T, TSerializer>(ref AvroReader reader, List<T>? reuse, int minimumItemSize)
         where T : unmanaged
-        where TCodec : struct, IAvroCodec<T>
+        where TSerializer : struct, IAvroValueSerializer<T>
     {
         var list = Reuse(reuse);
         int count;
@@ -495,10 +496,10 @@ public static partial class AvroGeneratedCode
             ReadBulk(ref reader, CollectionsMarshal.AsSpan(list).Slice(start, count));
 #else
             Reserve(list, count);
-            var codec = default(TCodec);
+            var serializer = default(TSerializer);
             for (var i = 0; i < count; i++)
             {
-                list.Add(codec.Read(ref reader, 0));
+                list.Add(serializer.Read(ref reader, 0));
             }
 #endif
         }
@@ -604,7 +605,7 @@ public static partial class AvroGeneratedCode
     {
         ArgumentNullException.ThrowIfNull(schema);
         var record = (RecordSchema)schema;
-        return PutTypeMismatch(value, record.FullName + "." + record.Fields[fieldPos].Name, expectedType);
+        return new($"Field '{record.FullName}.{record.Fields[fieldPos].Name}' holds {expectedType}; a {(value is null ? "null" : "value of type " + value.GetType().FullName)} cannot be put into it.");
     }
 
     private static AvroException EnumOutOfRange(int ordinal, int symbolCount, string field) =>
@@ -613,13 +614,15 @@ public static partial class AvroGeneratedCode
     // --- Schema resolution ---
 
     /// <summary>
-    /// Gets the plan for <paramref name="writerSchema"/> like <see cref="GetRecordPlan(AvroSchema, AvroSchema)"/>,
-    /// remembering the last writer schema in <paramref name="cache"/> (a static field of the generated type), so a
-    /// stream of values written with one schema looks the plan up once.
+    /// Gets the plan for reading a generated record from data of another version of its schema, or <see langword="null"/>
+    /// when <paramref name="writerSchema"/> is not a record of the same name (then use <see cref="ResolveToReaderEncoding"/>).
+    /// Plans are built once per pair of schemas, and <paramref name="cache"/> (a static field of the generated type)
+    /// remembers the last writer schema, so a stream of values written with one schema looks the plan up once.
     /// </summary>
     /// <param name="writerSchema">The schema the data was written with.</param>
     /// <param name="readerSchema">The generated type's schema.</param>
     /// <param name="cache">The generated type's cache.</param>
+    /// <exception cref="AvroSchemaException">The schemas cannot be resolved.</exception>
     public static AvroRecordPlan? GetRecordPlan(AvroSchema writerSchema, AvroSchema readerSchema, ref AvroPlanCache? cache)
     {
         var entry = Volatile.Read(ref cache);
@@ -628,7 +631,9 @@ public static partial class AvroGeneratedCode
             return entry.Plan;
         }
 
-        var plan = GetRecordPlan(writerSchema, readerSchema);
+        ArgumentNullException.ThrowIfNull(writerSchema);
+        ArgumentNullException.ThrowIfNull(readerSchema);
+        var plan = GenericDatumReader.GetRecordPlan(writerSchema, readerSchema);
         Volatile.Write(ref cache, new AvroPlanCache(writerSchema, plan));
         return plan;
     }

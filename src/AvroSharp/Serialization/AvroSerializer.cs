@@ -3,6 +3,7 @@ using System;
 using System.Buffers;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
+using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Serialization;
 

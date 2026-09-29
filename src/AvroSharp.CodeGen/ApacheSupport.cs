@@ -75,7 +75,7 @@ internal static class ApacheSupport
         w.Line($"public {name}(byte[] value)");
         w.Line("    : base(Size)");
         w.Open();
-        w.Line($"Value = global::AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(value, Size, {CSharpNames.Literal(schema.FullName)});");
+        w.Line($"Value = global::AvroSharp.Serialization.Generated.AvroGeneratedCode.CheckFixedSize(value, Size, {CSharpNames.Literal(schema.FullName)});");
         w.Close();
         w.Line();
         w.Line("/// <summary>Gets the schema as Apache.Avro represents it, as avrogen's generated classes have it.</summary>");

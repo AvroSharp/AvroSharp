@@ -382,65 +382,63 @@ AvroSharp.Schemas.SchemaName.SchemaName(string! name, string? namespace = null) 
 AvroSharp.Schemas.UnionSchema
 AvroSharp.Schemas.UnionSchema.Branches.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>!
 AvroSharp.Schemas.UnionSchema.UnionSchema(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! branches) -> void
-AvroSharp.Serialization.AvroBooleanCodec
-AvroSharp.Serialization.AvroBooleanCodec.AvroBooleanCodec() -> void
-AvroSharp.Serialization.AvroBooleanCodec.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> bool
-AvroSharp.Serialization.AvroBooleanCodec.Write(ref AvroSharp.IO.AvroWriter writer, bool value, int depth) -> void
-AvroSharp.Serialization.AvroBytesCodec
-AvroSharp.Serialization.AvroBytesCodec.AvroBytesCodec() -> void
-AvroSharp.Serialization.AvroBytesCodec.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> byte[]!
-AvroSharp.Serialization.AvroBytesCodec.Write(ref AvroSharp.IO.AvroWriter writer, byte[]! value, int depth) -> void
-AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.EnumRemap = 4 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.FromFloat = 3 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.FromInt = 1 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.FromLong = 2 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.ItemsFromFloat = 7 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.ItemsFromInt = 5 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.ItemsFromLong = 6 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.None = 0 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroConversion.Transcode = 8 -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroDoubleCodec
-AvroSharp.Serialization.AvroDoubleCodec.AvroDoubleCodec() -> void
-AvroSharp.Serialization.AvroDoubleCodec.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> double
-AvroSharp.Serialization.AvroDoubleCodec.Write(ref AvroSharp.IO.AvroWriter writer, double value, int depth) -> void
-AvroSharp.Serialization.AvroFloatCodec
-AvroSharp.Serialization.AvroFloatCodec.AvroFloatCodec() -> void
-AvroSharp.Serialization.AvroFloatCodec.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> float
-AvroSharp.Serialization.AvroFloatCodec.Write(ref AvroSharp.IO.AvroWriter writer, float value, int depth) -> void
-AvroSharp.Serialization.AvroGeneratedCode
-AvroSharp.Serialization.AvroIntCodec
-AvroSharp.Serialization.AvroIntCodec.AvroIntCodec() -> void
-AvroSharp.Serialization.AvroIntCodec.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> int
-AvroSharp.Serialization.AvroIntCodec.Write(ref AvroSharp.IO.AvroWriter writer, int value, int depth) -> void
+AvroSharp.Serialization.Generated.AvroBooleanSerializer
+AvroSharp.Serialization.Generated.AvroBooleanSerializer.AvroBooleanSerializer() -> void
+AvroSharp.Serialization.Generated.AvroBooleanSerializer.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> bool
+AvroSharp.Serialization.Generated.AvroBooleanSerializer.Write(ref AvroSharp.IO.AvroWriter writer, bool value, int depth) -> void
+AvroSharp.Serialization.Generated.AvroBytesSerializer
+AvroSharp.Serialization.Generated.AvroBytesSerializer.AvroBytesSerializer() -> void
+AvroSharp.Serialization.Generated.AvroBytesSerializer.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> byte[]!
+AvroSharp.Serialization.Generated.AvroBytesSerializer.Write(ref AvroSharp.IO.AvroWriter writer, byte[]! value, int depth) -> void
+AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.EnumRemap = 4 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.FromFloat = 3 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.FromInt = 1 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.FromLong = 2 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.ItemsFromFloat = 7 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.ItemsFromInt = 5 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.ItemsFromLong = 6 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.None = 0 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroConversion.Transcode = 8 -> AvroSharp.Serialization.Generated.AvroConversion
+AvroSharp.Serialization.Generated.AvroDoubleSerializer
+AvroSharp.Serialization.Generated.AvroDoubleSerializer.AvroDoubleSerializer() -> void
+AvroSharp.Serialization.Generated.AvroDoubleSerializer.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> double
+AvroSharp.Serialization.Generated.AvroDoubleSerializer.Write(ref AvroSharp.IO.AvroWriter writer, double value, int depth) -> void
+AvroSharp.Serialization.Generated.AvroFloatSerializer
+AvroSharp.Serialization.Generated.AvroFloatSerializer.AvroFloatSerializer() -> void
+AvroSharp.Serialization.Generated.AvroFloatSerializer.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> float
+AvroSharp.Serialization.Generated.AvroFloatSerializer.Write(ref AvroSharp.IO.AvroWriter writer, float value, int depth) -> void
+AvroSharp.Serialization.Generated.AvroGeneratedCode
+AvroSharp.Serialization.Generated.AvroIntSerializer
+AvroSharp.Serialization.Generated.AvroIntSerializer.AvroIntSerializer() -> void
+AvroSharp.Serialization.Generated.AvroIntSerializer.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> int
+AvroSharp.Serialization.Generated.AvroIntSerializer.Write(ref AvroSharp.IO.AvroWriter writer, int value, int depth) -> void
 AvroSharp.Serialization.AvroLogicalValues
-AvroSharp.Serialization.AvroLongCodec
-AvroSharp.Serialization.AvroLongCodec.AvroLongCodec() -> void
-AvroSharp.Serialization.AvroLongCodec.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> long
-AvroSharp.Serialization.AvroLongCodec.Write(ref AvroSharp.IO.AvroWriter writer, long value, int depth) -> void
-AvroSharp.Serialization.AvroPlanCache
+AvroSharp.Serialization.Generated.AvroLongSerializer
+AvroSharp.Serialization.Generated.AvroLongSerializer.AvroLongSerializer() -> void
+AvroSharp.Serialization.Generated.AvroLongSerializer.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> long
+AvroSharp.Serialization.Generated.AvroLongSerializer.Write(ref AvroSharp.IO.AvroWriter writer, long value, int depth) -> void
+AvroSharp.Serialization.Generated.AvroPlanCache
 AvroSharp.Serialization.AvroReadFunc<T>
-AvroSharp.Serialization.AvroRecordPlan
-AvroSharp.Serialization.AvroRecordPlan.Conversion(int step) -> AvroSharp.Serialization.AvroConversion
-AvroSharp.Serialization.AvroRecordPlan.DefaultCount.get -> int
-AvroSharp.Serialization.AvroRecordPlan.DefaultTarget(int index) -> int
-AvroSharp.Serialization.AvroRecordPlan.DefaultValue(int index) -> System.ReadOnlySpan<byte>
-AvroSharp.Serialization.AvroRecordPlan.MapEnum(int step, int ordinal) -> int
-AvroSharp.Serialization.AvroRecordPlan.Skip(int step, ref AvroSharp.IO.AvroReader reader) -> void
-AvroSharp.Serialization.AvroRecordPlan.StepCount.get -> int
-AvroSharp.Serialization.AvroRecordPlan.Target(int step) -> int
-AvroSharp.Serialization.AvroRecordPlan.Target(int step, out AvroSharp.Serialization.AvroConversion conversion) -> int
-AvroSharp.Serialization.AvroRecordPlan.Transcode(int step, ref AvroSharp.IO.AvroReader reader) -> System.ReadOnlySpan<byte>
-AvroSharp.Serialization.AvroStringCodec
-AvroSharp.Serialization.AvroStringCodec.AvroStringCodec() -> void
-AvroSharp.Serialization.AvroStringCodec.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> string!
-AvroSharp.Serialization.AvroStringCodec.Write(ref AvroSharp.IO.AvroWriter writer, string! value, int depth) -> void
-AvroSharp.Serialization.AvroUninitialized
-AvroSharp.Serialization.AvroUninitialized.AvroUninitialized() -> void
+AvroSharp.Serialization.Generated.AvroRecordPlan
+AvroSharp.Serialization.Generated.AvroRecordPlan.DefaultCount.get -> int
+AvroSharp.Serialization.Generated.AvroRecordPlan.DefaultTarget(int index) -> int
+AvroSharp.Serialization.Generated.AvroRecordPlan.DefaultValue(int index) -> System.ReadOnlySpan<byte>
+AvroSharp.Serialization.Generated.AvroRecordPlan.MapEnum(int step, int ordinal) -> int
+AvroSharp.Serialization.Generated.AvroRecordPlan.Skip(int step, ref AvroSharp.IO.AvroReader reader) -> void
+AvroSharp.Serialization.Generated.AvroRecordPlan.StepCount.get -> int
+AvroSharp.Serialization.Generated.AvroRecordPlan.Target(int step, out AvroSharp.Serialization.Generated.AvroConversion conversion) -> int
+AvroSharp.Serialization.Generated.AvroRecordPlan.Transcode(int step, ref AvroSharp.IO.AvroReader reader) -> System.ReadOnlySpan<byte>
+AvroSharp.Serialization.Generated.AvroStringSerializer
+AvroSharp.Serialization.Generated.AvroStringSerializer.AvroStringSerializer() -> void
+AvroSharp.Serialization.Generated.AvroStringSerializer.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> string!
+AvroSharp.Serialization.Generated.AvroStringSerializer.Write(ref AvroSharp.IO.AvroWriter writer, string! value, int depth) -> void
+AvroSharp.Serialization.Generated.AvroUninitialized
+AvroSharp.Serialization.Generated.AvroUninitialized.AvroUninitialized() -> void
 AvroSharp.Serialization.AvroWriteAction<T>
-AvroSharp.Serialization.IAvroCodec<T>
-AvroSharp.Serialization.IAvroCodec<T>.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> T
-AvroSharp.Serialization.IAvroCodec<T>.Write(ref AvroSharp.IO.AvroWriter writer, T value, int depth) -> void
+AvroSharp.Serialization.Generated.IAvroValueSerializer<T>
+AvroSharp.Serialization.Generated.IAvroValueSerializer<T>.Read(ref AvroSharp.IO.AvroReader reader, int depth) -> T
+AvroSharp.Serialization.Generated.IAvroValueSerializer<T>.Write(ref AvroSharp.IO.AvroWriter writer, T value, int depth) -> void
 AvroSharp.Serialization.IAvroReadable
 AvroSharp.Serialization.IAvroReadable.ReadFrom(ref AvroSharp.IO.AvroReader reader) -> void
 AvroSharp.Serialization.IAvroSpecificRecord
@@ -493,8 +491,8 @@ const AvroSharp.Messages.ConfluentSchemaIdHeader.KeyHeaderName = "__key_schema_i
 const AvroSharp.Messages.ConfluentSchemaIdHeader.Length = 17 -> int
 const AvroSharp.Messages.ConfluentSchemaIdHeader.ValueHeaderName = "__value_schema_id" -> string!
 const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
-const AvroSharp.Serialization.AvroGeneratedCode.MaxDepth = 128 -> int
-const AvroSharp.Serialization.AvroGeneratedCode.MaxZeroSizeItems = 65536 -> int
+const AvroSharp.Serialization.Generated.AvroGeneratedCode.MaxDepth = 128 -> int
+const AvroSharp.Serialization.Generated.AvroGeneratedCode.MaxZeroSizeItems = 65536 -> int
 const AvroSharp.Streams.AvroStreamOptions.DefaultBufferSize = 65536 -> int
 const AvroSharp.Streams.AvroStreamOptions.DefaultMaxDatumLength = 67108864 -> int
 override AvroSharp.Containers.AvroCodec.ToString() -> string!
@@ -638,60 +636,58 @@ static AvroSharp.Schemas.SchemaFingerprint.Md5(AvroSharp.Schemas.AvroSchema! sch
 static AvroSharp.Schemas.SchemaFingerprint.Sha256(AvroSharp.Schemas.AvroSchema! schema) -> byte[]!
 static AvroSharp.Schemas.SchemaName.operator !=(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
 static AvroSharp.Schemas.SchemaName.operator ==(AvroSharp.Schemas.SchemaName? left, AvroSharp.Schemas.SchemaName? right) -> bool
-static AvroSharp.Serialization.AvroGeneratedCode.BeginRead(ref AvroSharp.IO.AvroReader reader) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.BeginTryWrite(System.Span<byte> destination) -> AvroSharp.IO.AvroWriter
-static AvroSharp.Serialization.AvroGeneratedCode.CheckEnumOrdinal(int ordinal, int symbolCount, string! field) -> int
-static AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(byte[]! value, int size, string! typeName) -> byte[]!
-static AvroSharp.Serialization.AvroGeneratedCode.DayNumberFromDays(int days) -> int
-static AvroSharp.Serialization.AvroGeneratedCode.EndTryWrite(ref AvroSharp.IO.AvroWriter writer, out int bytesWritten) -> bool
-static AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> AvroSharp.Serialization.AvroRecordPlan?
-static AvroSharp.Serialization.AvroGeneratedCode.GetRecordPlan(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema, ref AvroSharp.Serialization.AvroPlanCache? cache) -> AvroSharp.Serialization.AvroRecordPlan?
-static AvroSharp.Serialization.AvroGeneratedCode.InitialCapacity(int count) -> int
-static AvroSharp.Serialization.AvroGeneratedCode.InvalidFieldPosition(int fieldPos, int fieldCount, string! recordName) -> AvroSharp.AvroException!
-static AvroSharp.Serialization.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.IO.AvroDataException!
-static AvroSharp.Serialization.AvroGeneratedCode.IsSameSchema(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> bool
-static AvroSharp.Serialization.AvroGeneratedCode.NullValue(string! field) -> AvroSharp.AvroException!
-static AvroSharp.Serialization.AvroGeneratedCode.PublishSchema(ref AvroSharp.Schemas.AvroSchema? field, AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Schemas.AvroSchema!
-static AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(object? value, AvroSharp.Schemas.AvroSchema! schema, int fieldPos, string! expectedType) -> AvroSharp.AvroException!
-static AvroSharp.Serialization.AvroGeneratedCode.PutTypeMismatch(object? value, string! field, string! expectedType) -> AvroSharp.AvroException!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadBlockItemCount(ref AvroSharp.IO.AvroReader reader, int minimumItemSize, int itemsSoFar) -> int
-static AvroSharp.Serialization.AvroGeneratedCode.ReadBooleanList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<bool>? reuse) -> System.Collections.Generic.List<bool>!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadDoubleList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<double>? reuse) -> System.Collections.Generic.List<double>!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadEnumOrdinal(ref AvroSharp.IO.AvroReader reader, int symbolCount, string! enumName) -> int
-static AvroSharp.Serialization.AvroGeneratedCode.ReadFixedBytes(ref AvroSharp.IO.AvroReader reader, int size) -> byte[]!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadFloatList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<float>? reuse) -> System.Collections.Generic.List<float>!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadIntList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<int>? reuse) -> System.Collections.Generic.List<int>!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadList<T, TCodec>(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<T>? reuse, int minimumItemSize, int depth) -> System.Collections.Generic.List<T>!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadLongList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<long>? reuse) -> System.Collections.Generic.List<long>!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadMap<T, TCodec>(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.Dictionary<string!, T>? reuse, int minimumEntrySize, int depth) -> System.Collections.Generic.Dictionary<string!, T>!
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullable<T, TCodec>(ref AvroSharp.IO.AvroReader reader, int valueIndex, int depth) -> T?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullableBoolean(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> bool?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullableBytes(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> byte[]?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullableDouble(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> double?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullableFloat(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> float?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullableInt(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> int?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullableLong(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> long?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadNullableString(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> string?
-static AvroSharp.Serialization.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.AvroDataException!
-static AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> System.ReadOnlySpan<byte>
-static AvroSharp.Serialization.AvroGeneratedCode.SerializeToArray<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write) -> byte[]!
-static AvroSharp.Serialization.AvroGeneratedCode.UnionValueMismatch(object? value, string! field) -> AvroSharp.AvroException!
-static AvroSharp.Serialization.AvroGeneratedCode.WriteBooleanList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<bool>? items, string! field) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteDoubleList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<double>? items, string! field) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteFloatList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<float>? items, string! field) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteIntList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<int>? items, string! field) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteList<T, TCodec>(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<T>? items, string! field, int depth) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteLongList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<long>? items, string! field) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteMap<T, TCodec>(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.Dictionary<string!, T>? map, string! field, int depth) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullable<T, TCodec>(ref AvroSharp.IO.AvroWriter writer, T? value, int valueIndex, int depth) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullableBoolean(ref AvroSharp.IO.AvroWriter writer, bool? value, int valueIndex) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullableBytes(ref AvroSharp.IO.AvroWriter writer, byte[]? value, int valueIndex) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullableDouble(ref AvroSharp.IO.AvroWriter writer, double? value, int valueIndex) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullableFloat(ref AvroSharp.IO.AvroWriter writer, float? value, int valueIndex) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullableInt(ref AvroSharp.IO.AvroWriter writer, int? value, int valueIndex) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullableLong(ref AvroSharp.IO.AvroWriter writer, long? value, int valueIndex) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteNullableString(ref AvroSharp.IO.AvroWriter writer, string? value, int valueIndex) -> void
-static AvroSharp.Serialization.AvroGeneratedCode.WriteTooDeep() -> AvroSharp.AvroException!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.BeginRead(ref AvroSharp.IO.AvroReader reader) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.BeginTryWrite(System.Span<byte> destination) -> AvroSharp.IO.AvroWriter
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.CheckEnumOrdinal(int ordinal, int symbolCount, string! field) -> int
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.CheckFixedSize(byte[]! value, int size, string! typeName) -> byte[]!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.DayNumberFromDays(int days) -> int
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.EndTryWrite(ref AvroSharp.IO.AvroWriter writer, out int bytesWritten) -> bool
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.GetRecordPlan(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema, ref AvroSharp.Serialization.Generated.AvroPlanCache? cache) -> AvroSharp.Serialization.Generated.AvroRecordPlan?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.InitialCapacity(int count) -> int
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.InvalidFieldPosition(int fieldPos, int fieldCount, string! recordName) -> AvroSharp.AvroException!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.IO.AvroDataException!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> bool
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.NullValue(string! field) -> AvroSharp.AvroException!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.PublishSchema(ref AvroSharp.Schemas.AvroSchema? field, AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Schemas.AvroSchema!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.PutTypeMismatch(object? value, AvroSharp.Schemas.AvroSchema! schema, int fieldPos, string! expectedType) -> AvroSharp.AvroException!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadBlockItemCount(ref AvroSharp.IO.AvroReader reader, int minimumItemSize, int itemsSoFar) -> int
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadBooleanList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<bool>? reuse) -> System.Collections.Generic.List<bool>!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadDoubleList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<double>? reuse) -> System.Collections.Generic.List<double>!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadEnumOrdinal(ref AvroSharp.IO.AvroReader reader, int symbolCount, string! enumName) -> int
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadFixedBytes(ref AvroSharp.IO.AvroReader reader, int size) -> byte[]!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadFloatList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<float>? reuse) -> System.Collections.Generic.List<float>!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadIntList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<int>? reuse) -> System.Collections.Generic.List<int>!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadList<T, TSerializer>(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<T>? reuse, int minimumItemSize, int depth) -> System.Collections.Generic.List<T>!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadLongList(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.List<long>? reuse) -> System.Collections.Generic.List<long>!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadMap<T, TSerializer>(ref AvroSharp.IO.AvroReader reader, System.Collections.Generic.Dictionary<string!, T>? reuse, int minimumEntrySize, int depth) -> System.Collections.Generic.Dictionary<string!, T>!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullable<T, TSerializer>(ref AvroSharp.IO.AvroReader reader, int valueIndex, int depth) -> T?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullableBoolean(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> bool?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullableBytes(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> byte[]?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullableDouble(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> double?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullableFloat(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> float?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullableInt(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> int?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullableLong(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> long?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadNullableString(ref AvroSharp.IO.AvroReader reader, int valueIndex) -> string?
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadTooDeep() -> AvroSharp.IO.AvroDataException!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.ResolveToReaderEncoding(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> System.ReadOnlySpan<byte>
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.SerializeToArray<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write) -> byte[]!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.UnionValueMismatch(object? value, string! field) -> AvroSharp.AvroException!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteBooleanList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<bool>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteDoubleList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<double>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteFloatList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<float>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteIntList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<int>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteList<T, TSerializer>(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<T>? items, string! field, int depth) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteLongList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.List<long>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteMap<T, TSerializer>(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.Dictionary<string!, T>? map, string! field, int depth) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullable<T, TSerializer>(ref AvroSharp.IO.AvroWriter writer, T? value, int valueIndex, int depth) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullableBoolean(ref AvroSharp.IO.AvroWriter writer, bool? value, int valueIndex) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullableBytes(ref AvroSharp.IO.AvroWriter writer, byte[]? value, int valueIndex) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullableDouble(ref AvroSharp.IO.AvroWriter writer, double? value, int valueIndex) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullableFloat(ref AvroSharp.IO.AvroWriter writer, float? value, int valueIndex) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullableInt(ref AvroSharp.IO.AvroWriter writer, int? value, int valueIndex) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullableLong(ref AvroSharp.IO.AvroWriter writer, long? value, int valueIndex) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteNullableString(ref AvroSharp.IO.AvroWriter writer, string? value, int valueIndex) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteTooDeep() -> AvroSharp.AvroException!
 static AvroSharp.Serialization.AvroLogicalValues.DateFromDays(int days) -> System.DateTime
 static AvroSharp.Serialization.AvroLogicalValues.DaysFromDate(System.DateTime date) -> int
 static AvroSharp.Serialization.AvroLogicalValues.LocalTimestampFromMicroseconds(long microseconds) -> System.DateTime

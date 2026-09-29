@@ -1,9 +1,9 @@
 using System.ComponentModel;
 using AvroSharp.IO;
 
-#pragma warning disable CA1815 // The codecs are stateless; generated code only uses default(TCodec).
+#pragma warning disable CA1815 // The serializers are stateless; generated code only uses default(TSerializer).
 
-namespace AvroSharp.Serialization;
+namespace AvroSharp.Serialization.Generated;
 
 /// <summary>The argument of a generated record's constructor for readers, which skips the property initializers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
@@ -11,9 +11,9 @@ public readonly struct AvroUninitialized
 {
 }
 
-/// <summary>The codec of <c>boolean</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
+/// <summary>The serializer of <c>boolean</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct AvroBooleanCodec : IAvroCodec<bool>
+public readonly struct AvroBooleanSerializer : IAvroValueSerializer<bool>
 {
     /// <inheritdoc />
     public bool Read(ref AvroReader reader, int depth) => reader.ReadBoolean();
@@ -22,9 +22,9 @@ public readonly struct AvroBooleanCodec : IAvroCodec<bool>
     public void Write(ref AvroWriter writer, bool value, int depth) => writer.WriteBoolean(value);
 }
 
-/// <summary>The codec of <c>int</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
+/// <summary>The serializer of <c>int</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct AvroIntCodec : IAvroCodec<int>
+public readonly struct AvroIntSerializer : IAvroValueSerializer<int>
 {
     /// <inheritdoc />
     public int Read(ref AvroReader reader, int depth) => reader.ReadInt();
@@ -33,9 +33,9 @@ public readonly struct AvroIntCodec : IAvroCodec<int>
     public void Write(ref AvroWriter writer, int value, int depth) => writer.WriteInt(value);
 }
 
-/// <summary>The codec of <c>long</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
+/// <summary>The serializer of <c>long</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct AvroLongCodec : IAvroCodec<long>
+public readonly struct AvroLongSerializer : IAvroValueSerializer<long>
 {
     /// <inheritdoc />
     public long Read(ref AvroReader reader, int depth) => reader.ReadLong();
@@ -44,9 +44,9 @@ public readonly struct AvroLongCodec : IAvroCodec<long>
     public void Write(ref AvroWriter writer, long value, int depth) => writer.WriteLong(value);
 }
 
-/// <summary>The codec of <c>float</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
+/// <summary>The serializer of <c>float</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct AvroFloatCodec : IAvroCodec<float>
+public readonly struct AvroFloatSerializer : IAvroValueSerializer<float>
 {
     /// <inheritdoc />
     public float Read(ref AvroReader reader, int depth) => reader.ReadFloat();
@@ -55,9 +55,9 @@ public readonly struct AvroFloatCodec : IAvroCodec<float>
     public void Write(ref AvroWriter writer, float value, int depth) => writer.WriteFloat(value);
 }
 
-/// <summary>The codec of <c>double</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
+/// <summary>The serializer of <c>double</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct AvroDoubleCodec : IAvroCodec<double>
+public readonly struct AvroDoubleSerializer : IAvroValueSerializer<double>
 {
     /// <inheritdoc />
     public double Read(ref AvroReader reader, int depth) => reader.ReadDouble();
@@ -66,9 +66,9 @@ public readonly struct AvroDoubleCodec : IAvroCodec<double>
     public void Write(ref AvroWriter writer, double value, int depth) => writer.WriteDouble(value);
 }
 
-/// <summary>The codec of <c>string</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
+/// <summary>The serializer of <c>string</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct AvroStringCodec : IAvroCodec<string>
+public readonly struct AvroStringSerializer : IAvroValueSerializer<string>
 {
     /// <inheritdoc />
     public string Read(ref AvroReader reader, int depth) => reader.ReadString();
@@ -77,9 +77,9 @@ public readonly struct AvroStringCodec : IAvroCodec<string>
     public void Write(ref AvroWriter writer, string value, int depth) => writer.WriteString(value);
 }
 
-/// <summary>The codec of <c>bytes</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
+/// <summary>The serializer of <c>bytes</c> values, for <see cref="AvroGeneratedCode"/>'s helpers.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public readonly struct AvroBytesCodec : IAvroCodec<byte[]>
+public readonly struct AvroBytesSerializer : IAvroValueSerializer<byte[]>
 {
     /// <inheritdoc />
     public byte[] Read(ref AvroReader reader, int depth) => reader.ReadBytes();
