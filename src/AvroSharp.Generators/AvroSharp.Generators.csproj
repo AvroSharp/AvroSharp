@@ -18,6 +18,9 @@
     <IncludeSymbols>false</IncludeSymbols>
     <DebugType>embedded</DebugType>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!-- Transitive pinning would list System.Memory and System.Text.Json as the package's own dependencies (#20);
+         the AvroSharp dependency already brings them. -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup>
