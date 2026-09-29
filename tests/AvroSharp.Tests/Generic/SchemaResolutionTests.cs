@@ -436,7 +436,7 @@ public class SchemaResolutionTests
     }
 
     [Test]
-    public async Task IsSameSchema_ComparesCanonicalForms_AndStaysCorrectWhenReaderSchemasAlternate()
+    public async Task HasSameCanonicalForm_ComparesEncodings_AndStaysCorrectWhenReaderSchemasAlternate()
     {
         const string V1 = """{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}""";
         var writer = AvroSchema.Parse(V1);
