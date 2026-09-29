@@ -3,7 +3,8 @@
   <!-- The avrosharp command-line tool (dotnet tool): C# code generation from .avsc files, and schema canonical forms
        and fingerprints. -->
   <PropertyGroup>
-    <TargetFrameworks>net10.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <RollForward>Major</RollForward>
     <OutputType>Exe</OutputType>
     <RootNamespace>AvroSharp.Tool</RootNamespace>
     <PackageId>AvroSharp.Tool</PackageId>

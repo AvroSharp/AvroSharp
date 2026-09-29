@@ -10,17 +10,17 @@
 > - **Name AvroSharp, MIT license** (Section 13).
 > - **One codec package, `AvroSharp.Codecs`**, not one package per codec: a reader of files whose codec is not known in advance needs one reference (2026-09-27).
 
-**Status vs. design** (2026-09-27):
+**Status vs. design** (2026-09-29):
 
 | Section | Proposed | In the repository |
 |---|---|---|
-| §3 Packages | Expression-tree and reflection typed paths in `AvroSharp`; `AvroSharp.Codecs.Snappy`/`.Zstd`/`.Bzip2`/`.Xz` | No reflection tiers (decision above); one `AvroSharp.Codecs` package. `AvroSharp.Tool` and `AvroSharp.Idl` don't exist yet (#33). |
+| §3 Packages | Expression-tree and reflection typed paths in `AvroSharp`; `AvroSharp.Codecs.Snappy`/`.Zstd`/`.Bzip2`/`.Xz` | No reflection tiers (decision above); one `AvroSharp.Codecs` package. `AvroSharp.Tool` ships the `avrosharp` command (`gen` and `schema`); `AvroSharp.Idl` doesn't exist yet (#33). |
 | §3, §4.10 I/O | `PipeReader`/`PipeWriter` overloads | `Stream`, `ReadOnlySpan<byte>`, `ReadOnlySequence<byte>` and `IBufferWriter<byte>`; the core doesn't reference `System.IO.Pipelines`. |
 | §9 SDK | `global.json` 10.0.401 with `latestPatch`; `ImplicitUsings=enable`; `.globalconfig` | 10.0.100 with `latestFeature`; `ImplicitUsings=disable`; analyzer severities in `.editorconfig`. |
 | §9 Projects | `Spec.Tests`, `Property.Tests`, `CodeGen.Tests`, `NetFramework.Tests`, `samples/` | Spec vectors and property tests live in `AvroSharp.Tests` and `AvroSharp.Interop.Tests`, code generation tests in the `Generators.*` projects, and net481 is a target of the test projects. `samples/` has three runnable samples, run by CI. |
-| §9 Workflows | `release.yml`, `codeql.yml` | `ci.yml`, `codeql.yml`, `release.yml` and `docs.yml` (#76, #74). CI runs on Linux and Windows, x64 and Arm64 (#72). |
+| §9 Workflows | `release.yml`, `codeql.yml` | `ci.yml`, `codeql.yml`, `release.yml`, `docs.yml` and `fuzz.yml` (#76, #74, #34). CI runs on Linux and Windows, x64 and Arm64 (#72). |
 | §10 Tests | xUnit v3 | TUnit on Microsoft.Testing.Platform. |
-| §13 Test data | `tests/TestData/apache/` | `tests/TestData/apache-avro/` (Apache's files) and `tests/TestData/java-avro/` (files written by Apache Avro Java). |
+| §13 Test data | `tests/TestData/apache/` | `tests/TestData/apache-avro/` (Apache's files), `tests/TestData/java-avro/` (files written by Apache Avro Java, including every logical type) and `tests/TestData/aws-glue/` (messages written by AWS Glue's library). |
 
 Legend: **[src]** = verified by reading the reference source/page during this study; **[docs]** = reasoned from documentation/spec text; **[goal]** = unmeasured target, not a claim.
 
@@ -274,7 +274,7 @@ Scenarios × implementations (AvroSharp-Gen, AvroSharp-Dynamic, AvroSharp-Generi
 - `CodeGenOptions`: `TypeKind` (record | class | struct-for-fixed), `RecordsAreSealed`, `UseRequired`, `UseInit`, `Nullable`, `CollectionType` (`List<T>` | `T[]` | `ImmutableArray<T>` | `IReadOnlyList<T>`), `MapType` (`Dictionary` | `IReadOnlyDictionary`), `NamingConvention` (PascalCase properties, preserve enum symbols with `[AvroSymbol("...")]`), `NamespaceMapping` (Avro ns → C# ns), `TypeOverrides` (schema fullname → CLR type), `GenerateSerializers`, `GenerateSchemaProperty`, `Accessibility`.
 
 Front-ends:
-1. **CLI** `AvroSharp.Tool`, the `avrosharp` command: a framework-dependent `dotnet tool` (like Apache.Avro's `avrogen`) on System.CommandLine 2.0, for the .NET 10 runtime; `dnx AvroSharp.Tool ...` runs it without installing it.
+1. **CLI** `AvroSharp.Tool`, the `avrosharp` command: a framework-dependent `dotnet tool` (like Apache.Avro's `avrogen`) on System.CommandLine 2.0, built for .NET 8 and .NET 10 with `RollForward=Major`, so it runs on .NET 8 or later; `dnx AvroSharp.Tool ...` runs it without installing it.
    - **Done** (#33, first part):
      - `gen <inputs>... -o <folder>`: inputs are files, or folders searched recursively for `*.avsc`, parsed together in any order (`SchemaFileSet`, shared with the source generator). Options map one to one onto `CodeGenOptions`: `-n/--namespace`, `-m/--namespace-map avro:csharp` (`NamespaceMapping`: the longest Avro namespace that equals or prefixes a type's gets another C# namespace, as avrogen's `--namespace`; not with the Apache mode, since Apache.Avro finds types by the schema's full name), `--logical-types native|raw`, `--property-names pascal|avro`, `--apache-compatible`, `--no-nullable`, `--no-date-only`, `--language-version <n>` (7 or later). One `.g.cs` file per named type, in folders for its C# namespace (`com/example/Order.g.cs`; a type without an Avro namespace takes `--namespace` if any schema is invalid or generation fails. Renamed properties are reported as `info AVROGEN005`.
      - `schema canonical <inputs>...` and `schema fingerprint <inputs>... [-a crc64|md5|sha256] [-f hex|base64|decimal]`: inputs as for `gen`, or `-` for one schema on standard input; `-r/--reference` adds files whose named types the inputs use. One input prints the result alone, several print `path: result` lines. `hex` and `base64` are the fingerprint's bytes as Avro writes them (CRC-64 little-endian); `decimal` is the signed CRC-64, as Java's `SchemaNormalization.parsingFingerprint64`, for `crc64` only.

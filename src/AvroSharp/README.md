@@ -2,7 +2,7 @@
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification: schemas, binary and JSON encoding, schema resolution, object container files and single-object encoding. It is written for spans and `IBufferWriter<byte>`, allocates little, and needs no reflection, so it works with Native AOT and trimming.
 
-> **Status:** an early preview (0.1). The API may still change before 1.0.
+> **Status:** an early preview (0.x). The API may still change before 1.0.
 
 **[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Code generation](https://zcsizmadia.github.io/AvroSharp/docs/code-generation.html) · [Benchmarks](https://zcsizmadia.github.io/AvroSharp/docs/benchmarks.html) · [Compared with Apache.Avro](https://zcsizmadia.github.io/AvroSharp/docs/apache-avro.html)
 

@@ -113,7 +113,7 @@ internal sealed class CSharpNames(CodeGenOptions options)
 
     /// <summary>Escapes text for an XML documentation comment.</summary>
     public static string Xml(string text) =>
-        text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+        text.ReplaceOrdinal("&", "&amp;").ReplaceOrdinal("<", "&lt;").ReplaceOrdinal(">", "&gt;");
 
     /// <summary>
     /// Splits schema text (a <c>doc</c>) into lines that are safe inside <c>//</c> or <c>///</c> comments. C# ends a

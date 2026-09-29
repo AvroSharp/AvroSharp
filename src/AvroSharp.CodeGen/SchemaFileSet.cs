@@ -116,12 +116,12 @@ public sealed class SchemaFileSet
                     && element.TryGetProperty("name", out var nameElement) && nameElement.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     var name = nameElement.GetString()!;
-                    if (name.IndexOf('.') < 0 && element.TryGetProperty("namespace", out var nsElement) && nsElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                    if (!name.Contains('.', StringComparison.Ordinal) && element.TryGetProperty("namespace", out var nsElement) && nsElement.ValueKind == System.Text.Json.JsonValueKind.String)
                     {
                         ns = nsElement.GetString();
                     }
 
-                    var fullName = name.IndexOf('.') >= 0 || string.IsNullOrEmpty(ns) ? name : ns + "." + name;
+                    var fullName = name.Contains('.', StringComparison.Ordinal) || string.IsNullOrEmpty(ns) ? name : ns + "." + name;
                     names.Add(fullName);
                     var dot = fullName.LastIndexOf('.');
                     ns = dot < 0 ? null : fullName[..dot];

@@ -224,8 +224,9 @@ public static class CSharpCodeGenerator
             return assembly.GetName().Version?.ToString() ?? "0.0.0";
         }
 
-        var metadata = informational!.IndexOf('+');
-        return metadata < 0 ? informational : informational[..metadata];
+        var version = informational!;
+        var metadata = version.IndexOf('+', StringComparison.Ordinal);
+        return metadata < 0 ? version : version[..metadata];
     }
 
     private static void Collect(AvroSchema schema, SortedDictionary<string, NamedSchema> named)
@@ -716,7 +717,7 @@ public static class CSharpCodeGenerator
         }
 
         var type = types.TypeOf(schema);
-        var display = type.Replace("global::", string.Empty) + (nullable ? "?" : string.Empty);
+        var display = type.ReplaceOrdinal("global::", string.Empty) + (nullable ? "?" : string.Empty);
         var mismatch = $"throw {Support}.PutTypeMismatch(fieldValue, {schemaProperty}, {Int(position)}, {CSharpNames.Literal(display)})";
         var converted = types.IsValueType(schema)
             ? $"fieldValue is {type} {variable} ? {variable} : {mismatch}"

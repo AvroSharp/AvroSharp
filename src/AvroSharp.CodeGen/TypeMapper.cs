@@ -207,7 +207,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         }
 
         var text = isFloat ? ((float)value).ToString("R", invariant) : value.ToString("R", invariant);
-        return text.IndexOf('E') >= 0 || text.IndexOf('.') >= 0 ? text + suffix : text + ".0" + suffix;
+        return text.Contains('E', System.StringComparison.Ordinal) || text.Contains('.', System.StringComparison.Ordinal) ? text + suffix : text + ".0" + suffix;
     }
 
     // A bytes default is a JSON string whose characters are the bytes (code points 0 to 255).

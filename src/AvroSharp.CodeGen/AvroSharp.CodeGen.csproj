@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The C# code generation engine: schemas in, source text out. No Roslyn dependency, so the source generator and
-       the command-line tool (M6) share it. netstandard2.0 because it runs inside the compiler. -->
+       the command-line tool share it. netstandard2.0 because it runs inside the compiler; net8.0 so that .NET 8 and
+       later use the framework's System.Text.Json, which the netstandard2.0 build, compiled against its 10.x package,
+       could not load there. -->
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
     <RootNamespace>AvroSharp.CodeGen</RootNamespace>
     <PackageId>AvroSharp.CodeGen</PackageId>
     <Description>C# code generation from Apache Avro™ schemas, used by the AvroSharp source generator and tools.</Description>
