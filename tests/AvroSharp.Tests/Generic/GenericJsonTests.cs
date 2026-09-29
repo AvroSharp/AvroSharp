@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Generic;
 
@@ -118,7 +119,7 @@ public class GenericJsonTests
 
         await Assert.That(read["a"].AsInt32()).IsEqualTo(1);
         await Assert.That(read["b"].IsNull).IsTrue();
-        await Assert.That(read["c"].AsArray().Select(v => v.AsInt64()).ToArray()).IsEquivalentTo(new long[] { 5 });
+        await Assert.That(read["c"].AsArray().Select(v => v.AsInt64()).ToArray()).IsEquivalentTo(new long[] { 5 }, CollectionOrdering.Matching);
 
         // A union default is not wrapped: it takes the first branch it matches.
         await Assert.That(read["d"].AsString()).IsEqualTo("x");
@@ -148,7 +149,7 @@ public class GenericJsonTests
             values.Add(GenericDatumJsonReader.Create(schema).Read(ref reader));
         }
 
-        await Assert.That(values).IsEquivalentTo(new AvroValue[] { 1, AvroValue.Null, 3 });
+        await Assert.That(values).IsEquivalentTo(new AvroValue[] { 1, AvroValue.Null, 3 }, CollectionOrdering.Matching);
     }
 
     [Test]

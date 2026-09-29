@@ -1,0 +1,5 @@
+{"type":"record","name":"Reading","namespace":"glue","fields":[
+  {"name":"id","type":"long"},
+  {"name":"sensor","type":"string"},
+  {"name":"values","type":{"type":"array","items":"double"}}
+]}

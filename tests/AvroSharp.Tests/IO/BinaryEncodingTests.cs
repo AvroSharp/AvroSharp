@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AvroSharp.IO;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.IO;
 
@@ -100,7 +101,7 @@ public class BinaryEncodingTests
         {
             true, false, -1.5f, true, Math.PI, double.NegativeInfinity, "010203", 0, "Grüße 日本 🎉", string.Empty,
             "utf8", "09080706", 3, true, (long)bytes.Length,
-        });
+        }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -137,13 +138,13 @@ public class BinaryEncodingTests
 
         var bytes = Convert.FromHexString(bulk);
         var (contiguousDoubles, contiguousFloats) = ReadBulk(new AvroReader(bytes), doubles.Length);
-        await Assert.That(contiguousDoubles).IsEquivalentTo(doubles);
-        await Assert.That(contiguousFloats).IsEquivalentTo(floats);
+        await Assert.That(contiguousDoubles).IsEquivalentTo(doubles, CollectionOrdering.Matching);
+        await Assert.That(contiguousFloats).IsEquivalentTo(floats, CollectionOrdering.Matching);
 
         // A byte-by-byte sequence takes the per-item path.
         var (segmentedDoubles, segmentedFloats) = ReadBulk(new AvroReader(Segments.ByteByByte(bytes)), doubles.Length);
-        await Assert.That(segmentedDoubles).IsEquivalentTo(doubles);
-        await Assert.That(segmentedFloats).IsEquivalentTo(floats);
+        await Assert.That(segmentedDoubles).IsEquivalentTo(doubles, CollectionOrdering.Matching);
+        await Assert.That(segmentedFloats).IsEquivalentTo(floats, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -161,8 +162,8 @@ public class BinaryEncodingTests
         await Assert.That(bulk).IsEqualTo(single);
 
         var bytes = Convert.FromHexString(bulk);
-        await Assert.That(ReadBooleans(new AvroReader(bytes), values.Length)).IsEquivalentTo(values);
-        await Assert.That(ReadBooleans(new AvroReader(Segments.ByteByByte(bytes)), values.Length)).IsEquivalentTo(values);
+        await Assert.That(ReadBooleans(new AvroReader(bytes), values.Length)).IsEquivalentTo(values, CollectionOrdering.Matching);
+        await Assert.That(ReadBooleans(new AvroReader(Segments.ByteByByte(bytes)), values.Length)).IsEquivalentTo(values, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -307,11 +308,11 @@ public class BinaryEncodingTests
         var expected = ReadMixture(new AvroReader(bytes));
         for (var cut = 0; cut <= bytes.Length; cut++)
         {
-            await Assert.That(ReadMixture(new AvroReader(Segments.Split(bytes, cut)))).IsEquivalentTo(expected);
+            await Assert.That(ReadMixture(new AvroReader(Segments.Split(bytes, cut)))).IsEquivalentTo(expected, CollectionOrdering.Matching);
         }
 
-        await Assert.That(ReadMixture(new AvroReader(Segments.ByteByByte(bytes)))).IsEquivalentTo(expected);
-        await Assert.That(expected).IsEquivalentTo(MixtureValues);
+        await Assert.That(ReadMixture(new AvroReader(Segments.ByteByByte(bytes)))).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That(expected).IsEquivalentTo(MixtureValues, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -427,7 +428,7 @@ public class BinaryEncodingTests
         await Assert.That(pendingBeforeFlush).IsGreaterThan(0);
         await Assert.That(pendingAfterFlush).IsEqualTo(0);
         await Assert.That(written).IsEqualTo(output.WrittenCount);
-        await Assert.That(readPayload).IsEquivalentTo(payload);
+        await Assert.That(readPayload).IsEquivalentTo(payload, CollectionOrdering.Matching);
         await Assert.That(readString).IsEqualTo(new string('x', 3000));
         await Assert.That(readLong).IsEqualTo(long.MinValue);
     }

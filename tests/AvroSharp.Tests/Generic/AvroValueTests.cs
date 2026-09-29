@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.Schemas;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Generic;
 
@@ -25,7 +26,7 @@ public class AvroValueTests
         await Assert.That(AvroValue.FromSingle(1.5f).AsDouble()).IsEqualTo(1.5);
         await Assert.That(AvroValue.FromDouble(Math.E).AsDouble()).IsEqualTo(Math.E);
         await Assert.That(AvroValue.FromString("s").AsString()).IsEqualTo("s");
-        await Assert.That(AvroValue.FromByteArray([1, 2]).AsBytes()).IsEquivalentTo(new byte[] { 1, 2 });
+        await Assert.That(AvroValue.FromByteArray([1, 2]).AsBytes()).IsEquivalentTo(new byte[] { 1, 2 }, CollectionOrdering.Matching);
         await Assert.That(AvroValue.FromEnum(enumSchema, 1).AsEnumSymbol()).IsEqualTo("B");
         await Assert.That(AvroValue.FromEnum(enumSchema, "A").AsEnumOrdinal()).IsEqualTo(0);
         await Assert.That(AvroValue.FromEnum(enumSchema, "A").EnumSchema).IsSameReferenceAs(enumSchema);

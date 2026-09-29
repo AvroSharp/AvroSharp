@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AvroSharp.Schemas;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Schemas;
 
@@ -36,7 +37,7 @@ public class SchemaParserTests
         await Assert.That(a.Doc).IsEqualTo("first");
         await Assert.That(a.DefaultValue!.Value.GetInt32()).IsEqualTo(1);
         await Assert.That(a.Order).IsEqualTo(FieldOrder.Descending);
-        await Assert.That(a.Aliases).IsEquivalentTo(new[] { "x", "y" });
+        await Assert.That(a.Aliases).IsEquivalentTo(new[] { "x", "y" }, CollectionOrdering.Matching);
         await Assert.That(a.Properties["custom"].GetBoolean()).IsTrue();
 
         await Assert.That(schema.Fields[1].Order).IsEqualTo(FieldOrder.Ignore);
@@ -124,7 +125,7 @@ public class SchemaParserTests
     public async Task Enum_ReadsSymbolsAndDefault()
     {
         var schema = (EnumSchema)AvroSchema.Parse("""{"type":"enum","name":"Suit","symbols":["SPADES","HEARTS"],"default":"HEARTS"}""");
-        await Assert.That(schema.Symbols).IsEquivalentTo(new[] { "SPADES", "HEARTS" });
+        await Assert.That(schema.Symbols).IsEquivalentTo(new[] { "SPADES", "HEARTS" }, CollectionOrdering.Matching);
         await Assert.That(schema.Default).IsEqualTo("HEARTS");
         await Assert.That(schema.TryGetOrdinal("HEARTS", out var ordinal)).IsTrue();
         await Assert.That(ordinal).IsEqualTo(1);

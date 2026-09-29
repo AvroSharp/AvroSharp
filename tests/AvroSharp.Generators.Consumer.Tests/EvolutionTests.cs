@@ -9,7 +9,7 @@ namespace AvroSharp.Generators.Consumer.Tests;
 public class EvolutionTests
 {
     // Version 1 of evo.Person: an int id, the old field name, a field version 2 removed, and an enum symbol version 2 lacks.
-    private const string Version1 = """
+    internal const string Version1 = """
         {"type":"record","name":"Person","namespace":"evo","fields":[
           {"name":"id","type":"int"},
           {"name":"nickname","type":"string"},

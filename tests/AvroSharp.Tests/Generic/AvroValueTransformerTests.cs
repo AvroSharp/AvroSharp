@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.Schemas;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Generic;
 
@@ -46,13 +47,41 @@ public class AvroValueTransformerTests
 
         await Assert.That(result["name"].AsString()).IsEqualTo("ADA LOVELACE");
         await Assert.That(result["email"].AsString()).IsEqualTo("ADA@EXAMPLE.COM");
-        await Assert.That(result["phones"].AsArray().Select(p => p.AsString())).IsEquivalentTo(new[] { "+44 1", "+44 2" });
+        await Assert.That(result["phones"].AsArray().Select(p => p.AsString())).IsEquivalentTo(new[] { "+44 1", "+44 2" }, CollectionOrdering.Matching);
         await Assert.That(result["address"].AsRecord()["street"].AsString()).IsEqualTo("12 ST JAMES'S SQUARE");
 
         // Untagged values keep their instances; the input is not changed.
         await Assert.That(result["address"].AsRecord()["city"].AsString()).IsEqualTo("London");
         await Assert.That(ReferenceEquals(result["notes"].AsMap(), customer.AsRecord()["notes"].AsMap())).IsTrue();
         await Assert.That(GenericDatumWriter.Create(s_customer).WriteToArray(customer).SequenceEqual(before)).IsTrue();
+    }
+
+    /// <summary>
+    /// A tagged map's values are replaced, and its keys kept (#133: the test above never tagged its map, so no map
+    /// value was ever replaced).
+    /// </summary>
+    [Test]
+    public async Task TaggedMapValues_AreReplaced_KeepingTheKeys_AndUntaggedMapsKeepTheirInstances()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""
+            {"type":"record","name":"Profile","namespace":"shop","fields":[
+              {"name":"contacts","type":{"type":"map","values":"string"},"confluent:tags":["PII"]},
+              {"name":"settings","type":{"type":"map","values":"string"}}]}
+            """);
+        var contacts = new Dictionary<string, AvroValue>(StringComparer.Ordinal) { ["home"] = "ada@home", ["work"] = "ada@work", ["empty"] = "" };
+        var settings = new Dictionary<string, AvroValue>(StringComparer.Ordinal) { ["theme"] = "dark" };
+        AvroValue profile = new GenericRecord(schema) { ["contacts"] = AvroValue.FromMap(contacts), ["settings"] = AvroValue.FromMap(settings) };
+        var before = GenericDatumWriter.Create(schema).WriteToArray(profile);
+
+        var result = AvroValueTransformer.Transform(schema, profile, UpperCasePii).AsRecord();
+
+        var replaced = result["contacts"].AsMap();
+        await Assert.That(replaced.Count).IsEqualTo(3);
+        await Assert.That(replaced["home"].AsString()).IsEqualTo("ADA@HOME");
+        await Assert.That(replaced["work"].AsString()).IsEqualTo("ADA@WORK");
+        await Assert.That(replaced["empty"].AsString()).IsEqualTo(string.Empty);
+        await Assert.That(ReferenceEquals(result["settings"].AsMap(), profile.AsRecord()["settings"].AsMap())).IsTrue();
+        await Assert.That(GenericDatumWriter.Create(schema).WriteToArray(profile).SequenceEqual(before)).IsTrue();
     }
 
     [Test]
@@ -76,7 +105,7 @@ public class AvroValueTransformerTests
             ("shop.Customer.notes", AvroSchemaType.String, "prefers email"),
             ("shop.Address.street", AvroSchemaType.String, "12 St James's Square"),
             ("shop.Address.city", AvroSchemaType.String, "London"),
-        });
+        }, CollectionOrdering.Matching);
     }
 
     [Test]

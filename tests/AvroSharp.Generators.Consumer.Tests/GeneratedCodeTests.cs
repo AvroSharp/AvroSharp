@@ -10,6 +10,7 @@ using AvroSharp.Schemas;
 using ApacheReader = Avro.Generic.GenericDatumReader<object>;
 using ApacheSchema = Avro.Schema;
 using ApacheWriter = Avro.Generic.GenericDatumWriter<object>;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Generators.Consumer.Tests;
 
@@ -36,11 +37,11 @@ public class GeneratedCodeTests
         await Assert.That(back.CustomerName).IsEqualTo("Ada");
         await Assert.That(back.Status).IsEqualTo(shop.Status.@class);
         await Assert.That(back.Sku).IsEqualTo(order.Sku);
-        await Assert.That(back.Counters).IsEquivalentTo(order.Counters);
-        await Assert.That(back.Weights).IsEquivalentTo(order.Weights);
-        await Assert.That(back.Flags).IsEquivalentTo(order.Flags);
+        await Assert.That(back.Counters).IsEquivalentTo(order.Counters, CollectionOrdering.Matching);
+        await Assert.That(back.Weights).IsEquivalentTo(order.Weights, CollectionOrdering.Matching);
+        await Assert.That(back.Flags).IsEquivalentTo(order.Flags, CollectionOrdering.Matching);
         await Assert.That(back.Lines[1].Note).IsEqualTo("fragile");
-        await Assert.That(back.Groups["g"]).IsEquivalentTo(new[] { "x", "y" });
+        await Assert.That(back.Groups["g"]).IsEquivalentTo(new[] { "x", "y" }, CollectionOrdering.Matching);
         await Assert.That(back.Discount).IsNull();
         await Assert.That(back.Priority).IsEqualTo(7);
         await Assert.That(back.Extra).IsTypeOf<List<long>>();
@@ -162,7 +163,7 @@ public class GeneratedCodeTests
 
         // Within the budget in total, nested arrays of nulls are read.
         var node = graph.Node.FromAvroBytes(NodeWithChildren([30_000, 30_000]));
-        await Assert.That(node.Children.Select(c => c.Nulls.Count)).IsEquivalentTo(new[] { 30_000, 30_000 });
+        await Assert.That(node.Children.Select(c => c.Nulls.Count)).IsEquivalentTo(new[] { 30_000, 30_000 }, CollectionOrdering.Matching);
 
         // Each value read from a reused reader (as in a container block) gets the whole budget.
         byte[] two = [.. NodeWithChildren([60_000]), .. NodeWithChildren([60_000])];

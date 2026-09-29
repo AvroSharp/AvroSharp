@@ -7,6 +7,7 @@ using AvroSharp.Containers;
 using AvroSharp.Generic;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Codecs.Tests;
 
@@ -42,7 +43,7 @@ public class CodecTests
         var records = reader.ReadAll().ToList();
 
         await Assert.That(reader.Codec).IsEqualTo(codec);
-        await Assert.That(records).IsEquivalentTo(expected);
+        await Assert.That(records).IsEquivalentTo(expected, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -84,7 +85,7 @@ public class CodecTests
         using var reader = Open("apache-avro/weather-snappy.avro");
 
         await Assert.That(reader.Codec).IsEqualTo("snappy");
-        await Assert.That(reader.ReadAll().ToList()).IsEquivalentTo(expected);
+        await Assert.That(reader.ReadAll().ToList()).IsEquivalentTo(expected, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -286,7 +287,7 @@ public class CodecTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new XzCodec(-1));
         Assert.Throws<ArgumentOutOfRangeException>(() => new XzCodec(10));
 
-        await Assert.That(AvroCodecs.All.Select(c => c.Name)).IsEquivalentTo(new[] { "snappy", "zstandard", "bzip2", "xz" });
+        await Assert.That(AvroCodecs.All.Select(c => c.Name)).IsEquivalentTo(new[] { "snappy", "zstandard", "bzip2", "xz" }, CollectionOrdering.Any);
     }
 
     private static AvroFileReader<AvroValue> Open(string testData) =>
