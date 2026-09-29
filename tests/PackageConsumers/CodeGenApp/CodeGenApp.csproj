@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A .NET 8 application calling the packed AvroSharp.CodeGen directly, run on the .NET 8 runtime (#136). Until
+       0.2.0 the package had only a netstandard2.0 build, compiled against System.Text.Json 10, which .NET 8 could
+       not load. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AvroSharp.CodeGen" Version="$(AvroSharpVersion)" />
+  </ItemGroup>
+
+</Project>

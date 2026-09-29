@@ -1,0 +1,13 @@
+{"type":"record","name":"Order","namespace":"consumer","fields":[
+  {"name":"id","type":"long"},
+  {"name":"status","type":{"type":"enum","name":"Status","symbols":["NEW","PAID"]},"default":"NEW"},
+  {"name":"hash","type":{"type":"fixed","name":"Hash","size":4}},
+  {"name":"total","type":{"type":"bytes","logicalType":"decimal","precision":10,"scale":2}},
+  {"name":"day","type":{"type":"int","logicalType":"date"}},
+  {"name":"at","type":{"type":"long","logicalType":"timestamp-micros"}},
+  {"name":"ref","type":{"type":"string","logicalType":"uuid"}},
+  {"name":"tags","type":{"type":"array","items":"string"},"default":[]},
+  {"name":"attributes","type":{"type":"map","values":"long"},"default":{}},
+  {"name":"note","type":["null","string"],"default":null},
+  {"name":"shipping","type":{"type":"record","name":"Address","fields":[{"name":"city","type":"string"}]},"default":{"city":"Budapest"}}
+]}

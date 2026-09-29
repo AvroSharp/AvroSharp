@@ -61,9 +61,20 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.0.x
+          # 8.0: the package consumers run the tool's net8.0 build, and a net8.0 app, on .NET 8.
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-      - run: dotnet pack AvroSharp.slnx -c Release
+      # Built first and packed without building, as CI does: a pack that also builds once hit a SourceLink file lock
+      # on AvroSharp.Generators, which is built both as a project and as an analyzer reference (#136).
+      - run: dotnet build AvroSharp.slnx -c Release
+      - run: dotnet pack AvroSharp.slnx -c Release --no-build
+
+      # The packed packages, used as a user does, before any of them is published (#136).
+      - name: Package consumers
+        shell: bash
+        run: build/test-packages.sh
 
       # The package version comes from the tag through MinVer; the release notes are its CHANGELOG section.
       - name: Version and release notes
