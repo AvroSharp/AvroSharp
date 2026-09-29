@@ -446,10 +446,14 @@ public class SchemaResolutionTests
         // Repeated checks, as a reader of generated types makes once per record, alternating between reader schemas.
         for (var i = 0; i < 3; i++)
         {
-            await Assert.That(AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(writer, sameAsWriter)).IsTrue();
-            await Assert.That(AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(writer, other)).IsFalse();
-            await Assert.That(AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(writer, writer)).IsTrue();
+            await Assert.That(writer.HasSameCanonicalForm(sameAsWriter)).IsTrue();
+            await Assert.That(writer.HasSameCanonicalForm(other)).IsFalse();
+            await Assert.That(writer.HasSameCanonicalForm(writer)).IsTrue();
         }
+
+        // Equals stays reference equality: the same encoding is not the same schema.
+        await Assert.That(writer.Equals(sameAsWriter)).IsFalse();
+        Assert.Throws<ArgumentNullException>(() => writer.HasSameCanonicalForm(null!));
     }
 
     [Test]

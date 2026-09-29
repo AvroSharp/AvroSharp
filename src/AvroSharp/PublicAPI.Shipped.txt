@@ -646,7 +646,6 @@ static AvroSharp.Serialization.Generated.AvroGeneratedCode.GetRecordPlan(AvroSha
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.InitialCapacity(int count) -> int
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.InvalidFieldPosition(int fieldPos, int fieldCount, string! recordName) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.InvalidUnionIndex(int index, int branchCount) -> AvroSharp.AvroDataException!
-static AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema) -> bool
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.NullValue(string! field) -> AvroSharp.AvroException!
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.PublishSchema(ref AvroSharp.Schemas.AvroSchema? field, AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Schemas.AvroSchema!
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.PutTypeMismatch(object? value, AvroSharp.Schemas.AvroSchema! schema, int fieldPos, string! expectedType) -> AvroSharp.AvroException!

@@ -431,6 +431,7 @@ Order m = reader.Decode(bytes);
   - `EnumSchema.Default` is now `DefaultSymbol`, like the constructor parameter; `Default` read like a static.
   - `AvroReader.Skip(long)` is now `SkipRaw`, so it doesn't read as a sibling of `SkipBytes()`, which skips an Avro `bytes` value.
 - **Exceptions:** `AvroException`, `AvroDataException` (malformed data) and `AvroSchemaException` (invalid schemas) are all in the `AvroSharp` namespace. Code in any `AvroSharp.*` namespace sees them without a `using`.
+- **Schema equality:** `AvroSchema.HasSameCanonicalForm(AvroSchema)` is public: it compares encodings, and remembers the last match. `Equals` stays reference equality by design, because schemas with the same canonical form can differ in docs, aliases, defaults and properties; `AvroSchema`'s docs say so. `AvroGeneratedCode.IsSameSchema` is gone, and generated code calls `HasSameCanonicalForm`.
 - **Small ones:**
   - `SchemaFingerprint.Crc64AvroEmpty` is a `long`, like every fingerprint. The polynomial isn't public.
   - `AvroFileReader<T>.TryGetMetadataString` replaces `GetMetadataString`.

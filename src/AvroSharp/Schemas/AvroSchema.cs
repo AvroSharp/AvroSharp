@@ -11,6 +11,11 @@ namespace AvroSharp.Schemas;
 /// An immutable Avro schema. Use <see cref="Parse(string, AvroSchemaParseOptions?)"/> to read schema JSON,
 /// or construct the concrete schema types directly.
 /// </summary>
+/// <remarks>
+/// <see cref="object.Equals(object)"/> is reference equality, by design: two schemas with the same Parsing Canonical
+/// Form can still differ in docs, aliases, defaults and properties, which matter for resolution and code generation.
+/// <see cref="HasSameCanonicalForm"/> compares encodings.
+/// </remarks>
 public abstract class AvroSchema
 {
     private static readonly IReadOnlyDictionary<string, JsonElement> s_noProperties = new Dictionary<string, JsonElement>(0, StringComparer.Ordinal);
@@ -128,9 +133,15 @@ public abstract class AvroSchema
     // Benign race: concurrent callers compute identical values and one reference wins.
     private CanonicalData GetCanonical() => _canonical ??= CanonicalData.Create(this);
 
-    /// <summary>Gets whether <paramref name="other"/> has this schema's Parsing Canonical Form (and so the same encoding).</summary>
-    internal bool HasSameCanonicalForm(AvroSchema other)
+    /// <summary>
+    /// Gets whether <paramref name="other"/> has this schema's Parsing Canonical Form, and so the same binary encoding:
+    /// data written with one reads as the other without resolution. Repeated calls with the same instance are one
+    /// reference comparison.
+    /// </summary>
+    /// <param name="other">The other schema.</param>
+    public bool HasSameCanonicalForm(AvroSchema other)
     {
+        ArgumentNullException.ThrowIfNull(other);
         if (ReferenceEquals(this, other) || ReferenceEquals(_sameCanonicalForm, other))
         {
             return true;

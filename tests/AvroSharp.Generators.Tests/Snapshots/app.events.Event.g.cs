@@ -145,7 +145,7 @@ namespace app.events
         public static Event Read(ref global::AvroSharp.IO.AvroReader reader, global::AvroSharp.Schemas.AvroSchema writerSchema)
         {
             global::AvroSharp.Serialization.Generated.AvroGeneratedCode.BeginRead(ref reader);
-            if (global::AvroSharp.Serialization.Generated.AvroGeneratedCode.IsSameSchema(writerSchema, Schema))
+            if ((writerSchema ?? throw new global::System.ArgumentNullException("writerSchema")).HasSameCanonicalForm(Schema))
             {
                 return ReadCore(ref reader, null, 0);
             }

@@ -147,19 +147,6 @@ public static partial class AvroGeneratedCode
         new($"Records are nested more than {MaxDepth} levels deep.");
 
     /// <summary>
-    /// Gets whether data written with <paramref name="writerSchema"/> can be read as <paramref name="readerSchema"/>
-    /// without resolution: the same instance, or the same Parsing Canonical Form (identical encoding).
-    /// </summary>
-    /// <param name="writerSchema">The schema the data was written with.</param>
-    /// <param name="readerSchema">The generated type's schema.</param>
-    public static bool IsSameSchema(AvroSchema writerSchema, AvroSchema readerSchema)
-    {
-        ArgumentNullException.ThrowIfNull(writerSchema);
-        ArgumentNullException.ThrowIfNull(readerSchema);
-        return writerSchema.HasSameCanonicalForm(readerSchema);
-    }
-
-    /// <summary>
     /// Reads one value written with <paramref name="writerSchema"/> and returns it in <paramref name="readerSchema"/>'s
     /// encoding, resolved as the specification says, for the generated reader to read. No generic values are created.
     /// </summary>

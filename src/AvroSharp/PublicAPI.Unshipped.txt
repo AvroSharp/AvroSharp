@@ -9,3 +9,4 @@ const AvroSharp.Schemas.AvroSchemaParseOptions.DefaultMaxDepth = 256 -> int
 AvroSharp.Generic.GenericDatumReader.Read(in System.Buffers.ReadOnlySequence<byte> data) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Messages.AvroMessage.Write(System.Buffers.IBufferWriter<byte>! output, in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.GenericDatumWriter! writer) -> void
 static AvroSharp.Messages.AvroRegistryMessage.Write(System.Buffers.IBufferWriter<byte>! output, AvroSharp.Messages.AvroRegistryFraming! framing, AvroSharp.Messages.AvroSchemaId id, in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.GenericDatumWriter! writer) -> void
+AvroSharp.Schemas.AvroSchema.HasSameCanonicalForm(AvroSharp.Schemas.AvroSchema! other) -> bool

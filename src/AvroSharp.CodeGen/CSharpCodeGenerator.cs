@@ -610,7 +610,7 @@ public static class CSharpCodeGenerator
         w.Line("/// </summary>");
         w.Open($"public static {name} Read(ref {Reader} reader, global::AvroSharp.Schemas.AvroSchema writerSchema)");
         w.Line($"{Support}.BeginRead(ref reader);");
-        w.Open($"if ({Support}.IsSameSchema(writerSchema, {schemaProperty}))");
+        w.Open($"if ((writerSchema ?? throw new global::System.ArgumentNullException(\"writerSchema\")).HasSameCanonicalForm({schemaProperty}))");
         w.Line("return ReadCore(ref reader, null, 0);");
         w.Close();
         w.Line();

@@ -99,6 +99,6 @@ internal static class AvroSerializable<T>
 
     /// <summary>The reader of data written with <paramref name="writerSchema"/>: the type's own when the schemas match.</summary>
     public static AvroReadFunc<T> For(AvroSchema writerSchema) =>
-        AvroGeneratedCode.IsSameSchema(writerSchema, T.Schema) ? Read : (ref reader) => T.Read(ref reader, writerSchema);
+        writerSchema.HasSameCanonicalForm(T.Schema) ? Read : (ref reader) => T.Read(ref reader, writerSchema);
 }
 #endif
