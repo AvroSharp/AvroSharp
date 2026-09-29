@@ -422,6 +422,7 @@ Order m = reader.Decode(bytes);
   - The `…Store` classes are their in-memory implementations.
   - Both interfaces have a synchronous and an asynchronous lookup. On netstandard2.0, which has no default interface members, adding one after 1.0 would break every implementer.
   - `AvroMessageReader<T>` has `ReadAsync`, like `AvroRegistryMessageReader<T>`. It fetches an unknown fingerprint once; a failed or cancelled fetch isn't cached.
+- **`AvroSerializer`:** `Serialize(output, value)` and `TrySerialize(destination, value, out bytesWritten)` take the output first, as every other write API does. `Deserialize<T>(in ReadOnlySequence<byte>, AvroSchema writerSchema)` completes the read overloads.
 
 ---
 

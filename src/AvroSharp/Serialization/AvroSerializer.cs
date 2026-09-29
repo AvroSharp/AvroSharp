@@ -22,9 +22,9 @@ public static class AvroSerializer
 
     /// <summary>Writes a value to <paramref name="output"/>, allocating nothing for a reused buffer writer.</summary>
     /// <typeparam name="T">A generated type.</typeparam>
-    /// <param name="value">The value.</param>
     /// <param name="output">The destination.</param>
-    public static void Serialize<T>(T value, IBufferWriter<byte> output)
+    /// <param name="value">The value.</param>
+    public static void Serialize<T>(IBufferWriter<byte> output, T value)
         where T : IAvroSerializable<T>
     {
         var writer = new AvroWriter(output);
@@ -34,11 +34,11 @@ public static class AvroSerializer
 
     /// <summary>Writes a value into <paramref name="destination"/>, allocating nothing.</summary>
     /// <typeparam name="T">A generated type.</typeparam>
-    /// <param name="value">The value.</param>
     /// <param name="destination">The caller's memory.</param>
+    /// <param name="value">The value.</param>
     /// <param name="bytesWritten">The bytes written, or 0 when the value does not fit.</param>
     /// <returns><see langword="true"/> when the value fit.</returns>
-    public static bool TrySerialize<T>(T value, Span<byte> destination, out int bytesWritten)
+    public static bool TrySerialize<T>(Span<byte> destination, T value, out int bytesWritten)
         where T : IAvroSerializable<T>
     {
         var writer = AvroGeneratedCode.BeginTryWrite(destination);
@@ -71,6 +71,17 @@ public static class AvroSerializer
     /// <param name="data">The data.</param>
     /// <param name="writerSchema">The schema the data was written with.</param>
     public static T Deserialize<T>(ReadOnlySpan<byte> data, AvroSchema writerSchema)
+        where T : IAvroSerializable<T>
+    {
+        var reader = new AvroReader(data);
+        return T.Read(ref reader, writerSchema);
+    }
+
+    /// <summary>Reads a value written with <paramref name="writerSchema"/>, another version of the type's schema, from a sequence of buffers.</summary>
+    /// <typeparam name="T">A generated type.</typeparam>
+    /// <param name="data">The data.</param>
+    /// <param name="writerSchema">The schema the data was written with.</param>
+    public static T Deserialize<T>(in ReadOnlySequence<byte> data, AvroSchema writerSchema)
         where T : IAvroSerializable<T>
     {
         var reader = new AvroReader(data);
