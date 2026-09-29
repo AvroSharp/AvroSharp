@@ -1,6 +1,6 @@
 # The avrosharp command-line tool
 
-`avrosharp` ([AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool)) generates C# from Avro schema files, and prints schemas' canonical forms and fingerprints. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and needs the .NET 10 runtime.
+`avrosharp` ([AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool)) generates C# from Avro schema files, and prints schemas' canonical forms and fingerprints. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
 
 On this page:
 - [Install](#install)

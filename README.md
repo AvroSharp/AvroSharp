@@ -11,12 +11,12 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 
 **[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Samples](samples/README.md)
 
-> **Status:** an early preview (0.1). The API may still change before 1.0. Working today:
+> **Status:** an early preview (0.x). The API may still change before 1.0. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
-> - C# code generation from `.avsc` files;
+> - C# code generation from `.avsc` files, with a source generator and the `avrosharp` command-line tool, and schema resolution for the generated types;
 > - object container files (synchronous and asynchronous) with every codec in the specification;
-> - single-object encoding.
+> - single-object encoding, schema-registry framing (Confluent, Apicurio, AWS Glue), and streams of objects.
 >
 > See [the samples](samples/README.md) for runnable examples, [the roadmap](docs/roadmap.md) for what is next, and [the documentation](https://zcsizmadia.github.io/AvroSharp/) for guides, the API reference, benchmarks and the design.
 
@@ -25,7 +25,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 - Complete Avro 1.12 support: schemas, binary and JSON encoding, schema resolution, object container files, single-object encoding, canonical form and fingerprints, and all logical types.
 - Faster than Apache.Avro on every scenario in the benchmark suite, with no more allocations. This is a release gate: generated records read 3.95× and write 6.18× faster, and container files read up to 22× faster ([benchmarks](docs/benchmarks.md), [compared with Apache.Avro](docs/apache-avro.md)).
 - Serialization code produced by source generators: no reflection, Native AOT and trimming compatible.
-- Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and `System.IO.Pipelines`.
+- Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and streams.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
 - Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
 

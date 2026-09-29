@@ -46,7 +46,10 @@ Branch, open a pull request, and merge (squash) once CI is green. `main` is neve
 
 Versions come from git tags through MinVer: `v1.2.3`, or `v1.2.3-alpha.1` for a pre-release.
 
-1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [1.2.3] - YYYY-MM-DD` (the exact version, pre-release suffix included) and start a new empty `[Unreleased]` section. Merge that.
+1. Prepare a release pull request, and merge it:
+   - in `CHANGELOG.md`, rename `## [Unreleased]` to `## [1.2.3] - YYYY-MM-DD` (the exact version, pre-release suffix included), start a new empty `[Unreleased]` section, and update the links at the bottom: `[Unreleased]` compares the new tag with `HEAD`, and the new version links to its release;
+   - move the API listings to Shipped: the lines of each `PublicAPI.Unshipped.txt` (and `src/AvroSharp/PublicAPI/net8.0/`) go into the `PublicAPI.Shipped.txt` beside it, and the rules in `AnalyzerReleases.Unshipped.md` go into `AnalyzerReleases.Shipped.md` under `## Release 1.2.3`, so a later change to shipped API is reported;
+   - check that the package READMEs' status lines and `docs/roadmap.md` still describe the release: package READMEs are packed into the immutable `.nupkg`.
 2. Rehearse: run the **Release** workflow manually on `main` with `publish` off. It tests on Linux and Windows (including net481), packs, and checks the release notes, but pushes nothing.
 3. Tag the merge commit and push the tag: `git tag v1.2.3 && git push origin v1.2.3`. The workflow tests again, packs, pushes the packages and symbols to nuget.org, and creates the GitHub release from the CHANGELOG section, marked as a pre-release when the version has a suffix. It fails if the tag and the packed version differ, or if the CHANGELOG has no section for the version.
 
