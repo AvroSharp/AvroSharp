@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace AvroSharp.Schemas;
 
 /// <summary>
@@ -27,9 +29,8 @@ internal static class ZeroSizeValues
                 }
 
                 var total = 1L;
-                foreach (var field in record.Fields)
+                foreach (var fieldCount in record.Fields.Select(field => Count(field.Schema, depth + 1)))
                 {
-                    var fieldCount = Count(field.Schema, depth + 1);
                     if (fieldCount == 0)
                     {
                         return 0;
