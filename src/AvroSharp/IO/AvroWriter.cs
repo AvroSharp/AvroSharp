@@ -45,6 +45,9 @@ public ref struct AvroWriter
     public AvroWriter(IBufferWriter<byte> output)
     {
         ArgumentNullException.ThrowIfNull(output);
+#if NET8_0_OR_GREATER
+        FastBmi2.EnsureInitialized();
+#endif
         _output = output;
         _buffer = default;
         _buffered = 0;
@@ -61,6 +64,9 @@ public ref struct AvroWriter
     /// <summary>Initializes a writer over a fixed destination that, when <paramref name="discardOverflow"/> is set, records overflow instead of throwing.</summary>
     internal AvroWriter(Span<byte> destination, bool discardOverflow)
     {
+#if NET8_0_OR_GREATER
+        FastBmi2.EnsureInitialized();
+#endif
         _output = null;
         _buffer = destination;
         _buffered = 0;
@@ -260,22 +266,95 @@ public ref struct AvroWriter
 
     /// <summary>Writes <c>int</c> array items, each as a zig-zag varint.</summary>
     /// <param name="values">The items; write the block count first.</param>
+    /// <remarks>See <see cref="WriteLongs"/>.</remarks>
     public void WriteInts(scoped ReadOnlySpan<int> values)
     {
-        foreach (var value in values)
+        var i = 0;
+        while (i < values.Length)
         {
-            WriteInt(value);
+            var room = (_buffer.Length - _buffered) / MaxVarint64Length;
+            if (room == 0)
+            {
+                // Grows the buffer, or near the end of a fixed span writes only the bytes the value needs.
+                WriteInt(values[i++]);
+                continue;
+            }
+
+            var end = Math.Min(values.Length, i + room);
+            ref var buffer = ref MemoryMarshal.GetReference(_buffer);
+            var position = _buffered;
+            for (; i < end; i++)
+            {
+                var value = values[i];
+                position += WriteVarintAt(ref Unsafe.Add(ref buffer, position), (uint)((value << 1) ^ (value >> 31)));
+            }
+
+            _buffered = position;
         }
     }
 
     /// <summary>Writes <c>long</c> array items, each as a zig-zag varint.</summary>
+    /// <remarks>
+    /// PERF: the position is kept in a local while the buffer has room for whole values, so it is not stored to and
+    /// reloaded from the writer after every value. That round trip through memory limits one-at-a-time writes on
+    /// CPUs without memory renaming for such addresses (the EPYC 7543 in #27).
+    /// </remarks>
     /// <param name="values">The items; write the block count first.</param>
     public void WriteLongs(scoped ReadOnlySpan<long> values)
     {
-        foreach (var value in values)
+        var i = 0;
+        while (i < values.Length)
         {
-            WriteLong(value);
+            var room = (_buffer.Length - _buffered) / MaxVarint64Length;
+            if (room == 0)
+            {
+                WriteLong(values[i++]);
+                continue;
+            }
+
+            var end = Math.Min(values.Length, i + room);
+            ref var buffer = ref MemoryMarshal.GetReference(_buffer);
+            var position = _buffered;
+            for (; i < end; i++)
+            {
+                var value = values[i];
+                position += WriteVarintAt(ref Unsafe.Add(ref buffer, position), (ulong)((value << 1) ^ (value >> 63)));
+            }
+
+            _buffered = position;
         }
+    }
+
+    /// <summary>
+    /// Writes a varint at <paramref name="destination"/>, which has room for 10 bytes; returns its length. For the
+    /// bulk writers: every length is inlined into their one loop, so no value is slower than a single write (#102).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int WriteVarintAt(ref byte destination, ulong value)
+    {
+        if (value < 0x80)
+        {
+            destination = (byte)value;
+            return 1;
+        }
+
+        if (value < 0x4000)
+        {
+            destination = (byte)(value | 0x80);
+            Unsafe.Add(ref destination, 1) = (byte)(value >> 7);
+            return 2;
+        }
+
+#if NET8_0_OR_GREATER
+        // As for single values: without it, mixed lengths went through the 3/4/5/6-8 tests, and bulk Mixed1-10
+        // was up to 60% slower than single writes on the i7-12800H and the EPYC 7543.
+        if (FastBmi2.IsSupported && value < 1UL << 56)
+        {
+            return WriteSpreadWord(ref destination, value);
+        }
+#endif
+
+        return WriteMultiByteVarint(ref destination, value);
     }
 
     /// <summary>
@@ -337,13 +416,18 @@ public ref struct AvroWriter
     /// <remarks>
     /// PERF: hot path for every int, long, length, index and count.
     /// <list type="bullet">
-    /// <item>One and two bytes are written inline, and three and four bytes with direct stores, each behind its own
-    /// length branch. In records each field's length is usually stable, so these branches predict well. A
-    /// branchless one- and two-byte store (57c987c) was slower for uniform lengths on every machine measured, and
-    /// won only on randomly mixed lengths (docs/reviews/2026-09-26-branchless-varints.md).</item>
-    /// <item>Five to eight bytes (net8+) are one 8-byte store; the 7-bit groups are spread with BMI2 PDEP where it is
-    /// fast (see <c>FastBmi2</c>), or with shifts and masks otherwise.</item>
-    /// <item>Nine and ten bytes add one or two bytes after the word.</item>
+    /// <item>One and two bytes are written inline with direct stores, each behind its own length branch. In records
+    /// each field's length is usually stable, so these branches predict well. A branchless one- and two-byte store
+    /// (57c987c) was slower for uniform lengths on every machine measured, and won only on randomly mixed lengths
+    /// (docs/reviews/2026-09-26-branchless-varints.md).</item>
+    /// <item>Where PDEP is fast (see <c>FastBmi2</c>), three to eight bytes are inline too, as one 8-byte store of
+    /// the spread 7-bit groups. Out of line, the call cost more than the store: on the EPYC 7543, 3- to 8-byte
+    /// values were 26-35% faster inline (#102).</item>
+    /// <item>Everywhere else, and for nine and ten bytes, one out-of-line call (<see cref="WriteVarintMulti"/>). With
+    /// the shift-and-mask spread inline instead, 3 and 4 bytes were up to 15% slower on an i5-3570K (no BMI2), and
+    /// the larger call site made 2 bytes and Mixed1-2 13-14% slower on a Ryzen 5 3500U
+    /// (docs/reviews/2026-09-28-varints-parse.md). The call is a void instance call, as before #102: returning the
+    /// length to the call site instead cost 1- and 2-byte values about 7% on the EPYC.</item>
     /// </list>
     /// Measure with VarintBenchmarks (single lengths and Mixed1-10) and the record benchmarks before changing.
     /// </remarks>
@@ -381,84 +465,114 @@ public ref struct AvroWriter
             return;
         }
 
+#if NET8_0_OR_GREATER
+        if (FastBmi2.IsSupported && value < 1UL << 56)
+        {
+            _buffered += WriteSpreadWord(ref destination, value);
+            return;
+        }
+#endif
+
         WriteVarintMulti(value);
     }
 
-    /// <summary>A varint of 3 or more bytes; kept out of line so the inlined call sites stay small.</summary>
+    /// <summary>A varint of 3 or more bytes, out of line so the inlined call sites stay small.</summary>
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void WriteVarintMulti(ulong value)
+    private void WriteVarintMulti(ulong value) => _buffered += WriteMultiByteVarint(ref At(_buffered), value);
+
+    /// <summary>
+    /// A varint of 3 or more bytes at <paramref name="destination"/>, which has room for 10; returns its length.
+    /// Written through <c>ref</c> stores with no bounds checks.
+    /// </summary>
+    /// <remarks>
+    /// PERF: the lengths are tested shortest first. Three to five bytes are one 4-byte store of the first four 7-bit
+    /// groups (plus the fifth byte), cheaper than the word for short values; bytes past the varint are overwritten by
+    /// the next value. Of three orders measured on a Ryzen 5 3500U without fast PDEP (#102), this one was as fast as
+    /// the best for 3 to 5 bytes, single and bulk, and 12% faster than testing below 2^35 first on randomly mixed
+    /// lengths. Main's order (3, 4, then the word from 5 bytes) was faster on mixed lengths but 17-47% slower for 5.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int WriteMultiByteVarint(ref byte destination, ulong value)
     {
-        var buffer = _buffer[_buffered..];
-
-        // Three or four bytes: direct stores, cheaper than the word path for short values.
-        if (value < 1UL << 21)
+        if (BitConverter.IsLittleEndian)
         {
-            buffer[0] = (byte)(value | 0x80);
-            buffer[1] = (byte)((value >> 7) | 0x80);
-            buffer[2] = (byte)(value >> 14);
-            _buffered += 3;
-            return;
-        }
+            if (value < 1UL << 21)
+            {
+                Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x8080);
+                return 3;
+            }
 
-        if (value < 1UL << 28)
-        {
-            buffer[0] = (byte)(value | 0x80);
-            buffer[1] = (byte)((value >> 7) | 0x80);
-            buffer[2] = (byte)((value >> 14) | 0x80);
-            buffer[3] = (byte)(value >> 21);
-            _buffered += 4;
-            return;
+            if (value < 1UL << 28)
+            {
+                Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x808080);
+                return 4;
+            }
+
+            if (value < 1UL << 35)
+            {
+                Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x80808080);
+                Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
+                return 5;
+            }
         }
 
 #if NET8_0_OR_GREATER
         if (value < 1UL << 56)
         {
-            // 5 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
-            // one write. Bytes past the varint are overwritten by the next value.
+            // 6 to 8 bytes: spread the 7-bit groups one per byte, set the continuation bits, and store the word in
+            // one write.
             var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
             var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
-            WriteWord(buffer, SpreadVarint(value) | continuation);
-            _buffered += length;
-            return;
+            WriteWord(ref destination, SpreadVarint(value) | continuation);
+            return length;
         }
 
-        _buffered += WriteLongVarint(buffer, value);
+        return WriteLongVarint(ref destination, value);
 #else
-        _buffered += WriteVarintLoop(buffer, value);
+        return WriteVarintLoop(ref destination, value);
 #endif
     }
 
-#if NET8_0_OR_GREATER
+    /// <summary>The first four 7-bit groups of <paramref name="value"/>, one per byte, as a little-endian word.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteWord(Span<byte> buffer, ulong word)
-    {
-        if (BitConverter.IsLittleEndian)
-        {
-            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(buffer), word);
-        }
-        else
-        {
-            BinaryPrimitives.WriteUInt64LittleEndian(buffer, word);
-        }
-    }
-#endif
+    private static uint LowGroups(ulong value) =>
+        (uint)(value & 0x7F) | ((uint)(value << 1) & 0x7F00) | ((uint)(value << 2) & 0x7F0000) | ((uint)(value << 3) & 0x7F000000);
+
 #if NET8_0_OR_GREATER
+    /// <summary>
+    /// Writes a varint below 2^56 of 3 to 8 bytes as one 8-byte store of its 7-bit groups, spread with PDEP; returns
+    /// its length. Only where PDEP is fast (FastBmi2, which implies x64 and so little-endian). Bytes past the varint
+    /// are overwritten by the next value.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int WriteSpreadWord(ref byte destination, ulong value)
+    {
+        var length = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
+        var continuation = 0x8080808080808080UL & ((1UL << ((length - 1) * 8)) - 1);
+        Unsafe.WriteUnaligned(ref destination, Bmi2.X64.ParallelBitDeposit(value, 0x7F7F7F7F7F7F7F7FUL) | continuation);
+        return length;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteWord(ref byte destination, ulong word) =>
+        Unsafe.WriteUnaligned(ref destination, BitConverter.IsLittleEndian ? word : BinaryPrimitives.ReverseEndianness(word));
+
     /// <summary>
     /// Writes a 9- or 10-byte varint (a value of 2^56 or more): the low 56 bits as a full word of continued bytes,
     /// then bits 56-62 and bit 63. Returns the number of bytes written.
     /// </summary>
-    private static int WriteLongVarint(Span<byte> buffer, ulong value)
+    private static int WriteLongVarint(ref byte destination, ulong value)
     {
-        WriteWord(buffer, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
+        WriteWord(ref destination, SpreadVarint(value & ((1UL << 56) - 1)) | 0x8080808080808080UL);
         var high = value >> 56;
         if (high < 0x80)
         {
-            buffer[8] = (byte)high;
+            Unsafe.Add(ref destination, 8) = (byte)high;
             return 9;
         }
 
-        buffer[8] = (byte)(high | 0x80);
-        buffer[9] = (byte)(high >> 7);
+        Unsafe.Add(ref destination, 8) = (byte)(high | 0x80);
+        Unsafe.Add(ref destination, 9) = (byte)(high >> 7);
         return MaxVarint64Length;
     }
 
@@ -508,6 +622,21 @@ public ref struct AvroWriter
         destination[position++] = (byte)value;
         return position;
     }
+
+#if !NET8_0_OR_GREATER
+    private static int WriteVarintLoop(ref byte destination, ulong value)
+    {
+        var position = 0;
+        while (value >= 0x80)
+        {
+            Unsafe.Add(ref destination, position++) = (byte)(value | 0x80);
+            value >>= 7;
+        }
+
+        Unsafe.Add(ref destination, position++) = (byte)value;
+        return position;
+    }
+#endif
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void WriteVarintExact(ulong value)

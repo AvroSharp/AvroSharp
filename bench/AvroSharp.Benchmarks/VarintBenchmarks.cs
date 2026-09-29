@@ -87,6 +87,18 @@ public class VarintBenchmarks
         return writer.BytesWritten;
     }
 
+    /// <summary>The same values through <c>WriteLongs</c>, as array items are written.</summary>
+    [Benchmark]
+    [BenchmarkCategory("Encode")]
+    public long AvroSharp_EncodeBulk()
+    {
+        _output.ResetWrittenCount();
+        var writer = new AvroWriter(_output);
+        writer.WriteLongs(_values);
+        writer.Flush();
+        return writer.BytesWritten;
+    }
+
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Decode")]
     public long ApacheAvro_Decode()

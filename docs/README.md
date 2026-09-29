@@ -20,3 +20,7 @@ Dated notes from reviews and benchmark runs. Each one records what was measured,
 | 2026-09-26 | [EPYC varints](reviews/2026-09-26-epyc-varint.md): varint performance on AMD EPYC |
 | 2026-09-26 | [Generated code](reviews/2026-09-26-generated-code.md): generated serializers against the generic model and Apache.Avro |
 | 2026-09-28 | [Full benchmark run](reviews/2026-09-28-benchmarks.md): every benchmark on an i7-12800H with .NET 10, as speed-ups over Apache.Avro |
+| 2026-09-28 | [perf/varints-parse benchmarks](reviews/2026-09-28-varints-parse.md): bulk reads, varint encode and schema parsing on an i5-3570K and a Ryzen 5 3500U |
+| 2026-09-28 | [perf/varints-parse at 41d6483](reviews/2026-09-28-varints-parse-rerun.md): the second run on both machines, with the record and container benchmarks |
+| 2026-09-28 | [perf/varints-parse on CPUs with fast PDEP](reviews/2026-09-28-varints-parse-fast-pdep.md): the i7-12800H and an EPYC 7543 at 8164630, and the bulk Mixed1-10 fix |
+| 2026-09-28 | [perf/varints-parse on CPUs without fast PDEP](reviews/2026-09-28-varints-parse-slow-pdep.md): the i5-3570K and the nas at 8164630, the full suite |

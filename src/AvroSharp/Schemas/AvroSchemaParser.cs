@@ -19,8 +19,6 @@ namespace AvroSharp.Schemas;
 /// </remarks>
 public sealed class AvroSchemaParser
 {
-    private const int StackallocThreshold = 1024;
-
     private readonly Dictionary<string, NamedSchema> _namedSchemas = new(StringComparer.Ordinal);
 
     /// <summary>Initializes a parser.</summary>
@@ -103,22 +101,15 @@ public sealed class AvroSchemaParser
     {
         ArgumentNullException.ThrowIfNull(json);
 
-        var maxBytes = Encoding.UTF8.GetMaxByteCount(json.Length);
-        byte[]? rented = null;
-        var buffer = maxBytes <= StackallocThreshold
-            ? stackalloc byte[StackallocThreshold]
-            : (rented = ArrayPool<byte>.Shared.Rent(maxBytes));
+        var buffer = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetMaxByteCount(json.Length));
         try
         {
-            var length = Encoding.UTF8.GetBytes(json.AsSpan(), buffer);
-            return Parse(buffer[..length]);
+            var length = Encoding.UTF8.GetBytes(json, 0, json.Length, buffer, 0);
+            return ParseCore(buffer.AsMemory(0, length));
         }
         finally
         {
-            if (rented is not null)
-            {
-                ArrayPool<byte>.Shared.Return(rented);
-            }
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -127,6 +118,24 @@ public sealed class AvroSchemaParser
     /// <exception cref="AvroSchemaException">The JSON is malformed or the schema is invalid.</exception>
     public AvroSchema Parse(ReadOnlySpan<byte> utf8Json)
     {
+        // The pooled JsonDocument reads from memory, not a span; schemas are small, so the copy is cheap.
+        var buffer = ArrayPool<byte>.Shared.Rent(utf8Json.Length);
+        try
+        {
+            utf8Json.CopyTo(buffer);
+            return ParseCore(buffer.AsMemory(0, utf8Json.Length));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    // PERF (#103): the JSON is parsed into a pooled JsonDocument, which is returned when parsing ends; the defaults
+    // and custom properties a schema keeps are cloned out of it. JsonElement.ParseValue, which owns its memory, cost
+    // about 2 us more for a small schema, a fixed cost of every parse.
+    private AvroSchema ParseCore(ReadOnlyMemory<byte> utf8Json)
+    {
         var readerOptions = new JsonReaderOptions
         {
             CommentHandling = Options.AllowComments ? JsonCommentHandling.Skip : JsonCommentHandling.Disallow,
@@ -134,27 +143,21 @@ public sealed class AvroSchemaParser
             MaxDepth = Options.MaxDepth,
         };
 
-        if (!Utf8Validation.IsValid(utf8Json))
+        if (!Utf8Validation.IsValid(utf8Json.Span))
         {
             throw new AvroSchemaException("The schema JSON is not valid UTF-8.", path: null, lineNumber: null, bytePositionInLine: null);
         }
 
-        JsonElement root;
+        JsonDocument document;
         try
         {
-            var reader = new Utf8JsonReader(utf8Json, readerOptions);
-
-            // ParseValue copies the value into memory owned by the element, so defaults and custom
-            // properties can be kept by the schema without cloning, and nothing needs disposing.
-            root = JsonElement.ParseValue(ref reader);
-            if (reader.Read())
+            // Rejects content after the schema, too.
+            document = JsonDocument.Parse(utf8Json, new JsonDocumentOptions
             {
-                throw new AvroSchemaException(
-                    "Unexpected content after the schema JSON.",
-                    path: null,
-                    lineNumber: null,
-                    bytePositionInLine: null);
-            }
+                CommentHandling = readerOptions.CommentHandling,
+                AllowTrailingCommas = readerOptions.AllowTrailingCommas,
+                MaxDepth = readerOptions.MaxDepth,
+            });
         }
         catch (JsonException ex)
         {
@@ -166,24 +169,27 @@ public sealed class AvroSchemaParser
                 ex);
         }
 
-        var builder = new SchemaJsonReader(Options, _namedSchemas);
-        try
+        using (document)
         {
-            var schema = builder.Read(root);
-            builder.Commit();
-            return schema;
-        }
-        catch (SchemaJsonReader.ParseError error)
-        {
-            long? line = null;
-            long? column = null;
-            if (JsonLocator.TryLocate(utf8Json, readerOptions, error.Path, out var l, out var c))
+            var builder = new SchemaJsonReader(Options, _namedSchemas);
+            try
             {
-                line = l;
-                column = c;
+                var schema = builder.Read(document.RootElement);
+                builder.Commit();
+                return schema;
             }
+            catch (SchemaJsonReader.ParseError error)
+            {
+                long? line = null;
+                long? column = null;
+                if (JsonLocator.TryLocate(utf8Json.Span, readerOptions, error.Path, out var l, out var c))
+                {
+                    line = l;
+                    column = c;
+                }
 
-            throw new AvroSchemaException(error.Reason, JsonLocator.FormatPath(error.Path), line, column, error.InnerException);
+                throw new AvroSchemaException(error.Reason, JsonLocator.FormatPath(error.Path), line, column, error.InnerException);
+            }
         }
     }
 
@@ -220,7 +226,7 @@ public sealed class AvroSchemaParser
                 length += read;
             }
 
-            return Parse(buffer.AsSpan(0, length));
+            return ParseCore(buffer.AsMemory(0, length));
         }
         finally
         {

@@ -183,7 +183,7 @@ internal sealed class SchemaJsonReader
         }
 
         var logicalType = TakeLogicalType(properties, type, fixedSize: -1);
-        return new PrimitiveSchema(type, logicalType, properties);
+        return new PrimitiveSchema(type, logicalType, Keep(properties));
     }
 
     private RecordSchema ReadRecord(JsonElement element, string? enclosingNamespace, bool isError)
@@ -229,7 +229,7 @@ internal sealed class SchemaJsonReader
             throw Error($"Record '{name.FullName}' must have a 'fields' array.");
         }
 
-        var record = Construct(() => new RecordSchema(name, doc, aliases, isError, properties));
+        var record = Construct(() => new RecordSchema(name, doc, aliases, isError, Keep(properties)));
         Register(record);
         ReadFields(record, fields);
         return record;
@@ -282,7 +282,7 @@ internal sealed class SchemaJsonReader
 
         Push("name");
         var field = Construct(() => new RecordField(
-            name, schema, attributes.Default, attributes.Doc, attributes.Order, attributes.Aliases, attributes.Properties, _options.ValidateNames));
+            name, schema, attributes.Default, attributes.Doc, attributes.Order, attributes.Aliases, Keep(attributes.Properties), _options.ValidateNames));
         Pop();
         return field;
     }
@@ -302,7 +302,7 @@ internal sealed class SchemaJsonReader
             }
             else if (property.NameEquals("default"u8))
             {
-                attributes.Default = property.Value;
+                attributes.Default = property.Value.Clone();
             }
             else if (property.NameEquals("doc"u8))
             {
@@ -368,7 +368,7 @@ internal sealed class SchemaJsonReader
             throw Error($"Enum '{name.FullName}' must have a 'symbols' array.");
         }
 
-        var schema = Construct(() => new EnumSchema(name, symbols, defaultSymbol, doc, aliases, properties, _options.ValidateNames));
+        var schema = Construct(() => new EnumSchema(name, symbols, defaultSymbol, doc, aliases, Keep(properties), _options.ValidateNames));
         Register(schema);
         return schema;
     }
@@ -418,7 +418,7 @@ internal sealed class SchemaJsonReader
         }
 
         var logicalType = properties is null ? null : TakeLogicalType(properties, AvroSchemaType.Fixed, fixedSize);
-        var schema = Construct(() => new FixedSchema(name, fixedSize, logicalType, doc, aliases, properties));
+        var schema = Construct(() => new FixedSchema(name, fixedSize, logicalType, doc, aliases, Keep(properties)));
         Register(schema);
         return schema;
     }
@@ -447,7 +447,7 @@ internal sealed class SchemaJsonReader
         Push("items");
         var itemSchema = ReadSchema(items, enclosingNamespace);
         Pop();
-        return new ArraySchema(itemSchema, properties);
+        return new ArraySchema(itemSchema, Keep(properties));
     }
 
     private MapSchema ReadMap(JsonElement element, string? enclosingNamespace)
@@ -474,7 +474,7 @@ internal sealed class SchemaJsonReader
         Push("values");
         var valueSchema = ReadSchema(values, enclosingNamespace);
         Pop();
-        return new MapSchema(valueSchema, properties);
+        return new MapSchema(valueSchema, Keep(properties));
     }
 
     private UnionSchema ReadUnion(JsonElement element, string? enclosingNamespace)
@@ -609,6 +609,27 @@ internal sealed class SchemaJsonReader
     /// Removes the attributes of a valid logical type from <paramref name="properties"/> and returns it.
     /// Unknown or invalid logical types are left in place, as the specification requires them to be ignored.
     /// </summary>
+    /// <summary>
+    /// Copies the custom properties a schema keeps out of the parsed document, which is pooled and returned when
+    /// parsing ends. Only what is kept is copied: the logical type's own attributes have been taken out by then.
+    /// </summary>
+    private static Dictionary<string, JsonElement>? Keep(Dictionary<string, JsonElement>? properties)
+    {
+        if (properties is null || properties.Count == 0)
+        {
+            return properties;
+        }
+
+        var names = new string[properties.Count];
+        properties.Keys.CopyTo(names, 0);
+        foreach (var name in names)
+        {
+            properties[name] = properties[name].Clone();
+        }
+
+        return properties;
+    }
+
     private static AvroLogicalType? TakeLogicalType(Dictionary<string, JsonElement> properties, AvroSchemaType type, int fixedSize)
     {
         if (!properties.TryGetValue("logicalType", out var element) || element.ValueKind != JsonValueKind.String)
