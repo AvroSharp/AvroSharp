@@ -25,13 +25,17 @@ public sealed partial class GenericDatumReader
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumReader> s_cache = new();
 
     private readonly ReaderNode _root;
-    private readonly GenericDatumReaderOptions _options;
+    // Built once: each read starts from a copy (#129 added fields that the options would otherwise compute per read).
+    private readonly ReadState _initialState;
+
+    // The state reads with the default options start from, for the transcoder and the plans' skip steps.
+    private static readonly ReadState s_defaultState = new(GenericDatumReaderOptions.Default);
 
     private GenericDatumReader(AvroSchema schema, GenericDatumReaderOptions options)
     {
         Schema = schema;
         ReaderSchema = schema;
-        _options = options;
+        _initialState = new ReadState(options);
         _root = new Builder().Build(schema);
     }
 
@@ -60,7 +64,7 @@ public sealed partial class GenericDatumReader
     /// <exception cref="AvroDataException">The data is malformed or does not match the schema.</exception>
     public AvroValue Read(ref AvroReader reader)
     {
-        var state = new ReadState(_options);
+        var state = _initialState;
         return _root.Read(ref reader, ref state);
     }
 

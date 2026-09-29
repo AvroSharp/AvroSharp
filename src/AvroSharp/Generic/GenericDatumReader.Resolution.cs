@@ -20,7 +20,7 @@ public sealed partial class GenericDatumReader
     {
         Schema = writerSchema;
         ReaderSchema = readerSchema;
-        _options = options;
+        _initialState = new ReadState(options);
         _root = new ResolvingBuilder().Build(writerSchema, readerSchema, "$");
     }
 
