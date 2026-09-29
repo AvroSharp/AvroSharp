@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Generators.Tests;
 
@@ -29,7 +30,7 @@ public class SchemaFileGeneratorTests
 
         await Assert.That(generatorDiagnostics).IsEmpty();
         await Assert.That(sources.Select(s => s.HintName).ToArray())
-            .IsEquivalentTo(new[] { "app.events.Event.g.cs", "app.events.Hash.g.cs", "app.events.Kind.g.cs" });
+            .IsEquivalentTo(new[] { "app.events.Event.g.cs", "app.events.Hash.g.cs", "app.events.Kind.g.cs" }, CollectionOrdering.Any);
         await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
     }
 
@@ -186,7 +187,7 @@ public class SchemaFileGeneratorTests
         var message = diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture);
         await Assert.That(message).Contains("'x.Color' is already defined");
         await Assert.That(message).EndsWith("It is also defined in a.avsc.");
-        await Assert.That(sources.Select(s => s.HintName).ToArray()).IsEquivalentTo(new[] { "x.Color.g.cs" });
+        await Assert.That(sources.Select(s => s.HintName).ToArray()).IsEquivalentTo(new[] { "x.Color.g.cs" }, CollectionOrdering.Any);
     }
 
     /// <summary>
@@ -205,7 +206,7 @@ public class SchemaFileGeneratorTests
 
         await Assert.That(generatorDiagnostics).IsEmpty();
         await Assert.That(sources.Select(s => s.HintName).OrderBy(h => h, StringComparer.Ordinal).ToArray())
-            .IsEquivalentTo(new[] { "crm.Customer.g.cs", "geo.Address.g.cs", "retail.Shop.g.cs" });
+            .IsEquivalentTo(new[] { "crm.Customer.g.cs", "geo.Address.g.cs", "retail.Shop.g.cs" }, CollectionOrdering.Any);
         await Assert.That(compileDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)).IsEmpty();
     }
 
@@ -251,7 +252,7 @@ public class SchemaFileGeneratorTests
         await Assert.That(diagnostic.Location.GetLineSpan().StartLinePosition.Line).IsEqualTo(1);
 
         // The valid file is still generated.
-        await Assert.That(sources.Select(s => s.HintName).ToArray()).IsEquivalentTo(new[] { "Fine.g.cs" });
+        await Assert.That(sources.Select(s => s.HintName).ToArray()).IsEquivalentTo(new[] { "Fine.g.cs" }, CollectionOrdering.Any);
     }
 
     [Test]
@@ -498,7 +499,7 @@ public class SchemaFileGeneratorTests
         driver = driver.RunGenerators(compilation.AddSyntaxTrees(CSharpSyntaxTree.ParseText("class B { }")));
 
         var step = driver.GetRunResult().Results.Single().TrackedSteps["Generate"].Single();
-        await Assert.That(step.Outputs.Select(o => o.Reason).ToArray()).IsEquivalentTo(new[] { IncrementalStepRunReason.Cached });
+        await Assert.That(step.Outputs.Select(o => o.Reason).ToArray()).IsEquivalentTo(new[] { IncrementalStepRunReason.Cached }, CollectionOrdering.Any);
     }
 
     [Test]
@@ -512,7 +513,7 @@ public class SchemaFileGeneratorTests
         driver = driver.ReplaceAdditionalTexts([GeneratorHarness.Text("event.avsc", EventSchema)]).RunGenerators(compilation);
 
         var step = driver.GetRunResult().Results.Single().TrackedSteps["Generate"].Single();
-        await Assert.That(step.Outputs.Select(o => o.Reason).ToArray()).IsEquivalentTo(new[] { IncrementalStepRunReason.Cached });
+        await Assert.That(step.Outputs.Select(o => o.Reason).ToArray()).IsEquivalentTo(new[] { IncrementalStepRunReason.Cached }, CollectionOrdering.Any);
     }
 
     [Test]
@@ -522,12 +523,12 @@ public class SchemaFileGeneratorTests
         const string Clash = """{"type":"record","name":"Clash","namespace":"app.events","fields":[{"name":"USER_ID","type":"long"},{"name":"userId","type":"long"}]}""";
         var compilation = GeneratorHarness.CreateCompilation(true, "class A { }");
         var driver = GeneratorHarness.CreateDriver([("event.avsc", EventSchema), ("clash.avsc", Clash)]).RunGenerators(compilation);
-        await Assert.That(driver.GetRunResult().Diagnostics.Select(d => d.Id).ToArray()).IsEquivalentTo(new[] { "AVROGEN005" });
+        await Assert.That(driver.GetRunResult().Diagnostics.Select(d => d.Id).ToArray()).IsEquivalentTo(new[] { "AVROGEN005" }, CollectionOrdering.Any);
 
         driver = driver.ReplaceAdditionalTexts([GeneratorHarness.Text("event.avsc", EventSchema + "\n  "), GeneratorHarness.Text("clash.avsc", Clash + " ")]).RunGenerators(compilation);
 
         var step = driver.GetRunResult().Results.Single().TrackedSteps["Generate"].Single();
-        await Assert.That(step.Outputs.Select(o => o.Reason).ToArray()).IsEquivalentTo(new[] { IncrementalStepRunReason.Unchanged });
+        await Assert.That(step.Outputs.Select(o => o.Reason).ToArray()).IsEquivalentTo(new[] { IncrementalStepRunReason.Unchanged }, CollectionOrdering.Any);
     }
 
     [Test]

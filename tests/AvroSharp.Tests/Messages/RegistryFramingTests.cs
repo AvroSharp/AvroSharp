@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-#if NET
 using System.IO;
+#if NET
 using System.IO.Compression;
 #endif
 using System.Linq;
@@ -243,6 +243,46 @@ public class RegistryFramingTests
         await Assert.That(read.Equals(value)).IsTrue();
     }
 #endif
+
+    /// <summary>
+    /// Messages written with AWS Glue's own library (TestData/aws-glue/GlueMessages.java), plain and zlib-compressed:
+    /// an external oracle for the Glue framings, which had only the documentation (#133).
+    /// </summary>
+    [Test]
+    public async Task GluesOwnMessages_AreRead_AndThePlainOneIsWrittenByteForByte()
+    {
+        var schema = AvroSchema.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "TestData", "aws-glue", "reading.avsc")));
+        var id = AvroSchemaId.FromGuid(Guid.Parse("b7b4a7f0-9b8c-4a1e-8d2f-0123456789ab"));
+        var store = new AvroSchemaIdStore();
+        store.Add(id, schema);
+        var plain = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "TestData", "aws-glue", "plain.bin"));
+        var zlib = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "TestData", "aws-glue", "zlib.bin"));
+
+        var fromPlain = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.AwsGlue, store).Read(plain).AsRecord();
+        var fromZlib = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.AwsGlueCompressed, store).Read(zlib).AsRecord();
+
+        await Assert.That(fromPlain["id"].AsInt64()).IsEqualTo(1234567890123L);
+        await Assert.That(fromPlain["sensor"].AsString()).IsEqualTo("north-gate");
+        await Assert.That(fromPlain["values"].AsArray().Count).IsEqualTo(64);
+        await Assert.That(fromZlib.Equals(fromPlain)).IsTrue();
+
+        // Written by AvroSharp, the plain message is Glue's byte for byte.
+        var ours = AvroRegistryMessage.ToArray(AvroRegistryFraming.AwsGlue, id, (AvroValue)fromPlain, GenericDatumWriter.Create(schema));
+        await Assert.That(Convert.ToHexString(ours)).IsEqualTo(Convert.ToHexString(plain));
+
+#if NET
+        // The compressed one has Glue's header, and data that inflates to Glue's payload (zlib output itself may differ).
+        var compressed = AvroRegistryMessage.ToArray(AvroRegistryFraming.AwsGlueCompressed, id, (AvroValue)fromPlain, GenericDatumWriter.Create(schema));
+        using var inflated = new MemoryStream();
+        using (var stream = new ZLibStream(new MemoryStream(compressed, 18, compressed.Length - 18), CompressionMode.Decompress))
+        {
+            stream.CopyTo(inflated);
+        }
+
+        await Assert.That(Convert.ToHexString(compressed.AsSpan(0, 18))).IsEqualTo(Convert.ToHexString(zlib.AsSpan(0, 18)));
+        await Assert.That(Convert.ToHexString(inflated.ToArray())).IsEqualTo(Convert.ToHexString(plain.AsSpan(18)));
+#endif
+    }
 
     private static AvroRegistryFraming FramingNamed(string name) => name switch
     {

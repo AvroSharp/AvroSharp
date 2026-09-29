@@ -5,6 +5,7 @@ using AvroSharp.Generic;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
 using AvroSharp.Tests.IO;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Generic;
 
@@ -15,15 +16,15 @@ public class PrimitiveArrayTests
     public async Task Reader_StoresPrimitiveItemsAsTypedArrays()
     {
         await Assert.That(await Read<long>("long", [1L, -2L, long.MaxValue, long.MinValue], v => v, (a, out m) => a.TryGetInt64Array(out m)))
-            .IsEquivalentTo(new[] { 1L, -2L, long.MaxValue, long.MinValue });
+            .IsEquivalentTo(new[] { 1L, -2L, long.MaxValue, long.MinValue }, CollectionOrdering.Matching);
         await Assert.That(await Read<int>("int", [0, 63, -64, int.MaxValue, int.MinValue], v => v, (a, out m) => a.TryGetInt32Array(out m)))
-            .IsEquivalentTo(new[] { 0, 63, -64, int.MaxValue, int.MinValue });
+            .IsEquivalentTo(new[] { 0, 63, -64, int.MaxValue, int.MinValue }, CollectionOrdering.Matching);
         await Assert.That(await Read<double>("double", [1.5, double.NaN, double.NegativeInfinity], v => v, (a, out m) => a.TryGetDoubleArray(out m)))
-            .IsEquivalentTo(new[] { 1.5, double.NaN, double.NegativeInfinity });
+            .IsEquivalentTo(new[] { 1.5, double.NaN, double.NegativeInfinity }, CollectionOrdering.Matching);
         await Assert.That(await Read<float>("float", [-0.5f, float.Epsilon], v => v, (a, out m) => a.TryGetSingleArray(out m)))
-            .IsEquivalentTo(new[] { -0.5f, float.Epsilon });
+            .IsEquivalentTo(new[] { -0.5f, float.Epsilon }, CollectionOrdering.Matching);
         await Assert.That(await Read<bool>("boolean", [true, false, true], v => v, (a, out m) => a.TryGetBooleanArray(out m)))
-            .IsEquivalentTo(new[] { true, false, true });
+            .IsEquivalentTo(new[] { true, false, true }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -47,8 +48,8 @@ public class PrimitiveArrayTests
         var reader = GenericDatumReader.Create(AvroSchema.Parse("""{"type":"array","items":"long"}"""));
         var value = reader.Read(bytes);
         await Assert.That(value.TryGetInt64Array(out var items)).IsTrue();
-        await Assert.That(items.ToArray()).IsEquivalentTo(new[] { 1L, 300L, -1L, 0L, long.MaxValue, 5L });
-        await Assert.That(value.AsArray().Select(v => v.AsInt64())).IsEquivalentTo(items.ToArray());
+        await Assert.That(items.ToArray()).IsEquivalentTo(new[] { 1L, 300L, -1L, 0L, long.MaxValue, 5L }, CollectionOrdering.Matching);
+        await Assert.That(value.AsArray().Select(v => v.AsInt64())).IsEquivalentTo(items.ToArray(), CollectionOrdering.Matching);
 
         // The same input split into one-byte segments takes the reader's per-item paths.
         await Assert.That(ReadSegmented(reader, bytes)).IsEqualTo(value);
@@ -71,7 +72,7 @@ public class PrimitiveArrayTests
         var writer = AvroSchema.Parse("""{"type":"array","items":"int"}""");
         var reader = AvroSchema.Parse("""{"type":"array","items":"long"}""");
         var promoted = GenericDatumReader.Create(writer, reader).Read(GenericDatumWriter.Create(writer).WriteToArray(AvroValue.FromInt32Array(new[] { 1, -2 })));
-        await Assert.That(promoted.AsArray()).IsEquivalentTo(new AvroValue[] { 1L, -2L });
+        await Assert.That(promoted.AsArray()).IsEquivalentTo(new AvroValue[] { 1L, -2L }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -92,7 +93,7 @@ public class PrimitiveArrayTests
         // A slice is written as the slice.
         var slice = new long[] { 1, 2, 3, 4 }.AsMemory(1, 2);
         await AssertSameEncoding("long", AvroValue.FromInt64Array(slice));
-        await Assert.That(AvroValue.FromInt64Array(slice).AsArray()).IsEquivalentTo(new AvroValue[] { 2L, 3L });
+        await Assert.That(AvroValue.FromInt64Array(slice).AsArray()).IsEquivalentTo(new AvroValue[] { 2L, 3L }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -103,7 +104,7 @@ public class PrimitiveArrayTests
         Assert.Throws<AvroException>(() => ints.WriteToArray(AvroValue.FromBooleanArray(new[] { true })));
 
         // An empty array has no items to check.
-        await Assert.That(ints.WriteToArray(AvroValue.FromInt64Array(ReadOnlyMemory<long>.Empty))).IsEquivalentTo(new byte[] { 0 });
+        await Assert.That(ints.WriteToArray(AvroValue.FromInt64Array(ReadOnlyMemory<long>.Empty))).IsEquivalentTo(new byte[] { 0 }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -136,7 +137,7 @@ public class PrimitiveArrayTests
         await Assert.That(booleans.TryGetInt32Array(out _)).IsFalse();
         await Assert.That(AvroValue.FromInt64(1).TryGetInt64Array(out _)).IsFalse();
         await Assert.That(AvroValue.FromArray(new AvroValue[] { 1L }).TryGetInt64Array(out _)).IsFalse();
-        await Assert.That(AvroValue.FromDoubleArray(new[] { 2.5 }).AsArray().ToArray()).IsEquivalentTo(new AvroValue[] { 2.5 });
+        await Assert.That(AvroValue.FromDoubleArray(new[] { 2.5 }).AsArray().ToArray()).IsEquivalentTo(new AvroValue[] { 2.5 }, CollectionOrdering.Matching);
         Assert.Throws<ArgumentOutOfRangeException>(() => _ = AvroValue.FromInt32Array(new[] { 1 }).AsArray()[1]);
         Assert.Throws<ArgumentOutOfRangeException>(() => _ = AvroValue.FromInt32Array(new[] { 1 }).AsArray()[-1]);
 
@@ -173,7 +174,7 @@ public class PrimitiveArrayTests
         var value = GenericDatumReader.Create(schema).Read(bytes);
         await Assert.That(value.Kind).IsEqualTo(AvroValueKind.Array);
         await Assert.That(tryGet(value, out var memory)).IsTrue();
-        await Assert.That(value.AsArray()).IsEquivalentTo(values.Select(toValue).ToArray());
+        await Assert.That(value.AsArray()).IsEquivalentTo(values.Select(toValue).ToArray(), CollectionOrdering.Matching);
         return memory.ToArray();
     }
 

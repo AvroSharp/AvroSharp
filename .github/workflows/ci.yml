@@ -68,10 +68,24 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
+          # Every report must have data, and together they must cover each shipped assembly: collection that silently
+          # records nothing would otherwise shrink the summary without failing anything (#133).
+          reports=$(find artifacts/bin TestResults -name '*.cobertura.xml' 2>/dev/null)
+          empty=$(for f in $reports; do grep -q '<package ' "$f" || echo "$f"; done)
+          if [ -z "$reports" ] || [ -n "$empty" ]; then
+            echo "::error::Coverage reports with no data: ${empty:-no reports at all}"
+            exit 1
+          fi
+          for assembly in AvroSharp AvroSharp.Codecs AvroSharp.CodeGen AvroSharp.Generators AvroSharp.Tool; do
+            if ! grep -Eq "<package [^>]*name=\"$assembly\"" $reports; then
+              echo "::error::No coverage report includes $assembly"
+              exit 1
+            fi
+          done
           dotnet tool install dotnet-reportgenerator-globaltool --tool-path .tools
           .tools/reportgenerator "-reports:artifacts/bin/**/TestResults/**/*.cobertura.xml;TestResults/**/*.cobertura.xml" \
             -targetdir:artifacts/coverage -reporttypes:MarkdownSummaryGithub \
-            "-assemblyfilters:+AvroSharp;+AvroSharp.Codecs;+AvroSharp.CodeGen;+AvroSharp.Generators"
+            "-assemblyfilters:+AvroSharp;+AvroSharp.Codecs;+AvroSharp.CodeGen;+AvroSharp.Generators;+AvroSharp.Tool"
           cat artifacts/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 
       # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit

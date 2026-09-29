@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Generic;
 
@@ -36,7 +37,7 @@ public class SchemaResolutionTests
         var asBytes = Resolve(AvroSchema.String, AvroSchema.Bytes, "日本");
         var asString = Resolve(AvroSchema.Bytes, AvroSchema.String, "hi"u8.ToArray());
 
-        await Assert.That(asBytes.AsBytes()).IsEquivalentTo(System.Text.Encoding.UTF8.GetBytes("日本"));
+        await Assert.That(asBytes.AsBytes()).IsEquivalentTo(System.Text.Encoding.UTF8.GetBytes("日本"), CollectionOrdering.Matching);
         await Assert.That(asString.AsString()).IsEqualTo("hi");
     }
 
@@ -112,7 +113,7 @@ public class SchemaResolutionTests
         await Assert.That(read["name"].AsString()).IsEqualTo("Ada");    // matched through the alias
         await Assert.That(read["email"].IsNull).IsTrue();
         await Assert.That(read["score"].AsDouble()).IsEqualTo(1.5);
-        await Assert.That(read["tags"].AsArray().Select(t => t.AsString()).ToArray()).IsEquivalentTo(new[] { "a", "b" });
+        await Assert.That(read["tags"].AsArray().Select(t => t.AsString()).ToArray()).IsEquivalentTo(new[] { "a", "b" }, CollectionOrdering.Matching);
         await Assert.That(read["home"].AsRecord()["city"].AsString()).IsEqualTo("Oslo");
     }
 
@@ -221,7 +222,7 @@ public class SchemaResolutionTests
         var map = Resolve(AvroSchema.Parse("""{"type":"map","values":"float"}"""), AvroSchema.Parse("""{"type":"map","values":"double"}"""),
             AvroValue.FromMap(new Dictionary<string, AvroValue>(StringComparer.Ordinal) { ["x"] = 0.5f }));
 
-        await Assert.That(array.AsArray().Select(v => v.AsInt64()).ToArray()).IsEquivalentTo(new[] { 1L, 2L, 3L });
+        await Assert.That(array.AsArray().Select(v => v.AsInt64()).ToArray()).IsEquivalentTo(new[] { 1L, 2L, 3L }, CollectionOrdering.Matching);
         await Assert.That(map.AsMap()["x"].AsDouble()).IsEqualTo(0.5);
     }
 
@@ -409,7 +410,7 @@ public class SchemaResolutionTests
 
         // Written again, the value keeps its branch.
         var bytes = GenericDatumWriter.Create(writer).WriteToArray(second);
-        await Assert.That(GenericDatumWriter.Create(reader).WriteToArray(read)).IsEquivalentTo(bytes);
+        await Assert.That(GenericDatumWriter.Create(reader).WriteToArray(read)).IsEquivalentTo(bytes, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -484,6 +485,16 @@ public class SchemaResolutionTests
         if (!transcoded.AsSpan().SequenceEqual(expected) || !input.IsAtEnd)
         {
             throw new InvalidOperationException($"Transcoded {Convert.ToHexString(transcoded)}, resolved {Convert.ToHexString(expected)}.");
+        }
+
+        // The same over one byte per segment: skipping, promotion and the transcoder across segment boundaries (#133).
+        var segmented = new AvroReader(AvroSharp.Tests.IO.Segments.ByteByByte(bytes));
+        var resolvedFromSegments = GenericDatumWriter.Create(reader).WriteToArray(GenericDatumReader.Create(writer, reader).Read(ref segmented));
+        var segmentedInput = new AvroReader(AvroSharp.Tests.IO.Segments.ByteByByte(bytes));
+        var transcodedFromSegments = AvroSharp.Serialization.AvroGeneratedCode.ResolveToReaderEncoding(ref segmentedInput, writer, reader).ToArray();
+        if (!resolvedFromSegments.AsSpan().SequenceEqual(expected) || !transcodedFromSegments.AsSpan().SequenceEqual(expected) || !segmented.IsAtEnd || !segmentedInput.IsAtEnd)
+        {
+            throw new InvalidOperationException($"From segments: resolved {Convert.ToHexString(resolvedFromSegments)}, transcoded {Convert.ToHexString(transcodedFromSegments)}, expected {Convert.ToHexString(expected)}.");
         }
 
         return resolved;

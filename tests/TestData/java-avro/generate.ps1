@@ -53,4 +53,15 @@ foreach ($codec in $codecs) {
 }
 
 Remove-Item $json
+
+# Every logical type at edge values, through Java's own conversions (a single-file program; needs Java 11 or later).
+# Its arguments are relative to this folder, so no Hadoop file system is involved.
+Push-Location $here
+try {
+    & $Java -cp $AvroTools LogicalTypes.java logical.avsc logical.avro
+    if ($LASTEXITCODE -ne 0) { throw "LogicalTypes.java failed with exit code $LASTEXITCODE" }
+}
+finally {
+    Pop-Location
+}
 & $Java -jar $AvroTools 2>&1 | Select-Object -First 1

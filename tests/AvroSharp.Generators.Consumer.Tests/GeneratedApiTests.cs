@@ -7,6 +7,7 @@ using AvroSharp.Interop.Tests;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
 using AvroSharp.Serialization;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Generators.Consumer.Tests;
 
@@ -27,19 +28,19 @@ public class GeneratedApiTests
         await Assert.That(settings.Ratio).IsEqualTo(0.25f);
         await Assert.That(settings.Scale).IsEqualTo(1.5);
         await Assert.That(settings.Label).IsEqualTo("none");
-        await Assert.That(settings.Magic).IsEquivalentTo(new byte[] { 0x00, 0xFF });
+        await Assert.That(settings.Magic).IsEquivalentTo(new byte[] { 0x00, 0xFF }, CollectionOrdering.Matching);
         await Assert.That(settings.Level).IsEqualTo(defaults.Level.MID);
-        await Assert.That(settings.Ports).IsEquivalentTo(new[] { 80, 443 });
+        await Assert.That(settings.Ports).IsEquivalentTo(new[] { 80, 443 }, CollectionOrdering.Matching);
         await Assert.That(settings.Limits["b"]).IsEqualTo(2L);
         await Assert.That(settings.Mode).IsEqualTo("auto");
         await Assert.That(settings.Count).IsEqualTo(7);
         await Assert.That(settings.Note).IsNull();
-        await Assert.That(settings.Levels).IsEquivalentTo(new[] { defaults.Level.HIGH, defaults.Level.LOW });
+        await Assert.That(settings.Levels).IsEquivalentTo(new[] { defaults.Level.HIGH, defaults.Level.LOW }, CollectionOrdering.Matching);
 
         // new T() gives what resolving data with none of the fields gives.
         var empty = AvroSchema.Parse("""{"type":"record","name":"Settings","namespace":"defaults","fields":[]}""");
         var resolved = defaults.Settings.FromAvroBytes([], empty);
-        await Assert.That(resolved.ToAvroBytes()).IsEquivalentTo(settings.ToAvroBytes());
+        await Assert.That(resolved.ToAvroBytes()).IsEquivalentTo(settings.ToAvroBytes(), CollectionOrdering.Matching);
     }
 
     [Test]
@@ -51,7 +52,7 @@ public class GeneratedApiTests
         var buffer = new byte[expected.Length + 10];
         await Assert.That(order.TryWriteAvroBytes(buffer, out var written)).IsTrue();
         await Assert.That(written).IsEqualTo(expected.Length);
-        await Assert.That(buffer.Take(written).ToArray()).IsEquivalentTo(expected);
+        await Assert.That(buffer.Take(written).ToArray()).IsEquivalentTo(expected, CollectionOrdering.Matching);
 
         // Too small by one byte, and far too small: false, nothing reported written, no exception.
         await Assert.That(order.TryWriteAvroBytes(new byte[expected.Length - 1], out written)).IsFalse();
@@ -63,7 +64,7 @@ public class GeneratedApiTests
 
         var output = new ArrayBufferWriter<byte>();
         order.WriteAvroBytes(output);
-        await Assert.That(output.WrittenSpan.ToArray()).IsEquivalentTo(expected);
+        await Assert.That(output.WrittenSpan.ToArray()).IsEquivalentTo(expected, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -74,10 +75,10 @@ public class GeneratedApiTests
 
         var order = shop.Order.FromAvroBytes(withTrailer, out var consumed);
         await Assert.That(consumed).IsEqualTo(bytes.Length);
-        await Assert.That(order.ToAvroBytes()).IsEquivalentTo(bytes);
+        await Assert.That(order.ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
 
         var split = new ReadOnlySequence<byte>(bytes);
-        await Assert.That(shop.Order.FromAvroBytes(in split).ToAvroBytes()).IsEquivalentTo(bytes);
+        await Assert.That(shop.Order.FromAvroBytes(in split).ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -93,18 +94,18 @@ public class GeneratedApiTests
         var counters = target.Counters;
         var tags = target.Tags;
         ReadFrom(target, first.ToAvroBytes());
-        await Assert.That(target.ToAvroBytes()).IsEquivalentTo(first.ToAvroBytes());
+        await Assert.That(target.ToAvroBytes()).IsEquivalentTo(first.ToAvroBytes(), CollectionOrdering.Matching);
         await Assert.That(ReferenceEquals(target.Counters, counters)).IsTrue();
         await Assert.That(ReferenceEquals(target.Tags, tags)).IsTrue();
 
         // A second value replaces every field, including shorter collections.
         ReadFrom(target, second.ToAvroBytes());
-        await Assert.That(target.ToAvroBytes()).IsEquivalentTo(second.ToAvroBytes());
-        await Assert.That(target.Counters).IsEquivalentTo(new long[] { 1, 2, 3 });
-        await Assert.That(target.Attributes.Keys).IsEquivalentTo(new[] { "z" });
+        await Assert.That(target.ToAvroBytes()).IsEquivalentTo(second.ToAvroBytes(), CollectionOrdering.Matching);
+        await Assert.That(target.Counters).IsEquivalentTo(new long[] { 1, 2, 3 }, CollectionOrdering.Matching);
+        await Assert.That(target.Attributes.Keys).IsEquivalentTo(new[] { "z" }, CollectionOrdering.Any);
 
         // IAvroWritable writes the same bytes as Write.
-        await Assert.That(WriteTo(target)).IsEquivalentTo(second.ToAvroBytes());
+        await Assert.That(WriteTo(target)).IsEquivalentTo(second.ToAvroBytes(), CollectionOrdering.Matching);
     }
 
     [Test]
@@ -130,7 +131,7 @@ public class GeneratedApiTests
         var bytes = GenericDatumWriter.Create(schema).WriteToArray(generic);
 
         var value = wide.Wide.FromAvroBytes(bytes);
-        await Assert.That(value.ToAvroBytes()).IsEquivalentTo(bytes);
+        await Assert.That(value.ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
 
         // Another version of the schema with the fields in reverse order goes through the plan's field-by-field reader.
         var fields = string.Join(",", schema.Fields.Reverse().Select(f => $$"""{"name":"{{f.Name}}","type":{{f.Schema.ToJson()}}}"""));
@@ -142,7 +143,7 @@ public class GeneratedApiTests
         }
 
         var resolved = wide.Wide.FromAvroBytes(GenericDatumWriter.Create(writer).WriteToArray(reordered), writer);
-        await Assert.That(resolved.ToAvroBytes()).IsEquivalentTo(bytes);
+        await Assert.That(resolved.ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
     }
 
 #if NET8_0_OR_GREATER
@@ -151,8 +152,8 @@ public class GeneratedApiTests
     {
         var order = TestData.CreateOrder();
         var bytes = AvroSerializer.Serialize(order);
-        await Assert.That(bytes).IsEquivalentTo(order.ToAvroBytes());
-        await Assert.That(AvroSerializer.Deserialize<shop.Order>(bytes).ToAvroBytes()).IsEquivalentTo(bytes);
+        await Assert.That(bytes).IsEquivalentTo(order.ToAvroBytes(), CollectionOrdering.Matching);
+        await Assert.That(AvroSerializer.Deserialize<shop.Order>(bytes).ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
         await Assert.That(AvroSerializer.TrySerialize(order, new byte[bytes.Length], out var written)).IsTrue();
         await Assert.That(written).IsEqualTo(bytes.Length);
 
@@ -175,7 +176,7 @@ public class GeneratedApiTests
 
         stream.Position = 0;
         using var streamReader = Streams.AvroStreamReader.Open<shop.Order>(stream);
-        await Assert.That(streamReader.ReadAll().Single().ToAvroBytes()).IsEquivalentTo(bytes);
+        await Assert.That(streamReader.ReadAll().Single().ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
     }
 #endif
 
@@ -191,7 +192,7 @@ public class GeneratedApiTests
         await Assert.That(a != c).IsTrue();
         await Assert.That(a == none).IsFalse();
         await Assert.That(none == null).IsTrue();
-        await Assert.That(a.AsSpan().ToArray()).IsEquivalentTo(new byte[] { 1, 2, 3, 4 });
+        await Assert.That(a.AsSpan().ToArray()).IsEquivalentTo(new byte[] { 1, 2, 3, 4 }, CollectionOrdering.Matching);
     }
 
     private static void ReadFrom<T>(T target, byte[] bytes)

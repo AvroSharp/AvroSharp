@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tool.Tests;
 
@@ -38,7 +39,7 @@ public class GenCommandTests
         await Assert.That(result.Output).Contains($"Generated 3 file(s) from 3 schema file(s) in {output}.");
 
         // In folders for their namespaces; the type without an Avro namespace is in the --namespace one.
-        await Assert.That(Files(output)).IsEquivalentTo(new[] { "Acme/Plain.g.cs", "shop/Order.g.cs", "shop/Status.g.cs" });
+        await Assert.That(Files(output)).IsEquivalentTo(new[] { "Acme/Plain.g.cs", "shop/Order.g.cs", "shop/Status.g.cs" }, CollectionOrdering.Any);
 
         var orderCode = File.ReadAllText(tool.PathOf("out/shop/Order.g.cs"));
         await Assert.That(orderCode).Contains("public long OrderId { get; set; }");
@@ -97,9 +98,9 @@ public class GenCommandTests
         var flat = ToolRunner.Run("gen", schema, "-o", tool.PathOf("flat"), "--flat");
 
         await Assert.That(nested.ExitCode).IsEqualTo(0);
-        await Assert.That(Files(tool.PathOf("nested"))).IsEquivalentTo(new[] { "Top.g.cs", "com/example/common/Kind.g.cs", "com/example/events/Event.g.cs" });
+        await Assert.That(Files(tool.PathOf("nested"))).IsEquivalentTo(new[] { "Top.g.cs", "com/example/common/Kind.g.cs", "com/example/events/Event.g.cs" }, CollectionOrdering.Any);
         await Assert.That(flat.ExitCode).IsEqualTo(0);
-        await Assert.That(Files(tool.PathOf("flat"))).IsEquivalentTo(new[] { "Top.g.cs", "com.example.common.Kind.g.cs", "com.example.events.Event.g.cs" });
+        await Assert.That(Files(tool.PathOf("flat"))).IsEquivalentTo(new[] { "Top.g.cs", "com.example.common.Kind.g.cs", "com.example.events.Event.g.cs" }, CollectionOrdering.Any);
     }
 
     [Test]
@@ -118,7 +119,7 @@ public class GenCommandTests
             "gen", schema, "-o", output, "--namespace-map", "com.example:Example", "-m", "com.example.common:Shared.Types");
 
         await Assert.That(result.ExitCode).IsEqualTo(0);
-        await Assert.That(Files(output)).IsEquivalentTo(new[] { "Example/events/Event.g.cs", "Shared/Types/Kind.g.cs", "org/other/Other.g.cs" });
+        await Assert.That(Files(output)).IsEquivalentTo(new[] { "Example/events/Event.g.cs", "Shared/Types/Kind.g.cs", "org/other/Other.g.cs" }, CollectionOrdering.Any);
         var code = File.ReadAllText(tool.PathOf("out/Example/events/Event.g.cs"));
         await Assert.That(code).Contains("namespace Example.events");
         await Assert.That(code).Contains("public global::Shared.Types.Kind Kind { get; set; }");

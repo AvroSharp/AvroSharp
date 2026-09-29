@@ -27,6 +27,10 @@
     <AdditionalFiles Include="Schemas\*.avsc" />
     <None Include="Schemas\*.avsc" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="..\AvroSharp.Interop.Tests\RandomValues.cs" Link="RandomValues.cs" />
+    <Compile Include="..\AvroSharp.Tests\IO\Segments.cs" Link="Segments.cs" />
+    <!-- Every logical type, written by Apache Avro Java (TestData/java-avro/LogicalTypes.java). -->
+    <AdditionalFiles Include="..\TestData\java-avro\logical.avsc" />
+    <None Include="..\TestData\java-avro\logical.avro" Link="TestData\java-avro\logical.avro" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.IO;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.IO;
 
@@ -44,10 +45,10 @@ public class BulkReadTests
         var bytes = Encode(values);
         var expected = ReadOneAtATime(bytes, values.Length);
 
-        await Assert.That(ReadBulk(new AvroReader(bytes), values.Length)).IsEquivalentTo(expected);
-        await Assert.That(ReadBulk(new AvroReader(Segments.ByteByByte(bytes)), values.Length)).IsEquivalentTo(expected);
-        await Assert.That(ReadBulk(new AvroReader(Segments.Split(bytes, bytes.Length / 2)), values.Length)).IsEquivalentTo(expected);
-        await Assert.That(expected).IsEquivalentTo(values);
+        await Assert.That(ReadBulk(new AvroReader(bytes), values.Length)).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That(ReadBulk(new AvroReader(Segments.ByteByByte(bytes)), values.Length)).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That(ReadBulk(new AvroReader(Segments.Split(bytes, bytes.Length / 2)), values.Length)).IsEquivalentTo(expected, CollectionOrdering.Matching);
+        await Assert.That(expected).IsEquivalentTo(values, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -65,8 +66,8 @@ public class BulkReadTests
         writer.Flush();
         var bytes = output.WrittenSpan.ToArray();
 
-        await Assert.That(ReadIntsBulk(new AvroReader(bytes), ints.Length)).IsEquivalentTo(ints);
-        await Assert.That(ReadIntsBulk(new AvroReader(Segments.ByteByByte(bytes)), ints.Length)).IsEquivalentTo(ints);
+        await Assert.That(ReadIntsBulk(new AvroReader(bytes), ints.Length)).IsEquivalentTo(ints, CollectionOrdering.Matching);
+        await Assert.That(ReadIntsBulk(new AvroReader(Segments.ByteByByte(bytes)), ints.Length)).IsEquivalentTo(ints, CollectionOrdering.Matching);
     }
 
     [Test]

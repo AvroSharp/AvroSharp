@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AvroSharp.Containers;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Containers;
 
@@ -99,7 +100,7 @@ public class ContainerIOTests
         using var reader = AvroFileReader.OpenGeneric(new CountingStream(file) { MaxRead = 1 });
 
         await Assert.That(reader.Metadata["app.big"].ToArray().SequenceEqual(big)).IsTrue();
-        await Assert.That(reader.Metadata["app.small"].ToArray()).IsEquivalentTo(new byte[] { 1, 2, 3 });
+        await Assert.That(reader.Metadata["app.small"].ToArray()).IsEquivalentTo(new byte[] { 1, 2, 3 }, CollectionOrdering.Matching);
         await Assert.That(reader.ReadAll().SequenceEqual(rows)).IsTrue();
     }
 

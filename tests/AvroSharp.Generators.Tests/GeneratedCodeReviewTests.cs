@@ -5,6 +5,7 @@ using AvroSharp.Generic;
 using AvroSharp.Schemas;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Generators.Tests;
 
@@ -76,7 +77,7 @@ public class GeneratedCodeReviewTests
         var schema = AvroSchema.Parse(DefaultsSchema);
         var empty = AvroSchema.Parse("""{"type":"record","name":"All","namespace":"defaults","fields":[]}""");
         var expected = GenericDatumWriter.Create(schema).WriteToArray(GenericDatumReader.Create(empty, schema).Read([]));
-        await Assert.That(bytes).IsEquivalentTo(expected);
+        await Assert.That(bytes).IsEquivalentTo(expected, CollectionOrdering.Matching);
 
         await Assert.That(type.GetProperty("Money")!.GetValue(value)).IsEqualTo(0.01m);
         await Assert.That(type.GetProperty("Day")!.GetValue(value)).IsEqualTo(new DateOnly(1970, 1, 2));
@@ -152,7 +153,7 @@ public class GeneratedCodeReviewTests
         var type = GeneratorHarness.GenerateAndLoad([("clash.avsc", Schema)]).GetType("clash.Schema_")!;
         var value = Activator.CreateInstance(type)!;
         type.GetProperty("X")!.SetValue(value, 3);
-        await Assert.That((byte[])type.GetMethod("ToAvroBytes", Type.EmptyTypes)!.Invoke(value, null)!).IsEquivalentTo(new byte[] { 0x06 });
+        await Assert.That((byte[])type.GetMethod("ToAvroBytes", Type.EmptyTypes)!.Invoke(value, null)!).IsEquivalentTo(new byte[] { 0x06 }, CollectionOrdering.Matching);
     }
 
     [Test]
