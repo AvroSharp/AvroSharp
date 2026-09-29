@@ -102,12 +102,21 @@ public sealed partial class GenericDatumReader
         public readonly int MaxNesting = (int)Math.Min((long)options.MaxDepth * NestingPerDepth, int.MaxValue);
         public int Nesting;
         public long ZeroSizeItemsLeft = options.MaxZeroSizeItems;
+
+        // The nesting level at which the stack is next checked (EnterNesting).
+        public int NextStackCheck = StackCheckInterval;
     }
 
     // Levels of any kind (records, arrays, maps, unions) allowed per record level of MaxDepth.
     private const int NestingPerDepth = 8;
 
-    /// <summary>Enters an array, map or union: counts it against the nesting limit.</summary>
+    // The nesting levels between stack checks.
+    private const int StackCheckInterval = 16;
+
+    /// <summary>
+    /// Enters an array, map or union: counts it against the nesting limit, and checks that the thread has stack left
+    /// each time the nesting reaches <see cref="StackCheckInterval"/> levels past the deepest level checked.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void EnterNesting(ref ReadState state)
     {
@@ -115,28 +124,43 @@ public sealed partial class GenericDatumReader
         {
             ThrowNestedTooDeep(state.MaxNesting);
         }
+
+        // Checked per record, the stack cost 5-8 ns a record (#129). Levels above the deepest one checked already had
+        // their stack, and the levels between checks take a few KB, well within the margin the check leaves.
+        if (state.Nesting >= state.NextStackCheck)
+        {
+            CheckStack(ref state);
+        }
     }
 
-    /// <summary>
-    /// Enters a record: counts it against the record depth and the nesting limit, and checks that the thread has
-    /// stack left, for threads with a small stack.
-    /// </summary>
+    /// <summary>Enters a record: counts it against the record depth and as nesting (see <see cref="EnterNesting"/>).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void EnterRecord(ref ReadState state)
     {
         if (++state.Depth > state.MaxDepth)
         {
-            throw new AvroDataException($"Records are nested more than {state.MaxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
+            ThrowRecordsTooDeep(state.MaxDepth);
         }
 
         EnterNesting(ref state);
-        EnsureStack();
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ThrowRecordsTooDeep(int maxDepth) =>
+        throw new AvroDataException($"Records are nested more than {maxDepth} levels deep (GenericDatumReaderOptions.MaxDepth).");
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void ExitRecord(ref ReadState state)
     {
         state.Depth--;
         state.Nesting--;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CheckStack(ref ReadState state)
+    {
+        EnsureStack();
+        state.NextStackCheck = state.Nesting + StackCheckInterval;
     }
 
     private static void EnsureStack()

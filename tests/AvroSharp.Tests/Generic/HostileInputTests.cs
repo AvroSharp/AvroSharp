@@ -156,6 +156,40 @@ public class HostileInputTests
         }
     }
 
+    /// <summary>
+    /// With the depth limits raised past what a thread's stack holds, the stack check reports the input instead of
+    /// the process ending in a stack overflow (#129). The check runs every few levels, not per record.
+    /// </summary>
+    [Test]
+    public async Task NestingBeyondTheThreadsStack_IsRejected()
+    {
+        var schema = AvroSchema.Parse("""{"type":"record","name":"Node","fields":[{"name":"children","type":{"type":"array","items":"Node"}}]}""");
+        var reader = GenericDatumReader.Create(schema, new GenericDatumReaderOptions { MaxDepth = 1_000_000 });
+        var bytes = NestedNodes(depth: 50_000);
+
+        Exception? failure = null;
+        var thread = new System.Threading.Thread(
+            () =>
+            {
+                try
+                {
+                    reader.Read(bytes);
+                }
+#pragma warning disable CA1031 // Handed to the test thread, which asserts on it.
+                catch (Exception ex)
+#pragma warning restore CA1031
+                {
+                    failure = ex;
+                }
+            },
+            maxStackSize: 512 * 1024);
+        thread.Start();
+        thread.Join();
+
+        await Assert.That(failure).IsTypeOf<AvroDataException>();
+        await Assert.That(failure!.Message).Contains("nested too deeply for the thread's stack");
+    }
+
     [Test]
     public async Task MaxDepth_AllowsNestingUpToTheLimit()
     {
