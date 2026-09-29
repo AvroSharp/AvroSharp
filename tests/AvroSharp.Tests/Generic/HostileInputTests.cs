@@ -152,7 +152,14 @@ public class HostileInputTests
 
         foreach (var ex in new[] { generic, resolving, transcoded, skipped })
         {
+#if NET
             await Assert.That(ex.Message).Contains("nested more than 1024 levels deep, counting arrays, maps and records");
+#else
+            // .NET Framework's larger frames can reach the thread's stack check before the nesting limit, depending
+            // on the thread; either way the input is rejected instead of overflowing the stack.
+            await Assert.That(ex.Message.IndexOf("nested more than 1024 levels deep, counting arrays, maps and records", StringComparison.Ordinal) >= 0
+                || ex.Message.IndexOf("nested too deeply for the thread's stack", StringComparison.Ordinal) >= 0).IsTrue();
+#endif
         }
     }
 
