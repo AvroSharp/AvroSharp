@@ -50,6 +50,24 @@ The i7's Apache.Avro 1-byte time also moved, from 63.27 to 69.94 µs, so its 1-b
 
 With fast PDEP, a single write stores 3 to 8 bytes with one word, without testing the length. The bulk loop still went through `WriteMultiByteVarint`'s 3-, 4-, 5- and 6-to-8-byte branches, which mispredict when lengths are random. The next commit makes the bulk loop use the same word store (`WriteSpreadWord`) where PDEP is fast. CPUs without it keep `WriteMultiByteVarint`, where bulk already beat single writes (the second i5 and nas run).
 
+### After the fix: three bulk candidates
+
+The fix (`88f2ed9`) made bulk writes at least as fast as single writes for every length, but uniform 3- to 5-byte arrays lost the cheaper 4-byte store. A temporary benchmark (`ec01828`, since reverted) compared three candidates in one run on the i7, DefaultJob:
+
+| Bytes | 0: PDEP word, 3 to 8 | 1: length tests | 2: 3 to 5 without a jump, word 6 to 8 |
+|---|---:|---:|---:|
+| 1 | 37.74 µs | 36.08 µs | 36.92 µs |
+| 2 | 47.86 µs | 48.41 µs | 48.31 µs |
+| 3 | 114.49 µs | **83.65 µs** | 94.36 µs |
+| 4 | 115.22 µs | **88.70 µs** | 94.24 µs |
+| 5 | 115.84 µs | **92.35 µs** | 94.31 µs |
+| 8 | **113.70 µs** | 124.54 µs | 125.27 µs |
+| 10 | 82.11 µs | 81.34 µs | 82.23 µs |
+| Mixed1-10 | **277.39 µs** | 447.56 µs | 387.65 µs |
+| Mixed1-2 | **223.98 µs** | 235.51 µs | 233.93 µs |
+
+Candidate 2 was to be kept only if it came near candidate 1 on uniform 3 to 5 bytes and near candidate 0 on Mixed1-10. It did the first, but not the second: its extra `< 2^35` test costs 40% on Mixed1-10 and 10% on 8 bytes, even though it predicts well for uniform lengths. So candidate 0, the fix, stays. Uniform 3- to 5-byte arrays keep their 25% loss against candidate 1; they are still faster than single writes and 1.5× faster than Apache.Avro.
+
 ## Records, parsing and reads
 
 - **Records.** Against the EPYC A/B runs of main: generated writes are 5–9% faster (GenericRecord 334 to 305 ns, WideRecord 557 to 529 ns). The generic GenericRecord write is 7% slower (498 to 535 ns). That row was the same as main in the A/B runs, which used DefaultJob and one core, so it needs a repeat before acting on it.
@@ -59,7 +77,7 @@ With fast PDEP, a single write stores 3 to 8 bytes with one word, without testin
 
 ## Follow-ups
 
-1. Re-run `VarintBenchmarks` encode on a fast-PDEP machine after the bulk fix: the bulk Mixed1-10 and 8-byte rows should now be faster than single writes.
+1. ~~Re-run `VarintBenchmarks` encode on a fast-PDEP machine after the bulk fix.~~ Done on both machines, at `849830e`. Bulk Mixed1-10 takes 279.7 µs against 278.9 µs for single writes on the i7 (455.7 before), and 329.5 against 376.1 µs on the EPYC (506.1 before). 8 bytes takes 113.7 against 117.7 µs on the i7 and 172.5 against 183.4 µs on the EPYC. Bulk is now at least as fast as single writes for every length on both machines.
 2. The 1-byte cost (6–8%) comes with the inline word path. Record writes did not show it in the EPYC A/B runs; the repeat runs on the i5 and nas will show whether it holds for the other path.
 3. ~~Repeat GenericRecord `AvroSharp_Write` with DefaultJob before treating its +7% as real.~~ Done: the +7% was ShortRun noise.
 
