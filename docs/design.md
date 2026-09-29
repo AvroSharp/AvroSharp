@@ -430,6 +430,7 @@ Order m = reader.Decode(bytes);
   - `AvroValue`'s factories pair with its accessors: `FromBytes`, `FromRecord` and `FromFixed` (were `FromByteArray`, `FromGenericRecord` and `FromGenericFixed`). Primitives take their .NET names (`FromInt32`/`AsInt32`), and the other kinds their Avro names; the struct's docs state the rule. CA2225 wants the .NET names for the implicit operators' alternates, and is suppressed there.
   - `EnumSchema.Default` is now `DefaultSymbol`, like the constructor parameter; `Default` read like a static.
   - `AvroReader.Skip(long)` is now `SkipRaw`, so it doesn't read as a sibling of `SkipBytes()`, which skips an Avro `bytes` value.
+- **Exceptions:** `AvroException`, `AvroDataException` (malformed data) and `AvroSchemaException` (invalid schemas) are all in the `AvroSharp` namespace. Code in any `AvroSharp.*` namespace sees them without a `using`.
 
 ---
 

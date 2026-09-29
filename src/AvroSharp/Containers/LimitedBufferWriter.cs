@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using AvroSharp.Buffers;
-using AvroSharp.IO;
 
 namespace AvroSharp.Containers;
 

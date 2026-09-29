@@ -1,5 +1,4 @@
 using System.IO;
-using AvroSharp.Schemas;
 
 namespace AvroSharp.Tool;
 

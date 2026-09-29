@@ -3,7 +3,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.Tests;

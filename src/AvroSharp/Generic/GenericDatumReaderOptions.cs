@@ -12,7 +12,7 @@ public sealed class GenericDatumReaderOptions
 
     /// <summary>
     /// Gets the deepest nesting of records allowed while reading one value. Deeper input is rejected with
-    /// <see cref="IO.AvroDataException"/> instead of overflowing the stack. Defaults to 128.
+    /// <see cref="AvroDataException"/> instead of overflowing the stack. Defaults to 128.
     /// </summary>
     public int MaxDepth { get; init; } = DefaultMaxDepth;
 

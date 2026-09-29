@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.Tests.Containers;

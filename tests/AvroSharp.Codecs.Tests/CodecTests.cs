@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 using TUnit.Assertions.Enums;
 

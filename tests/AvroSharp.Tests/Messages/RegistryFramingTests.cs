@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Messages;
 using AvroSharp.Schemas;
 

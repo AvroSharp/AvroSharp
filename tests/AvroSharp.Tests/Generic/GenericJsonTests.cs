@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 using TUnit.Assertions.Enums;
 

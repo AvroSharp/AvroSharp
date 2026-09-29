@@ -165,7 +165,7 @@ internal static class ApacheSupport
                 {
                     if (bigEndian.Length == 0)
                     {
-                        throw new global::AvroSharp.IO.AvroDataException("A decimal has no bytes; its unscaled value needs at least one.");
+                        throw new global::AvroSharp.AvroDataException("A decimal has no bytes; its unscaled value needs at least one.");
                     }
 
                     global::System.Array.Reverse(bigEndian);

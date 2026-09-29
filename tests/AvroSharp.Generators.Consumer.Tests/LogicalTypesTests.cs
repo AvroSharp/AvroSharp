@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using ApacheReader = Avro.Generic.GenericDatumReader<object>;
 using ApacheSchema = Avro.Schema;
 using ApacheWriter = Avro.Generic.GenericDatumWriter<object>;

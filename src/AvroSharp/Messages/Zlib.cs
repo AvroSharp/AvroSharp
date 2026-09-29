@@ -4,7 +4,6 @@ using System.Buffers.Binary;
 using System.IO;
 using AvroSharp.Buffers;
 using AvroSharp.Containers;
-using AvroSharp.IO;
 
 namespace AvroSharp.Messages;
 

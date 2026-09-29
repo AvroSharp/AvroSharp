@@ -35,7 +35,7 @@ AvroSharp.CodeGen.PropertyNaming.Avro = 1 -> AvroSharp.CodeGen.PropertyNaming
 AvroSharp.CodeGen.PropertyNaming.PascalCase = 0 -> AvroSharp.CodeGen.PropertyNaming
 AvroSharp.CodeGen.SchemaFileSet
 AvroSharp.CodeGen.SchemaFileSet.DefinedIn.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
-AvroSharp.CodeGen.SchemaFileSet.Errors.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Schemas.AvroSchemaException!>!
+AvroSharp.CodeGen.SchemaFileSet.Errors.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.AvroSchemaException!>!
 AvroSharp.CodeGen.SchemaFileSet.GetErrorMessage(string! path) -> string!
 AvroSharp.CodeGen.SchemaFileSet.Schemas.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>!
 AvroSharp.CodeGen.SchemaFileSet.SchemasByPath.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Schemas.AvroSchema!>!

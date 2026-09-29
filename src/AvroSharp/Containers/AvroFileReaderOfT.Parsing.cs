@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AvroSharp.Buffers;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.Containers;
