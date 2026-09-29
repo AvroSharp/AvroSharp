@@ -164,7 +164,7 @@ public sealed partial class AvroFileReader<T>
         }
 
         Metadata = metadata;
-        var codecName = GetMetadataString(AvroContainerFormat.CodecKey) ?? AvroCodecNames.Null;
+        var codecName = TryGetMetadataString(AvroContainerFormat.CodecKey, out var named) ? named : AvroCodecNames.Null;
         _codec = FindCodec(codecName, _codecs) ?? throw CodecNotAvailable(codecName);
     }
 

@@ -18,12 +18,18 @@ public static class ConfluentSchemaIdHeader
     /// <summary>The length of the header value.</summary>
     public const int Length = 17;
 
-    /// <summary>Encodes a schema GUID as a header value.</summary>
-    /// <param name="schemaGuid">The schema GUID.</param>
-    public static byte[] Encode(Guid schemaGuid)
+    /// <summary>Encodes a schema ID as a header value.</summary>
+    /// <param name="schemaId">The schema ID, a GUID (<see cref="AvroSchemaId.FromGuid"/>).</param>
+    /// <exception cref="ArgumentException">The ID is a number: this header carries GUIDs.</exception>
+    public static byte[] Encode(AvroSchemaId schemaId)
     {
+        if (!schemaId.IsGuid)
+        {
+            throw new ArgumentException("Confluent's schema ID header carries a GUID; the ID is a number.", nameof(schemaId));
+        }
+
         var value = new byte[Length];
-        AvroRegistryFraming.ConfluentGuid.WriteHeader(value, AvroSchemaId.FromGuid(schemaGuid));
+        AvroRegistryFraming.ConfluentGuid.WriteHeader(value, schemaId);
         return value;
     }
 

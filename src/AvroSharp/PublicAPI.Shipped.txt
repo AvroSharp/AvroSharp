@@ -11,7 +11,7 @@ AvroSharp.Containers.AvroFileReader<T>
 AvroSharp.Containers.AvroFileReader<T>.Codec.get -> AvroSharp.Containers.AvroCodec!
 AvroSharp.Containers.AvroFileReader<T>.Dispose() -> void
 AvroSharp.Containers.AvroFileReader<T>.DisposeAsync() -> System.Threading.Tasks.ValueTask
-AvroSharp.Containers.AvroFileReader<T>.GetMetadataString(string! key) -> string?
+AvroSharp.Containers.AvroFileReader<T>.TryGetMetadataString(string! key, out string? value) -> bool
 AvroSharp.Containers.AvroFileReader<T>.Metadata.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.ReadOnlyMemory<byte>>!
 AvroSharp.Containers.AvroFileReader<T>.PastSync(long position) -> bool
 AvroSharp.Containers.AvroFileReader<T>.PreviousSync.get -> long
@@ -141,7 +141,7 @@ AvroSharp.Generic.GenericRecord
 AvroSharp.Generic.GenericRecord.Equals(AvroSharp.Generic.GenericRecord? other) -> bool
 AvroSharp.Generic.GenericRecord.GenericRecord(AvroSharp.Schemas.RecordSchema! schema) -> void
 AvroSharp.Generic.GenericRecord.Schema.get -> AvroSharp.Schemas.RecordSchema!
-AvroSharp.Generic.GenericRecord.TryGetValue(int index, out AvroSharp.Generic.AvroValue value) -> bool
+AvroSharp.Generic.GenericRecord.TryGetValue(int position, out AvroSharp.Generic.AvroValue value) -> bool
 AvroSharp.Generic.GenericRecord.TryGetValue(string! name, out AvroSharp.Generic.AvroValue value) -> bool
 AvroSharp.Generic.GenericRecord.Values.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>!
 AvroSharp.Generic.GenericRecord.this[int position].get -> AvroSharp.Generic.AvroValue
@@ -490,7 +490,7 @@ const AvroSharp.Messages.AvroRegistryReaderOptions.DefaultMaxPayloadLength = 671
 const AvroSharp.Messages.ConfluentSchemaIdHeader.KeyHeaderName = "__key_schema_id" -> string!
 const AvroSharp.Messages.ConfluentSchemaIdHeader.Length = 17 -> int
 const AvroSharp.Messages.ConfluentSchemaIdHeader.ValueHeaderName = "__value_schema_id" -> string!
-const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = 13933329357911598997 -> ulong
+const AvroSharp.Schemas.SchemaFingerprint.Crc64AvroEmpty = -4513414715797952619 -> long
 const AvroSharp.Serialization.Generated.AvroGeneratedCode.MaxDepth = 128 -> int
 const AvroSharp.Serialization.Generated.AvroGeneratedCode.MaxZeroSizeItems = 65536 -> int
 const AvroSharp.Streams.AvroStreamOptions.DefaultBufferSize = 65536 -> int
@@ -597,7 +597,7 @@ static AvroSharp.Messages.AvroSchemaId.FromGuid(System.Guid id) -> AvroSharp.Mes
 static AvroSharp.Messages.AvroSchemaId.FromNumber(long id) -> AvroSharp.Messages.AvroSchemaId
 static AvroSharp.Messages.AvroSchemaId.operator !=(AvroSharp.Messages.AvroSchemaId left, AvroSharp.Messages.AvroSchemaId right) -> bool
 static AvroSharp.Messages.AvroSchemaId.operator ==(AvroSharp.Messages.AvroSchemaId left, AvroSharp.Messages.AvroSchemaId right) -> bool
-static AvroSharp.Messages.ConfluentSchemaIdHeader.Encode(System.Guid schemaGuid) -> byte[]!
+static AvroSharp.Messages.ConfluentSchemaIdHeader.Encode(AvroSharp.Messages.AvroSchemaId schemaId) -> byte[]!
 static AvroSharp.Messages.ConfluentSchemaIdHeader.TryDecode(System.ReadOnlySpan<byte> headerValue, out AvroSharp.Messages.AvroSchemaId schemaId) -> bool
 static AvroSharp.Schemas.AvroLogicalType.BigDecimal.get -> AvroSharp.Schemas.AvroLogicalType!
 static AvroSharp.Schemas.AvroLogicalType.Date.get -> AvroSharp.Schemas.AvroLogicalType!

@@ -431,6 +431,11 @@ Order m = reader.Decode(bytes);
   - `EnumSchema.Default` is now `DefaultSymbol`, like the constructor parameter; `Default` read like a static.
   - `AvroReader.Skip(long)` is now `SkipRaw`, so it doesn't read as a sibling of `SkipBytes()`, which skips an Avro `bytes` value.
 - **Exceptions:** `AvroException`, `AvroDataException` (malformed data) and `AvroSchemaException` (invalid schemas) are all in the `AvroSharp` namespace. Code in any `AvroSharp.*` namespace sees them without a `using`.
+- **Small ones:**
+  - `SchemaFingerprint.Crc64AvroEmpty` is a `long`, like every fingerprint. The polynomial isn't public.
+  - `AvroFileReader<T>.TryGetMetadataString` replaces `GetMetadataString`.
+  - `ConfluentSchemaIdHeader.Encode` takes the `AvroSchemaId` that `TryDecode` gives, and rejects a numeric ID.
+  - `GenericRecord.TryGetValue(int position, …)` names its parameter as the indexer does.
 
 ---
 

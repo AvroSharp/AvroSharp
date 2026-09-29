@@ -107,10 +107,13 @@ public class ContainerFileTests
 
         using var reader = AvroFileReader.OpenGeneric(new MemoryStream(WriteFile(Rows(1), options)));
 
-        await Assert.That(reader.GetMetadataString("app.owner")).IsEqualTo("team-a");
+        await Assert.That(reader.TryGetMetadataString("app.owner", out var owner)).IsTrue();
+        await Assert.That(owner).IsEqualTo("team-a");
         await Assert.That(reader.Metadata["app.raw"].ToArray().SequenceEqual(new byte[] { 0, 255 })).IsTrue();
-        await Assert.That(reader.GetMetadataString("avro.codec")).IsEqualTo("null");
-        await Assert.That(reader.GetMetadataString("missing")).IsNull();
+        await Assert.That(reader.TryGetMetadataString("avro.codec", out var codec)).IsTrue();
+        await Assert.That(codec).IsEqualTo("null");
+        await Assert.That(reader.TryGetMetadataString("missing", out var missing)).IsFalse();
+        await Assert.That(missing).IsNull();
     }
 
     [Test]

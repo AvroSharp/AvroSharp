@@ -116,7 +116,7 @@ public class SchemaWriterTests
     [Test]
     public async Task Crc64Avro_OfEmptyInputIsTheEmptyConstant()
     {
-        await Assert.That(unchecked((ulong)SchemaFingerprint.Crc64Avro([]))).IsEqualTo(SchemaFingerprint.Crc64AvroEmpty);
+        await Assert.That(SchemaFingerprint.Crc64Avro([])).IsEqualTo(SchemaFingerprint.Crc64AvroEmpty);
     }
 
     /// <summary>

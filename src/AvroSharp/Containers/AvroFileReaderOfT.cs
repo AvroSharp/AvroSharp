@@ -87,12 +87,15 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
     private int Buffered => _inputEnd - _inputStart;
 
-    /// <summary>Gets a metadata entry decoded as UTF-8, or <see langword="null"/> when the header has no such key.</summary>
+    /// <summary>Gets a metadata entry decoded as UTF-8.</summary>
     /// <param name="key">The key.</param>
-    public string? GetMetadataString(string key)
+    /// <param name="value">The entry, when the header has it.</param>
+    /// <returns><see langword="false"/> when the header has no such key.</returns>
+    public bool TryGetMetadataString(string key, [NotNullWhen(true)] out string? value)
     {
         ArgumentNullException.ThrowIfNull(key);
-        return Metadata.TryGetValue(key, out var value) ? Encoding.UTF8.GetString(value.Span) : null;
+        value = Metadata.TryGetValue(key, out var bytes) ? Encoding.UTF8.GetString(bytes.Span) : null;
+        return value is not null;
     }
 
     /// <summary>Reads the next object.</summary>

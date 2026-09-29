@@ -69,13 +69,13 @@ public sealed class GenericRecord : IEquatable<GenericRecord>
     }
 
     /// <summary>Gets a field value by position, if the record has a field at that position.</summary>
-    /// <param name="index">The zero-based field position.</param>
+    /// <param name="position">The zero-based field position.</param>
     /// <param name="value">The value, when found.</param>
-    public bool TryGetValue(int index, out AvroValue value)
+    public bool TryGetValue(int position, out AvroValue value)
     {
-        if ((uint)index < (uint)_values.Length)
+        if ((uint)position < (uint)_values.Length)
         {
-            value = _values[index];
+            value = _values[position];
             return true;
         }
 

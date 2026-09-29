@@ -135,7 +135,7 @@ public class ApacheAvroContainerInteropTests
                     }
                 }
 
-                if (!string.Equals(reader.GetMetadataString("app.seed"), seed.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal))
+                if (!reader.TryGetMetadataString("app.seed", out var written) || !string.Equals(written, seed.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal))
                 {
                     throw new InvalidOperationException("Apache's metadata was not read.");
                 }
