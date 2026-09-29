@@ -84,4 +84,30 @@ Against main:
 2. **Mixed1-10 on CPUs without fast PDEP:** order the tests in `WriteMultiByteVarint` so random lengths pay no more branches than main's (3, 4, then the word), and measure Mixed1-10 on both machines.
 3. **After `88f2ed9` and the `ec01828` bulk-variant run,** re-run VarintBenchmarks here too. `88f2ed9` should not change these machines, since it only touches the fast-PDEP path; that is worth confirming.
 
+## Follow-up runs on the nas
+
+**1-byte encode (follow-up 1).** The tier-1 code of the single-write loop (`EncodeAll`) is the same for main (`c36c660`) and the branch: 195 bytes each, differing only in register names. Two rounds of main and the branch, back to back (DefaultJob, one core):
+
+| Row | main, round 1 | branch, round 1 | main, round 2 | branch, round 2 |
+|---|---:|---:|---:|---:|
+| 1-byte encode | 180.3 µs | 180.7 µs | 212.4 µs | 211.2 µs |
+| Apache.Avro 1-byte encode | 303.3 µs | 303.8 µs | 185.8 µs | 198.8 µs |
+| 2-byte encode | 169.8 µs | 170.3 µs | 170.3 µs | 170.5 µs |
+| Mixed1-10 encode | 604.1 µs | 780.5 µs | 605.7 µs | 784.6 µs |
+
+So the 1-byte row is not a regression of the branch. On this CPU it moves between processes (about 180, 212 or 294 µs) with the same code, and Apache.Avro's 1-byte row moves more (186 to 303 µs). Whether the row passes the gate depends on how the two processes happen to fall. Code placement is a likely reason, but that is not proven. Mixed1-10's +29% against main holds in both rounds.
+
+**Mixed1-10 (follow-up 2).** A temporary benchmark (`149a0b7`, since removed) compared three orders of the length tests in `WriteMultiByteVarint`, single and bulk:
+
+| Bytes | 0: below 2^35 first | 1: main's order, 3, 4, word from 5 | 2: 3, 4, 5, word from 6 |
+|---|---:|---:|---:|
+| 3 | 339.7 / 185.0 µs | 332.4 / 167.8 µs | 332.5 / 167.5 µs |
+| 4 | 333.7 / 181.4 µs | 335.8 / 183.3 µs | 329.8 / 170.9 µs |
+| 5 | 351.9 / 208.8 µs | 410.0 / 307.2 µs | 346.4 / 193.8 µs |
+| 8 | 417.4 / 313.4 µs | 411.0 / 307.2 µs | 432.3 / 326.8 µs |
+| 10 | 341.8 / 247.1 µs | 357.7 / 254.0 µs | 362.2 / 258.0 µs |
+| Mixed1-10 | 777.5 / 659.7 µs | 640.1 / 522.2 µs | 680.1 / 579.2 µs |
+
+Order 2 is now the code. It matches or beats the others for 3 to 5 bytes, and is 12% faster than order 0 on Mixed1-10. It is 4–6% slower for 8 and 10 bytes, within this machine's run-to-run variation. Order 1 is fastest on Mixed1-10, but 17% (single) and 47% (bulk) slower for 5 bytes. Mixed1-10 stays about 12% slower than main on this machine, a synthetic case of uniformly random lengths; the record-level encode rows don't show it.
+
 The BenchmarkDotNet reports are not committed. They are in `BenchmarkDotNet.Artifacts` on each machine: `BenchmarkRun-20260928-181500.log` on the i5 and `BenchmarkRun-20260928-181450.log` on the nas.

@@ -484,40 +484,36 @@ public ref struct AvroWriter
     /// A varint of 3 or more bytes at <paramref name="destination"/>, which has room for 10; returns its length.
     /// Written through <c>ref</c> stores with no bounds checks.
     /// </summary>
+    /// <remarks>
+    /// PERF: the lengths are tested shortest first. Three to five bytes are one 4-byte store of the first four 7-bit
+    /// groups (plus the fifth byte), cheaper than the word for short values; bytes past the varint are overwritten by
+    /// the next value. Of three orders measured on a Ryzen 5 3500U without fast PDEP (#102), this one was as fast as
+    /// the best for 3 to 5 bytes, single and bulk, and 12% faster than testing below 2^35 first on randomly mixed
+    /// lengths. Main's order (3, 4, then the word from 5 bytes) was faster on mixed lengths but 17-47% slower for 5.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int WriteMultiByteVarint(ref byte destination, ulong value)
     {
-#if NET8_0_OR_GREATER
-        // TEMPORARY (#102): orderings of the length tests for one benchmark run on CPUs without fast PDEP; see
-        // MultiByteOrderVariant. Remove before merging.
-        if (BitConverter.IsLittleEndian && MultiByteOrderVariant.Value != 0)
+        if (BitConverter.IsLittleEndian)
         {
-            return WriteMultiByteVarintOrdered(ref destination, value);
-        }
-#endif
-
-        // Three to five bytes: spread the first four 7-bit groups into one 4-byte store, cheaper than the word path for
-        // short values. Bytes past the varint are overwritten by the next value. Longer values skip this block with
-        // one compare, and do not pay for building the groups (#102: computing them first made 8-byte values 11-18%
-        // slower than on main).
-        if (BitConverter.IsLittleEndian && value < 1UL << 35)
-        {
-            var low = (uint)(value & 0x7F) | ((uint)(value << 1) & 0x7F00) | ((uint)(value << 2) & 0x7F0000) | ((uint)(value << 3) & 0x7F000000);
             if (value < 1UL << 21)
             {
-                Unsafe.WriteUnaligned(ref destination, low | 0x8080);
+                Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x8080);
                 return 3;
             }
 
             if (value < 1UL << 28)
             {
-                Unsafe.WriteUnaligned(ref destination, low | 0x808080);
+                Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x808080);
                 return 4;
             }
 
-            Unsafe.WriteUnaligned(ref destination, low | 0x80808080);
-            Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
-            return 5;
+            if (value < 1UL << 35)
+            {
+                Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x80808080);
+                Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
+                return 5;
+            }
         }
 
 #if NET8_0_OR_GREATER
@@ -537,46 +533,12 @@ public ref struct AvroWriter
 #endif
     }
 
-#if NET8_0_OR_GREATER
-    // TEMPORARY (#102): the MultiByteOrderVariant candidates 1 and 2.
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int WriteMultiByteVarintOrdered(ref byte destination, ulong value)
-    {
-        if (value < 1UL << 21)
-        {
-            Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x8080);
-            return 3;
-        }
-
-        if (value < 1UL << 28)
-        {
-            Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x808080);
-            return 4;
-        }
-
-        if (MultiByteOrderVariant.Value == 2 && value < 1UL << 35)
-        {
-            Unsafe.WriteUnaligned(ref destination, LowGroups(value) | 0x80808080);
-            Unsafe.Add(ref destination, 4) = (byte)(value >> 28);
-            return 5;
-        }
-
-        if (value < 1UL << 56)
-        {
-            var wordLength = ((63 - BitOperations.LeadingZeroCount(value)) / 7) + 1;
-            var wordContinuation = 0x8080808080808080UL & ((1UL << ((wordLength - 1) * 8)) - 1);
-            WriteWord(ref destination, SpreadVarint(value) | wordContinuation);
-            return wordLength;
-        }
-
-        return WriteLongVarint(ref destination, value);
-    }
-
-    // TEMPORARY (#102): the first four 7-bit groups, one per byte; for the MultiByteOrderVariant candidates.
+    /// <summary>The first four 7-bit groups of <paramref name="value"/>, one per byte, as a little-endian word.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint LowGroups(ulong value) =>
         (uint)(value & 0x7F) | ((uint)(value << 1) & 0x7F00) | ((uint)(value << 2) & 0x7F0000) | ((uint)(value << 3) & 0x7F000000);
 
+#if NET8_0_OR_GREATER
     /// <summary>
     /// Writes a varint below 2^56 of 3 to 8 bytes as one 8-byte store of its 7-bit groups, spread with PDEP; returns
     /// its length. Only where PDEP is fast (FastBmi2, which implies x64 and so little-endian). Bytes past the varint
