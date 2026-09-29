@@ -34,6 +34,44 @@ Native AOT smoke test:
 dotnet publish tests/AvroSharp.AotSmoke -c Release -r win-x64   # or linux-x64
 ```
 
+The documentation site, with the same DocFX version and broken-link check as the docs workflow:
+
+```shell
+dotnet tool restore
+dotnet tool run docfx docfx.json --serve   # http://localhost:8080
+```
+
+### Dev container
+
+`.devcontainer/` builds and tests as the Linux CI job does, with no local .NET setup. It has:
+- **SDKs:** Ubuntu 24.04 (as `ubuntu-latest`) with the .NET 8, 9 and 10 SDKs;
+- **Native AOT:** its prerequisites;
+- **Tools:** the repository's local tools (DocFX, ReportGenerator);
+- **Environment:** CI's variables;
+- **Cache:** the NuGet cache in a volume, so rebuilding the container doesn't download it again.
+
+Open the repository in it with VS Code (**Dev Containers: Reopen in Container**) or Rider, or create a GitHub Codespace from the repository page (**Code > Codespaces**). Then run the Linux CI job's steps:
+
+```shell
+build/ci-local.sh
+```
+
+It runs, in CI's order:
+- restore and build;
+- the tests on net8.0, net9.0 and net10.0 with coverage, and the coverage check (the summary is in `artifacts/coverage/SummaryGithub.md`);
+- the tests without hardware intrinsics;
+- the samples;
+- the Native AOT smoke test;
+- pack, and the package consumers.
+
+It takes about as long as the CI job. Passing it means passing the Linux CI job on the container's architecture: `ubuntu-latest` on x64, or `ubuntu-24.04-arm` on an Arm64 host such as an Apple silicon Mac.
+
+It doesn't cover:
+- **Windows and .NET Framework:** the Windows jobs and the net481 tests run in CI only.
+- **The other architecture:** the container runs on the host's architecture, so only CI runs both.
+- **Fuzzing:** the nightly libFuzzer runs are in `fuzz/README.md`. The random-schema test runs with the other tests, on 100 schemas.
+- **Benchmarks:** these need a quiet, dedicated machine, not a container.
+
 ## Public API
 
 Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt`; the build fails otherwise.
