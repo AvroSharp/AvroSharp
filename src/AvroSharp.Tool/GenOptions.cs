@@ -45,7 +45,7 @@ internal sealed class GenOptions
 
     private readonly Option<bool> _noNullable = new("--no-nullable")
     {
-        Description = "No nullable reference type annotations, so the code compiles as C# 7.3 (the default for netstandard2.0 and .NET Framework projects).",
+        Description = "No nullable reference type annotations, so the code compiles as C# 7.3 (the default for netstandard2.0 and .NET Framework projects). --language-version 7 implies it.",
     };
 
     private readonly Option<bool> _noDateOnly = new("--no-date-only")
@@ -117,22 +117,22 @@ internal sealed class GenOptions
 
     public CodeGenOptions ToCodeGenOptions(ParseResult result) => new()
     {
-        DefaultNamespace = result.GetValue(_namespace),
-        NamespaceMapping = NamespaceMapping(result.GetValue(_namespaceMap)),
+        Namespace = result.GetValue(_namespace),
+        NamespaceMap = NamespaceMap(result.GetValue(_namespaceMap)),
         LogicalTypes = string.Equals(result.GetValue(_logicalTypes), Raw, StringComparison.Ordinal) ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
-        PropertyNaming = result.GetValue(_propertyNames) switch
+        PropertyNames = result.GetValue(_propertyNames) switch
         {
             Pascal => PropertyNaming.PascalCase,
             Avro => PropertyNaming.Avro,
             _ => null,
         },
         ApacheCompatible = result.GetValue(_apache),
-        NullableAnnotations = !result.GetValue(_noNullable),
+        NullableAnnotations = !result.GetValue(_noNullable) && result.GetValue(_languageVersion) >= 8,
         TargetHasDateOnly = !result.GetValue(_noDateOnly),
         LanguageVersion = result.GetValue(_languageVersion),
     };
 
-    private static Dictionary<string, string>? NamespaceMapping(string[]? values)
+    private static Dictionary<string, string>? NamespaceMap(string[]? values)
     {
         if (values is not { Length: > 0 })
         {

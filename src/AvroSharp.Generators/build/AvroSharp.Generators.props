@@ -1,8 +1,9 @@
 <Project>
 
-  <!-- Lets the generator read the AvroSharpNamespace property: the C# namespace for Avro types without a namespace. -->
+  <!-- Lets the generator read its MSBuild properties (see the Code generation docs). -->
   <ItemGroup>
     <CompilerVisibleProperty Include="AvroSharpNamespace" />
+    <CompilerVisibleProperty Include="AvroSharpNamespaceMap" />
     <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
     <CompilerVisibleProperty Include="AvroSharpApacheCompatible" />
     <CompilerVisibleProperty Include="AvroSharpPropertyNames" />

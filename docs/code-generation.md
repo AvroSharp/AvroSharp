@@ -83,18 +83,20 @@ On every target, pass the serializers instead: `AvroFileWriter.Create<Order>(str
 
 ## MSBuild properties
 
-Set these in the project file (or a `Directory.Build.props`):
+Set these in the project file (or a `Directory.Build.props`). Each one has the same values as the [`avrosharp gen`](cli.md) option of the same name and the `CodeGenOptions` property of the same name. Values are case-insensitive, and a value the generator doesn't recognize is a warning (AVROGEN006), not ignored silently. The C# version, nullable annotations and `DateOnly` come from the project.
 
 | Property | Values | Effect |
 |---|---|---|
-| `AvroSharpNamespace` | a C# namespace | The namespace of types that have no Avro namespace. |
+| `AvroSharpNamespace` | a C# namespace | The namespace of types that have no Avro namespace (`--namespace`). |
+| `AvroSharpNamespaceMap` | `avro.ns:CSharp.Ns`, separated by `;` | Puts types of an Avro namespace, or of a namespace under it, into another C# namespace, as avrogen's `--namespace` does (`--namespace-map`). The longest matching entry wins. Not with `AvroSharpApacheCompatible`. |
 | `AvroSharpPropertyNames` | `pascal`, `avro` | `pascal` (the default) converts field names to PascalCase: `customer_name` becomes `CustomerName`, `USER_ID` becomes `UserId`. `avro` keeps the field names as written, as Apache's `avrogen` does, escaping C# keywords (`@class`). |
-| `AvroSharpLogicalTypes` | `raw` | Keeps logical types as their underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others. |
-| `AvroSharpApacheCompatible` | `true` | The [Apache.Avro compatibility mode](#migrating-from-avrogen-the-apacheavro-compatibility-mode). |
+| `AvroSharpLogicalTypes` | `native`, `raw` | `native` (the default) maps logical types to .NET types. `raw` keeps logical types as their underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others. |
+| `AvroSharpApacheCompatible` | `true`, `false` | `true` turns on the [Apache.Avro compatibility mode](#migrating-from-avrogen-the-apacheavro-compatibility-mode). |
 
 ```xml
 <PropertyGroup>
   <AvroSharpNamespace>Acme.Events</AvroSharpNamespace>
+  <AvroSharpNamespaceMap>com.acme.events:Acme.Events;com.acme.common:Acme.Common</AvroSharpNamespaceMap>
   <AvroSharpPropertyNames>avro</AvroSharpPropertyNames>
 </PropertyGroup>
 ```
@@ -150,6 +152,7 @@ Apache.Avro 1.12.2 has limits in this mode, which the tests pin: its specific wr
 | AVROGEN003 | Error | Code generation failed, for example for a union of two branches with the same C# type. |
 | AVROGEN004 | Error | `AvroSharpApacheCompatible` is set, but the project does not reference Apache.Avro. |
 | AVROGEN005 | Info | A property was renamed to avoid a clash with another member (for example `user_id` and `userId` in one record). |
+| AVROGEN006 | Warning | An `AvroSharp…` MSBuild property has a value the generator doesn't recognize, for example `AvroSharpLogicalTypes` set to `rwa`. The message names the property and the value used instead. |
 
 ## Requirements
 

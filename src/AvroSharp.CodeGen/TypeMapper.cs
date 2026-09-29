@@ -20,7 +20,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     public string Nullable(string referenceType) => options.NullableAnnotations ? referenceType + "?" : referenceType;
 
     /// <summary>Gets how record fields become property names: the option, or the mode's default (avrogen's names for Apache).</summary>
-    public PropertyNaming Naming => options.PropertyNaming ?? (options.ApacheCompatible ? PropertyNaming.Avro : PropertyNaming.PascalCase);
+    public PropertyNaming Naming => options.PropertyNames ?? (options.ApacheCompatible ? PropertyNaming.Avro : PropertyNaming.PascalCase);
 
     /// <summary>
     /// Gets whether the generated code may use C# 11 for .NET 8 and later (behind <c>#if NET8_0_OR_GREATER</c>): UTF-8

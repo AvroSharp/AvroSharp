@@ -15,7 +15,8 @@ namespace AvroSharp.Generators;
 /// <c>AdditionalFiles</c>. Files may refer to named types defined in other files.
 /// </summary>
 /// <remarks>
-/// Set the MSBuild property <c>AvroSharpNamespace</c> to choose the C# namespace for Avro types without a namespace.
+/// MSBuild properties configure it: see <see cref="ProjectSettings"/>. <c>AvroSharpNamespace</c>, for example, is the C#
+/// namespace for Avro types without a namespace.
 /// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class SchemaFileGenerator : IIncrementalGenerator
@@ -47,6 +48,9 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor s_invalidSetting = new(
+        "AVROGEN006", "Unrecognized AvroSharp setting", "{0}", Category, DiagnosticSeverity.Warning, isEnabledByDefault: true);
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -55,17 +59,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             .Select(static (file, cancellationToken) => new SchemaFile(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Collect();
 
-        var properties = context.AnalyzerConfigOptionsProvider.Select(static (options, _) =>
-        (
-            Namespace: options.GlobalOptions.TryGetValue("build_property.AvroSharpNamespace", out var ns) && !string.IsNullOrWhiteSpace(ns) ? ns.Trim() : null,
-            Raw: options.GlobalOptions.TryGetValue("build_property.AvroSharpLogicalTypes", out var logical)
-                && string.Equals(logical.Trim(), "raw", StringComparison.OrdinalIgnoreCase),
-            Apache: options.GlobalOptions.TryGetValue("build_property.AvroSharpApacheCompatible", out var apache)
-                && string.Equals(apache.Trim(), "true", StringComparison.OrdinalIgnoreCase),
-            // Unset means the mode's default: PascalCase, or avrogen's names in the Apache compatibility mode.
-            Naming: options.GlobalOptions.TryGetValue("build_property.AvroSharpPropertyNames", out var naming) && !string.IsNullOrWhiteSpace(naming)
-                ? string.Equals(naming.Trim(), "avro", StringComparison.OrdinalIgnoreCase) ? PropertyNaming.Avro : PropertyNaming.PascalCase
-                : (PropertyNaming?)null));
+        var properties = context.AnalyzerConfigOptionsProvider.Select(static (options, _) => ProjectSettings.Read(options.GlobalOptions));
 
         var hasRuntime = context.CompilationProvider.Select(static (compilation, _) =>
             compilation.GetTypeByMetadataName("AvroSharp.Serialization.Generated.AvroGeneratedCode") is not null);
@@ -86,13 +80,14 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                 input.Left.Left.Left,
                 new CodeGenOptions
                 {
-                    DefaultNamespace = input.Left.Left.Right.Namespace,
+                    Namespace = input.Left.Left.Right.Namespace,
+                    NamespaceMap = input.Left.Left.Right.NamespaceMap,
                     LogicalTypes = input.Left.Left.Right.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
                     TargetHasDateOnly = input.Left.Right.HasDateOnly,
                     ApacheCompatible = input.Left.Left.Right.Apache && input.Left.Right.HasApache,
                     NullableAnnotations = input.Right >= 8,
                     LanguageVersion = input.Right,
-                    PropertyNaming = input.Left.Left.Right.Naming,
+                    PropertyNames = input.Left.Left.Right.PropertyNames,
                 },
                 cancellationToken))
             .WithTrackingName("Generate");
@@ -100,6 +95,13 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         var apacheMissing = properties.Combine(target).Select(static (input, _) => input.Left.Apache && !input.Right.HasApache);
 
         context.RegisterSourceOutput(results.Combine(hasRuntime).Combine(apacheMissing), static (output, input) => AddOutput(output, input.Left.Left, input.Left.Right, input.Right));
+        context.RegisterSourceOutput(properties, static (output, settings) =>
+        {
+            foreach (var warning in settings.Warnings)
+            {
+                output.ReportDiagnostic(Diagnostic.Create(s_invalidSetting, Location.None, warning));
+            }
+        });
     }
 
     /// <summary>Reports the diagnostics and, when the project can compile it, adds the generated code.</summary>

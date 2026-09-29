@@ -36,6 +36,7 @@ public static class CSharpCodeGenerator
         options ??= CodeGenOptions.Default;
         ValidateNamespaceMapping(options);
         ValidateDefaultNamespace(options);
+        ValidateLanguage(options);
         var names = new CSharpNames(options);
         var types = new TypeMapper(names, options);
 
@@ -179,9 +180,23 @@ public static class CSharpCodeGenerator
         }
     }
 
+    // Nullable annotations need C# 8: a contradiction is an error rather than code that does not compile.
+    private static void ValidateLanguage(CodeGenOptions options)
+    {
+        if (options.LanguageVersion < 7)
+        {
+            throw new ArgumentException($"The language version {options.LanguageVersion.ToString(CultureInfo.InvariantCulture)} is below the lowest supported, C# 7.", nameof(options));
+        }
+
+        if (options.NullableAnnotations && options.LanguageVersion < 8)
+        {
+            throw new ArgumentException($"Nullable annotations need C# 8 or later, and the language version is {options.LanguageVersion.ToString(CultureInfo.InvariantCulture)}: set NullableAnnotations to false.", nameof(options));
+        }
+    }
+
     private static void ValidateDefaultNamespace(CodeGenOptions options)
     {
-        var ns = options.DefaultNamespace;
+        var ns = options.Namespace;
         if (!string.IsNullOrEmpty(ns) && !ns!.Split('.').All(part => AvroNames.IsValidName(part)))
         {
             throw new ArgumentException($"The namespace '{ns}' is not a C# namespace: names of letters, digits and underscores, separated by dots.", nameof(options));
@@ -190,7 +205,7 @@ public static class CSharpCodeGenerator
 
     private static void ValidateNamespaceMapping(CodeGenOptions options)
     {
-        if (options.NamespaceMapping is not { Count: > 0 } mapping)
+        if (options.NamespaceMap is not { Count: > 0 } mapping)
         {
             return;
         }

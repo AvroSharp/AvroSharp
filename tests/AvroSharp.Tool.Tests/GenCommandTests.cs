@@ -67,6 +67,20 @@ public class GenCommandTests
         await Assert.That(code).DoesNotContain("??=");
     }
 
+    /// <summary>C# 7 has no nullable annotations, so --language-version 7 implies --no-nullable (#134).</summary>
+    [Test]
+    public async Task Gen_LanguageVersion7_ImpliesNoNullable()
+    {
+        using var tool = new ToolRunner();
+        tool.Write("s/order.avsc", Order);
+        tool.Write("s/status.avsc", Status);
+
+        var result = ToolRunner.Run("gen", tool.PathOf("s"), "-o", tool.PathOf("out"), "--language-version", "7");
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(File.ReadAllText(tool.PathOf("out/shop/Order.g.cs"))).DoesNotContain("#nullable enable");
+    }
+
     [Test]
     public async Task Gen_NoDateOnly_AndApacheCompatible_ReachTheGeneratedCode()
     {

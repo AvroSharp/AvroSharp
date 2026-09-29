@@ -12,7 +12,7 @@ public sealed class CodeGenOptions
     /// Gets the C# namespace for named types that have no Avro namespace. Defaults to <see langword="null"/>: such
     /// types are generated in the global namespace.
     /// </summary>
-    public string? DefaultNamespace { get; init; }
+    public string? Namespace { get; init; }
 
     /// <summary>
     /// Gets C# namespaces for Avro namespaces, as Apache.Avro's avrogen maps them with <c>--namespace avro:csharp</c>.
@@ -22,7 +22,7 @@ public sealed class CodeGenOptions
     /// <see cref="ApacheCompatible"/>, since Apache.Avro finds generated types by the schema's full name. Defaults to
     /// <see langword="null"/>: no mapping.
     /// </summary>
-    public IReadOnlyDictionary<string, string>? NamespaceMapping { get; init; }
+    public IReadOnlyDictionary<string, string>? NamespaceMap { get; init; }
 
     /// <summary>Gets how values of logical types are represented. Defaults to <see cref="LogicalTypeMapping.Native"/>.</summary>
     public LogicalTypeMapping LogicalTypes { get; init; } = LogicalTypeMapping.Native;
@@ -45,7 +45,8 @@ public sealed class CodeGenOptions
     /// <summary>
     /// Gets whether to emit nullable reference type annotations (<c>string?</c>, <c>#nullable enable</c>), which need
     /// C# 8 or later. Without them the generated code compiles as C# 7.3, the default for netstandard2.0 and .NET
-    /// Framework projects. Defaults to <see langword="true"/>.
+    /// Framework projects. Defaults to <see langword="true"/>; with a <see cref="LanguageVersion"/> below 8 it must be
+    /// <see langword="false"/>, or generation throws <see cref="System.ArgumentException"/>.
     /// </summary>
     public bool NullableAnnotations { get; init; } = true;
 
@@ -54,11 +55,11 @@ public sealed class CodeGenOptions
     /// <see cref="PropertyNaming.PascalCase"/>, or with <see cref="ApacheCompatible"/> <see cref="PropertyNaming.Avro"/>,
     /// the names Apache.Avro's avrogen uses.
     /// </summary>
-    public PropertyNaming? PropertyNaming { get; init; }
+    public PropertyNaming? PropertyNames { get; init; }
 
     /// <summary>
     /// Gets the major C# version the generated code may use. With 11 or later it adds, for .NET 8 and later,
-    /// <c>IAvroSerializable&lt;T&gt;</c>. Defaults to 14.
+    /// <c>IAvroSerializable&lt;T&gt;</c>. It must be 7 or later. Defaults to 14.
     /// </summary>
     public int LanguageVersion { get; init; } = 14;
 }

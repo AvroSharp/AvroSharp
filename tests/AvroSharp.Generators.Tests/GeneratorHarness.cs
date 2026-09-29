@@ -64,6 +64,21 @@ internal static class GeneratorHarness
         return (result.GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
     }
 
+    /// <summary>Runs the generator with these MSBuild properties (names without <c>build_property.</c>), as a project sets them.</summary>
+    public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
+        RunWithProperties(IEnumerable<(string Path, string Text)> files, IReadOnlyDictionary<string, string> msbuildProperties)
+    {
+        var compilation = CreateCompilation(true, "internal static class Placeholder { }");
+        var properties = msbuildProperties.ToDictionary(p => "build_property." + p.Key, p => p.Value, StringComparer.Ordinal);
+        var driver = CSharpGeneratorDriver.Create(
+                [new SchemaFileGenerator().AsSourceGenerator()],
+                files.Select(f => (AdditionalText)new InMemoryText(f.Path, f.Text)),
+                new CSharpParseOptions(LanguageVersion.Latest),
+                new Options(properties))
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+        return (driver.GetRunResult().Results.Single().GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
+    }
+
     /// <summary>Runs the generator, compiles its output and loads the assembly, so tests can call the generated code.</summary>
     public static System.Reflection.Assembly GenerateAndLoad(IEnumerable<(string Path, string Text)> files, string? propertyNames = null)
     {
