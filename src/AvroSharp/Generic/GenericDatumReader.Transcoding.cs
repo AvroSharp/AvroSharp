@@ -309,9 +309,8 @@ public sealed partial class GenericDatumReader
                 throw new AvroDataException($"Union branch index {index} is out of range ({branches.Length} branches).");
             }
 
-            EnterNesting(ref state);
+            // Not counted as nesting: a union cannot hold a union, so the arrays, maps and records in it count (#129).
             branches[index].Transcode(ref reader, ref writer, ref state, scratch);
-            state.Nesting--;
         }
     }
 

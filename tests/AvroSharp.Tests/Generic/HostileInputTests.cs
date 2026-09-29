@@ -152,7 +152,7 @@ public class HostileInputTests
 
         foreach (var ex in new[] { generic, resolving, transcoded, skipped })
         {
-            await Assert.That(ex.Message).Contains("nested more than 1024 levels deep, counting arrays, maps, unions and records");
+            await Assert.That(ex.Message).Contains("nested more than 1024 levels deep, counting arrays, maps and records");
         }
     }
 

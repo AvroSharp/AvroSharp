@@ -100,15 +100,15 @@ public sealed partial class GenericDatumReader
         public readonly int MaxDepth = options.MaxDepth;
         public int Depth;
 
-        // Arrays, maps and unions nest too, and a hostile writer schema can nest them between records (#129): the
-        // total is bounded separately, at NestingPerDepth times MaxDepth, so the stack is bounded however the
-        // nesting is built.
+        // Arrays and maps nest too, and a hostile writer schema can nest them between records (#129): the total is
+        // bounded separately, at NestingPerDepth times MaxDepth, so the stack is bounded however the nesting is built.
+        // Unions aren't counted: one cannot hold another, so the arrays, maps and records in them count.
         public readonly int MaxNesting = (int)Math.Min((long)options.MaxDepth * NestingPerDepth, int.MaxValue);
         public int Nesting;
         public long ZeroSizeItemsLeft = options.MaxZeroSizeItems;
 
-        // The nesting level at which the stack is next checked (EnterNesting).
-        public int NextStackCheck = StackCheckInterval;
+        // The nesting level at which the limit and the stack are next checked (EnterNesting).
+        public int NextCheck = NextCheckAfter(0, (int)Math.Min((long)options.MaxDepth * NestingPerDepth, int.MaxValue));
     }
 
     // Levels of any kind (records, arrays, maps, unions) allowed per record level of MaxDepth.
@@ -118,22 +118,16 @@ public sealed partial class GenericDatumReader
     private const int StackCheckInterval = 16;
 
     /// <summary>
-    /// Enters an array, map or union: counts it against the nesting limit, and checks that the thread has stack left
+    /// Enters an array or map: counts it against the nesting limit, and checks that the thread has stack left
     /// each time the nesting reaches <see cref="StackCheckInterval"/> levels past the deepest level checked.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void EnterNesting(ref ReadState state)
     {
-        if (++state.Nesting > state.MaxNesting)
+        // One comparison covers both the limit and the stack check: NextCheck is at most MaxNesting + 1.
+        if (++state.Nesting >= state.NextCheck)
         {
-            ThrowNestedTooDeep(state.MaxNesting);
-        }
-
-        // Checked per record, the stack cost 5-8 ns a record (#129). Levels above the deepest one checked already had
-        // their stack, and the levels between checks take a few KB, well within the margin the check leaves.
-        if (state.Nesting >= state.NextStackCheck)
-        {
-            CheckStack(ref state);
+            CheckNesting(ref state);
         }
     }
 
@@ -160,12 +154,22 @@ public sealed partial class GenericDatumReader
         state.Nesting--;
     }
 
+    // Checked per record, the stack cost 5-8 ns a record (#129). Levels above the deepest one checked already had
+    // their stack, and the levels between checks take a few KB, well within the margin the check leaves.
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void CheckStack(ref ReadState state)
+    private static void CheckNesting(ref ReadState state)
     {
+        if (state.Nesting > state.MaxNesting)
+        {
+            ThrowNestedTooDeep(state.MaxNesting);
+        }
+
         EnsureStack();
-        state.NextStackCheck = state.Nesting + StackCheckInterval;
+        state.NextCheck = NextCheckAfter(state.Nesting, state.MaxNesting);
     }
+
+    // The next nesting level to check at: StackCheckInterval levels deeper, or just past the limit.
+    private static int NextCheckAfter(int nesting, int maxNesting) => (int)Math.Min((long)nesting + StackCheckInterval, (long)maxNesting + 1);
 
     private static void EnsureStack()
     {
@@ -188,7 +192,7 @@ public sealed partial class GenericDatumReader
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowNestedTooDeep(int maxNesting) =>
-        throw new AvroDataException($"Values are nested more than {maxNesting} levels deep, counting arrays, maps, unions and records ({NestingPerDepth} times GenericDatumReaderOptions.MaxDepth).");
+        throw new AvroDataException($"Values are nested more than {maxNesting} levels deep, counting arrays, maps and records ({NestingPerDepth} times GenericDatumReaderOptions.MaxDepth).");
 
     private sealed class Builder
     {
@@ -507,10 +511,8 @@ public sealed partial class GenericDatumReader
                 throw new AvroDataException($"Union branch index {index} is out of range ({branches.Length} branches).");
             }
 
-            EnterNesting(ref state);
-            var value = branches[index].Read(ref reader, ref state);
-            state.Nesting--;
-            return value;
+            // Not counted as nesting: a union cannot hold a union, so the arrays, maps and records in it count (#129).
+            return branches[index].Read(ref reader, ref state);
         }
     }
 
