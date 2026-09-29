@@ -17,7 +17,7 @@ With the .NET 10 SDK, `dnx AvroSharp.Tool gen ...` runs it once without installi
 avrosharp gen schemas/ --output Generated/ --namespace Acme.Events
 ```
 
-It writes one `.g.cs` file per named type: the same code as the [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) source generator, which needs no tool at all. Use the tool when the code should be checked in, or built by something other than MSBuild. The project that compiles the code references the [AvroSharp](https://www.nuget.org/packages/AvroSharp) package.
+It writes one `.g.cs` file per named type, in folders for its namespace (`Generated/com/example/events/Order.g.cs`), or with `--flat` all in the output folder, named by full name (`Generated/com.example.events.Order.g.cs`). It is the same code as the [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) source generator, which needs no tool at all. Use the tool when the code should be checked in, or built by something other than MSBuild. The project that compiles the code references the [AvroSharp](https://www.nuget.org/packages/AvroSharp) package.
 
 - **Inputs** are files, or folders searched with their subfolders for `*.avsc` files. They may refer to named types that other files define, in any order.
 - **Options**, as the generator's MSBuild settings:
@@ -25,7 +25,9 @@ It writes one `.g.cs` file per named type: the same code as the [AvroSharp.Gener
   | Option | Meaning |
   |---|---|
   | `-o`, `--output <folder>` | Where the files go (required). Other files in it are left alone. |
+  | `--flat` | All files in the output folder, named by the type's full name, instead of in namespace folders. |
   | `-n`, `--namespace <name>` | The C# namespace for types that have no Avro namespace. |
+  | `-m`, `--namespace-map <avro:csharp>` | Another C# namespace for an Avro namespace and the ones under it, as avrogen's `--namespace a:b`. Repeatable; the longest match wins. The schema is unchanged. Not with `--apache-compatible`. |
   | `--logical-types native\|raw` | .NET types for logical types (default), or their underlying Avro types. |
   | `--property-names pascal\|avro` | PascalCase properties (default), or the Avro field names as avrogen uses them. |
   | `--apache-compatible` | The types also work with Apache.Avro's `SpecificDatumWriter`/`Reader`. |

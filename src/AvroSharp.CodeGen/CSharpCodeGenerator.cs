@@ -34,6 +34,7 @@ public static class CSharpCodeGenerator
     {
         ArgumentNullException.ThrowIfNull(schemas);
         options ??= CodeGenOptions.Default;
+        ValidateNamespaceMapping(options);
         var names = new CSharpNames(options);
         var types = new TypeMapper(names, options);
 
@@ -48,14 +49,37 @@ public static class CSharpCodeGenerator
         var sources = named.Values.Select(schema =>
         {
             var notes = new List<string>();
-            return new GeneratedSource(schema.FullName + ".g.cs", Emit(schema, names, types, version, apache, notes), notes);
+            return new GeneratedSource(schema.FullName + ".g.cs", Emit(schema, names, types, version, apache, notes), notes) { Namespace = names.Namespace(schema) };
         }).ToList();
         if (apache)
         {
-            sources.Add(new GeneratedSource(ApacheSupport.HintName, ApacheSupport.Source(version, options.NullableAnnotations)));
+            sources.Add(new GeneratedSource(ApacheSupport.HintName, ApacheSupport.Source(version, options.NullableAnnotations)) { Namespace = ApacheSupport.Namespace });
         }
 
         return sources;
+    }
+
+    private static void ValidateNamespaceMapping(CodeGenOptions options)
+    {
+        if (options.NamespaceMapping is not { Count: > 0 } mapping)
+        {
+            return;
+        }
+
+        if (options.ApacheCompatible)
+        {
+            throw new ArgumentException("A namespace mapping cannot be combined with the Apache.Avro compatibility mode: Apache.Avro finds generated types by the schema's full name.", nameof(options));
+        }
+
+        foreach (var pair in mapping)
+        {
+            if (!IsNamespace(pair.Key) || !IsNamespace(pair.Value))
+            {
+                throw new ArgumentException($"The namespace mapping '{pair.Key}' to '{pair.Value}' needs a namespace on each side: names separated by dots.", nameof(options));
+            }
+        }
+
+        static bool IsNamespace(string value) => value.Length > 0 && value.Split('.').All(part => AvroNames.IsValidName(part));
     }
 
     // The version in [GeneratedCode]: the package version without build metadata (MinVer sets AssemblyVersion to

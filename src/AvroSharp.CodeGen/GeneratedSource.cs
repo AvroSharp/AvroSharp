@@ -41,11 +41,19 @@ public sealed class GeneratedSource : IEquatable<GeneratedSource>
     /// </summary>
     public IReadOnlyList<string> Notes { get; }
 
+    /// <summary>
+    /// Gets the C# namespace of the generated type, after <see cref="CodeGenOptions.DefaultNamespace"/> and
+    /// <see cref="CodeGenOptions.NamespaceMapping"/>, or <see langword="null"/> for the global namespace; for example,
+    /// to place the file in a folder for it.
+    /// </summary>
+    public string? Namespace { get; init; }
+
     /// <inheritdoc />
     public bool Equals(GeneratedSource? other) =>
         other is not null
         && string.Equals(HintName, other.HintName, StringComparison.Ordinal)
         && string.Equals(Text, other.Text, StringComparison.Ordinal)
+        && string.Equals(Namespace, other.Namespace, StringComparison.Ordinal)
         && Notes.SequenceEqual(other.Notes, StringComparer.Ordinal);
 
     /// <inheritdoc />

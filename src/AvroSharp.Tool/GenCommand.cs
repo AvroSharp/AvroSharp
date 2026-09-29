@@ -14,6 +14,8 @@ namespace AvroSharp.Tool;
 /// </summary>
 internal static class GenCommand
 {
+    private const string Suffix = ".g.cs";
+
     private static readonly UTF8Encoding s_utf8 = new(encoderShouldEmitUTF8Identifier: false);
 
     public static Command Create(TextWriter output, TextWriter error)
@@ -26,20 +28,25 @@ internal static class GenCommand
         inputs.Validators.Add(result => InputFiles.RejectOptionLikeInputs(result, allowStandardInput: false));
         var outputOption = new Option<string>("--output", "-o")
         {
-            Description = "The folder to write the generated .g.cs files to. It is created if it does not exist; other files in it are left alone.",
+            Description = "The folder to write the generated .g.cs files to, in folders for their namespaces (com/example/Order.g.cs). It is created if it does not exist; other files in it are left alone.",
             Required = true,
+        };
+        var flat = new Option<bool>("--flat")
+        {
+            Description = "Write every file into the output folder itself, named by the type's full name (com.example.Order.g.cs), instead of into folders for its namespace.",
         };
         var options = new GenOptions();
 
         var command = new Command("gen", "Generate C# types and serializers from Avro schema files (.avsc).");
         command.Arguments.Add(inputs);
         command.Options.Add(outputOption);
+        command.Options.Add(flat);
         options.AddTo(command);
-        command.SetAction(result => Run(result.GetValue(inputs)!, result.GetValue(outputOption)!, options.ToCodeGenOptions(result), output, error));
+        command.SetAction(result => Run(result.GetValue(inputs)!, result.GetValue(outputOption)!, result.GetValue(flat), options.ToCodeGenOptions(result), output, error));
         return command;
     }
 
-    private static int Run(string[] inputs, string outputFolder, CodeGenOptions options, TextWriter output, TextWriter error)
+    private static int Run(string[] inputs, string outputFolder, bool flat, CodeGenOptions options, TextWriter output, TextWriter error)
     {
         if (!InputFiles.TryRead(inputs, error, out var files))
         {
@@ -70,23 +77,14 @@ internal static class GenCommand
             return Cli.Failure;
         }
 
-        try
+        if (!TryWrite(sources, outputFolder, flat, error))
         {
-            Directory.CreateDirectory(outputFolder);
-            foreach (var source in sources)
-            {
-                File.WriteAllText(Path.Combine(outputFolder, source.HintName), source.Text, s_utf8);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Diagnostics.Error(error, $"Cannot write to '{outputFolder}': {ex.Message}");
             return Cli.Failure;
         }
 
         foreach (var source in sources)
         {
-            var typeName = source.HintName[..^".g.cs".Length];
+            var typeName = source.HintName[..^Suffix.Length];
             var path = set.DefinedIn.TryGetValue(typeName, out var file) ? file : null;
             foreach (var note in source.Notes)
             {
@@ -96,5 +94,43 @@ internal static class GenCommand
 
         output.WriteLine($"Generated {sources.Count} file(s) from {files.Count} schema file(s) in {outputFolder}.");
         return Cli.Success;
+    }
+
+    /// <summary>
+    /// A generated file's path under the output folder: in folders for its C# namespace (<c>com/example/Order.g.cs</c>),
+    /// or with <paramref name="flat"/>, named by its C# full name in the folder itself (<c>com.example.Order.g.cs</c>). The
+    /// namespace is the generated one, after <c>--namespace</c> and <c>--namespace-map</c>; keyword escapes (@) are dropped.
+    /// </summary>
+    internal static string RelativePath(GeneratedSource source, bool flat)
+    {
+        var fullName = source.HintName[..^Suffix.Length];
+        var name = fullName[(fullName.LastIndexOf('.') + 1)..] + Suffix;
+        var ns = source.Namespace?.Replace("@", string.Empty, StringComparison.Ordinal);
+        if (string.IsNullOrEmpty(ns))
+        {
+            return name;
+        }
+
+        return flat ? ns + "." + name : Path.Combine([.. ns.Split('.'), name]);
+    }
+
+    private static bool TryWrite(IReadOnlyList<GeneratedSource> sources, string outputFolder, bool flat, TextWriter error)
+    {
+        try
+        {
+            foreach (var source in sources)
+            {
+                var path = Path.Combine(outputFolder, RelativePath(source, flat));
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, source.Text, s_utf8);
+            }
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Diagnostics.Error(error, $"Cannot write to '{outputFolder}': {ex.Message}");
+            return false;
+        }
     }
 }

@@ -36,14 +36,15 @@ public class GenCommandTests
         await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(result.Error).IsEmpty();
         await Assert.That(result.Output).Contains($"Generated 3 file(s) from 3 schema file(s) in {output}.");
-        var files = Directory.GetFiles(output).Select(path => Path.GetFileName(path)!).Order().ToArray();
-        await Assert.That(files).IsEquivalentTo(new[] { "Plain.g.cs", "shop.Order.g.cs", "shop.Status.g.cs" });
 
-        var orderCode = File.ReadAllText(Path.Combine(output, "shop.Order.g.cs"));
+        // In folders for their namespaces; the type without an Avro namespace is in the --namespace one.
+        await Assert.That(Files(output)).IsEquivalentTo(new[] { "Acme/Plain.g.cs", "shop/Order.g.cs", "shop/Status.g.cs" });
+
+        var orderCode = File.ReadAllText(tool.PathOf("out/shop/Order.g.cs"));
         await Assert.That(orderCode).Contains("public long OrderId { get; set; }");
         await Assert.That(orderCode).Contains("public global::System.DateOnly Day { get; set; }");
         await Assert.That(orderCode).Contains("#nullable enable");
-        await Assert.That(File.ReadAllText(Path.Combine(output, "Plain.g.cs"))).Contains("namespace Acme");
+        await Assert.That(File.ReadAllText(tool.PathOf("out/Acme/Plain.g.cs"))).Contains("namespace Acme");
     }
 
     [Test]
@@ -58,7 +59,7 @@ public class GenCommandTests
             "gen", tool.PathOf("s"), "-o", output, "--logical-types", "raw", "--property-names", "avro", "--no-nullable", "--language-version", "7");
 
         await Assert.That(result.ExitCode).IsEqualTo(0);
-        var code = File.ReadAllText(Path.Combine(output, "shop.Order.g.cs"));
+        var code = File.ReadAllText(tool.PathOf("out/shop/Order.g.cs"));
         await Assert.That(code).Contains("public long order_id { get; set; }");
         await Assert.That(code).Contains("public int day { get; set; }");
         await Assert.That(code).DoesNotContain("#nullable enable");
@@ -76,10 +77,69 @@ public class GenCommandTests
         var apache = ToolRunner.Run("gen", tool.PathOf("s"), "-o", tool.PathOf("apache"), "--apache-compatible");
 
         await Assert.That(dates.ExitCode).IsEqualTo(0);
-        await Assert.That(File.ReadAllText(tool.PathOf("dates/shop.Order.g.cs"))).Contains("public global::System.DateTime Day { get; set; }");
+        await Assert.That(File.ReadAllText(tool.PathOf("dates/shop/Order.g.cs"))).Contains("public global::System.DateTime Day { get; set; }");
         await Assert.That(apache.ExitCode).IsEqualTo(0);
-        await Assert.That(File.ReadAllText(tool.PathOf("apache/shop.Order.g.cs"))).Contains("global::Avro.Specific.ISpecificRecord");
-        await Assert.That(File.Exists(tool.PathOf("apache/AvroSharp.Generated.ApacheDecimals.g.cs"))).IsTrue();
+        await Assert.That(File.ReadAllText(tool.PathOf("apache/shop/Order.g.cs"))).Contains("global::Avro.Specific.ISpecificRecord");
+        await Assert.That(File.Exists(tool.PathOf("apache/AvroSharp/Generated/ApacheDecimals.g.cs"))).IsTrue();
+    }
+
+    [Test]
+    public async Task Gen_NestedNamespaces_BecomeNestedFolders_OrOneFolderWithFlat()
+    {
+        using var tool = new ToolRunner();
+        var schema = tool.Write("event.avsc", """
+            {"type":"record","name":"Event","namespace":"com.example.events","fields":[
+              {"name":"kind","type":{"type":"enum","name":"Kind","namespace":"com.example.common","symbols":["A"]}},
+              {"name":"top","type":{"type":"fixed","name":"Top","namespace":"","size":2}}]}
+            """);
+
+        var nested = ToolRunner.Run("gen", schema, "-o", tool.PathOf("nested"));
+        var flat = ToolRunner.Run("gen", schema, "-o", tool.PathOf("flat"), "--flat");
+
+        await Assert.That(nested.ExitCode).IsEqualTo(0);
+        await Assert.That(Files(tool.PathOf("nested"))).IsEquivalentTo(new[] { "Top.g.cs", "com/example/common/Kind.g.cs", "com/example/events/Event.g.cs" });
+        await Assert.That(flat.ExitCode).IsEqualTo(0);
+        await Assert.That(Files(tool.PathOf("flat"))).IsEquivalentTo(new[] { "Top.g.cs", "com.example.common.Kind.g.cs", "com.example.events.Event.g.cs" });
+    }
+
+    [Test]
+    public async Task Gen_NamespaceMap_MapsNamespaces_AndTheNamespacesUnderThem()
+    {
+        using var tool = new ToolRunner();
+        var schema = tool.Write("event.avsc", """
+            {"type":"record","name":"Event","namespace":"com.example.events","fields":[
+              {"name":"kind","type":{"type":"enum","name":"Kind","namespace":"com.example.common","symbols":["A"]}},
+              {"name":"other","type":{"type":"fixed","name":"Other","namespace":"org.other","size":2}}]}
+            """);
+        var output = tool.PathOf("out");
+
+        // com.example maps the namespaces under it; the longer com.example.common wins for Kind; org.other is unmapped.
+        var result = ToolRunner.Run(
+            "gen", schema, "-o", output, "--namespace-map", "com.example:Example", "-m", "com.example.common:Shared.Types");
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(Files(output)).IsEquivalentTo(new[] { "Example/events/Event.g.cs", "Shared/Types/Kind.g.cs", "org/other/Other.g.cs" });
+        var code = File.ReadAllText(tool.PathOf("out/Example/events/Event.g.cs"));
+        await Assert.That(code).Contains("namespace Example.events");
+        await Assert.That(code).Contains("public global::Shared.Types.Kind Kind { get; set; }");
+
+        // Only the C# namespace changes: the schema keeps its Avro names.
+        await Assert.That(code).Contains("com.example.events.Event");
+    }
+
+    [Test]
+    [Arguments(new[] { "--namespace", "com.example:Example" }, "to map namespaces as avrogen's --namespace does, use --namespace-map")]
+    [Arguments(new[] { "--namespace-map", "com.example:Example", "--apache-compatible" }, "--namespace-map cannot be combined with --apache-compatible")]
+    [Arguments(new[] { "--namespace-map", "com.example" }, "--namespace-map 'com.example' is not avro.namespace:CSharp.Namespace")]
+    [Arguments(new[] { "--namespace-map", "com.example:" }, "--namespace-map 'com.example:' is not avro.namespace:CSharp.Namespace")]
+    [Arguments(new[] { "--namespace-map", "com..example:Example" }, "--namespace-map 'com..example:Example' is not avro.namespace:CSharp.Namespace")]
+    [Arguments(new[] { "--namespace-map", "a:B", "-m", "a:C" }, "--namespace-map maps 'a' more than once.")]
+    public async Task Gen_InvalidNamespaceOptions_AreUsageErrors(string[] options, string message)
+    {
+        var result = ToolRunner.Run(["gen", "a.avsc", "-o", "out", .. options]);
+
+        await Assert.That(result.ExitCode).IsEqualTo(2);
+        await Assert.That(result.Error).Contains(message);
     }
 
     [Test]
@@ -160,6 +220,13 @@ public class GenCommandTests
         await Assert.That(result.Error).Contains($"error: No .avsc files in '{tool.PathOf("empty")}'.");
         await Assert.That(Directory.Exists(tool.PathOf("out"))).IsFalse();
     }
+
+    /// <summary>The files under a folder, as paths relative to it with '/' separators, in order.</summary>
+    private static string[] Files(string folder) =>
+        Directory.GetFiles(folder, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(folder, path).Replace(Path.DirectorySeparatorChar, '/'))
+            .Order(System.StringComparer.Ordinal)
+            .ToArray();
 
     [Test]
     public async Task Gen_OutputThatIsAFile_IsReported()

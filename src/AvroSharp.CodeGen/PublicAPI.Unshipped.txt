@@ -41,3 +41,7 @@ AvroSharp.CodeGen.SchemaFileSet.Schemas.get -> System.Collections.Generic.IReadO
 static AvroSharp.CodeGen.SchemaFileSet.Parse(System.Collections.Generic.IEnumerable<(string! Path, string! Json)>! files, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> AvroSharp.CodeGen.SchemaFileSet!
 AvroSharp.CodeGen.SchemaFileSet.GetErrorMessage(string! path) -> string!
 AvroSharp.CodeGen.SchemaFileSet.SchemasByPath.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Schemas.AvroSchema!>!
+AvroSharp.CodeGen.CodeGenOptions.NamespaceMapping.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AvroSharp.CodeGen.CodeGenOptions.NamespaceMapping.init -> void
+AvroSharp.CodeGen.GeneratedSource.Namespace.get -> string?
+AvroSharp.CodeGen.GeneratedSource.Namespace.init -> void

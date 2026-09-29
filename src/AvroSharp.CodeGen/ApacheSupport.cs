@@ -13,7 +13,8 @@ namespace AvroSharp.CodeGen;
 internal static class ApacheSupport
 {
     public const string SpecificRecord = "global::Avro.Specific.ISpecificRecord";
-    public const string HintName = "AvroSharp.Generated.ApacheDecimals.g.cs";
+    public const string Namespace = "AvroSharp.Generated";
+    public const string HintName = Namespace + ".ApacheDecimals.g.cs";
 
     private const string ApacheSchema = "global::Avro.Schema";
 
