@@ -522,7 +522,6 @@ override AvroSharp.Schemas.SchemaName.Equals(object? obj) -> bool
 override AvroSharp.Schemas.SchemaName.GetHashCode() -> int
 override AvroSharp.Schemas.SchemaName.ToString() -> string!
 static AvroSharp.AvroCodecNames.IsStandard(string? name) -> bool
-static AvroSharp.Containers.AvroCodec.CreateDeflate(System.IO.Compression.CompressionLevel level) -> AvroSharp.Containers.AvroCodec!
 static AvroSharp.Containers.AvroCodec.Deflate.get -> AvroSharp.Containers.AvroCodec!
 static AvroSharp.Containers.AvroCodec.Null.get -> AvroSharp.Containers.AvroCodec!
 static AvroSharp.Containers.AvroFileReader.Open<T>(System.IO.Stream! stream, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>! createReader, AvroSharp.Containers.AvroFileReaderOptions? options = null) -> AvroSharp.Containers.AvroFileReader<T>!

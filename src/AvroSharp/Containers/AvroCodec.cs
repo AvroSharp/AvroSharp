@@ -1,6 +1,5 @@
 using System;
 using System.Buffers;
-using System.IO.Compression;
 
 namespace AvroSharp.Containers;
 
@@ -14,15 +13,11 @@ public abstract class AvroCodec
     /// <summary>Gets the codec that stores blocks uncompressed.</summary>
     public static AvroCodec Null { get; } = new NullCodec();
 
-    /// <summary>Gets the deflate codec with <see cref="CompressionLevel.Optimal"/> compression.</summary>
-    public static AvroCodec Deflate { get; } = new DeflateCodec(CompressionLevel.Optimal);
+    /// <summary>Gets the deflate codec with <see cref="System.IO.Compression.CompressionLevel.Optimal"/> compression: <see cref="DeflateCodec.Default"/>.</summary>
+    public static AvroCodec Deflate => DeflateCodec.Default;
 
     /// <summary>Gets the name written to the file's <c>avro.codec</c> metadata entry, for example <c>deflate</c>.</summary>
     public abstract string Name { get; }
-
-    /// <summary>Creates a deflate codec with the given compression level.</summary>
-    /// <param name="level">The compression level; it affects writing only.</param>
-    public static AvroCodec CreateDeflate(CompressionLevel level) => new DeflateCodec(level);
 
     /// <summary>Compresses one block.</summary>
     /// <param name="source">The uncompressed block: the encoded objects.</param>

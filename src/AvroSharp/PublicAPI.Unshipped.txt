@@ -10,3 +10,10 @@ AvroSharp.Generic.GenericDatumReader.Read(in System.Buffers.ReadOnlySequence<byt
 static AvroSharp.Messages.AvroMessage.Write(System.Buffers.IBufferWriter<byte>! output, in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.GenericDatumWriter! writer) -> void
 static AvroSharp.Messages.AvroRegistryMessage.Write(System.Buffers.IBufferWriter<byte>! output, AvroSharp.Messages.AvroRegistryFraming! framing, AvroSharp.Messages.AvroSchemaId id, in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.GenericDatumWriter! writer) -> void
 AvroSharp.Schemas.AvroSchema.HasSameCanonicalForm(AvroSharp.Schemas.AvroSchema! other) -> bool
+AvroSharp.Containers.DeflateCodec
+AvroSharp.Containers.DeflateCodec.DeflateCodec(System.IO.Compression.CompressionLevel level = System.IO.Compression.CompressionLevel.Optimal) -> void
+AvroSharp.Containers.DeflateCodec.Level.get -> System.IO.Compression.CompressionLevel
+override AvroSharp.Containers.DeflateCodec.Compress(System.ReadOnlyMemory<byte> source, System.Buffers.IBufferWriter<byte>! destination) -> void
+override AvroSharp.Containers.DeflateCodec.Decompress(System.ReadOnlyMemory<byte> source, System.Buffers.IBufferWriter<byte>! destination) -> void
+override AvroSharp.Containers.DeflateCodec.Name.get -> string!
+static AvroSharp.Containers.DeflateCodec.Default.get -> AvroSharp.Containers.DeflateCodec!

@@ -82,9 +82,14 @@ public class ContainerFileTests
         var rows = Rows(2000);
 
         var plain = WriteFile(rows, new AvroFileWriterOptions { Codec = AvroCodec.Null });
-        var deflated = WriteFile(rows, new AvroFileWriterOptions { Codec = AvroCodec.CreateDeflate(CompressionLevel.Fastest) });
+        var deflated = WriteFile(rows, new AvroFileWriterOptions { Codec = new DeflateCodec(CompressionLevel.Fastest) });
 
         await Assert.That(deflated.Length).IsLessThan(plain.Length / 2);
+
+        // The built-in codec has the add-on codecs' shape: Default, and the level it was made with.
+        await Assert.That(AvroCodec.Deflate).IsSameReferenceAs(DeflateCodec.Default);
+        await Assert.That(DeflateCodec.Default.Level).IsEqualTo(CompressionLevel.Optimal);
+        await Assert.That(new DeflateCodec(CompressionLevel.Fastest).Level).IsEqualTo(CompressionLevel.Fastest);
     }
 
     [Test]
