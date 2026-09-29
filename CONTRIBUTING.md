@@ -50,7 +50,7 @@ dotnet tool run docfx docfx.json --serve   # http://localhost:8080
 - **Environment:** CI's variables;
 - **Cache:** the NuGet cache in a volume, so rebuilding the container doesn't download it again.
 
-Open the repository in it with VS Code (**Dev Containers: Reopen in Container**) or Rider, or create a GitHub Codespace from the repository page (**Code > Codespaces**). Then run the Linux CI job's steps:
+Open the repository in it with VS Code (**Dev Containers: Reopen in Container**) or Rider, or create a GitHub Codespace from the repository page (**Code > Codespaces**). On Windows, use **Dev Containers: Clone Repository in Container Volume**, or a clone inside WSL. A clone on the Windows file system is slow when bind-mounted, and its permissions can break the build. Then run the Linux CI job's steps:
 
 ```shell
 build/ci-local.sh
@@ -63,6 +63,8 @@ It runs, in CI's order:
 - the samples;
 - the Native AOT smoke test;
 - pack, and the package consumers.
+
+Behind a proxy that intercepts HTTPS, the image build and restores fail with certificate errors, because the container doesn't trust the proxy's root certificate the way the host does. Add the certificate in a local copy of the Dockerfile, and don't commit it: `COPY proxy-root.crt /usr/local/share/ca-certificates/` and then `RUN update-ca-certificates`, right after `FROM`.
 
 It takes about as long as the CI job. Passing it means passing the Linux CI job on the container's architecture: `ubuntu-latest` on x64, or `ubuntu-24.04-arm` on an Arm64 host such as an Apple silicon Mac.
 

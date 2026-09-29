@@ -4,22 +4,17 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "features": {
-    "ghcr.io/devcontainers/features/dotnet:2": {
-      "version": "none",
-      "additionalVersions": "8.0,9.0"
-    }
-  },
   "containerEnv": {
     "DOTNET_NOLOGO": "true",
     "DOTNET_CLI_TELEMETRY_OPTOUT": "true",
     "NUGET_CERT_REVOCATION_MODE": "offline"
   },
-  // The NuGet cache survives rebuilding the container.
+  // The NuGet cache survives rebuilding the container. Docker creates ~/.nuget for the mount as root: postCreateCommand
+  // gives it (not the cache's contents) to the user.
   "mounts": [
     "source=avrosharp-nuget,target=/home/vscode/.nuget/packages,type=volume"
   ],
-  "postCreateCommand": "sudo chown vscode:vscode /home/vscode/.nuget/packages && dotnet tool restore && dotnet restore AvroSharp.slnx",
+  "postCreateCommand": "sudo chown vscode:vscode /home/vscode/.nuget /home/vscode/.nuget/packages && dotnet tool restore && dotnet restore AvroSharp.slnx",
   "hostRequirements": {
     "cpus": 4,
     "memory": "8gb"
