@@ -25,17 +25,16 @@ public sealed partial class GenericDatumReader
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumReader> s_cache = new();
 
     private readonly ReaderNode _root;
-    // Built once: each read starts from a copy (#129 added fields that the options would otherwise compute per read).
-    private readonly ReadState _initialState;
-
-    // The state reads with the default options start from, for the transcoder and the plans' skip steps.
-    private static readonly ReadState s_defaultState = new(GenericDatumReaderOptions.Default);
+    // The limits each read's state starts from, computed once. The state is built from them field by field: copying
+    // a prebuilt state was one 32-byte store that the first checks read back in parts, which the CPU could not
+    // forward from the store, and cost about 4 ns a read (#129).
+    private readonly ReadLimits _limits;
 
     private GenericDatumReader(AvroSchema schema, GenericDatumReaderOptions options)
     {
         Schema = schema;
         ReaderSchema = schema;
-        _initialState = new ReadState(options);
+        _limits = new ReadLimits(options);
         _root = new Builder().Build(schema);
     }
 
@@ -64,7 +63,7 @@ public sealed partial class GenericDatumReader
     /// <exception cref="AvroDataException">The data is malformed or does not match the schema.</exception>
     public AvroValue Read(ref AvroReader reader)
     {
-        var state = _initialState;
+        var state = new ReadState(_limits);
         return _root.Read(ref reader, ref state);
     }
 
@@ -94,22 +93,50 @@ public sealed partial class GenericDatumReader
     /// Per-read limits: the current record depth, the current nesting of every kind, and the remaining budget of
     /// zero-size items.
     /// </summary>
-    [StructLayout(LayoutKind.Auto)]
-    private struct ReadState(GenericDatumReaderOptions options)
+    // Sequential, with the four ints first: records read Depth and Nesting right after the state is created, and on
+    // AMD Zen 3 a 4-byte load from the upper half of the 32-byte store that zeroed a larger state was not forwarded
+    // from it, which cost Counters (a flat record of 16 ints) about 8 ns a read (#129).
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ReadState
     {
-        public readonly int MaxDepth = options.MaxDepth;
+        public readonly int MaxDepth;
         public int Depth;
 
         // Arrays and maps nest too, and a hostile writer schema can nest them between records (#129): the total is
         // bounded separately, at NestingPerDepth times MaxDepth, so the stack is bounded however the nesting is built.
         // Unions aren't counted: one cannot hold another, so the arrays, maps and records in them count.
-        public readonly int MaxNesting = (int)Math.Min((long)options.MaxDepth * NestingPerDepth, int.MaxValue);
         public int Nesting;
-        public long ZeroSizeItemsLeft = options.MaxZeroSizeItems;
 
         // The nesting level at which the limit and the stack are next checked (EnterNesting).
-        public int NextCheck = NextCheckAfter(0, (int)Math.Min((long)options.MaxDepth * NestingPerDepth, int.MaxValue));
+        public int NextCheck;
+        public long ZeroSizeItemsLeft;
+
+        public ReadState(in ReadLimits limits)
+        {
+            MaxDepth = limits.MaxDepth;
+            Depth = 0;
+            Nesting = 0;
+            NextCheck = limits.FirstCheck;
+            ZeroSizeItemsLeft = limits.MaxZeroSizeItems;
+        }
+
+        // Computed, not stored, to keep the state at 24 bytes; only the out-of-line checks use it.
+        public readonly int MaxNesting => MaxNestingFor(MaxDepth);
     }
+
+    /// <summary>The options' limits in the form a read's state starts from.</summary>
+    [StructLayout(LayoutKind.Auto)]
+    private readonly struct ReadLimits(GenericDatumReaderOptions options)
+    {
+        // For the transcoder and the plans' skip steps, which read with the default options.
+        public static readonly ReadLimits Default = new(GenericDatumReaderOptions.Default);
+
+        public readonly int MaxDepth = options.MaxDepth;
+        public readonly long MaxZeroSizeItems = options.MaxZeroSizeItems;
+        public readonly int FirstCheck = NextCheckAfter(0, MaxNestingFor(options.MaxDepth));
+    }
+
+    private static int MaxNestingFor(int maxDepth) => (int)Math.Min((long)maxDepth * NestingPerDepth, int.MaxValue);
 
     // Levels of any kind (records, arrays, maps, unions) allowed per record level of MaxDepth.
     private const int NestingPerDepth = 8;

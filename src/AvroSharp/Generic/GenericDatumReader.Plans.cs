@@ -45,7 +45,7 @@ public sealed partial class GenericDatumReader
                 var skip = skips.BuildSkipNode(writerField.Schema);
                 steps[i] = new AvroRecordPlan.Step(-1, AvroConversion.None, (ref r) =>
                 {
-                    var state = s_defaultState;
+                    var state = new ReadState(ReadLimits.Default);
                     skip.Read(ref r, ref state);
                 }, transcoder: null);
                 continue;
