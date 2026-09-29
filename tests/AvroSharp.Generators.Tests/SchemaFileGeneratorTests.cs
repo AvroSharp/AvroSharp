@@ -351,6 +351,41 @@ public class SchemaFileGeneratorTests
     }
 
     /// <summary>
+    /// <c>SchemaJson</c> is a constant, on every C# version: usable in attributes, <c>const</c> fields and <c>switch</c>
+    /// cases, as in 0.1.
+    /// </summary>
+    [Test]
+    [Arguments(LanguageVersion.CSharp7_3)]
+    [Arguments(LanguageVersion.Latest)]
+    public async Task SchemaJson_IsAConstant(LanguageVersion version)
+    {
+        const string Usage = """
+            [System.ComponentModel.Description(app.events.Event.SchemaJson)]
+            internal static class UsesTheSchema
+            {
+                public const string Copy = app.events.Hash.SchemaJson;
+
+                public static bool IsEventSchema(string json)
+                {
+                    switch (json)
+                    {
+                        case app.events.Event.SchemaJson:
+                            return true;
+                        default:
+                            return false;
+                    }
+                }
+            }
+            """;
+        var compilation = GeneratorHarness.CreateCompilation(referenceAvroSharp: true, referenceApache: false, version, Usage);
+        GeneratorHarness.CreateDriver([("event.avsc", EventSchema)], languageVersion: version)
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(output.GetDiagnostics().Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
+    /// <summary>
     /// Names (#117): capitals are title-cased, a property renamed to avoid a clash is reported (AVROGEN005), and an
     /// all-lower-case type name compiles without CS8981.
     /// </summary>

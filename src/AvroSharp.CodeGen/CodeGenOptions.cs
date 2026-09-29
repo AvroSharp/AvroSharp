@@ -57,8 +57,8 @@ public sealed class CodeGenOptions
     public PropertyNaming? PropertyNaming { get; init; }
 
     /// <summary>
-    /// Gets the major C# version the generated code may use. With 11 or later it adds, for .NET 8 and later, the schema
-    /// as a UTF-8 literal and <c>IAvroSerializable&lt;T&gt;</c>. Defaults to 14.
+    /// Gets the major C# version the generated code may use. With 11 or later it adds, for .NET 8 and later,
+    /// <c>IAvroSerializable&lt;T&gt;</c>. Defaults to 14.
     /// </summary>
     public int LanguageVersion { get; init; } = 14;
 }

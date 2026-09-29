@@ -55,7 +55,7 @@ internal sealed class GenOptions
 
     private readonly Option<int> _languageVersion = new("--language-version")
     {
-        Description = "The major C# version the code may use (7 or later). With 11 or later, .NET 8+ targets also get the UTF-8 schema literal and IAvroSerializable<T>.",
+        Description = "The major C# version the code may use (7 or later). With 11 or later, .NET 8+ targets also get IAvroSerializable<T>.",
         DefaultValueFactory = _ => CodeGenOptions.Default.LanguageVersion,
     };
 

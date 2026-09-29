@@ -270,7 +270,7 @@ Scenarios × implementations (AvroSharp-Gen, AvroSharp-Dynamic, AvroSharp-Generi
 `AvroSharp.CodeGen` (netstandard2.0, no Roslyn dependency, deterministic output):
 - Input: `AvroSchema`/`AvroProtocol` (+ later IDL via `AvroSharp.Idl`).
 - Stage 1: **model** — `CsModel` (namespaces, types: `CsRecord`, `CsEnum`, `CsFixed`, `CsUnion`, members, attributes, mapped CLR types), naming conventions applied, collisions resolved (`Type` vs `Type_`, keyword escaping), reserved-name/keyword handling, dependency ordering.
-- Stage 2: **emitter** — text via an indented writer; emits (a) types, (b) `static AvroSchema Schema` with the original JSON embedded as a UTF-8 literal (`ReadOnlySpan<byte>` `"..."u8` on net8+, `string` on netstandard), (c) optional serializer/deserializer/resolution-plan partials (same code the attribute generator emits).
+- Stage 2: **emitter** — text via an indented writer; emits (a) types, (b) `static AvroSchema Schema` parsed once from the JSON, which is embedded as `public const string SchemaJson` on every target (a UTF-8 literal on net8+ was smaller, but made `SchemaJson` a property and put the schema in the source twice), (c) optional serializer/deserializer/resolution-plan partials (same code the attribute generator emits).
 - `CodeGenOptions`: `TypeKind` (record | class | struct-for-fixed), `RecordsAreSealed`, `UseRequired`, `UseInit`, `Nullable`, `CollectionType` (`List<T>` | `T[]` | `ImmutableArray<T>` | `IReadOnlyList<T>`), `MapType` (`Dictionary` | `IReadOnlyDictionary`), `NamingConvention` (PascalCase properties, preserve enum symbols with `[AvroSymbol("...")]`), `NamespaceMapping` (Avro ns → C# ns), `TypeOverrides` (schema fullname → CLR type), `GenerateSerializers`, `GenerateSchemaProperty`, `Accessibility`.
 
 Front-ends:
