@@ -15,12 +15,10 @@ internal static class InputFiles
     /// </summary>
     public static void RejectOptionLikeInputs(ArgumentResult result, bool allowStandardInput)
     {
-        foreach (var token in result.Tokens)
+        var optionLike = result.Tokens.Where(token => token.Value.StartsWith('-') && !(allowStandardInput && string.Equals(token.Value, "-", StringComparison.Ordinal)));
+        foreach (var token in optionLike)
         {
-            if (token.Value.StartsWith('-') && !(allowStandardInput && string.Equals(token.Value, "-", StringComparison.Ordinal)))
-            {
-                result.AddError($"Unrecognized command or argument '{token.Value}'.");
-            }
+            result.AddError($"Unrecognized command or argument '{token.Value}'.");
         }
     }
 

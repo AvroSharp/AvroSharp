@@ -102,13 +102,14 @@ internal sealed class GenOptions
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var token in result.Tokens)
             {
-                if (!TryParseMapping(token.Value, out var avro, out _))
+                var mapping = SplitMapping(token.Value);
+                if (!IsValidMapping(mapping))
                 {
                     result.AddError($"--namespace-map '{token.Value}' is not avro.namespace:CSharp.Namespace (names separated by dots, on both sides of the colon).");
                 }
-                else if (!seen.Add(avro))
+                else if (!seen.Add(mapping.Avro))
                 {
-                    result.AddError($"--namespace-map maps '{avro}' more than once.");
+                    result.AddError($"--namespace-map maps '{mapping.Avro}' more than once.");
                 }
             }
         });
@@ -139,24 +140,22 @@ internal sealed class GenOptions
         }
 
         var mapping = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var value in values)
+        foreach (var (avro, csharp) in values.Select(SplitMapping).Where(IsValidMapping))
         {
-            if (TryParseMapping(value, out var avro, out var csharp))
-            {
-                mapping[avro] = csharp;
-            }
+            mapping[avro] = csharp;
         }
 
         return mapping;
     }
 
-    private static bool TryParseMapping(string value, out string avro, out string csharp)
+    // avro.namespace:CSharp.Namespace, trimmed; both empty without a colon.
+    private static (string Avro, string CSharp) SplitMapping(string value)
     {
         var colon = value.IndexOf(':', StringComparison.Ordinal);
-        avro = colon < 0 ? string.Empty : value[..colon].Trim();
-        csharp = colon < 0 ? string.Empty : value[(colon + 1)..].Trim();
-        return IsNamespace(avro) && IsNamespace(csharp);
+        return colon < 0 ? (string.Empty, string.Empty) : (value[..colon].Trim(), value[(colon + 1)..].Trim());
     }
+
+    private static bool IsValidMapping((string Avro, string CSharp) mapping) => IsNamespace(mapping.Avro) && IsNamespace(mapping.CSharp);
 
     private static bool IsNamespace(string text) => text.Length > 0 && text.Split('.').All(part => AvroNames.IsValidName(part));
 }

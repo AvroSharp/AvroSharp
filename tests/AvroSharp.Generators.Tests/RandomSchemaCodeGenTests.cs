@@ -26,11 +26,14 @@ namespace AvroSharp.Generators.Tests;
 /// </summary>
 /// <remarks>
 /// <c>AVROSHARP_RANDOM_SCHEMA_BATCHES</c> (default 5, of 20 schemas each) and <c>AVROSHARP_RANDOM_SCHEMA_SEED</c> make
-/// longer runs (the nightly fuzz workflow) and reruns of a reported failure.
+/// longer runs (the nightly fuzz workflow) and reruns of a reported failure. A long run prints its progress at most
+/// every 30 seconds.
 /// </remarks>
 public class RandomSchemaCodeGenTests
 {
     private const int BatchSize = 20;
+
+    private static readonly TimeSpan s_progressInterval = TimeSpan.FromSeconds(30);
 
     // What a .NET 10 project defines, so the generated code's .NET-only branches are compiled and run too.
     private static readonly string[] s_net10Symbols =
@@ -50,6 +53,7 @@ public class RandomSchemaCodeGenTests
         var batches = int.TryParse(Environment.GetEnvironmentVariable("AVROSHARP_RANDOM_SCHEMA_BATCHES"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : 5;
         var seed = Environment.GetEnvironmentVariable("AVROSHARP_RANDOM_SCHEMA_SEED");
         var checkedSchemas = 0;
+        var progress = new Progress(batches);
 
         // Each schema's types are in its own namespace, s0 to s19, so one compilation can hold a batch.
         var batch = RandomCodeGenSchemas.Json("s0").Array[BatchSize]
@@ -61,6 +65,7 @@ public class RandomSchemaCodeGenTests
                 try
                 {
                     System.Threading.Interlocked.Add(ref checkedSchemas, Check(schemas));
+                    progress.BatchDone(checkedSchemas);
                 }
                 catch (Exception ex) when (SaveFailure(schemas, ex))
                 {
@@ -72,7 +77,49 @@ public class RandomSchemaCodeGenTests
             threads: 1,
             print: schemas => Environment.NewLine + string.Join(Environment.NewLine, schemas));
 
+        progress.Done(checkedSchemas);
         await Assert.That(checkedSchemas).IsGreaterThan(0);
+    }
+
+    /// <summary>
+    /// Progress lines for a long run, such as the nightly one: batches done, schemas checked, time taken and left. They
+    /// go to the process's standard output, since TUnit keeps what a test writes to <see cref="Console.Out"/> for its
+    /// report and the CI log would show nothing until the test ends.
+    /// </summary>
+    private sealed class Progress(int batches)
+    {
+        private readonly System.Diagnostics.Stopwatch _elapsed = System.Diagnostics.Stopwatch.StartNew();
+        private TimeSpan _lastPrinted;
+        private int _done;
+
+        public void BatchDone(int checkedSchemas)
+        {
+            // After a failure CsCheck runs smaller batches to shrink it; those are not progress.
+            if (++_done > batches || _elapsed.Elapsed - _lastPrinted < s_progressInterval)
+            {
+                return;
+            }
+
+            _lastPrinted = _elapsed.Elapsed;
+            var left = TimeSpan.FromTicks(_elapsed.Elapsed.Ticks / _done * (batches - _done));
+            Print($"{_done}/{batches} batches ({checkedSchemas} schemas checked), {Format(_elapsed.Elapsed)}, about {Format(left)} left");
+        }
+
+        public void Done(int checkedSchemas)
+        {
+            if (_elapsed.Elapsed >= s_progressInterval)
+            {
+                Print($"{Math.Min(_done, batches)}/{batches} batches ({checkedSchemas} schemas checked) in {Format(_elapsed.Elapsed)}");
+            }
+        }
+
+        private static string Format(TimeSpan time) => time.ToString(time.TotalHours >= 1 ? @"h\h\ mm\m\ ss\s" : @"m\m\ ss\s", System.Globalization.CultureInfo.InvariantCulture);
+
+        private static void Print(string line)
+        {
+            using var output = new StreamWriter(Console.OpenStandardOutput(), leaveOpen: true);
+            output.WriteLine("Random schemas: " + line);
+        }
     }
 
     /// <summary>

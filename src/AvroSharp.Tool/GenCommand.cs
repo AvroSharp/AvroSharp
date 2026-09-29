@@ -111,7 +111,7 @@ internal static class GenCommand
             return name;
         }
 
-        return flat ? ns + "." + name : Path.Combine([.. ns.Split('.'), name]);
+        return flat ? ns + "." + name : Path.Join([.. ns.Split('.'), name]);
     }
 
     private static bool TryWrite(IReadOnlyList<GeneratedSource> sources, string outputFolder, bool flat, TextWriter error)
@@ -139,7 +139,7 @@ internal static class GenCommand
         {
             foreach (var source in sources)
             {
-                var path = Path.Combine(outputFolder, RelativePath(source, flat));
+                var path = Path.Join(outputFolder, RelativePath(source, flat));
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                 File.WriteAllText(path, source.Text, s_utf8);
             }
