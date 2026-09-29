@@ -217,7 +217,7 @@ avrosharp schema canonical user.avsc
 avrosharp schema fingerprint user.avsc --algorithm sha256
 ```
 
-`gen` takes the generator's options (`--logical-types`, `--property-names`, `--apache-compatible` and others), and writes nothing if a schema is invalid. Errors are in the compiler's format, and the exit code is 0 on success, 1 on failure and 2 for an invalid command line. See [the tool's README](src/AvroSharp.Tool/README.md).
+`gen` takes the generator's options (`--logical-types`, `--property-names`, `--apache-compatible` and others), and writes nothing if a schema is invalid. Errors are in the compiler's format, and the exit code is 0 on success, 1 on failure and 2 for an invalid command line. See [the tool's README](https://github.com/zcsizmadia/AvroSharp/blob/main/src/AvroSharp.Tool/README.md).
 
 ## Building
 
