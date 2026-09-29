@@ -516,11 +516,14 @@ public ref struct AvroReader
     public void SkipVarint() => ReadVarint64();
 
     /// <summary>Skips a <c>bytes</c> or <c>string</c> value.</summary>
-    public void SkipBytes() => Skip(ReadLength("bytes"));
+    public void SkipBytes() => SkipRaw(ReadLength("bytes"));
 
-    /// <summary>Skips <paramref name="count"/> bytes, for example a <c>fixed</c> value or a sized array block.</summary>
+    /// <summary>
+    /// Skips <paramref name="count"/> raw bytes, for example a <c>fixed</c> value or a sized array block. To skip an
+    /// Avro <c>bytes</c> value, with its length, use <see cref="SkipBytes"/>.
+    /// </summary>
     /// <param name="count">The number of bytes to skip.</param>
-    public void Skip(long count)
+    public void SkipRaw(long count)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(count);
         EnsureRemaining(count, "skipped");

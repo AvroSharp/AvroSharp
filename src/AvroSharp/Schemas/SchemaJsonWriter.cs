@@ -193,10 +193,10 @@ internal sealed class SchemaJsonWriter
         }
 
         _out.EndArray();
-        if (schema.Default is not null)
+        if (schema.DefaultSymbol is not null)
         {
             _out.Name("default");
-            _out.String(schema.Default);
+            _out.String(schema.DefaultSymbol);
         }
 
         WriteProperties(schema.Properties);

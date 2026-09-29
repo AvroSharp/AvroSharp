@@ -38,7 +38,7 @@ public class SchemaWriterTests
         await Assert.That(reparsed.Aliases[0].FullName).IsEqualTo("shop.Purchase");
         await Assert.That(reparsed.Properties["meta"].GetProperty("owner").GetString()).IsEqualTo("team");
         await Assert.That(reparsed.GetField("status").Order).IsEqualTo(FieldOrder.Descending);
-        await Assert.That(((EnumSchema)reparsed.GetField("status").Schema).Default).IsEqualTo("NEW");
+        await Assert.That(((EnumSchema)reparsed.GetField("status").Schema).DefaultSymbol).IsEqualTo("NEW");
         await Assert.That(reparsed.GetField("skus").Aliases[0]).IsEqualTo("codes");
         await Assert.That(((NamedSchema)reparsed.GetField("root").Schema).FullName).IsEqualTo("Root");
     }

@@ -225,7 +225,7 @@ public sealed partial class GenericDatumReader
         public static int[] EnumMap(EnumSchema writer, EnumSchema reader)
         {
             var map = new int[writer.Symbols.Count];
-            var readerDefault = reader.Default is { } symbol && reader.TryGetOrdinal(symbol, out var d) ? d : -1;
+            var readerDefault = reader.DefaultSymbol is { } symbol && reader.TryGetOrdinal(symbol, out var d) ? d : -1;
             for (var i = 0; i < map.Length; i++)
             {
                 map[i] = reader.TryGetOrdinal(writer.Symbols[i], out var ordinal) ? ordinal : readerDefault;
@@ -468,7 +468,7 @@ public sealed partial class GenericDatumReader
 
         public override AvroValue Read(ref AvroReader reader, ref ReadState state)
         {
-            reader.Skip(size);
+            reader.SkipRaw(size);
             return AvroValue.Null;
         }
     }
@@ -530,7 +530,7 @@ public sealed partial class GenericDatumReader
             {
                 if (byteSize >= 0)
                 {
-                    reader.Skip(byteSize);
+                    reader.SkipRaw(byteSize);
                     continue;
                 }
 

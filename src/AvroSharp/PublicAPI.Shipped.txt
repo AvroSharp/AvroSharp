@@ -179,7 +179,7 @@ AvroSharp.IO.AvroReader.ReadNull() -> void
 AvroSharp.IO.AvroReader.ReadString() -> string!
 AvroSharp.IO.AvroReader.ReadStringUtf8() -> System.ReadOnlySpan<byte>
 AvroSharp.IO.AvroReader.ReadUnionIndex() -> int
-AvroSharp.IO.AvroReader.Skip(long count) -> void
+AvroSharp.IO.AvroReader.SkipRaw(long count) -> void
 AvroSharp.IO.AvroReader.SkipBytes() -> void
 AvroSharp.IO.AvroReader.SkipVarint() -> void
 AvroSharp.IO.AvroWriter
@@ -332,7 +332,7 @@ AvroSharp.Schemas.DecimalLogicalType.Equals(AvroSharp.Schemas.DecimalLogicalType
 AvroSharp.Schemas.DecimalLogicalType.Precision.get -> int
 AvroSharp.Schemas.DecimalLogicalType.Scale.get -> int
 AvroSharp.Schemas.EnumSchema
-AvroSharp.Schemas.EnumSchema.Default.get -> string?
+AvroSharp.Schemas.EnumSchema.DefaultSymbol.get -> string?
 AvroSharp.Schemas.EnumSchema.EnumSchema(AvroSharp.Schemas.SchemaName! name, System.Collections.Generic.IEnumerable<string!>! symbols, string? defaultSymbol = null, string? doc = null, System.Collections.Generic.IEnumerable<AvroSharp.Schemas.SchemaName!>? aliases = null, System.Collections.Generic.IReadOnlyDictionary<string!, System.Text.Json.JsonElement>? properties = null) -> void
 AvroSharp.Schemas.EnumSchema.Symbols.get -> System.Collections.Generic.IReadOnlyList<string!>!
 AvroSharp.Schemas.EnumSchema.TryGetOrdinal(string! symbol, out int ordinal) -> bool
@@ -538,13 +538,13 @@ static AvroSharp.Generic.AvroFieldContext.operator ==(AvroSharp.Generic.AvroFiel
 static AvroSharp.Generic.AvroValue.FromArray(System.Collections.Generic.IReadOnlyList<AvroSharp.Generic.AvroValue>! items) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromBoolean(bool value) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromBooleanArray(System.ReadOnlyMemory<bool> items) -> AvroSharp.Generic.AvroValue
-static AvroSharp.Generic.AvroValue.FromByteArray(byte[]? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromBytes(byte[]? value) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromDouble(double value) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromDoubleArray(System.ReadOnlyMemory<double> items) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromEnum(AvroSharp.Schemas.EnumSchema! schema, int ordinal) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromEnum(AvroSharp.Schemas.EnumSchema! schema, string! symbol) -> AvroSharp.Generic.AvroValue
-static AvroSharp.Generic.AvroValue.FromGenericFixed(AvroSharp.Generic.GenericFixed? value) -> AvroSharp.Generic.AvroValue
-static AvroSharp.Generic.AvroValue.FromGenericRecord(AvroSharp.Generic.GenericRecord? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromFixed(AvroSharp.Generic.GenericFixed? value) -> AvroSharp.Generic.AvroValue
+static AvroSharp.Generic.AvroValue.FromRecord(AvroSharp.Generic.GenericRecord? value) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromInt32(int value) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromInt32Array(System.ReadOnlyMemory<int> items) -> AvroSharp.Generic.AvroValue
 static AvroSharp.Generic.AvroValue.FromInt64(long value) -> AvroSharp.Generic.AvroValue

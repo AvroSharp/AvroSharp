@@ -272,7 +272,7 @@ public class BinaryEncodingTests
 
         var reader = new AvroReader(bytes);
         var count = reader.ReadBlockCount(out var size);
-        reader.Skip(size);
+        reader.SkipRaw(size);
         var end = reader.ReadBlockCount(out var endSize);
         var marker = reader.ReadInt();
 
@@ -297,7 +297,7 @@ public class BinaryEncodingTests
         var reader = new AvroReader(bytes);
         reader.SkipVarint();
         reader.SkipBytes();
-        reader.Skip(3);
+        reader.SkipRaw(3);
         await Assert.That(reader.ReadInt()).IsEqualTo(7);
     }
 

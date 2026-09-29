@@ -427,6 +427,9 @@ Order m = reader.Decode(bytes);
   - `GenericDatumReader.Schema` and `GenericDatumJsonReader.Schema` are now `WriterSchema`, as everywhere else. (The writers' `Schema` is the only schema they have, so it stays.)
   - `AvroFileReader<T>.Codec` is now the `AvroCodec`, as `AvroFileWriterOptions.Codec` is; `Codec.Name` is the header's `avro.codec`.
   - `AvroFileWriterOptions.Metadata` holds `ReadOnlyMemory<byte>` values, as `AvroFileReader<T>.Metadata` does.
+  - `AvroValue`'s factories pair with its accessors: `FromBytes`, `FromRecord` and `FromFixed` (were `FromByteArray`, `FromGenericRecord` and `FromGenericFixed`). Primitives take their .NET names (`FromInt32`/`AsInt32`), and the other kinds their Avro names; the struct's docs state the rule. CA2225 wants the .NET names for the implicit operators' alternates, and is suppressed there.
+  - `EnumSchema.Default` is now `DefaultSymbol`, like the constructor parameter; `Default` read like a static.
+  - `AvroReader.Skip(long)` is now `SkipRaw`, so it doesn't read as a sibling of `SkipBytes()`, which skips an Avro `bytes` value.
 
 ---
 
