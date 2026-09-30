@@ -4,6 +4,7 @@ namespace AvroSharp.Containers;
 /// The codec names registered by the Avro specification for the <c>avro.codec</c>
 /// metadata entry of an object container file.
 /// </summary>
+/// <seealso cref="AvroCodec"/>
 public static class AvroCodecNames
 {
     /// <summary>Blocks are stored uncompressed.</summary>

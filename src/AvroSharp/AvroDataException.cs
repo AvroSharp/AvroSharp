@@ -2,7 +2,7 @@ using System;
 
 namespace AvroSharp;
 
-/// <summary>Raised when Avro binary data is malformed or truncated.</summary>
+/// <summary>Raised when Avro data being read, binary or JSON, is malformed or truncated, or does not match the schema.</summary>
 public class AvroDataException : AvroException
 {
     /// <summary>Initializes a new instance of the <see cref="AvroDataException"/> class.</summary>

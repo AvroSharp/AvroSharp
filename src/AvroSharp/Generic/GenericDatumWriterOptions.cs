@@ -3,6 +3,7 @@ using System;
 namespace AvroSharp.Generic;
 
 /// <summary>Limits for <see cref="GenericDatumWriter"/>.</summary>
+/// <seealso cref="GenericDatumJsonWriter"/>
 public sealed class GenericDatumWriterOptions
 {
     /// <summary>The default <see cref="MaxDepth"/>: 128.</summary>

@@ -10,6 +10,9 @@ using AvroSharp.Serialization;
 namespace AvroSharp.Messages;
 
 /// <summary>Creates <see cref="AvroMessageReader{T}"/> instances.</summary>
+/// <seealso cref="AvroMessage"/>
+/// <seealso cref="IAvroSchemaResolver"/>
+/// <seealso cref="AvroSchemaStore"/>
 public static class AvroMessageReader
 {
     /// <summary>Creates a reader of messages of any schema <paramref name="resolver"/> finds.</summary>
@@ -50,6 +53,9 @@ public static class AvroMessageReader
 /// </summary>
 /// <typeparam name="T">The type read.</typeparam>
 /// <remarks>Instances are thread-safe when the read functions are.</remarks>
+/// <seealso cref="AvroMessageReader"/>
+/// <seealso cref="AvroMessage"/>
+/// <seealso cref="AvroSchemaStore"/>
 public sealed class AvroMessageReader<T>
 {
     private readonly IAvroSchemaResolver _resolver;

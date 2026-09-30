@@ -11,6 +11,9 @@ namespace AvroSharp.Codecs;
 /// Reading accepts every XZ check type.
 /// </summary>
 /// <remarks>Uses the fully managed Lzma.Net library. Instances are thread-safe.</remarks>
+/// <seealso cref="AvroCodecs"/>
+/// <seealso cref="AvroFileWriterOptions.Codec"/>
+/// <seealso cref="AvroFileReaderOptions.Codecs"/>
 public sealed class XzCodec : AvroCodec
 {
     /// <summary>The default compression preset, 6, the same as Java's <c>CodecFactory.xzCodec</c> and the <c>xz</c> tool.</summary>

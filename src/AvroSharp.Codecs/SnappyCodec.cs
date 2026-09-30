@@ -13,6 +13,9 @@ namespace AvroSharp.Codecs;
 /// uncompressed data, as the specification requires. The checksum is verified on read.
 /// </summary>
 /// <remarks>Uses the fully managed Snappier library. Instances are thread-safe.</remarks>
+/// <seealso cref="AvroCodecs"/>
+/// <seealso cref="AvroFileWriterOptions.Codec"/>
+/// <seealso cref="AvroFileReaderOptions.Codecs"/>
 public sealed class SnappyCodec : AvroCodec
 {
     private const int ChecksumLength = 4;

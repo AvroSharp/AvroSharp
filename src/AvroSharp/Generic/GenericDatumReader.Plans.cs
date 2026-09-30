@@ -4,11 +4,9 @@ using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Generic;
 
-/// <summary>
-/// Resolution plans for generated records: which writer field fills which reader field and how, built once per pair
-/// of schemas with the same rules as the resolving reader (field names and aliases, skips, defaults, promotions, enum
-/// symbols). Generated code reads the fields itself; only differences it has no code for are transcoded, field by field.
-/// </summary>
+// Resolution plans for generated records: which writer field fills which reader field and how, built once per pair
+// of schemas with the same rules as the resolving reader (field names and aliases, skips, defaults, promotions, enum
+// symbols). Generated code reads the fields itself; only differences it has no code for are transcoded, field by field.
 public sealed partial class GenericDatumReader
 {
     // Keyed by the reader's schema, then the writer's, like the resolving reader's cache (#129): a value lives as long

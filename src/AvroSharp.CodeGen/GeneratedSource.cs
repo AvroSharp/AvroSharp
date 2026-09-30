@@ -5,6 +5,8 @@ using System.Linq;
 namespace AvroSharp.CodeGen;
 
 /// <summary>One generated C# source file.</summary>
+/// <seealso cref="CSharpCodeGenerator"/>
+/// <seealso cref="CodeGenOptions"/>
 public sealed class GeneratedSource : IEquatable<GeneratedSource>
 {
     /// <summary>Initializes a new instance of the <see cref="GeneratedSource"/> class.</summary>

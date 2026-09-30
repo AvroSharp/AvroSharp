@@ -14,6 +14,8 @@ using AvroSharp.Serialization;
 namespace AvroSharp.Streams;
 
 /// <summary>Opens <see cref="AvroStreamReader{T}"/> instances.</summary>
+/// <seealso cref="AvroStreamWriter"/>
+/// <seealso cref="AvroStreamOptions"/>
 public static class AvroStreamReader
 {
     /// <summary>Creates a reader of the objects in a stream, each in the binary encoding of one schema, one after another.</summary>
@@ -77,6 +79,9 @@ public static class AvroStreamReader
 /// <para>The asynchronous members do no synchronous I/O; each object is decoded synchronously once it is in memory. Instances are not thread-safe.</para>
 /// </remarks>
 /// <typeparam name="T">The type of the objects.</typeparam>
+/// <seealso cref="AvroStreamReader"/>
+/// <seealso cref="AvroStreamWriter{T}"/>
+/// <seealso cref="AvroStreamOptions"/>
 public sealed class AvroStreamReader<T> : IDisposable, IAsyncDisposable
 {
     private readonly Stream _stream;

@@ -23,6 +23,7 @@
     "resource": [
       { "files": [ "LICENSE", "THIRD-PARTY-NOTICES.md", "samples/**/*.cs", "samples/**/*.avsc", "samples/**/*.csproj", "samples/**/global.json", "samples/Directory.Build.targets", "build/UseLocalGenerator.targets", "fuzz/AvroSharp.Fuzz/*.cs" ] }
     ],
+    "overwrite": [ { "files": [ "docs/namespaces/*.md" ] } ],
     "output": "artifacts/docs",
     "template": [ "default", "modern" ],
     "globalMetadata": {
@@ -30,7 +31,7 @@
       "_appTitle": "AvroSharp",
       "_appFooter": "AvroSharp is MIT licensed. Apache Avro, Avro and Apache are trademarks of The Apache Software Foundation.",
       "_enableSearch": true,
-      "_gitContribute": { "repo": "https://github.com/zcsizmadia/AvroSharp", "branch": "main" }
+      "_gitContribute": { "repo": "https://github.com/AvroSharp/AvroSharp", "branch": "main" }
     }
   }
 }

@@ -11,9 +11,11 @@ namespace AvroSharp.Generic;
 /// </summary>
 /// <param name="field">The record field the value is in, and the value's own schema.</param>
 /// <param name="value">The value.</param>
+/// <seealso cref="AvroValueTransformer"/>
 public delegate AvroValue AvroFieldTransform(in AvroFieldContext field, in AvroValue value);
 
 /// <summary>Where a value handed to an <see cref="AvroFieldTransform"/> is: the record field, and the value's schema.</summary>
+/// <seealso cref="AvroValueTransformer"/>
 public readonly struct AvroFieldContext : IEquatable<AvroFieldContext>
 {
     internal AvroFieldContext(RecordSchema record, RecordField field, AvroSchema schema)
@@ -76,6 +78,9 @@ public readonly struct AvroFieldContext : IEquatable<AvroFieldContext>
 /// transform returns every value unchanged, the result is the same instance as the input.
 /// </para>
 /// </remarks>
+/// <seealso cref="AvroFieldTransform"/>
+/// <seealso cref="AvroFieldContext"/>
+/// <seealso cref="AvroValue"/>
 public static class AvroValueTransformer
 {
     private static readonly ConditionalWeakTable<UnionSchema, UnionBranchSelector> s_selectors = new();

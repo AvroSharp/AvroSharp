@@ -41,6 +41,11 @@ jobs:
             exit 1
           fi
 
+      # The READMEs and guides link the API with absolute URLs, which DocFX doesn't check.
+      - name: Check the API links
+        shell: bash
+        run: build/check-api-links.sh
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: artifacts/docs

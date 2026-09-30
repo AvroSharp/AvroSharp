@@ -7,8 +7,11 @@ namespace AvroSharp.Messages;
 /// <summary>
 /// Finds writer schemas by registry schema ID: a synchronous lookup of what is already known, and an asynchronous
 /// fill that may fetch from a registry. <see cref="AvroRegistryMessageReader{T}"/> uses the lookup on its synchronous
-/// path and the fill when <c>ReadAsync</c> meets an ID for the first time.
+/// path and the fill when <see cref="AvroRegistryMessageReader{T}.ReadAsync"/> meets an ID for the first time.
 /// </summary>
+/// <seealso cref="AvroSchemaIdStore"/>
+/// <seealso cref="AvroRegistryMessageReader"/>
+/// <seealso cref="AvroSchemaId"/>
 public interface IAvroSchemaIdResolver
 {
     /// <summary>Gets the schema with the given ID if it is already known, or <see langword="null"/>.</summary>

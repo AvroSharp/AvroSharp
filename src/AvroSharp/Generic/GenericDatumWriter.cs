@@ -16,6 +16,10 @@ namespace AvroSharp.Generic;
 /// tree of typed writer nodes, so writing does not inspect the schema; instances are cached per schema and are
 /// thread-safe.
 /// </summary>
+/// <seealso cref="GenericDatumReader"/>
+/// <seealso cref="GenericDatumWriterOptions"/>
+/// <seealso cref="GenericDatumJsonWriter"/>
+/// <seealso cref="AvroWriter"/>
 public sealed class GenericDatumWriter
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumWriter> s_cache = new();

@@ -3,6 +3,7 @@ using AvroSharp.IO;
 namespace AvroSharp.Serialization;
 
 /// <summary>A value that writes itself in Avro binary encoding; every generated record implements it.</summary>
+/// <seealso cref="IAvroReadable"/>
 public interface IAvroWritable
 {
     /// <summary>Writes this value.</summary>
@@ -14,6 +15,7 @@ public interface IAvroWritable
 /// A value that reads Avro binary data into itself, so one instance can be reused for a sequence of values; every
 /// generated record implements it.
 /// </summary>
+/// <seealso cref="IAvroWritable"/>
 public interface IAvroReadable
 {
     /// <summary>

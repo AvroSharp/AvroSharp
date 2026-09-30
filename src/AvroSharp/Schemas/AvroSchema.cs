@@ -16,6 +16,9 @@ namespace AvroSharp.Schemas;
 /// Form can still differ in docs, aliases, defaults and properties, which matter for resolution and code generation.
 /// <see cref="HasSameCanonicalForm"/> compares encodings.
 /// </remarks>
+/// <seealso cref="AvroSchemaParser"/>
+/// <seealso cref="AvroSchemaParseOptions"/>
+/// <seealso cref="SchemaFingerprint"/>
 public abstract class AvroSchema
 {
     private static readonly IReadOnlyDictionary<string, JsonElement> s_noProperties = new Dictionary<string, JsonElement>(0, StringComparer.Ordinal);
@@ -76,6 +79,7 @@ public abstract class AvroSchema
     public string CanonicalForm => GetCanonical().Text;
 
     /// <summary>Gets the CRC-64-AVRO (Rabin) fingerprint of the <see cref="CanonicalForm"/>.</summary>
+    /// <seealso cref="SchemaFingerprint"/>
     public long Fingerprint64 => GetCanonical().Fingerprint;
 
     /// <summary>Parses a schema from JSON text.</summary>

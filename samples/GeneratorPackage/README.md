@@ -37,7 +37,7 @@ The namespaces are C# only: the schemas keep their Avro names, so the data and t
 
 With `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>`, the build also writes the generated files, one per named type, under the project's `obj/` folder (`generated/AvroSharp.Generators/`). Visual Studio and Rider also show them under the project's analyzers.
 
-The generator reports as compiler diagnostics, AVROGEN001 to AVROGEN006: a schema file that isn't valid (with its file, line and column), a missing runtime reference, an unrecognized setting, and, as information, a member it renamed to avoid a clash. The code generation guide lists them.
+The generator reports as compiler diagnostics, AVROGEN001 to AVROGEN006: a schema file that isn't valid (with its file, line and column), a missing runtime reference, a schema the generator can't generate code for, `AvroSharpApacheCompatible` without a reference to Apache.Avro, an unrecognized setting, and, as information, a member it renamed to avoid a clash. The code generation guide lists them.
 
 ## Building the generator from source
 

@@ -22,6 +22,9 @@ namespace AvroSharp.Generic;
 /// strings <c>"NaN"</c>, <c>"Infinity"</c> and <c>"-Infinity"</c>, as Apache.Avro C# writes them.
 /// </para>
 /// </remarks>
+/// <seealso cref="GenericDatumJsonReader"/>
+/// <seealso cref="GenericDatumWriter"/>
+/// <seealso cref="GenericDatumWriterOptions"/>
 public sealed class GenericDatumJsonWriter
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumJsonWriter> s_cache = new();

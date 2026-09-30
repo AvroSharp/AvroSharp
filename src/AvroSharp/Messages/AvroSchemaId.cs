@@ -7,6 +7,8 @@ namespace AvroSharp.Messages;
 /// A schema ID as a schema registry assigns it: a number (Confluent, Apicurio) or a GUID (Confluent's version 1
 /// framing, AWS Glue's schema version ID).
 /// </summary>
+/// <seealso cref="AvroRegistryFraming"/>
+/// <seealso cref="IAvroSchemaIdResolver"/>
 public readonly struct AvroSchemaId : IEquatable<AvroSchemaId>
 {
     private readonly long _number;

@@ -10,6 +10,8 @@ namespace AvroSharp.Messages;
 /// A thread-safe, in-memory <see cref="IAvroSchemaIdResolver"/>, for tests and for applications that know their
 /// schemas and IDs ahead of time. Its asynchronous fill only looks in memory.
 /// </summary>
+/// <seealso cref="AvroRegistryMessageReader"/>
+/// <seealso cref="AvroRegistryMessage"/>
 public sealed class AvroSchemaIdStore : IAvroSchemaIdResolver
 {
     private readonly ConcurrentDictionary<AvroSchemaId, AvroSchema> _schemas = new();

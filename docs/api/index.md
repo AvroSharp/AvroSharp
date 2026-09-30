@@ -4,28 +4,39 @@ The public API of the AvroSharp packages, generated from the XML documentation i
 
 | Namespace | What it holds |
 |---|---|
-| `AvroSharp` | The exceptions: `AvroException`, `AvroDataException` for malformed data, `AvroSchemaException` for invalid schemas |
-| `AvroSharp.Schemas` | The schema model and parser, Parsing Canonical Form, fingerprints, logical types |
-| `AvroSharp.IO` | `AvroWriter` and `AvroReader`: the binary encoding over spans, buffer writers and sequences |
-| `AvroSharp.Generic` | `AvroValue`, `GenericRecord`, and the generic binary and JSON readers and writers, with schema resolution |
-| `AvroSharp.Containers` | Object container files, sync and async, with seeking and pipelined reading; `AvroCodec`, `DeflateCodec`, and `AvroCodecNames`, the codec names of the specification |
-| `AvroSharp.Codecs` | The snappy, zstandard, bzip2 and xz codecs (the `AvroSharp.Codecs` package) |
-| `AvroSharp.Messages` | Single-object encoding and schema-registry framing, with the schema resolvers and their in-memory stores |
-| `AvroSharp.Streams` | Streams of objects without a container |
-| `AvroSharp.Serialization` | `AvroSerializer`, the interfaces generated types implement, the logical-value conversions, and the read and write delegates |
-| `AvroSharp.Serialization.Generated` | The support that generated code calls; not for direct use (see the compatibility policy in the design notes) |
-| `AvroSharp.CodeGen` | The C# code generation engine (the `AvroSharp.CodeGen` package) |
+| [`AvroSharp`](xref:AvroSharp) | The exceptions: `AvroException`, `AvroDataException` for malformed data, `AvroSchemaException` for invalid schemas |
+| [`AvroSharp.Schemas`](xref:AvroSharp.Schemas) | The schema model and parser, Parsing Canonical Form, fingerprints, logical types |
+| [`AvroSharp.IO`](xref:AvroSharp.IO) | `AvroWriter` and `AvroReader`: the binary encoding over spans, buffer writers and sequences |
+| [`AvroSharp.Generic`](xref:AvroSharp.Generic) | `AvroValue`, `GenericRecord`, and the generic binary and JSON readers and writers, with schema resolution |
+| [`AvroSharp.Containers`](xref:AvroSharp.Containers) | Object container files, sync and async, with seeking and pipelined reading; `AvroCodec`, `DeflateCodec`, and `AvroCodecNames`, the codec names of the specification |
+| [`AvroSharp.Codecs`](xref:AvroSharp.Codecs) | The snappy, zstandard, bzip2 and xz codecs (the `AvroSharp.Codecs` package) |
+| [`AvroSharp.Messages`](xref:AvroSharp.Messages) | Single-object encoding and schema-registry framing, with the schema resolvers and their in-memory stores |
+| [`AvroSharp.Streams`](xref:AvroSharp.Streams) | Streams of objects without a container |
+| [`AvroSharp.Serialization`](xref:AvroSharp.Serialization) | `AvroSerializer`, the interfaces generated types implement, the logical-value conversions, and the read and write delegates |
+| `AvroSharp.Serialization.Generated` | The support that generated code calls; not for direct use (see the compatibility policy in the design notes). It has no page in this reference |
+| [`AvroSharp.CodeGen`](xref:AvroSharp.CodeGen) | The C# code generation engine (the `AvroSharp.CodeGen` package) |
+
+## Where to start
+
+- **Parse a schema:** [`AvroSchema.Parse`](xref:AvroSharp.Schemas.AvroSchema.Parse%2A) and [`AvroSchema.ParseAsync`](xref:AvroSharp.Schemas.AvroSchema.ParseAsync%2A), with [`AvroSchemaParseOptions`](xref:AvroSharp.Schemas.AvroSchemaParseOptions). To parse several files that refer to each other by name, use [`AvroSchemaParser`](xref:AvroSharp.Schemas.AvroSchemaParser). [`AvroSchema.CanonicalForm`](xref:AvroSharp.Schemas.AvroSchema.CanonicalForm%2A) and [`SchemaFingerprint`](xref:AvroSharp.Schemas.SchemaFingerprint) give the Parsing Canonical Form and its fingerprints. An invalid schema raises [`AvroSchemaException`](xref:AvroSharp.AvroSchemaException).
+- **Read and write generic values:** [`GenericDatumWriter.Create`](xref:AvroSharp.Generic.GenericDatumWriter.Create%2A) and [`GenericDatumReader.Create`](xref:AvroSharp.Generic.GenericDatumReader.Create%2A), which takes a reader schema for schema resolution. Values are [`AvroValue`](xref:AvroSharp.Generic.AvroValue); records are [`GenericRecord`](xref:AvroSharp.Generic.GenericRecord).
+- **Generated types:** [`AvroSerializer.Serialize`](xref:AvroSharp.Serialization.AvroSerializer.Serialize%2A), [`AvroSerializer.TrySerialize`](xref:AvroSharp.Serialization.AvroSerializer.TrySerialize%2A) and [`AvroSerializer.Deserialize`](xref:AvroSharp.Serialization.AvroSerializer.Deserialize%2A), for types that implement [`IAvroSerializable<TSelf>`](xref:AvroSharp.Serialization.IAvroSerializable%601).
+- **Container files:** [`AvroFileWriter.Create`](xref:AvroSharp.Containers.AvroFileWriter.Create%2A), [`AvroFileWriter.CreateGeneric`](xref:AvroSharp.Containers.AvroFileWriter.CreateGeneric%2A), [`AvroFileReader.Open`](xref:AvroSharp.Containers.AvroFileReader.Open%2A), [`AvroFileReader.OpenGeneric`](xref:AvroSharp.Containers.AvroFileReader.OpenGeneric%2A) and their async forms. The options are [`AvroFileWriterOptions`](xref:AvroSharp.Containers.AvroFileWriterOptions), whose [`Codec`](xref:AvroSharp.Containers.AvroFileWriterOptions.Codec%2A) is an [`AvroCodec`](xref:AvroSharp.Containers.AvroCodec), and [`AvroFileReaderOptions`](xref:AvroSharp.Containers.AvroFileReaderOptions), whose [`Codecs`](xref:AvroSharp.Containers.AvroFileReaderOptions.Codecs%2A) can be [`AvroCodecs.All`](xref:AvroSharp.Codecs.AvroCodecs.All%2A) from the `AvroSharp.Codecs` package.
+- **Messages:** [`AvroMessage`](xref:AvroSharp.Messages.AvroMessage) and [`AvroMessageReader.Create`](xref:AvroSharp.Messages.AvroMessageReader.Create%2A) for single-object encoding, which finds schemas by fingerprint through an [`IAvroSchemaResolver`](xref:AvroSharp.Messages.IAvroSchemaResolver) such as [`AvroSchemaStore`](xref:AvroSharp.Messages.AvroSchemaStore). [`AvroRegistryMessage`](xref:AvroSharp.Messages.AvroRegistryMessage) and [`AvroRegistryMessageReader.Create`](xref:AvroSharp.Messages.AvroRegistryMessageReader.Create%2A) for schema-registry framing, chosen with an [`AvroRegistryFraming`](xref:AvroSharp.Messages.AvroRegistryFraming), which find schemas by ID through an [`IAvroSchemaIdResolver`](xref:AvroSharp.Messages.IAvroSchemaIdResolver) such as [`AvroSchemaIdStore`](xref:AvroSharp.Messages.AvroSchemaIdStore).
+- **Streams:** [`AvroStreamWriter.Create`](xref:AvroSharp.Streams.AvroStreamWriter.Create%2A) and [`AvroStreamReader.Open`](xref:AvroSharp.Streams.AvroStreamReader.Open%2A), with [`AvroStreamOptions`](xref:AvroSharp.Streams.AvroStreamOptions), for objects one after another with no container.
+- **JSON:** [`GenericDatumJsonWriter.Create`](xref:AvroSharp.Generic.GenericDatumJsonWriter.Create%2A) and [`GenericDatumJsonReader.Create`](xref:AvroSharp.Generic.GenericDatumJsonReader.Create%2A), for the Avro JSON encoding; [`AvroSchema.ToJson`](xref:AvroSharp.Schemas.AvroSchema.ToJson%2A) for the schema itself.
+- **Low-level binary encoding:** [`AvroWriter`](xref:AvroSharp.IO.AvroWriter) and [`AvroReader`](xref:AvroSharp.IO.AvroReader).
+- **Code generation:** [`CSharpCodeGenerator.Generate`](xref:AvroSharp.CodeGen.CSharpCodeGenerator.Generate%2A) with [`CodeGenOptions`](xref:AvroSharp.CodeGen.CodeGenOptions), and [`SchemaFileSet`](xref:AvroSharp.CodeGen.SchemaFileSet) to parse a set of schema files together.
 
 ## .NET 8 and later only
 
-The reference is built from the 
-et10.0` build, so it shows every member. These need .NET 8 or later, because they rely on static abstract interface members; on .NET Standard and .NET Framework, the overloads that take a schema and the generated `Write`/`Read` delegates do the same:
+The reference is built from the `net10.0` build, so it shows every member. These need .NET 8 or later, because they rely on static abstract interface members; on .NET Standard and .NET Framework, the overloads that take a schema and the generated `Write`/`Read` delegates do the same:
 
 | Member | On every target |
 |---|---|
-| `IAvroSerializable<TSelf>`, which generated types implement with C# 11 or later | the generated static `Schema`, `Write` and `Read` |
-| `AvroSerializer.Serialize<T>`, `TrySerialize<T>`, `Deserialize<T>` | `value.ToAvroBytes()`, `T.FromAvroBytes(bytes)` |
-| `AvroFileWriter.Create<T>(stream)`, `AvroFileReader.Open<T>(stream)`, `OpenAsync<T>(stream)` | `AvroFileWriter.Create<T>(stream, T.Schema, T.Write)`, `AvroFileReader.Open<T>(stream, _ => T.Read)` |
-| `AvroStreamWriter.Create<T>(stream)`, `AvroStreamReader.Open<T>(stream)` | the overloads with `T.Write` and `T.Read` |
-| `AvroMessage.ToArray<T>`/`Write<T>`, `AvroMessageReader.Create<T>` | the overloads with the schema and `T.Write`, or a `createReader` delegate |
-| `AvroRegistryMessage.ToArray<T>`/`Write<T>`, `AvroRegistryMessageReader.Create<T>` | the overloads with `T.Write`, or a `createReader` delegate |
+| [`IAvroSerializable<TSelf>`](xref:AvroSharp.Serialization.IAvroSerializable%601), which generated types implement with C# 11 or later | the generated static `Schema`, `Write` and `Read` |
+| [`AvroSerializer.Serialize<T>`](xref:AvroSharp.Serialization.AvroSerializer.Serialize%2A), [`TrySerialize<T>`](xref:AvroSharp.Serialization.AvroSerializer.TrySerialize%2A), [`Deserialize<T>`](xref:AvroSharp.Serialization.AvroSerializer.Deserialize%2A) | `value.ToAvroBytes()`, `T.FromAvroBytes(bytes)` |
+| [`AvroFileWriter.Create<T>(stream)`](xref:AvroSharp.Containers.AvroFileWriter.Create%2A), [`AvroFileReader.Open<T>(stream)`](xref:AvroSharp.Containers.AvroFileReader.Open%2A), [`OpenAsync<T>(stream)`](xref:AvroSharp.Containers.AvroFileReader.OpenAsync%2A) | `AvroFileWriter.Create<T>(stream, T.Schema, T.Write)`, `AvroFileReader.Open<T>(stream, _ => T.Read)` |
+| [`AvroStreamWriter.Create<T>(stream)`](xref:AvroSharp.Streams.AvroStreamWriter.Create%2A), [`AvroStreamReader.Open<T>(stream)`](xref:AvroSharp.Streams.AvroStreamReader.Open%2A) | the overloads with `T.Write` and `T.Read` |
+| [`AvroMessage.ToArray<T>`](xref:AvroSharp.Messages.AvroMessage.ToArray%2A)/[`Write<T>`](xref:AvroSharp.Messages.AvroMessage.Write%2A), [`AvroMessageReader.Create<T>`](xref:AvroSharp.Messages.AvroMessageReader.Create%2A) | the overloads with the schema and `T.Write`, or a `createReader` delegate |
+| [`AvroRegistryMessage.ToArray<T>`](xref:AvroSharp.Messages.AvroRegistryMessage.ToArray%2A)/[`Write<T>`](xref:AvroSharp.Messages.AvroRegistryMessage.Write%2A), [`AvroRegistryMessageReader.Create<T>`](xref:AvroSharp.Messages.AvroRegistryMessageReader.Create%2A) | the overloads with `T.Write`, or a `createReader` delegate |

@@ -45,8 +45,8 @@
     <Copyright>Copyright (c) zcsizmadia and AvroSharp contributors</Copyright>
     <Product>AvroSharp</Product>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/zcsizmadia/AvroSharp</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/zcsizmadia/AvroSharp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/AvroSharp/AvroSharp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AvroSharp/AvroSharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>

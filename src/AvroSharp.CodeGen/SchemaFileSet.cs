@@ -15,6 +15,7 @@ namespace AvroSharp.CodeGen;
 /// after the others, until no more files can be parsed. A type repeated identically in several files (as schema sets
 /// written for Apache.Avro's one-file-at-a-time tooling often do) is accepted once.
 /// </remarks>
+/// <seealso cref="CSharpCodeGenerator"/>
 public sealed class SchemaFileSet
 {
     // The named types each file that could not be parsed declares, by full name: for errors that name a type such a

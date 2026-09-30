@@ -1,6 +1,7 @@
 namespace AvroSharp.CodeGen;
 
 /// <summary>How generated code represents values of logical types.</summary>
+/// <seealso cref="CodeGenOptions.LogicalTypes"/>
 public enum LogicalTypeMapping
 {
     /// <summary>

@@ -11,6 +11,7 @@ namespace AvroSharp.Serialization;
 /// Serializes and deserializes types with generated serializers (<see cref="IAvroSerializable{TSelf}"/>) in Avro
 /// binary encoding, without delegates or reflection.
 /// </summary>
+/// <seealso cref="IAvroSerializable{TSelf}"/>
 public static class AvroSerializer
 {
     /// <summary>Writes a value to a new array.</summary>

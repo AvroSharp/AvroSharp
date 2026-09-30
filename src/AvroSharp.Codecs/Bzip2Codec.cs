@@ -9,6 +9,9 @@ namespace AvroSharp.Codecs;
 
 /// <summary>The <c>bzip2</c> codec: each block is one bzip2 stream.</summary>
 /// <remarks>Uses the fully managed SharpZipLib library. Instances are thread-safe.</remarks>
+/// <seealso cref="AvroCodecs"/>
+/// <seealso cref="AvroFileWriterOptions.Codec"/>
+/// <seealso cref="AvroFileReaderOptions.Codecs"/>
 public sealed class Bzip2Codec : AvroCodec
 {
     /// <summary>The default block size, 9 (900 KB), the same as Java's bzip2 codec.</summary>

@@ -7,6 +7,8 @@ namespace AvroSharp.Messages;
 /// value is the byte <c>0x01</c> and the schema GUID as 16 big-endian bytes, and the message value is the Avro data
 /// alone. Read the value with <see cref="AvroRegistryMessageReader{T}.ReadPayload"/>.
 /// </summary>
+/// <seealso cref="AvroRegistryFraming.ConfluentGuid"/>
+/// <seealso cref="AvroSchemaId"/>
 public static class ConfluentSchemaIdHeader
 {
     /// <summary>The header that carries a message key's schema ID.</summary>

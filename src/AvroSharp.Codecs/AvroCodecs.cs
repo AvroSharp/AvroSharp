@@ -9,6 +9,9 @@ namespace AvroSharp.Codecs;
 /// using var reader = AvroFileReader.OpenGeneric(stream, options: new AvroFileReaderOptions { Codecs = AvroCodecs.All });
 /// </code>
 /// </example>
+/// <seealso cref="AvroCodec"/>
+/// <seealso cref="AvroCodecNames"/>
+/// <seealso cref="AvroFileReaderOptions.Codecs"/>
 public static class AvroCodecs
 {
     /// <summary>

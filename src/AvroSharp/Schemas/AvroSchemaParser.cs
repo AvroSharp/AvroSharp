@@ -17,6 +17,8 @@ namespace AvroSharp.Schemas;
 /// Parsing is atomic: if a schema is invalid, none of its named types are added to <see cref="NamedSchemas"/>.
 /// Instances are not thread-safe.
 /// </remarks>
+/// <seealso cref="AvroSchemaParseOptions"/>
+/// <seealso cref="AvroSchema"/>
 public sealed class AvroSchemaParser
 {
     private readonly Dictionary<string, NamedSchema> _namedSchemas = new(StringComparer.Ordinal);

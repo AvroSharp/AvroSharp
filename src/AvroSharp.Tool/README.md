@@ -1,10 +1,10 @@
 # AvroSharp.Tool
 
-`avrosharp`, the command-line tool of [AvroSharp](https://github.com/zcsizmadia/AvroSharp): C# types and serializers from Apache Avro™ schema files (`.avsc`), and the canonical form and fingerprints of schemas. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
+`avrosharp`, the command-line tool of [AvroSharp](https://github.com/AvroSharp/AvroSharp): C# types and serializers from Apache Avro™ schema files (`.avsc`), and the canonical form and fingerprints of schemas. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
 
-> **Status:** an early preview (0.x). The API may still change before 1.0.
+> **Status:** a release candidate for 1.0.0. From 1.0, it follows [semantic versioning](https://semver.org/).
 
-**[Command-line tool documentation](https://zcsizmadia.github.io/AvroSharp/docs/cli.html)**: every command and option, examples, and use in CI. Also: [the source generator](https://zcsizmadia.github.io/AvroSharp/docs/code-generation.html), [documentation](https://zcsizmadia.github.io/AvroSharp/).
+**[Command-line tool documentation](https://avrosharp.github.io/AvroSharp/docs/cli.html)**: every command and option, examples, and use in CI. Also: [the source generator](https://avrosharp.github.io/AvroSharp/docs/code-generation.html), [documentation](https://avrosharp.github.io/AvroSharp/).
 
 ```shell
 dotnet tool install --global AvroSharp.Tool     # or without --global, in a tool manifest
@@ -19,7 +19,7 @@ With the .NET 10 SDK, `dnx AvroSharp.Tool gen ...` runs it once without installi
 avrosharp gen schemas/ --output Generated/ --namespace Acme.Events
 ```
 
-It writes one `.g.cs` file per named type, in folders for its namespace (`Generated/com/example/events/Order.g.cs`), or with `--flat` all in the output folder, named by full name (`Generated/com.example.events.Order.g.cs`). It is the same code as the [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) source generator, which needs no tool at all. Use the tool when the code should be checked in, or built by something other than MSBuild. The project that compiles the code references the [AvroSharp](https://www.nuget.org/packages/AvroSharp) package.
+It writes one `.g.cs` file per named type, in folders for its namespace (`Generated/com/example/events/Order.g.cs`), or with `--flat` all in the output folder, named by full name (`Generated/com.example.events.Order.g.cs`). It is the same code as the [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) source generator, from the same engine ([`AvroSharp.CodeGen`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.html)), and the generator needs no tool at all. Use the tool when the code should be checked in, or built by something other than MSBuild. The project that compiles the code references the [AvroSharp](https://www.nuget.org/packages/AvroSharp) package.
 
 - **Inputs** are files, or folders searched with their subfolders for `*.avsc` files. They may refer to named types that other files define, in any order.
 - **Options**, as the generator's MSBuild settings:
@@ -49,7 +49,7 @@ avrosharp schema fingerprint user.avsc --format decimal             # as Java's 
 cat user.avsc | avrosharp schema canonical -
 ```
 
-Several files or folders give one `path: result` line each. Schemas that use types from other files name them with `--reference` (`-r`).
+The results are those of [`AvroSchema.CanonicalForm`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.CanonicalForm.html) and [`SchemaFingerprint`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.SchemaFingerprint.html) in the library. Several files or folders give one `path: result` line each. Schemas that use types from other files name them with `--reference` (`-r`).
 
 ## Exit codes
 

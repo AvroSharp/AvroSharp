@@ -4,6 +4,9 @@ using System.Collections.Generic;
 namespace AvroSharp.Containers;
 
 /// <summary>Options for <see cref="AvroFileReader{T}"/>.</summary>
+/// <seealso cref="AvroFileReader"/>
+/// <seealso cref="AvroFileWriterOptions"/>
+/// <seealso cref="AvroCodec"/>
 public sealed class AvroFileReaderOptions
 {
     /// <summary>Gets the default options.</summary>

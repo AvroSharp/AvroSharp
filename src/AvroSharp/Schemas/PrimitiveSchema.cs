@@ -5,7 +5,7 @@ namespace AvroSharp.Schemas;
 
 /// <summary>
 /// A primitive schema: <c>null</c>, <c>boolean</c>, <c>int</c>, <c>long</c>, <c>float</c>, <c>double</c>,
-/// <c>bytes</c> or <c>string</c>, optionally annotated with a logical type.
+/// <c>bytes</c> or <c>string</c>, optionally annotated with a <see cref="AvroLogicalType">logical type</see>.
 /// </summary>
 public sealed class PrimitiveSchema : AvroSchema
 {

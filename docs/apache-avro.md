@@ -28,7 +28,7 @@ On this page:
 | Hostile input | bounded memory and nesting for malformed or hostile data and schemas; fuzzed nightly | — |
 | Targets | .NET 8, 9 and 10, .NET Standard 2.0 and 2.1 (so .NET Framework) | .NET Standard 2.0 and 2.1 |
 | License | MIT | Apache 2.0 |
-| Maturity | an early preview (0.x); the API may change before 1.0 | the long-standing reference implementation |
+| Maturity | a 1.0 release candidate: the public API is frozen for 1.0 | the long-standing reference implementation |
 
 ## Speed and allocations
 
@@ -41,8 +41,8 @@ A release requires every AvroSharp benchmark to be faster than its Apache.Avro c
 
 Where the gain comes from:
 - **Generated serializers** call the writer and reader directly, in schema order, with no schema walk, boxing or virtual calls per value.
-- **Spans and buffer writers**: `AvroWriter` and `AvroReader` work over `Span<byte>`, `IBufferWriter<byte>` and `ReadOnlySequence<byte>`, with pooled buffers and no per-value streams.
-- **A value type for generic data**: `AvroValue` holds any Avro value without boxing, and arrays of primitives are stored as the primitives.
+- **Spans and buffer writers**: [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html) and [`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) work over `Span<byte>`, `IBufferWriter<byte>` and `ReadOnlySequence<byte>`, with pooled buffers and no per-value streams.
+- **A value type for generic data**: [`AvroValue`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.html) holds any Avro value without boxing, and arrays of primitives are stored as the primitives.
 - **Fast primitives**: varints decoded and encoded without a loop per byte where the CPU allows, and bulk array reads, each kept only if it wins on every tested CPU ([rules](benchmarks.md#rules-for-fast-paths)).
 
 The [benchmarks page](benchmarks.md) has the full table and how to run it yourself.
@@ -56,7 +56,7 @@ Generated types also get what hand-written code usually adds around Avro:
 - reading into an existing instance, reusing its collections (`ReadFrom`);
 - schema defaults applied by the constructor;
 - `DateOnly`, `TimeOnly`, `DateTimeOffset`, `Guid` and `decimal` for logical types, with decimals written exactly or rejected, never rounded;
-- `IAvroSerializable<T>` on .NET 8 and later, so files, streams and messages take the type with no delegates.
+- [`IAvroSerializable<T>`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSerializable-1.html) on .NET 8 and later, so files, streams and messages take the type with no delegates.
 
 ## Following the specification
 
@@ -72,33 +72,33 @@ AvroSharp follows the Avro 1.12 specification, and matches Apache Avro Java wher
 
 Also checked against Java:
 - **Canonical form and fingerprints** pass all 34 of Apache's test vectors.
-- **`ToJson()`** writes a schema as Java's `Schema.toString()` does, byte for byte (attribute order, and numbers as Java prints them), so registering AvroSharp's text finds the version a Java client registered.
+- **[`ToJson()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.ToJson.html)** writes a schema as Java's `Schema.toString()` does, byte for byte (attribute order, and numbers as Java prints them), so registering AvroSharp's text finds the version a Java client registered.
 - **Schema resolution** picks union branches by full name, then by unqualified name, then by promotion, as Java does, and applies reader aliases before names.
 - **Container files** from Java, in every codec, are read, and Java reads the ones AvroSharp writes.
 
 ## Hostile input
 
-Avro data often comes from outside the process: files, messages, and schemas embedded in them. AvroSharp bounds what malformed or hostile input can make it do, and reports it as `AvroDataException` or `AvroSchemaException`:
+Avro data often comes from outside the process: files, messages, and schemas embedded in them. AvroSharp bounds what malformed or hostile input can make it do, and reports it as [`AvroDataException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroDataException.html) or [`AvroSchemaException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroSchemaException.html):
 - **Memory:** every length is checked against the remaining input before anything is allocated; container blocks, schemas in file headers, stream objects and zero-size values have limits.
 - **Nesting:** records, arrays and maps are limited in depth, and the thread's stack is checked, so a hostile schema cannot overflow the stack.
 - **Codecs:** a corrupt block ends in `InvalidDataException`, never in a library's internal exception.
 - **Fuzzing:** [libFuzzer targets](../fuzz/README.md) cover the readers, and run every night.
 
-The limits are options (`GenericDatumReaderOptions`, `AvroFileReaderOptions`, `AvroStreamOptions`) with defaults that fit ordinary data.
+The limits are options ([`GenericDatumReaderOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumReaderOptions.html), [`AvroFileReaderOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReaderOptions.html), [`AvroStreamOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.AvroStreamOptions.html)) with defaults that fit ordinary data.
 
 ## More of the Avro ecosystem in one library
 
 - **Every codec in the specification**: `null` and `deflate` in AvroSharp, and snappy, zstandard, bzip2 and xz in [AvroSharp.Codecs](https://www.nuget.org/packages/AvroSharp.Codecs), on fully managed libraries with no native binaries.
-- **Schema registries**: Confluent (4-byte ID and GUID), Apicurio and AWS Glue wire framing, with an ID resolver you supply, and no registry client dependency ([guide](../README.md#schema-registries)).
-- **Single-object encoding** with a schema store selecting the writer schema by fingerprint ([guide](../README.md#single-object-encoding)).
+- **Schema registries**: Confluent (4-byte ID and GUID), Apicurio and AWS Glue wire framing ([`AvroRegistryMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroRegistryMessage.html)), with an ID resolver you supply ([`IAvroSchemaIdResolver`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.IAvroSchemaIdResolver.html)), and no registry client dependency ([guide](../README.md#schema-registries)).
+- **Single-object encoding** ([`AvroMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroMessage.html)) with a schema store ([`AvroSchemaStore`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroSchemaStore.html)) selecting the writer schema by fingerprint ([guide](../README.md#single-object-encoding)).
 - **Streams of objects** without a container, for sockets and pipes ([guide](../README.md#streams-of-objects)).
 - **Asynchronous container files**, with no synchronous I/O, and pipelined reading that decompresses the next block while the current one is decoded.
 - **JSON encoding** of the generic model, checked against Apache.Avro's JSON encoder and decoder.
-- **Canonical forms and fingerprints** (CRC-64-AVRO, MD5, SHA-256), also from the command line ([CLI](cli.md#schema-fingerprint)).
+- **Canonical forms and fingerprints** (CRC-64-AVRO, MD5, SHA-256: [`SchemaFingerprint`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.SchemaFingerprint.html)), also from the command line ([CLI](cli.md#schema-fingerprint)).
 
 ## When Apache.Avro is the better fit
 
-- **You need a 1.x API today.** AvroSharp is an early preview: the API may change before 1.0.
+- **You need a final 1.x release today.** AvroSharp is at its 1.0 release candidate; the API is frozen, and 1.0.0 follows when .NET 11 is released.
 - **You serialize classes that have no schema file.** Apache.Avro's reflect API derives schemas from existing classes; AvroSharp generates classes from schemas, not the other way around.
 - **You want the Apache Software Foundation's implementation**, maintained alongside the other Avro languages.
 
@@ -107,7 +107,7 @@ The limits are options (`GenericDatumReaderOptions`, `AvroFileReaderOptions`, `A
 [Migrating from Apache.Avro](migrating-from-apache-avro.md) maps the APIs one by one, with code for both libraries. The two libraries interoperate on the wire, so services can move one at a time. Within one codebase:
 
 1. **Generate types that work with both.** Reference `AvroSharp.Generators` and set `<AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>`. The generated classes replace avrogen's: code written for them compiles unchanged (the same property names, `_SCHEMA` and `Schema`), and Apache's `SpecificDatumWriter<T>`/`SpecificDatumReader<T>` still accept them. See [the compatibility mode](code-generation.md#migrating-from-avrogen-the-apacheavro-compatibility-mode).
-2. **Move call sites one at a time** to AvroSharp's serializers: `order.ToAvroBytes()`, `AvroFileWriter.Create<Order>(stream)`, `AvroFileReader.Open<Order>(stream)`, `AvroMessage`, `AvroRegistryMessage`.
+2. **Move call sites one at a time** to AvroSharp's serializers: `order.ToAvroBytes()`, [`AvroFileWriter.Create<Order>(stream)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.Create.html), [`AvroFileReader.Open<Order>(stream)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader.Open.html), [`AvroMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroMessage.html), [`AvroRegistryMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroRegistryMessage.html).
 3. **Drop the compatibility mode and the Apache.Avro reference** when nothing uses Apache's API any more. The types then use .NET types for logical types (`DateOnly`, `decimal`) and, by default, PascalCase properties; set `AvroSharpPropertyNames` to `avro` to keep the field names.
 
 If you check in generated code, the [`avrosharp` tool](cli.md#coming-from-avrogen) takes the place of `avrogen`, with `--apache-compatible` for step 1.

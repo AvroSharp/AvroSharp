@@ -11,6 +11,8 @@ using AvroSharp.Serialization;
 namespace AvroSharp.Streams;
 
 /// <summary>Creates <see cref="AvroStreamWriter{T}"/> instances.</summary>
+/// <seealso cref="AvroStreamReader"/>
+/// <seealso cref="AvroStreamOptions"/>
 public static class AvroStreamWriter
 {
     /// <summary>Creates a writer of objects one after another in the binary encoding, with no container or framing.</summary>
@@ -64,6 +66,10 @@ public static class AvroStreamWriter
 /// are not thread-safe.
 /// </remarks>
 /// <typeparam name="T">The type of the objects.</typeparam>
+/// <seealso cref="AvroStreamWriter"/>
+/// <seealso cref="AvroStreamReader{T}"/>
+/// <seealso cref="AvroStreamOptions"/>
+/// <seealso cref="AvroSharp.Containers.AvroFileWriter{T}"/>
 public sealed class AvroStreamWriter<T> : IDisposable, IAsyncDisposable
 {
     private readonly Stream _stream;

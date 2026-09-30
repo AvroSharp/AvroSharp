@@ -18,8 +18,9 @@ namespace AvroSharp.Generic;
 /// enum values do not allocate.
 /// </para>
 /// <para>
-/// Logical types are represented by their underlying Avro type: a <c>date</c> is an <see cref="AvroValueKind.Int"/>,
-/// a <c>timestamp-micros</c> a <see cref="AvroValueKind.Long"/>, a <c>decimal</c> its <see cref="AvroValueKind.Bytes"/>.
+/// <see cref="AvroLogicalType">Logical types</see> are represented by their underlying Avro type: a <c>date</c> is an
+/// <see cref="AvroValueKind.Int"/>, a <c>timestamp-micros</c> a <see cref="AvroValueKind.Long"/>, a <c>decimal</c> its
+/// <see cref="AvroValueKind.Bytes"/>.
 /// </para>
 /// <para>
 /// Arrays are held as <see cref="IReadOnlyList{T}"/> and maps as <see cref="IReadOnlyDictionary{TKey, TValue}"/>;
@@ -38,6 +39,10 @@ namespace AvroSharp.Generic;
 /// <c>Array</c>, <c>Map</c>, <c>Enum</c>).
 /// </para>
 /// </remarks>
+/// <seealso cref="GenericRecord"/>
+/// <seealso cref="AvroValueKind"/>
+/// <seealso cref="GenericDatumReader"/>
+/// <seealso cref="GenericDatumWriter"/>
 public readonly struct AvroValue : IEquatable<AvroValue>
 {
     private readonly long _bits;

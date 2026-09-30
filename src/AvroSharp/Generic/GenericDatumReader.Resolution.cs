@@ -9,7 +9,7 @@ using AvroSharp.Schemas;
 
 namespace AvroSharp.Generic;
 
-/// <summary>Schema resolution: reading data written with one schema as another (the specification's "Schema Resolution").</summary>
+// Schema resolution: reading data written with one schema as another (the specification's "Schema Resolution").
 public sealed partial class GenericDatumReader
 {
     // Keyed by the reader's schema, then the writer's (#129): each value references both schemas, and a value lives as
@@ -28,12 +28,12 @@ public sealed partial class GenericDatumReader
     /// Gets a reader for data written with <paramref name="writerSchema"/> that returns values of
     /// <paramref name="readerSchema"/>, resolving the differences the specification allows:
     /// <list type="bullet">
-    /// <item>record fields are matched by name or by the reader field's aliases; writer fields the reader does not have are
-    /// skipped, and reader fields the writer does not have take their default value;</item>
-    /// <item>named types match by full name, unqualified name, or the reader's aliases;</item>
+    /// <item>record fields are matched by name or by the reader field's <see cref="RecordField.Aliases">aliases</see>; writer fields the reader does not have are
+    /// skipped, and reader fields the writer does not have take their <see cref="RecordField.DefaultValue">default value</see>;</item>
+    /// <item>named types match by full name, unqualified name, or the reader's <see cref="NamedSchema.Aliases">aliases</see>;</item>
     /// <item>numbers are promoted (<c>int</c> to <c>long</c>, <c>float</c> or <c>double</c>; <c>long</c> to <c>float</c> or
     /// <c>double</c>; <c>float</c> to <c>double</c>), and <c>string</c> and <c>bytes</c> convert to each other;</item>
-    /// <item>enum symbols are matched by name, and a symbol the reader lacks takes the reader's enum default;</item>
+    /// <item>enum symbols are matched by name, and a symbol the reader lacks takes the reader's <see cref="EnumSchema.DefaultSymbol">enum default</see>;</item>
     /// <item>a writer union reads each branch as the reader schema (or the first matching branch of a reader union), and
     /// a non-union writer schema is read as the first matching branch of a reader union.</item>
     /// </list>

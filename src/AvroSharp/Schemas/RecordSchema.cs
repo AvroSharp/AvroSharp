@@ -7,6 +7,8 @@ using System.Text.Json;
 namespace AvroSharp.Schemas;
 
 /// <summary>A record schema: a named sequence of fields.</summary>
+/// <seealso cref="RecordField"/>
+/// <seealso cref="AvroSharp.Generic.GenericRecord"/>
 public sealed class RecordSchema : NamedSchema
 {
     // Linear search beats hashing for small records; the index is built on first use beyond that.

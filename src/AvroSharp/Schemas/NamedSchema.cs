@@ -5,7 +5,10 @@ using System.Text.Json;
 
 namespace AvroSharp.Schemas;
 
-/// <summary>A named schema: a record, enum or fixed.</summary>
+/// <summary>
+/// A named schema: a <see cref="RecordSchema">record</see>, <see cref="EnumSchema">enum</see> or
+/// <see cref="FixedSchema">fixed</see>.
+/// </summary>
 public abstract class NamedSchema : AvroSchema
 {
     private protected NamedSchema(

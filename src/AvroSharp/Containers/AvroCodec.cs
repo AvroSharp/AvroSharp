@@ -8,6 +8,10 @@ namespace AvroSharp.Containers;
 /// codecs (snappy, zstandard, bzip2, xz) are in the AvroSharp.Codecs package; any subclass can be passed to
 /// <see cref="AvroFileWriterOptions.Codec"/> and <see cref="AvroFileReaderOptions.Codecs"/>.
 /// </summary>
+/// <seealso cref="DeflateCodec"/>
+/// <seealso cref="AvroCodecNames"/>
+/// <seealso cref="AvroFileWriterOptions"/>
+/// <seealso cref="AvroFileReaderOptions"/>
 public abstract class AvroCodec
 {
     /// <summary>Gets the codec that stores blocks uncompressed.</summary>

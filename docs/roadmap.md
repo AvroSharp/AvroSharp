@@ -12,20 +12,20 @@ The live status of each milestone. The milestones and their exit criteria come f
 | M4: attribute generator and `AvroSerializer<T>` | Not started | #31 |
 | M5: container files, codecs, single-object encoding | Done | |
 | M6: CLI tool and protocols | Started | The `avrosharp` tool (`gen`, `schema canonical`, `schema fingerprint`) ships in 0.2.0; protocols are open (#33) |
-| M7: hardening and 1.0 | Started | #35: docs site and samples (#74, #126), migration guide (#21). Done: package metadata (#66), coverage (#75), release workflows (#76), nightly fuzzing (#34), public API before 1.0 (#134), the API freeze and package validation baseline (#73), CI consuming the packages (#136), dev container (#139), performance review (#135) |
-| Integrations | Started | #77, [integrations](integrations.md): Confluent (#79, prototyped in the #78 spike), then KafkaFlow (#154), Azure Schema Registry (#155) and AWS Glue (#156). Done: schema references (#80), registry wire framing (#81), the field walker (#82) and the spike (#78) |
+| M7: hardening and 1.0 | Started | 1.0.0-rc.1 is being prepared. 1.0.0 follows when .NET 11 is released and supported, about a month later. Done: the docs site and samples (#74, #126), the migration guide (#21), the ecosystem spike (#78), the performance gate fix (#157), package metadata (#66), coverage (#75), release workflows (#76), nightly fuzzing (#34), public API before 1.0 (#134), the API freeze and package validation baseline (#73), CI consuming the packages (#136), dev container (#139), performance review (#135) |
+| Integrations | Started | #77, [integrations](integrations.md): Confluent (#79, prototyped in the #78 spike), then KafkaFlow (#154), Azure Schema Registry (#155) and AWS Glue (#156). The add-on packages will each live in their own repository in the AvroSharp organization, after 1.0 (#77). Done: schema references (#80), registry wire framing (#81), the field walker (#82) and the spike (#78) |
 
 ## Done, in more detail
 
 - **Schemas:** parsing (System.Text.Json), writing, Parsing Canonical Form, CRC-64-AVRO/MD5/SHA-256 fingerprints, all Avro 1.12 logical types. Checked against Apache's `schema-tests.txt`.
-- **Encoding:** `AvroWriter`/`AvroReader` over spans, `IBufferWriter<byte>` and `ReadOnlySequence<byte>`. The generic model (`AvroValue`, `GenericRecord`) is binary and JSON, with schema resolution.
+- **Encoding:** [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html)/[`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) over spans, `IBufferWriter<byte>` and `ReadOnlySequence<byte>`. The generic model ([`AvroValue`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.html), [`GenericRecord`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericRecord.html)) is binary and JSON, with schema resolution.
 - **Code generation:** records, enums and fixed types with direct serializers, the Apache.Avro compatibility mode, logical types, and resolution for generated types, from the source generator or the `avrosharp` tool.
 - **Files and messages:**
   - schema-registry wire framing (Confluent, Apicurio, AWS Glue) and schema references;
   - container files, sync and async, with seeking and splitting;
   - every codec: `null` and `deflate` built in, and snappy, zstandard, bzip2 and xz in `AvroSharp.Codecs`;
   - single-object encoding;
-  - streams of objects without a container (`AvroSharp.Streams`).
+  - streams of objects without a container ([`AvroSharp.Streams`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.html)).
 - **Verification:**
   - property tests against Apache.Avro C#;
   - files written by Apache Avro Java for every codec;

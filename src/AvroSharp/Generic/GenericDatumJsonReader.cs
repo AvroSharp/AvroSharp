@@ -22,6 +22,9 @@ namespace AvroSharp.Generic;
 /// the namespace is also accepted when exactly one branch has it.
 /// </para>
 /// </remarks>
+/// <seealso cref="GenericDatumJsonWriter"/>
+/// <seealso cref="GenericDatumReader"/>
+/// <seealso cref="GenericDatumReaderOptions"/>
 public sealed class GenericDatumJsonReader
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumJsonReader> s_cache = new();

@@ -28,6 +28,8 @@ namespace AvroSharp.IO;
 /// </para>
 /// <para>This type is a <see langword="ref struct"/>: pass it by <see langword="ref"/> to methods that read values.</para>
 /// </remarks>
+/// <seealso cref="AvroWriter"/>
+/// <seealso cref="AvroSharp.Generic.GenericDatumReader"/>
 public ref struct AvroReader
 {
     private const int MaxVarint32Length = 5;

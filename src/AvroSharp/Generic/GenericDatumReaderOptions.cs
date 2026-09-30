@@ -3,6 +3,7 @@ using System;
 namespace AvroSharp.Generic;
 
 /// <summary>Limits that protect <see cref="GenericDatumReader"/> against malformed or hostile input.</summary>
+/// <seealso cref="GenericDatumJsonReader"/>
 public sealed class GenericDatumReaderOptions
 {
     // The defaults are constants, so readers with the default options build their state from immediates.
