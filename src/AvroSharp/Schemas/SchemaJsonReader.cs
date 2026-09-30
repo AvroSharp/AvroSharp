@@ -171,6 +171,11 @@ internal sealed class SchemaJsonReader
 
     private static PrimitiveSchema ReadPrimitive(JsonElement element, AvroSchemaType type)
     {
+        if (TryReadLogicalOnly(element, type) is { } logical)
+        {
+            return logical;
+        }
+
         Dictionary<string, JsonElement>? properties = null;
         foreach (var property in element.EnumerateObject())
         {
@@ -187,6 +192,33 @@ internal sealed class SchemaJsonReader
 
         var logicalType = TakeLogicalType(properties, type, fixedSize: -1);
         return new PrimitiveSchema(type, logicalType, Keep(properties));
+    }
+
+    // {"type":"long","logicalType":"timestamp-micros"}, the usual shape, read without a dictionary of properties
+    // (#135). Anything else (a decimal, other properties, a logical type that does not apply) takes the general path.
+    private static PrimitiveSchema? TryReadLogicalOnly(JsonElement element, AvroSchemaType type)
+    {
+        JsonElement? logicalName = null;
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.NameEquals("type"u8))
+            {
+                continue;
+            }
+
+            if (!property.NameEquals("logicalType"u8) || property.Value.ValueKind != JsonValueKind.String || property.Value.ValueEquals("decimal"u8))
+            {
+                return null;
+            }
+
+            logicalName = property.Value;
+        }
+
+        return logicalName is { } name
+            && AvroLogicalType.FromName(name.GetString()!) is { } logicalType
+            && IsValidTarget(logicalType, type, fixedSize: -1)
+            ? new PrimitiveSchema(type, logicalType, null)
+            : null;
     }
 
     private RecordSchema ReadRecord(JsonElement element, string? enclosingNamespace, bool isError)
@@ -232,7 +264,16 @@ internal sealed class SchemaJsonReader
             throw Error($"Record '{name.FullName}' must have a 'fields' array.");
         }
 
-        var record = Construct(() => new RecordSchema(name, doc, aliases, isError, Keep(properties)));
+        RecordSchema record;
+        try
+        {
+            record = new RecordSchema(name, doc, aliases, isError, Keep(properties));
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw Error(ex.Message, ex);
+        }
+
         Register(record);
         ReadFields(record, fields);
         return record;
@@ -250,11 +291,15 @@ internal sealed class SchemaJsonReader
             Pop();
         }
 
-        Construct(() =>
+        try
         {
             record.SetFields(list);
-            return record;
-        });
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw Error(ex.Message, ex);
+        }
+
         Pop();
     }
 
@@ -284,8 +329,16 @@ internal sealed class SchemaJsonReader
         }
 
         Push("name");
-        var field = Construct(() => new RecordField(
-            name, schema, attributes.Default, attributes.Doc, attributes.Order, attributes.Aliases, Keep(attributes.Properties), _options.ValidateNames));
+        RecordField field;
+        try
+        {
+            field = new RecordField(name, schema, attributes.Default, attributes.Doc, attributes.Order, attributes.Aliases, Keep(attributes.Properties), _options.ValidateNames);
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw Error(ex.Message, ex);
+        }
+
         Pop();
         return field;
     }
@@ -371,7 +424,16 @@ internal sealed class SchemaJsonReader
             throw Error($"Enum '{name.FullName}' must have a 'symbols' array.");
         }
 
-        var schema = Construct(() => new EnumSchema(name, symbols, defaultSymbol, doc, aliases, Keep(properties), _options.ValidateNames));
+        EnumSchema schema;
+        try
+        {
+            schema = new EnumSchema(name, symbols, defaultSymbol, doc, aliases, Keep(properties), _options.ValidateNames);
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw Error(ex.Message, ex);
+        }
+
         Register(schema);
         return schema;
     }
@@ -421,7 +483,16 @@ internal sealed class SchemaJsonReader
         }
 
         var logicalType = properties is null ? null : TakeLogicalType(properties, AvroSchemaType.Fixed, fixedSize);
-        var schema = Construct(() => new FixedSchema(name, fixedSize, logicalType, doc, aliases, Keep(properties)));
+        FixedSchema schema;
+        try
+        {
+            schema = new FixedSchema(name, fixedSize, logicalType, doc, aliases, Keep(properties));
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw Error(ex.Message, ex);
+        }
+
         Register(schema);
         return schema;
     }
@@ -491,7 +562,14 @@ internal sealed class SchemaJsonReader
             Pop();
         }
 
-        return Construct(() => new UnionSchema(branches));
+        try
+        {
+            return new UnionSchema(branches);
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw Error(ex.Message, ex);
+        }
     }
 
     private SchemaName ReadName(JsonElement element, string? enclosingNamespace)
@@ -524,7 +602,16 @@ internal sealed class SchemaJsonReader
             }
         }
 
-        var name = Construct(() => new SchemaName(nameElement.GetString()!, @namespace, _options.ValidateNames));
+        SchemaName name;
+        try
+        {
+            name = new SchemaName(nameElement.GetString()!, @namespace, _options.ValidateNames);
+        }
+        catch (AvroSchemaException ex)
+        {
+            throw Error(ex.Message, ex);
+        }
+
         Pop();
         return name;
     }
@@ -537,8 +624,15 @@ internal sealed class SchemaJsonReader
         for (var i = 0; i < aliases.Length; i++)
         {
             PushIndex(i);
-            var alias = aliases[i];
-            names[i] = Construct(() => new SchemaName(alias, @namespace, _options.ValidateNames));
+            try
+            {
+                names[i] = new SchemaName(aliases[i], @namespace, _options.ValidateNames);
+            }
+            catch (AvroSchemaException ex)
+            {
+                throw Error(ex.Message, ex);
+            }
+
             Pop();
         }
 
@@ -733,18 +827,6 @@ internal sealed class SchemaJsonReader
         }
 
         _pending.Add(schema.FullName, schema);
-    }
-
-    private T Construct<T>(Func<T> create)
-    {
-        try
-        {
-            return create();
-        }
-        catch (AvroSchemaException ex)
-        {
-            throw Error(ex.Message, ex);
-        }
     }
 
     private void Push(string property) => _path.Add(JsonPathSegment.ForProperty(property));

@@ -332,7 +332,7 @@ public class BinaryEncodingTests
     {
         // Lengths around the points where the length prefix grows (1 to 2 bytes at 64 UTF-8 bytes, 2 to 3 at 8192),
         // with 1- to 4-byte characters and a lone surrogate. A large buffer takes the one-pass path, where the prefix
-        // is sized for 3 bytes per char and the bytes may move down; a buffer of exactly the encoded size, and a
+        // is sized for 1 byte per char and the bytes may move up (#135); a buffer of exactly the encoded size, and a
         // writer that hands out tiny spans, take the two-pass path.
         var pieces = new[] { "a", "é", "日", "🎉", "\uD800" };
         var lengths = new[] { 0, 1, 20, 21, 22, 31, 32, 42, 63, 64, 65, 200, 2730, 2731, 4096, 8191, 8192, 9000 };

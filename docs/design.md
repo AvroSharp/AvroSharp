@@ -521,8 +521,20 @@ AvroSharp/
 
   Rules for SIMD code:
   - net8+ only, inside `#if NET8_0_OR_GREATER`, using the portable `Vector128` API so one path covers x64 and Arm64; netstandard gets the scalar version.
-  - Each SIMD or bulk path must beat both our plain scalar loop and Apache.Avro in BenchmarkDotNet on every tested CPU, x64 and Arm64, on uniform and mixed data, or it is removed (decided in #29). A result within 3% of the scalar loop counts as noise, not a loss, because repeated runs on an idle machine differ by that much; anything slower by more than 3% fails. The rule is the same on every CPU: no selection of the path by ISA or vendor at startup, and no accepted losses beyond the noise band.
-    - Status: bulk `ReadLongs`/`ReadInts` fail this on mixed data (90% one-byte values, 10% timestamps): 121 µs against 98 µs for the plain loop on .NET 10 (docs/reviews/2026-09-28-benchmarks.md), and 119 against 96 µs on the .NET 11 RC. #24 either fixes this or removes the vector path, before 1.0.
+  - SIMD and bulk paths (decided in #29, revised in #135). BenchmarkDotNet decides, on uniform and mixed data, x64 and Arm64:
+    - **Apache.Avro, on every tested CPU, old or new:** a path must be faster than Apache.Avro. This is the absolute rule. A path that isn't is removed.
+    - **Our plain scalar loop, on current CPUs:** a path must beat it, or at least not be slower by more than 3%, the noise between repeated runs on an idle machine. A path that fails is removed. An old CPU, more than 10 years old, may be slower than the loop: it doesn't hold back a path that wins on current CPUs, as long as the first rule holds there too.
+    - **Never a newer CPU for an older one:** a change that makes a current CPU slower is not accepted, even if an older CPU gains from it.
+    - **No per-CPU paths by default:** a path isn't selected by ISA or vendor at startup unless a review records why. The varint encoder's word path is one, used where PDEP is fast (`FastBmi2`, #102), because the Ryzen 5 3500U's slow PDEP would otherwise lose.
+    - Status: bulk `ReadLongs`/`ReadInts` pass on the current CPUs measured on 2026-09-30 (#135), three rounds each, in BenchmarkDotNet on .NET 10:
+      - Timestamps (dense multi-byte values): within the band, at +1.0 to +1.2% of the plain loop on a Ryzen 5 3500U and +1.1 to +2.0% on an i7-12800H.
+      - Mixed data: 50% faster than the plain loop on the Ryzen and 33% on the i7.
+      - Small values: 83% and 62% faster.
+      - Tried and not kept, because each went over 3% on the Ryzen: a scalar batch that doubles up to 64 values on dense data (+3.3 to +3.9%), and the batch in a non-inlined method (+3.7 to +4.4%, though −0.5 to +0.7% on the i7).
+      - **The i5-3570K (Ivy Bridge, 2012):** it passes the Apache.Avro rule, and is slower than the plain loop only on dense multi-byte data, which the old-CPU clause allows.
+        - Timestamps: 520 µs against 485 µs for the loop (+7.2%) and 1,300 µs for Apache.Avro, so 2.5× faster than Apache. An earlier run the same day gave 534 against 480 µs (+11.3%), and the 2026-09-28 review 536 against 481 µs.
+        - Mixed data and small values are faster than the loop there too: 28% and 49% in the 2026-09-28 review.
+        - Removing the vector path would give up 33–83% on mixed data and small values on current CPUs.
   - Property tests check that SIMD and scalar paths produce identical results.
   - CI also runs the test suite with `DOTNET_EnableHWIntrinsic=0`, so the scalar fallback is exercised on every run.
 - **M2.5 — Schema-file source generator (moved forward from M6)**: the `AvroSharp.CodeGen` engine plus the build-time generator for `.avsc` files passed as `AdditionalFiles`. It emits the C# types and, for each, a serializer and deserializer that call `AvroWriter`/`AvroReader` directly in schema order, with no schema lookups, boxing or virtual calls at runtime. Writer/reader resolution for generated types comes with M3. *Exit*: generated types round-trip and match Apache.Avro C# bytes for the M2 fixtures; snapshot and compile-and-roundtrip tests; incremental-cache generator tests; the generated path is the fastest AvroSharp path in local benchmarks.

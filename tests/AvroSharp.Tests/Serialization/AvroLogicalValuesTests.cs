@@ -87,6 +87,34 @@ public class AvroLogicalValuesTests
     }
 
     [Test]
+    public async Task UuidStrings_AreTheLowerCaseDForm_AndReadInEitherCase()
+    {
+        var uuid = new Guid("00112233-4455-6677-8899-aabbccddeeff");
+
+        var bytes = Write((ref w) => AvroLogicalValues.WriteUuidString(ref w, uuid));
+        var upper = Write((ref w) => w.WriteString("00112233-4455-6677-8899-AABBCCDDEEFF"));
+
+        await Assert.That(Read(bytes, (ref r) => r.ReadString())).IsEqualTo("00112233-4455-6677-8899-aabbccddeeff");
+        await Assert.That(Read(bytes, AvroLogicalValues.ReadUuidString)).IsEqualTo(uuid);
+        await Assert.That(Read(upper, AvroLogicalValues.ReadUuidString)).IsEqualTo(uuid);
+    }
+
+    [Test]
+    [Arguments("{00112233-4455-6677-8899-aabbccddeeff}")]
+    [Arguments("00112233445566778899aabbccddeeff")]
+    [Arguments("00112233-4455-6677-8899-aabbccddeeff ")]
+    [Arguments("00112233-4455-6677-8899-aabbccddeefg")]
+    [Arguments("")]
+    public async Task UuidStrings_InAnotherForm_AreRejected(string text)
+    {
+        var bytes = Write((ref w) => w.WriteString(text));
+
+        var ex = Assert.Throws<AvroDataException>(() => Read(bytes, AvroLogicalValues.ReadUuidString));
+
+        await Assert.That(ex.Message).IsEqualTo($"'{text}' is not a UUID in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.");
+    }
+
+    [Test]
     [Arguments(-1L, "1969-12-31T23:59:59.9990000+00:00")]
     [Arguments(0L, "1970-01-01T00:00:00.0000000+00:00")]
     [Arguments(-62_135_596_800_000L, "0001-01-01T00:00:00.0000000+00:00")]

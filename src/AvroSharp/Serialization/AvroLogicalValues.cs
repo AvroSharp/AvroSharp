@@ -1,6 +1,8 @@
 using System;
 using System.Buffers.Binary;
+using System.Buffers.Text;
 using System.Globalization;
+using System.Text;
 using AvroSharp.IO;
 
 namespace AvroSharp.Serialization;
@@ -108,10 +110,11 @@ public static class AvroLogicalValues
     /// <param name="reader">The source.</param>
     public static Guid ReadUuidString(ref AvroReader reader)
     {
-        var text = reader.ReadString();
-        return Guid.TryParseExact(text, "D", out var uuid)
+        // Parsed from the UTF-8 bytes, without a string (#135).
+        var utf8 = reader.ReadStringUtf8();
+        return Utf8Parser.TryParse(utf8, out Guid uuid, out var consumed, 'D') && consumed == utf8.Length
             ? uuid
-            : throw new AvroDataException($"'{text}' is not a UUID in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.");
+            : throw new AvroDataException($"'{Encoding.UTF8.GetString(utf8)}' is not a UUID in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.");
     }
 
     /// <summary>Writes a <c>uuid</c> on <c>string</c>, in lowercase hyphenated form.</summary>
@@ -119,13 +122,10 @@ public static class AvroLogicalValues
     /// <param name="uuid">The UUID.</param>
     public static void WriteUuidString(ref AvroWriter writer, Guid uuid)
     {
-#if NET8_0_OR_GREATER
-        Span<char> text = stackalloc char[36];
-        uuid.TryFormat(text, out _, "D");
-        writer.WriteString(text);
-#else
-        writer.WriteString(uuid.ToString("D", CultureInfo.InvariantCulture));
-#endif
+        // Formatted as UTF-8 straight away, not as UTF-16 and then transcoded (#135).
+        Span<byte> utf8 = stackalloc byte[36];
+        Utf8Formatter.TryFormat(uuid, utf8, out _, 'D');
+        writer.WriteStringUtf8(utf8);
     }
 
     /// <summary>Reads a <c>uuid</c> on <c>fixed(16)</c>: the 16 bytes in RFC 4122 (big-endian) order.</summary>
@@ -301,7 +301,12 @@ public static class AvroLogicalValues
             throw new AvroException($"A decimal(precision {precision}, scale {scale}) is outside the range of System.Decimal.");
         }
 
+        // A value whose own scale is the schema's or less has no digits to lose (#135); only a larger one is rounded to check.
+#if NET7_0_OR_GREATER
+        if (value.Scale > scale && decimal.Round(value, scale) != value)
+#else
         if (decimal.Round(value, scale) != value)
+#endif
         {
             throw new AvroException($"The decimal {value.ToString(CultureInfo.InvariantCulture)} has more than {scale} fractional digits.");
         }
@@ -309,19 +314,24 @@ public static class AvroLogicalValues
         decimal unscaled;
         try
         {
-            unscaled = decimal.Truncate(value * Pow10(scale));
+            unscaled = decimal.Truncate(value * s_pow10[scale]);
         }
         catch (OverflowException ex)
         {
             throw new AvroException($"The decimal {value.ToString(CultureInfo.InvariantCulture)} has more than {precision} digits.", ex);
         }
 
-        if (Math.Abs(unscaled) >= Pow10(precision))
+        if (Math.Abs(unscaled) >= s_pow10[precision])
         {
             throw new AvroException($"The decimal {value.ToString(CultureInfo.InvariantCulture)} has more than {precision} digits.");
         }
 
+#if NET5_0_OR_GREATER
+        Span<int> bits = stackalloc int[4];
+        decimal.GetBits(unscaled, bits);
+#else
         var bits = decimal.GetBits(unscaled);
+#endif
         ulong low = (uint)bits[0] | ((ulong)(uint)bits[1] << 32);
         ulong high = (uint)bits[2];
         if (unscaled < 0)
@@ -352,14 +362,18 @@ public static class AvroLogicalValues
     private static bool RepeatsSign(byte leading, byte next) =>
         leading == 0 ? next < 0x80 : leading == 0xFF && next >= 0x80;
 
-    private static decimal Pow10(int exponent)
+    // 10^0 to 10^28, the largest power of ten a decimal holds: one load instead of up to 28 multiplications (#135).
+    private static readonly decimal[] s_pow10 = CreatePowersOfTen();
+
+    private static decimal[] CreatePowersOfTen()
     {
-        var result = 1m;
-        for (var i = 0; i < exponent; i++)
+        var powers = new decimal[MaxDecimalScale + 1];
+        powers[0] = 1m;
+        for (var i = 1; i < powers.Length; i++)
         {
-            result *= 10m;
+            powers[i] = powers[i - 1] * 10m;
         }
 
-        return result;
+        return powers;
     }
 }

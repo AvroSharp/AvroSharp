@@ -55,6 +55,13 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 ### Changed
 
+- **Faster logical values, parsing, resolution and strings (#135).** Measured on the EPYC 7543 with main and the branch in parallel lanes on neighbouring CCDs, on both sockets:
+  - **Decimal writes:** 2.9× faster on bytes (178–188 to 62 µs per 1,024 `decimal(18,4)` values; Apache.Avro takes 94 µs), and 2.6× on fixed. `Pow10`'s multiplication loop became a table, `decimal.GetBits` writes into the stack on .NET 5+, and the rounding check runs only for a value with more fractional digits than the scale (.NET 7+).
+  - **`uuid` strings:** writes −40%, reads −50%. They're parsed from and formatted to UTF-8 (`Utf8Parser`/`Utf8Formatter`), without a string, and are faster than Apache.Avro both ways.
+  - **Schema parsing:** 9–13% faster, with 33–37% less allocation, for small and large schemas, with or without the fingerprint. There's no closure per named type, field, union and alias, a logical type is read without a dictionary, and the canonical form's string is made only when asked for.
+  - **The resolving generic reader:** 9–10% faster; with record, array, map and bytes defaults, 30–37% faster. Each default is converted from JSON once: immutable ones are shared, mutable ones decoded from their encoding per read.
+  - **String writes:** 16% faster (the Strings workload). The length prefix is reserved for 1 byte per char, so ASCII strings of 22–63 chars aren't moved.
+  - A `LogicalTypeBenchmarks` and a resolution benchmark with defaults were added to measure these.
 - Tests for the remaining gaps of the test review (#142): enum and fixed aliases, the resolving reader's options, the JSON writer's widening, depth limit and shape errors, maps of any `IReadOnlyDictionary`, hostile container files (overlong varints, truncation on the async path, trailing bytes when pipelined), `AvroRegistryMessageReader.ReadAsync` with a missing schema or a cancelled fetch, logical-value range errors, and control characters in schemas.
 - The nightly fuzzing workflow also runs a random-schema code-generation test (#141): random schemas, with hostile names and every kind of default, are generated, compiled for C# 7.3, 12 and the latest version, and round-tripped. PR CI runs it on 100 schemas.
 - The API reference on the documentation site is built from the net10.0 build, so it shows the .NET 8+ API (`AvroSerializer`, `IAvroSerializable<T>` and the overloads that take no delegates), and lists those members with their equivalents on other targets (#136).
