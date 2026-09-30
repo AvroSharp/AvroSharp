@@ -28,6 +28,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 - Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and streams.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
 - Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
+- Releases on its own schedule. Apache.Avro, the C# library of the Apache Avro project, ships with the whole project through the Apache release process, which gives every language the same careful, voted releases, a few times a year. As a standalone .NET library, AvroSharp can ship features and fixes as soon as they are ready, and take up users' feature requests quickly. [Feature requests](https://github.com/zcsizmadia/AvroSharp/issues) are welcome.
 
 ## Getting started
 
