@@ -7,6 +7,7 @@ The documentation site is at **[zcsizmadia.github.io/AvroSharp](https://zcsizmad
 - [Guide](../README.md): getting started, the generic data model, container files and codecs, single-object messages and schema registries, and streams.
 - [Code generation](code-generation.md): the `AvroSharp.Generators` source generator: setup, MSBuild properties, type mapping, schema evolution, diagnostics, and moving from avrogen.
 - [Command-line tool](cli.md): `avrosharp gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.
+- [Integrations](integrations.md): schema registries and message brokers today, and the planned add-on packages for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue.
 - [Samples](../samples/README.md): runnable programs for the main APIs, run by CI.
 
 ## Reference

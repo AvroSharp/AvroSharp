@@ -67,7 +67,7 @@ So the package should depend on `[2.14.0, 3.0.0)`, and CI should build and test 
 
 ### Work left for #79
 
-- **Field-level rules (CSFLE):** Confluent's encryption executor calls the serde's field transformer. The package needs a walker that visits the fields of an AvroSharp record by schema (generated records through `IAvroSpecificRecord.Get`/`Put`, and `GenericRecord`). The prototype throws `NotSupportedException` instead of skipping them.
+- **Field-level rules (CSFLE):** Confluent's encryption executor calls the serde's field transformer. AvroSharp's `AvroValueTransformer` ([#82](https://github.com/zcsizmadia/AvroSharp/issues/82)) already walks the generic model by schema, with each field's path and properties; the package connects it to Confluent's `FieldTransformer`, and generated types reach it through the generic model (or a typed walker, if that is too slow). The prototype throws `NotSupportedException` instead of skipping them.
 - **CEL rules:** Confluent's `CelExecutor` recognizes only Apache.Avro's `ISpecificRecord` and `GenericRecord`. Types generated in the compatibility mode work; for plain AvroSharp types, CEL rules are not supported unless Confluent's executor is extended. Document it.
 - **Migration rules:** Confluent converts through JSON. AvroSharp has JSON readers and writers, so the same path works; the prototype throws.
 - **`GenericRecord` and primitive types,** besides generated types, and a .NET Standard 2.0 path through `IAvroWritable`/`IAvroReadable` (the prototype uses the .NET 8 static interface).

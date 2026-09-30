@@ -9,7 +9,7 @@
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
 
-**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md) · [Samples](samples/README.md)
+**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md) · [Integrations](docs/integrations.md) · [Samples](samples/README.md)
 
 > **Status:** an early preview (0.x). The API may still change before 1.0. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
@@ -17,6 +17,8 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - C# code generation from `.avsc` files, with a source generator and the `avrosharp` command-line tool, and schema resolution for the generated types;
 > - object container files (synchronous and asynchronous) with every codec in the specification;
 > - single-object encoding, schema-registry framing (Confluent, Apicurio, AWS Glue), and streams of objects.
+>
+> Add-on packages for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue are planned: see [integrations](docs/integrations.md).
 >
 > See [the samples](samples/README.md) for runnable examples, [the roadmap](docs/roadmap.md) for what is next, and [the documentation](https://zcsizmadia.github.io/AvroSharp/) for guides, the API reference, benchmarks and the design.
 
@@ -132,6 +134,8 @@ AvroValue value = await reader.ReadAsync(message);   // fetches schema 42 throug
 | `AwsGlue` / `AwsGlueCompressed` | `0x03`, compression byte (`0x00`, or `0x05` for zlib), 16-byte big-endian schema version UUID |
 
 **References.** A schema that refers to named types registered under other subjects parses against them with `AvroSchemaParser.AddNamedSchemas` (or by parsing the referenced schemas first with the same parser). `schema.ToJson(referencedSchemas)` writes it with those types by name, as Java's `Schema.toString(referencedSchemas, false)` does, and `ToJson()` is Java's `Schema.toString()` byte for byte (attribute order, and numbers as Java prints them), so registering AvroSharp's text finds the version a Java client registered.
+
+**Kafka and registry clients.** Add-on packages will plug this into Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue, starting with `AvroSharp.Confluent`: see [integrations](docs/integrations.md).
 
 ## Streams of objects
 
