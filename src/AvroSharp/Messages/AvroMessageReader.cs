@@ -77,8 +77,27 @@ public sealed class AvroMessageReader<T>
     /// </exception>
     public T Read(ReadOnlySpan<byte> message)
     {
-        var fingerprint = ReadHeader(message);
-        return Decode(Lookup(fingerprint) ?? CreateReader(fingerprint, _resolver.GetSchema(fingerprint)), message);
+        // The common case inline: the schema of the last message. A shared Lookup/Decode path cost ~2 ns per
+        // message (5%) on small objects; ReadAsync, which awaits anyway, uses the helpers.
+        if (!AvroMessage.TryReadHeader(message, out var fingerprint))
+        {
+            throw NotAMessage();
+        }
+
+        var cached = _last;
+        if (cached is null || cached.Fingerprint != fingerprint)
+        {
+            cached = Find(fingerprint) ?? CreateReader(fingerprint, _resolver.GetSchema(fingerprint));
+        }
+
+        var reader = new AvroReader(message[AvroMessage.HeaderLength..]);
+        var value = cached.Read(ref reader);
+        if (!reader.IsAtEnd)
+        {
+            throw BytesLeft(reader.BytesRemaining);
+        }
+
+        return value;
     }
 
     /// <summary>Reads one message, fetching its schema through the resolver when its fingerprint is new.</summary>
@@ -97,19 +116,23 @@ public sealed class AvroMessageReader<T>
     }
 
     private static long ReadHeader(ReadOnlySpan<byte> message) =>
-        AvroMessage.TryReadHeader(message, out var fingerprint)
-            ? fingerprint
-            : throw new AvroDataException("The data is not a single-object encoded Avro message: it does not start with C3 01 and an 8-byte fingerprint.");
+        AvroMessage.TryReadHeader(message, out var fingerprint) ? fingerprint : throw NotAMessage();
+
+    private static AvroDataException NotAMessage() =>
+        new("The data is not a single-object encoded Avro message: it does not start with C3 01 and an 8-byte fingerprint.");
+
+    private static AvroDataException BytesLeft(long count) => new($"The message has {count} bytes left after its object.");
 
     private CachedReader? Lookup(long fingerprint)
     {
         var cached = _last;
-        if (cached is not null && cached.Fingerprint == fingerprint)
-        {
-            return cached;
-        }
+        return cached is not null && cached.Fingerprint == fingerprint ? cached : Find(fingerprint);
+    }
 
-        if (_readers.TryGetValue(fingerprint, out cached))
+    // A schema other than the last message's: the cache, which becomes the last one.
+    private CachedReader? Find(long fingerprint)
+    {
+        if (_readers.TryGetValue(fingerprint, out var cached))
         {
             _last = cached;
             return cached;
@@ -130,7 +153,7 @@ public sealed class AvroMessageReader<T>
         var value = cached.Read(ref reader);
         if (!reader.IsAtEnd)
         {
-            throw new AvroDataException($"The message has {reader.BytesRemaining} bytes left after its object.");
+            throw BytesLeft(reader.BytesRemaining);
         }
 
         return value;
