@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using AvroSharp;
+using AvroSharp.Containers;
 using AvroSharp.Schemas;
 
 // Native AOT smoke test: exercises the public API from a trimmed, AOT-compiled executable.

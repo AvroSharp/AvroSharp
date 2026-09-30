@@ -4,20 +4,22 @@ The public API of the AvroSharp packages, generated from the XML documentation i
 
 | Namespace | What it holds |
 |---|---|
-| `AvroSharp` | `AvroException` and `AvroCodecNames`, the codec names of the specification |
+| `AvroSharp` | The exceptions: `AvroException`, `AvroDataException` for malformed data, `AvroSchemaException` for invalid schemas |
 | `AvroSharp.Schemas` | The schema model and parser, Parsing Canonical Form, fingerprints, logical types |
 | `AvroSharp.IO` | `AvroWriter` and `AvroReader`: the binary encoding over spans, buffer writers and sequences |
 | `AvroSharp.Generic` | `AvroValue`, `GenericRecord`, and the generic binary and JSON readers and writers, with schema resolution |
-| `AvroSharp.Containers` | Object container files, sync and async, with seeking and pipelined reading, and `AvroCodec` |
+| `AvroSharp.Containers` | Object container files, sync and async, with seeking and pipelined reading; `AvroCodec`, `DeflateCodec`, and `AvroCodecNames`, the codec names of the specification |
 | `AvroSharp.Codecs` | The snappy, zstandard, bzip2 and xz codecs (the `AvroSharp.Codecs` package) |
-| `AvroSharp.Messages` | Single-object encoding and schema-registry framing |
+| `AvroSharp.Messages` | Single-object encoding and schema-registry framing, with the schema resolvers and their in-memory stores |
 | `AvroSharp.Streams` | Streams of objects without a container |
-| `AvroSharp.Serialization` | The support that generated code calls, and the delegates it plugs into |
+| `AvroSharp.Serialization` | `AvroSerializer`, the interfaces generated types implement, the logical-value conversions, and the read and write delegates |
+| `AvroSharp.Serialization.Generated` | The support that generated code calls; not for direct use (see the compatibility policy in the design notes) |
 | `AvroSharp.CodeGen` | The C# code generation engine (the `AvroSharp.CodeGen` package) |
 
 ## .NET 8 and later only
 
-The reference is built from the `net10.0` build, so it shows every member. These need .NET 8 or later, because they rely on static abstract interface members; on .NET Standard and .NET Framework, the overloads that take a schema and the generated `Write`/`Read` delegates do the same:
+The reference is built from the 
+et10.0` build, so it shows every member. These need .NET 8 or later, because they rely on static abstract interface members; on .NET Standard and .NET Framework, the overloads that take a schema and the generated `Write`/`Read` delegates do the same:
 
 | Member | On every target |
 |---|---|

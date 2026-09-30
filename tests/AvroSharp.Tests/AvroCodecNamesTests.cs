@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using AvroSharp.Containers;
 
 namespace AvroSharp.Tests;
 

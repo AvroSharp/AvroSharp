@@ -1,5 +1,5 @@
 #nullable enable
-AvroSharp.AvroCodecNames
+AvroSharp.Containers.AvroCodecNames
 AvroSharp.AvroException
 AvroSharp.AvroException.AvroException() -> void
 AvroSharp.AvroException.AvroException(string! message) -> void
@@ -475,12 +475,12 @@ abstract AvroSharp.Containers.AvroCodec.Compress(System.ReadOnlyMemory<byte> sou
 abstract AvroSharp.Containers.AvroCodec.Decompress(System.ReadOnlyMemory<byte> source, System.Buffers.IBufferWriter<byte>! destination) -> void
 abstract AvroSharp.Containers.AvroCodec.Name.get -> string!
 abstract AvroSharp.Schemas.AvroLogicalType.IsValidFor(AvroSharp.Schemas.AvroSchema! schema) -> bool
-const AvroSharp.AvroCodecNames.Bzip2 = "bzip2" -> string!
-const AvroSharp.AvroCodecNames.Deflate = "deflate" -> string!
-const AvroSharp.AvroCodecNames.Null = "null" -> string!
-const AvroSharp.AvroCodecNames.Snappy = "snappy" -> string!
-const AvroSharp.AvroCodecNames.Xz = "xz" -> string!
-const AvroSharp.AvroCodecNames.Zstandard = "zstandard" -> string!
+const AvroSharp.Containers.AvroCodecNames.Bzip2 = "bzip2" -> string!
+const AvroSharp.Containers.AvroCodecNames.Deflate = "deflate" -> string!
+const AvroSharp.Containers.AvroCodecNames.Null = "null" -> string!
+const AvroSharp.Containers.AvroCodecNames.Snappy = "snappy" -> string!
+const AvroSharp.Containers.AvroCodecNames.Xz = "xz" -> string!
+const AvroSharp.Containers.AvroCodecNames.Zstandard = "zstandard" -> string!
 const AvroSharp.Containers.AvroFileReaderOptions.DefaultMaxBlockLength = 67108864 -> int
 const AvroSharp.Containers.AvroFileReaderOptions.DefaultMaxSchemaLength = 4194304 -> int
 const AvroSharp.Containers.AvroFileReaderOptions.DefaultMaxZeroSizeValuesPerBlock = 16777216 -> long
@@ -521,7 +521,7 @@ override AvroSharp.Schemas.RecordField.ToString() -> string!
 override AvroSharp.Schemas.SchemaName.Equals(object? obj) -> bool
 override AvroSharp.Schemas.SchemaName.GetHashCode() -> int
 override AvroSharp.Schemas.SchemaName.ToString() -> string!
-static AvroSharp.AvroCodecNames.IsStandard(string? name) -> bool
+static AvroSharp.Containers.AvroCodecNames.IsStandard(string? name) -> bool
 static AvroSharp.Containers.AvroCodec.Deflate.get -> AvroSharp.Containers.AvroCodec!
 static AvroSharp.Containers.AvroCodec.Null.get -> AvroSharp.Containers.AvroCodec!
 static AvroSharp.Containers.AvroFileReader.Open<T>(System.IO.Stream! stream, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>! createReader, AvroSharp.Containers.AvroFileReaderOptions? options = null) -> AvroSharp.Containers.AvroFileReader<T>!
