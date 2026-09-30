@@ -52,11 +52,11 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
         var ns = Get(options, "AvroSharpNamespace");
         var raw = string.Equals(Choice(options, "AvroSharpLogicalTypes", ["native", "raw"], "native", warnings), "raw", StringComparison.Ordinal);
         var apache = string.Equals(Choice(options, "AvroSharpApacheCompatible", ["true", "false"], "false", warnings), "true", StringComparison.Ordinal);
-        var naming = Choice(options, "AvroSharpPropertyNames", ["pascal", "avro"], null, warnings) switch
+        PropertyNaming? naming = Choice(options, "AvroSharpPropertyNames", ["pascal", "avro"], null, warnings) switch
         {
             "pascal" => PropertyNaming.PascalCase,
             "avro" => PropertyNaming.Avro,
-            _ => (PropertyNaming?)null,
+            _ => null,
         };
 
         return new ProjectSettings(ns, NamespaceMapOf(Get(options, "AvroSharpNamespaceMap"), warnings), raw, apache, naming, new EquatableArray<string>(warnings));
