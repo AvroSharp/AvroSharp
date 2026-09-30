@@ -81,7 +81,14 @@ The arguments after `--` are [BenchmarkDotNet's](https://benchmarkdotnet.org/art
 dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory --gate
 ```
 
-With `--gate`, the process exits non-zero unless, in every group (class, category, parameters and runtime), each `AvroSharp_*` benchmark is faster than the Apache.Avro baseline **and** allocates no more. A release needs the gate to pass. The gate runs on real hardware, not in CI, where shared runners make timings meaningless.
+With `--gate`, the process exits non-zero unless, in every group (class, category, parameters and runtime), each `AvroSharp_*` benchmark is faster than the Apache.Avro baseline **and** allocates no more. A release needs the gate to pass.
+
+A benchmark the gate can't check fails it too, so a benchmark can't drop out of the gate unnoticed:
+- an `AvroSharp_*` benchmark whose group has no `ApacheAvro_*` baseline;
+- an `ApacheAvro_*` benchmark that isn't its group's baseline;
+- a benchmark named neither way.
+
+Two categories mark the exceptions. `Ungated` is for AvroSharp features that Apache.Avro has no equivalent for: single-object and registry messages, and `uuid` on `fixed`. `ReferenceOnly` is for other libraries, such as Chr.Avro, reported next to the baseline. The gate runs on real hardware, not in CI, where shared runners make timings meaningless.
 
 ## Rules for fast paths
 

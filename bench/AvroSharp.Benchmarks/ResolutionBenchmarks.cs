@@ -49,6 +49,7 @@ public class ResolutionBenchmarks
     private GenericDatumReader _defaultsReader = null!;
     private AvroSchema _writerSchema = null!;
     private Avro.Generic.GenericDatumReader<ApacheGenericRecord> _apacheReader = null!;
+    private Avro.Generic.GenericDatumReader<ApacheGenericRecord> _apacheDefaultsReader = null!;
     private byte[] _encoded = [];
 
     [GlobalSetup]
@@ -72,13 +73,15 @@ public class ResolutionBenchmarks
         var apacheWriter = Avro.Schema.Parse(Version1);
         var apacheReader = Avro.Schema.Parse(bench.evolved.Customer.SchemaJson);
         _apacheReader = new Avro.Generic.GenericDatumReader<ApacheGenericRecord>(apacheWriter, apacheReader);
+        var apacheDefaults = Avro.Schema.Parse(WithDefaults);
+        _apacheDefaultsReader = new Avro.Generic.GenericDatumReader<ApacheGenericRecord>(apacheWriter, apacheDefaults);
 
         // Every path must resolve to the same value before its time means anything.
         var ours = GenericDatumWriter.Create(reader).WriteToArray(_reader.Read(_encoded));
         var generated = bench.evolved.Customer.FromAvroBytes(_encoded, _writerSchema).ToAvroBytes();
-        using var apacheOutput = new MemoryStream();
-        new Avro.Generic.GenericDatumWriter<ApacheGenericRecord>(apacheReader).Write(ApacheAvro_Read(), new Avro.IO.BinaryEncoder(apacheOutput));
-        if (!ours.AsSpan().SequenceEqual(apacheOutput.ToArray()) || !ours.AsSpan().SequenceEqual(generated))
+        var oursDefaults = GenericDatumWriter.Create(AvroSchema.Parse(WithDefaults)).WriteToArray(_defaultsReader.Read(_encoded));
+        if (!ours.AsSpan().SequenceEqual(ApacheEncoding(apacheReader, ApacheAvro_Read())) || !ours.AsSpan().SequenceEqual(generated)
+            || !oursDefaults.AsSpan().SequenceEqual(ApacheEncoding(apacheDefaults, ApacheAvro_Read_Defaults())))
         {
             throw new InvalidOperationException("The resolving readers disagree on the resolved value.");
         }
@@ -94,6 +97,11 @@ public class ResolutionBenchmarks
     public AvroValue AvroSharp_Read() => _reader.Read(_encoded);
 
     // Five fields taken from their defaults: a record, an array, a map, bytes and a null union.
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("ReadDefaults")]
+    public ApacheGenericRecord ApacheAvro_Read_Defaults() =>
+        _apacheDefaultsReader.Read(null!, new Avro.IO.BinaryDecoder(new MemoryStream(_encoded, writable: false)));
+
     [Benchmark]
     [BenchmarkCategory("ReadDefaults")]
     public AvroValue AvroSharp_Read_Defaults() => _defaultsReader.Read(_encoded);
@@ -102,4 +110,11 @@ public class ResolutionBenchmarks
     [Benchmark]
     [BenchmarkCategory("Read")]
     public bench.evolved.Customer AvroSharp_Generated_Read() => bench.evolved.Customer.FromAvroBytes(_encoded, _writerSchema);
+
+    private static byte[] ApacheEncoding(Avro.Schema schema, ApacheGenericRecord record)
+    {
+        using var output = new MemoryStream();
+        new Avro.Generic.GenericDatumWriter<ApacheGenericRecord>(schema).Write(record, new Avro.IO.BinaryEncoder(output));
+        return output.ToArray();
+    }
 }

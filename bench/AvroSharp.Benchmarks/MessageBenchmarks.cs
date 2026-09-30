@@ -12,7 +12,7 @@ namespace AvroSharp.Benchmarks;
 /// <summary>
 /// Reading one framed message: the schema lookup (the last schema, then the cache) and the decode, which a stream of
 /// messages repeats per message. The objects are small, so the lookup's cost shows. The registry reader is the same
-/// path for Confluent framing.
+/// path for Confluent framing. Apache.Avro's C# library has neither single-object encoding nor registry framing, so these are not gated.
 /// </summary>
 [MemoryDiagnoser]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -60,14 +60,14 @@ public class MessageBenchmarks
     }
 
     [Benchmark]
-    [BenchmarkCategory("SingleObject")]
+    [BenchmarkCategory("SingleObject", Gate.Ungated)]
     public AvroValue SingleObject_Generic_Read() => _genericReader.Read(_genericMessage);
 
     [Benchmark]
-    [BenchmarkCategory("SingleObject")]
+    [BenchmarkCategory("SingleObject", Gate.Ungated)]
     public bench.generated.Order SingleObject_Generated_Read() => _generatedReader.Read(_generatedMessage);
 
     [Benchmark]
-    [BenchmarkCategory("Registry")]
+    [BenchmarkCategory("Registry", Gate.Ungated)]
     public AvroValue Registry_Generic_Read() => _registryReader.Read(_registryMessage);
 }

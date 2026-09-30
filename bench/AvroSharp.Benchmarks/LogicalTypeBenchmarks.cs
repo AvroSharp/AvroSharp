@@ -11,8 +11,9 @@ namespace AvroSharp.Benchmarks;
 
 /// <summary>
 /// Converting and coding 1,024 logical values (#135), as generated code does per field: <c>decimal(18,4)</c> on bytes and
-/// on a 12-byte fixed, <c>uuid</c> on a string and on a 16-byte fixed, and <c>timestamp-micros</c>. Apache.Avro's
-/// logical types (<c>Avro.Util</c>), converting to the base value and coding it, are the baseline where they exist.
+/// on a 12-byte fixed, <c>uuid</c> on a string and on a 16-byte fixed, and <c>timestamp-micros</c>. Each logical type and
+/// operation is a group, gated against Apache.Avro's logical types (<c>Avro.Util</c>), converting to or from the base value
+/// and coding it (#157). Apache.Avro has no <c>uuid</c> on fixed, so that group is AvroSharp only.
 /// </summary>
 [MemoryDiagnoser]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
@@ -34,8 +35,11 @@ public class LogicalTypeBenchmarks
     private byte[] _timestampLongs = [];
     private ArrayBufferWriter<byte> _output = new();
     private readonly MemoryStream _stream = new();
+    private readonly byte[] _fixedBuffer = new byte[FixedSize];
 
     private Avro.LogicalSchema _apacheDecimal = null!;
+    private Avro.LogicalSchema _apacheDecimalFixed = null!;
+    private Avro.FixedSchema _apacheFixed = null!;
     private Avro.LogicalSchema _apacheUuid = null!;
     private Avro.LogicalSchema _apacheTimestamp = null!;
     private readonly Avro.Util.Decimal _apacheDecimalType = new();
@@ -57,63 +61,42 @@ public class LogicalTypeBenchmarks
         _timestamps = Enumerable.Range(0, Count).Select(_ => DateTimeOffset.FromUnixTimeMilliseconds(1_790_000_000_000L + random.NextInt64(0, 31_536_000_000L))).ToArray();
         _output = new ArrayBufferWriter<byte>(Count * 40);
 
-        _decimalBytes = Encode(DecimalBytes_Write);
-        _decimalFixed = Encode(DecimalFixed_Write);
-        _uuidStrings = Encode(UuidString_Write);
-        _uuidFixed = Encode(UuidFixed_Write);
-        _timestampLongs = Encode(Timestamp_Write);
+        _decimalBytes = Encode(AvroSharp_DecimalBytes_Write);
+        _decimalFixed = Encode(AvroSharp_DecimalFixed_Write);
+        _uuidStrings = Encode(AvroSharp_UuidString_Write);
+        _uuidFixed = Encode(AvroSharp_UuidFixed_Write);
+        _timestampLongs = Encode(AvroSharp_Timestamp_Write);
 
         _apacheDecimal = (Avro.LogicalSchema)Avro.Schema.Parse($$"""{"type":"bytes","logicalType":"decimal","precision":{{Precision}},"scale":{{Scale}}}""");
+        _apacheDecimalFixed = (Avro.LogicalSchema)Avro.Schema.Parse($$"""{"type":"fixed","name":"Amount","size":{{FixedSize}},"logicalType":"decimal","precision":{{Precision}},"scale":{{Scale}}}""");
+        _apacheFixed = (Avro.FixedSchema)_apacheDecimalFixed.BaseSchema;
         _apacheUuid = (Avro.LogicalSchema)Avro.Schema.Parse("""{"type":"string","logicalType":"uuid"}""");
         _apacheTimestamp = (Avro.LogicalSchema)Avro.Schema.Parse("""{"type":"long","logicalType":"timestamp-micros"}""");
 
         // Each read must give back what was written, and Apache's encodings must be the same bytes, before a time means anything.
-        if (DecimalBytes_Read() != _decimals.Sum() || DecimalFixed_Read() != _decimals.Sum() || UuidString_Read() != Checksum(_uuids) || UuidFixed_Read() != Checksum(_uuids))
+        var sum = _decimals.Sum();
+        var ticks = _timestamps.Aggregate(0L, (sum, t) => unchecked(sum + t.UtcTicks));   // wraps, as the reads do
+        if (AvroSharp_DecimalBytes_Read() != sum || AvroSharp_DecimalFixed_Read() != sum || AvroSharp_UuidString_Read() != Checksum(_uuids)
+            || AvroSharp_UuidFixed_Read() != Checksum(_uuids) || AvroSharp_Timestamp_Read() != ticks)
         {
             throw new InvalidOperationException("A logical value did not read back as written.");
         }
 
-        ApacheAvro_DecimalBytes_Write();
-        var apacheDecimal = _stream.ToArray();
-        ApacheAvro_UuidString_Write();
-        var apacheUuid = _stream.ToArray();
-        if (!apacheDecimal.AsSpan().SequenceEqual(_decimalBytes) || !apacheUuid.AsSpan().SequenceEqual(_uuidStrings))
+        if (!SameBytes(ApacheAvro_DecimalBytes_Write, _decimalBytes) || !SameBytes(ApacheAvro_DecimalFixed_Write, _decimalFixed)
+            || !SameBytes(ApacheAvro_UuidString_Write, _uuidStrings) || !SameBytes(ApacheAvro_Timestamp_Write, _timestampLongs))
         {
             throw new InvalidOperationException("Apache.Avro encodes the logical values differently.");
         }
-    }
 
-    [Benchmark]
-    [BenchmarkCategory("DecimalBytes")]
-    public long DecimalBytes_Write()
-    {
-        _output.ResetWrittenCount();
-        var writer = new AvroWriter(_output);
-        foreach (var value in _decimals)
+        if (ApacheAvro_DecimalBytes_Read() != sum || ApacheAvro_DecimalFixed_Read() != sum || ApacheAvro_UuidString_Read() != Checksum(_uuids)
+            || ApacheAvro_Timestamp_Read() != ticks)
         {
-            AvroLogicalValues.WriteDecimalBytes(ref writer, value, Scale, Precision);
+            throw new InvalidOperationException("Apache.Avro reads the logical values differently.");
         }
-
-        writer.Flush();
-        return _output.WrittenCount;
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("DecimalBytes")]
-    public decimal DecimalBytes_Read()
-    {
-        var reader = new AvroReader(_decimalBytes);
-        var sum = 0m;
-        for (var i = 0; i < Count; i++)
-        {
-            sum += AvroLogicalValues.ReadDecimalBytes(ref reader, Scale);
-        }
-
-        return sum;
     }
 
     [Benchmark(Baseline = true)]
-    [BenchmarkCategory("DecimalBytes")]
+    [BenchmarkCategory("DecimalBytes", "Write")]
     public long ApacheAvro_DecimalBytes_Write()
     {
         _stream.SetLength(0);
@@ -128,8 +111,66 @@ public class LogicalTypeBenchmarks
     }
 
     [Benchmark]
-    [BenchmarkCategory("DecimalFixed")]
-    public long DecimalFixed_Write()
+    [BenchmarkCategory("DecimalBytes", "Write")]
+    public long AvroSharp_DecimalBytes_Write()
+    {
+        _output.ResetWrittenCount();
+        var writer = new AvroWriter(_output);
+        foreach (var value in _decimals)
+        {
+            AvroLogicalValues.WriteDecimalBytes(ref writer, value, Scale, Precision);
+        }
+
+        writer.Flush();
+        return _output.WrittenCount;
+    }
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("DecimalBytes", "Read")]
+    public decimal ApacheAvro_DecimalBytes_Read()
+    {
+        var decoder = new Avro.IO.BinaryDecoder(new MemoryStream(_decimalBytes, writable: false));
+        var sum = 0m;
+        for (var i = 0; i < Count; i++)
+        {
+            sum += ((Avro.AvroDecimal)_apacheDecimalType.ConvertToLogicalValue(decoder.ReadBytes(), _apacheDecimal)).ToType<decimal>();
+        }
+
+        return sum;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("DecimalBytes", "Read")]
+    public decimal AvroSharp_DecimalBytes_Read()
+    {
+        var reader = new AvroReader(_decimalBytes);
+        var sum = 0m;
+        for (var i = 0; i < Count; i++)
+        {
+            sum += AvroLogicalValues.ReadDecimalBytes(ref reader, Scale);
+        }
+
+        return sum;
+    }
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("DecimalFixed", "Write")]
+    public long ApacheAvro_DecimalFixed_Write()
+    {
+        _stream.SetLength(0);
+        var encoder = new Avro.IO.BinaryEncoder(_stream);
+        foreach (var value in _decimals)
+        {
+            encoder.WriteFixed(((Avro.Generic.GenericFixed)_apacheDecimalType.ConvertToBaseValue(new Avro.AvroDecimal(value), _apacheDecimalFixed)).Value);
+        }
+
+        encoder.Flush();
+        return _stream.Length;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("DecimalFixed", "Write")]
+    public long AvroSharp_DecimalFixed_Write()
     {
         _output.ResetWrittenCount();
         var writer = new AvroWriter(_output);
@@ -142,9 +183,26 @@ public class LogicalTypeBenchmarks
         return _output.WrittenCount;
     }
 
+    // Apache's generic reader wraps each fixed value in a GenericFixed before converting it, as done here.
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("DecimalFixed", "Read")]
+    public decimal ApacheAvro_DecimalFixed_Read()
+    {
+        var decoder = new Avro.IO.BinaryDecoder(new MemoryStream(_decimalFixed, writable: false));
+        var sum = 0m;
+        for (var i = 0; i < Count; i++)
+        {
+            decoder.ReadFixed(_fixedBuffer);
+            var value = new Avro.Generic.GenericFixed(_apacheFixed, _fixedBuffer);
+            sum += ((Avro.AvroDecimal)_apacheDecimalType.ConvertToLogicalValue(value, _apacheDecimalFixed)).ToType<decimal>();
+        }
+
+        return sum;
+    }
+
     [Benchmark]
-    [BenchmarkCategory("DecimalFixed")]
-    public decimal DecimalFixed_Read()
+    [BenchmarkCategory("DecimalFixed", "Read")]
+    public decimal AvroSharp_DecimalFixed_Read()
     {
         var reader = new AvroReader(_decimalFixed);
         var sum = 0m;
@@ -156,37 +214,8 @@ public class LogicalTypeBenchmarks
         return sum;
     }
 
-    [Benchmark]
-    [BenchmarkCategory("UuidString")]
-    public long UuidString_Write()
-    {
-        _output.ResetWrittenCount();
-        var writer = new AvroWriter(_output);
-        foreach (var value in _uuids)
-        {
-            AvroLogicalValues.WriteUuidString(ref writer, value);
-        }
-
-        writer.Flush();
-        return _output.WrittenCount;
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("UuidString")]
-    public long UuidString_Read()
-    {
-        var reader = new AvroReader(_uuidStrings);
-        long checksum = 0;
-        for (var i = 0; i < Count; i++)
-        {
-            checksum ^= AvroLogicalValues.ReadUuidString(ref reader).GetHashCode();
-        }
-
-        return checksum;
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("UuidString")]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("UuidString", "Write")]
     public long ApacheAvro_UuidString_Write()
     {
         _stream.SetLength(0);
@@ -201,7 +230,22 @@ public class LogicalTypeBenchmarks
     }
 
     [Benchmark]
-    [BenchmarkCategory("UuidString")]
+    [BenchmarkCategory("UuidString", "Write")]
+    public long AvroSharp_UuidString_Write()
+    {
+        _output.ResetWrittenCount();
+        var writer = new AvroWriter(_output);
+        foreach (var value in _uuids)
+        {
+            AvroLogicalValues.WriteUuidString(ref writer, value);
+        }
+
+        writer.Flush();
+        return _output.WrittenCount;
+    }
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("UuidString", "Read")]
     public long ApacheAvro_UuidString_Read()
     {
         var decoder = new Avro.IO.BinaryDecoder(new MemoryStream(_uuidStrings, writable: false));
@@ -215,8 +259,23 @@ public class LogicalTypeBenchmarks
     }
 
     [Benchmark]
-    [BenchmarkCategory("UuidFixed")]
-    public long UuidFixed_Write()
+    [BenchmarkCategory("UuidString", "Read")]
+    public long AvroSharp_UuidString_Read()
+    {
+        var reader = new AvroReader(_uuidStrings);
+        long checksum = 0;
+        for (var i = 0; i < Count; i++)
+        {
+            checksum ^= AvroLogicalValues.ReadUuidString(ref reader).GetHashCode();
+        }
+
+        return checksum;
+    }
+
+    // Apache.Avro 1.12 rejects uuid on fixed ("'uuid' can only be used with an underlying string type").
+    [Benchmark]
+    [BenchmarkCategory("UuidFixed", "Write", Gate.Ungated)]
+    public long AvroSharp_UuidFixed_Write()
     {
         _output.ResetWrittenCount();
         var writer = new AvroWriter(_output);
@@ -230,8 +289,8 @@ public class LogicalTypeBenchmarks
     }
 
     [Benchmark]
-    [BenchmarkCategory("UuidFixed")]
-    public long UuidFixed_Read()
+    [BenchmarkCategory("UuidFixed", "Read", Gate.Ungated)]
+    public long AvroSharp_UuidFixed_Read()
     {
         var reader = new AvroReader(_uuidFixed);
         long checksum = 0;
@@ -243,37 +302,8 @@ public class LogicalTypeBenchmarks
         return checksum;
     }
 
-    [Benchmark]
-    [BenchmarkCategory("Timestamp")]
-    public long Timestamp_Write()
-    {
-        _output.ResetWrittenCount();
-        var writer = new AvroWriter(_output);
-        foreach (var value in _timestamps)
-        {
-            writer.WriteLong(AvroLogicalValues.MicrosecondsFromTimestamp(value));
-        }
-
-        writer.Flush();
-        return _output.WrittenCount;
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("Timestamp")]
-    public long Timestamp_Read()
-    {
-        var reader = new AvroReader(_timestampLongs);
-        long sum = 0;
-        for (var i = 0; i < Count; i++)
-        {
-            sum += AvroLogicalValues.TimestampFromMicroseconds(reader.ReadLong()).UtcTicks;
-        }
-
-        return sum;
-    }
-
-    [Benchmark]
-    [BenchmarkCategory("Timestamp")]
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Timestamp", "Write")]
     public long ApacheAvro_Timestamp_Write()
     {
         _stream.SetLength(0);
@@ -287,11 +317,60 @@ public class LogicalTypeBenchmarks
         return _stream.Length;
     }
 
+    [Benchmark]
+    [BenchmarkCategory("Timestamp", "Write")]
+    public long AvroSharp_Timestamp_Write()
+    {
+        _output.ResetWrittenCount();
+        var writer = new AvroWriter(_output);
+        foreach (var value in _timestamps)
+        {
+            writer.WriteLong(AvroLogicalValues.MicrosecondsFromTimestamp(value));
+        }
+
+        writer.Flush();
+        return _output.WrittenCount;
+    }
+
+    [Benchmark(Baseline = true)]
+    [BenchmarkCategory("Timestamp", "Read")]
+    public long ApacheAvro_Timestamp_Read()
+    {
+        var decoder = new Avro.IO.BinaryDecoder(new MemoryStream(_timestampLongs, writable: false));
+        long sum = 0;
+        for (var i = 0; i < Count; i++)
+        {
+            sum += ((DateTime)_apacheTimestampType.ConvertToLogicalValue(decoder.ReadLong(), _apacheTimestamp)).Ticks;
+        }
+
+        return sum;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Timestamp", "Read")]
+    public long AvroSharp_Timestamp_Read()
+    {
+        var reader = new AvroReader(_timestampLongs);
+        long sum = 0;
+        for (var i = 0; i < Count; i++)
+        {
+            sum += AvroLogicalValues.TimestampFromMicroseconds(reader.ReadLong()).UtcTicks;
+        }
+
+        return sum;
+    }
+
     private static long Checksum(Guid[] uuids) => uuids.Aggregate(0L, (sum, uuid) => sum ^ uuid.GetHashCode());
 
     private byte[] Encode(Func<long> write)
     {
         write();
         return _output.WrittenSpan.ToArray();
+    }
+
+    private bool SameBytes(Func<long> apacheWrite, byte[] expected)
+    {
+        apacheWrite();
+        return _stream.ToArray().AsSpan().SequenceEqual(expected);
     }
 }
