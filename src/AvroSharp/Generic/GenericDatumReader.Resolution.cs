@@ -330,17 +330,35 @@ public sealed partial class GenericDatumReader
     }
 
     /// <summary>A reader field the writer does not have, and its default value from the reader's schema.</summary>
-    private sealed class FieldDefault(int target, AvroSchema schema, JsonElement value)
+    /// <summary>
+    /// A reader field's default, converted from JSON once (#135). A value that cannot be changed through the returned
+    /// record (null, a number, a string, an enum) is shared; bytes, fixed values, records, arrays and maps are kept as
+    /// their binary encoding and decoded per read, so each record gets its own, as the generated-code plan does.
+    /// </summary>
+    private sealed class FieldDefault
     {
-        // Values that cannot be changed through the returned record are converted once; others per read.
-        private readonly AvroValue? _shared = schema.Type is AvroSchemaType.Bytes or AvroSchemaType.Fixed or AvroSchemaType.Record
-            or AvroSchemaType.Array or AvroSchemaType.Map or AvroSchemaType.Union
-            ? (AvroValue?)null
-            : GenericDatumJsonReader.ReadDefault(schema, value);
+        private readonly AvroValue _shared;
+        private readonly GenericDatumReader? _decoder;
+        private readonly byte[] _encoded = [];
 
-        public int Target { get; } = target;
+        public FieldDefault(int target, AvroSchema schema, JsonElement value)
+        {
+            Target = target;
+            var converted = GenericDatumJsonReader.ReadDefault(schema, value);
+            if (converted.Kind is AvroValueKind.Bytes or AvroValueKind.Fixed or AvroValueKind.Record or AvroValueKind.Array or AvroValueKind.Map)
+            {
+                _decoder = GenericDatumReader.Create(schema);
+                _encoded = GenericDatumWriter.Create(schema).WriteToArray(converted);
+            }
+            else
+            {
+                _shared = converted;
+            }
+        }
 
-        public AvroValue Create() => _shared ?? GenericDatumJsonReader.ReadDefault(schema, value);
+        public int Target { get; }
+
+        public AvroValue Create() => _decoder is null ? _shared : _decoder.Read(_encoded);
     }
 
     /// <summary>Reads the writer's fields in the writer's order into a record of the reader's schema.</summary>

@@ -128,6 +128,36 @@ public class SchemaResolutionTests
         await Assert.That(ex.Message).Contains("'R.b' is not in the writer's schema and has no default value");
     }
 
+    /// <summary>
+    /// Defaults are converted once (#135): immutable ones shared, mutable ones decoded per read from their encoding.
+    /// Each read still gets its own array, map and bytes, with the default's values.
+    /// </summary>
+    [Test]
+    public async Task ArrayMapAndBytesDefaults_AreFreshPerRead_WithTheirValues()
+    {
+        var writer = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}""");
+        var reader = AvroSchema.Parse("""
+            {"type":"record","name":"R","fields":[{"name":"a","type":"int"},
+              {"name":"tags","type":{"type":"array","items":"string"},"default":["x","y"]},
+              {"name":"limits","type":{"type":"map","values":"long"},"default":{"max":9}},
+              {"name":"token","type":"bytes","default":"\u0001ÿ"},
+              {"name":"note","type":["null","string"],"default":null}]}
+            """);
+        var bytes = GenericDatumWriter.Create(writer).WriteToArray(new GenericRecord((RecordSchema)writer) { ["a"] = 1 });
+        var resolver = GenericDatumReader.Create(writer, reader);
+
+        var first = resolver.Read(bytes).AsRecord();
+        var second = resolver.Read(bytes).AsRecord();
+
+        await Assert.That(first["tags"].AsArray().Select(t => t.AsString())).IsEquivalentTo(new[] { "x", "y" }, CollectionOrdering.Matching);
+        await Assert.That(first["limits"].AsMap()["max"].AsInt64()).IsEqualTo(9L);
+        await Assert.That(first["token"].AsBytes()).IsEquivalentTo(new byte[] { 0x01, 0xFF }, CollectionOrdering.Matching);
+        await Assert.That(first["note"].IsNull).IsTrue();
+        await Assert.That(first["tags"].AsArray()).IsNotSameReferenceAs(second["tags"].AsArray());
+        await Assert.That(first["limits"].AsMap()).IsNotSameReferenceAs(second["limits"].AsMap());
+        await Assert.That(first["token"].AsBytes()).IsNotSameReferenceAs(second["token"].AsBytes());
+    }
+
     [Test]
     public async Task MutableDefaults_AreNotSharedBetweenReads()
     {
