@@ -185,7 +185,7 @@ public static class CSharpCodeGenerator
     {
         if (options.LanguageVersion < 7)
         {
-            throw new ArgumentException($"The language version {options.LanguageVersion.ToString(CultureInfo.InvariantCulture)} is below the lowest supported, C# 7.", nameof(options));
+            throw new ArgumentException($"The language version {options.LanguageVersion.ToString(CultureInfo.InvariantCulture)} is below the lowest supported, C# 7 (7.2 or later: the generated code has readonly structs).", nameof(options));
         }
 
         if (options.NullableAnnotations && options.LanguageVersion < 8)

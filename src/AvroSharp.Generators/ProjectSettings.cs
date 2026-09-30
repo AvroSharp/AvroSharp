@@ -59,7 +59,10 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
             _ => null,
         };
 
-        return new ProjectSettings(ns, NamespaceMapOf(Get(options, "AvroSharpNamespaceMap"), warnings), raw, apache, naming, new EquatableArray<string>(warnings));
+        // build/AvroSharp.Generators.targets passes the map on as _AvroSharpNamespaceMap, with ',' for ';' and line breaks;
+        // a project that makes AvroSharpNamespaceMap visible to the compiler itself, without the .targets, has only that.
+        var map = Get(options, "_AvroSharpNamespaceMap") ?? Get(options, "AvroSharpNamespaceMap");
+        return new ProjectSettings(ns, NamespaceMapOf(map, warnings), raw, apache, naming, new EquatableArray<string>(warnings));
     }
 
     public bool Equals(ProjectSettings? other) =>

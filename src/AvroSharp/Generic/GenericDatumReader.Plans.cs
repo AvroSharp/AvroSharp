@@ -67,8 +67,19 @@ public sealed partial class GenericDatumReader
             var value = readerField.DefaultValue
                 ?? throw new AvroSchemaException(
                     $"At $: the reader's field '{reader.FullName}.{readerField.Name}' is not in the writer's schema and has no default value.");
+            AvroValue converted;
+            try
+            {
+                converted = GenericDatumJsonReader.ReadDefault(readerField.Schema, value);
+            }
+            catch (AvroDataException ex)
+            {
+                // A field built in code is not checked against its default, as a parsed one is.
+                throw new AvroSchemaException($"At $: the default of the reader's field '{reader.FullName}.{readerField.Name}' is not a value of its schema: {ex.Message}", ex);
+            }
+
             defaultTargets.Add(readerField.Position);
-            defaults.Add(GenericDatumWriter.Create(readerField.Schema).WriteToArray(GenericDatumJsonReader.ReadDefault(readerField.Schema, value)));
+            defaults.Add(GenericDatumWriter.Create(readerField.Schema).WriteToArray(converted));
         }
 
         return new AvroRecordPlan(steps, [.. defaultTargets], [.. defaults]);

@@ -264,6 +264,47 @@ public class SchemaResolutionTests
         await Assert.That(GenericDatumReader.Create(list, listReader).Read(chain).AsRecord()["extra"].AsInt32()).IsEqualTo(0);
     }
 
+    /// <summary>
+    /// A default comes from the reader's schema, not from input, so the limit on zero-size items doesn't apply to it:
+    /// 70,000 nulls, over the default limit of 65,536, read with the default options and with a higher limit.
+    /// </summary>
+    [Test]
+    public async Task ADefault_OverTheZeroSizeLimit_IsRead()
+    {
+        var writer = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}""");
+        var nulls = string.Join(",", Enumerable.Repeat("null", 70_000));
+        var reader = AvroSchema.Parse($$"""{"type":"record","name":"R","fields":[{"name":"a","type":"int"},{"name":"z","type":{"type":"array","items":"null"},"default":[{{nulls}}]}]}""");
+        var bytes = GenericDatumWriter.Create(writer).WriteToArray(new GenericRecord((RecordSchema)writer) { ["a"] = 7 });
+
+        var read = GenericDatumReader.Create(writer, reader).Read(bytes).AsRecord();
+        var generous = GenericDatumReader.Create(writer, reader, new GenericDatumReaderOptions { MaxZeroSizeItems = 1_000_000 }).Read(bytes).AsRecord();
+
+        await Assert.That(read["a"].AsInt32()).IsEqualTo(7);
+        await Assert.That(read["z"].AsArray().Count).IsEqualTo(70_000);
+        await Assert.That(generous["z"].AsArray().Count).IsEqualTo(70_000);
+    }
+
+    /// <summary>
+    /// A field built in code isn't checked against its default, as a parsed one is: resolving it is the schema error
+    /// the reader documents, naming the field, for the generic reader and for the plan generated code uses.
+    /// </summary>
+    [Test]
+    public async Task ADefaultThatIsNotAValueOfItsSchema_IsASchemaError_NamingTheField()
+    {
+        var inner = new RecordSchema(new SchemaName("I"), [new RecordField("x", AvroSchema.Int)]);
+        var writer = new RecordSchema(new SchemaName("R"), [new RecordField("a", AvroSchema.Int)]);
+        using var five = System.Text.Json.JsonDocument.Parse("5");
+        var reader = new RecordSchema(new SchemaName("R"), [new RecordField("a", AvroSchema.Int), new RecordField("b", inner, five.RootElement.Clone())]);
+
+        var generic = Assert.Throws<AvroSchemaException>(() => GenericDatumReader.Create(writer, reader));
+        AvroSharp.Serialization.Generated.AvroPlanCache? cache = null;
+        var plan = Assert.Throws<AvroSchemaException>(() => AvroSharp.Serialization.Generated.AvroGeneratedCode.GetRecordPlan(writer, reader, ref cache));
+
+        await Assert.That(generic.Message).StartsWith("At $: the default of the reader's field 'R.b' is not a value of its schema:");
+        await Assert.That(plan.Message).StartsWith("At $: the default of the reader's field 'R.b' is not a value of its schema:");
+        await Assert.That(generic.InnerException).IsTypeOf<AvroDataException>();
+    }
+
     [Test]
     public async Task EnumSymbols_AreMatchedByName_AndUnknownOnesTakeTheReaderDefault()
     {

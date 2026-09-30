@@ -174,7 +174,7 @@ public sealed partial class GenericDatumReader
                 size += child.MinimumSize;
             }
 
-            var defaults = new List<(int Target, AvroSchema Schema, JsonElement Value)>();
+            var defaults = new List<(int Target, AvroSchema Schema, JsonElement Value, string Field)>();
             foreach (var readerField in reader.Fields)
             {
                 if (assigned[readerField.Position])
@@ -185,11 +185,11 @@ public sealed partial class GenericDatumReader
                 var value = readerField.DefaultValue
                     ?? throw new AvroSchemaException(
                         $"At {path}: the reader's field '{reader.FullName}.{readerField.Name}' is not in the writer's schema and has no default value.");
-                defaults.Add((readerField.Position, readerField.Schema, value));
+                defaults.Add((readerField.Position, readerField.Schema, value, $"{reader.FullName}.{readerField.Name}"));
             }
 
             node.Steps = [.. steps];
-            node.Defaults = [.. defaults.Select(d => new FieldDefault(d.Target, d.Schema, d.Value))];
+            node.Defaults = [.. defaults.Select(d => new FieldDefault(d.Target, d.Schema, d.Value, path, d.Field))];
             node.Size = (int)Math.Min(size, int.MaxValue);
             return node;
         }
@@ -329,25 +329,39 @@ public sealed partial class GenericDatumReader
         public override AvroValue Read(ref AvroReader reader, ref ReadState state) => read(ref reader);
     }
 
-    /// <summary>A reader field the writer does not have, and its default value from the reader's schema.</summary>
     /// <summary>
-    /// A reader field's default, converted from JSON once (#135). A value that cannot be changed through the returned
-    /// record (null, a number, a string, an enum) is shared; bytes, fixed values, records, arrays and maps are kept as
-    /// their binary encoding and decoded per read, so each record gets its own, as the generated-code plan does.
+    /// A reader field the writer does not have, and its default from the reader's schema, converted from JSON once
+    /// (#135). A value that cannot be changed through the returned record (null, a number, a string, an enum) is shared;
+    /// bytes, fixed values, records, arrays and maps are kept as their binary encoding and decoded per read, so each
+    /// record gets its own, as the generated-code plan does.
     /// </summary>
     private sealed class FieldDefault
     {
+        // The encoding comes from the reader's own schema, not from input, so the limit on zero-size items, which
+        // guards against hostile data, doesn't apply to it: a default of more such items than the limit is valid.
+        private static readonly GenericDatumReaderOptions DefaultOptions = new() { MaxZeroSizeItems = int.MaxValue };
+
         private readonly AvroValue _shared;
         private readonly GenericDatumReader? _decoder;
         private readonly byte[] _encoded = [];
 
-        public FieldDefault(int target, AvroSchema schema, JsonElement value)
+        public FieldDefault(int target, AvroSchema schema, JsonElement value, string path, string field)
         {
             Target = target;
-            var converted = GenericDatumJsonReader.ReadDefault(schema, value);
+            AvroValue converted;
+            try
+            {
+                converted = GenericDatumJsonReader.ReadDefault(schema, value);
+            }
+            catch (AvroDataException ex)
+            {
+                // A field built in code is not checked against its default, as a parsed one is.
+                throw new AvroSchemaException($"At {path}: the default of the reader's field '{field}' is not a value of its schema: {ex.Message}", ex);
+            }
+
             if (converted.Kind is AvroValueKind.Bytes or AvroValueKind.Fixed or AvroValueKind.Record or AvroValueKind.Array or AvroValueKind.Map)
             {
-                _decoder = GenericDatumReader.Create(schema);
+                _decoder = GenericDatumReader.Create(schema, DefaultOptions);
                 _encoded = GenericDatumWriter.Create(schema).WriteToArray(converted);
             }
             else

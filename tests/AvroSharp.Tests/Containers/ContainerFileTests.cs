@@ -92,6 +92,16 @@ public class ContainerFileTests
         await Assert.That(new DeflateCodec(CompressionLevel.Fastest).Level).IsEqualTo(CompressionLevel.Fastest);
     }
 
+    /// <summary>A level the runtime doesn't have fails when the codec is made, not when a writer's first block is.</summary>
+    [Test]
+    public async Task Deflate_RejectsALevelTheRuntimeDoesNotHave()
+    {
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new DeflateCodec((CompressionLevel)42));
+
+        await Assert.That(ex.ParamName).IsEqualTo("level");
+        await Assert.That(new DeflateCodec(CompressionLevel.NoCompression).Level).IsEqualTo(CompressionLevel.NoCompression);
+    }
+
     [Test]
     public async Task AFileWithoutObjects_HasOnlyAHeader()
     {

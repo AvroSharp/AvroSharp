@@ -15,7 +15,23 @@ public sealed class DeflateCodec : AvroCodec
 {
     /// <summary>Creates a deflate codec.</summary>
     /// <param name="level">The compression level; it affects writing only.</param>
-    public DeflateCodec(CompressionLevel level = CompressionLevel.Optimal) => Level = level;
+    /// <exception cref="ArgumentOutOfRangeException">The runtime has no such level.</exception>
+    public DeflateCodec(CompressionLevel level = CompressionLevel.Optimal)
+    {
+        // Checked against the runtime's CompressionLevel (SmallestSize exists from .NET 6), so a writer fails here, not
+        // when it compresses its first block after writing the header. Not by opening a DeflateStream: on .NET 8 one
+        // that rejects the level leaves a Deflater whose finalizer crashes the process.
+#if NET5_0_OR_GREATER
+        if (!Enum.IsDefined(level))
+#else
+        if (!Enum.IsDefined(typeof(CompressionLevel), level))
+#endif
+        {
+            throw new ArgumentOutOfRangeException(nameof(level), level, "The runtime has no such compression level.");
+        }
+
+        Level = level;
+    }
 
     /// <summary>Gets the codec with <see cref="CompressionLevel.Optimal"/> compression, also <see cref="AvroCodec.Deflate"/>.</summary>
     public static DeflateCodec Default { get; } = new();

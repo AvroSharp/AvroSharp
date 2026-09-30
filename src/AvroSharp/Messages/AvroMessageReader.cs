@@ -24,13 +24,13 @@ public static class AvroMessageReader
     /// <summary>Creates a reader of messages as generic values.</summary>
     /// <param name="resolver">Finds each message's writer schema.</param>
     /// <param name="readerSchema">The schema to resolve every message to; <see langword="null"/> reads each as written.</param>
-    /// <param name="options">The generic reader's options, or <see langword="null"/> for the defaults.</param>
-    public static AvroMessageReader<AvroValue> CreateGeneric(IAvroSchemaResolver resolver, AvroSchema? readerSchema = null, GenericDatumReaderOptions? options = null) =>
+    /// <param name="readerOptions">The generic reader's options, or <see langword="null"/> for the defaults.</param>
+    public static AvroMessageReader<AvroValue> CreateGeneric(IAvroSchemaResolver resolver, AvroSchema? readerSchema = null, GenericDatumReaderOptions? readerOptions = null) =>
         new(resolver, writerSchema =>
         {
             var reader = readerSchema is null
-                ? GenericDatumReader.Create(writerSchema, options)
-                : GenericDatumReader.Create(writerSchema, readerSchema, options);
+                ? GenericDatumReader.Create(writerSchema, readerOptions)
+                : GenericDatumReader.Create(writerSchema, readerSchema, readerOptions);
             return (ref r) => reader.Read(ref r);
         });
 
