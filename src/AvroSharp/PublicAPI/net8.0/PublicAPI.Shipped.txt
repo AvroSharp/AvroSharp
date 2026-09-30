@@ -17,8 +17,9 @@ static AvroSharp.Messages.AvroRegistryMessageReader.Create<T>(AvroSharp.Messages
 static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(System.ReadOnlySpan<byte> data) -> T
 static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(System.ReadOnlySpan<byte> data, AvroSharp.Schemas.AvroSchema! writerSchema) -> T
 static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(in System.Buffers.ReadOnlySequence<byte> data) -> T
-static AvroSharp.Serialization.AvroSerializer.Serialize<T>(T value) -> byte[]!
+static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(in System.Buffers.ReadOnlySequence<byte> data, AvroSharp.Schemas.AvroSchema! writerSchema) -> T
 static AvroSharp.Serialization.AvroSerializer.Serialize<T>(System.Buffers.IBufferWriter<byte>! output, T value) -> void
+static AvroSharp.Serialization.AvroSerializer.Serialize<T>(T value) -> byte[]!
 static AvroSharp.Serialization.AvroSerializer.TrySerialize<T>(System.Span<byte> destination, T value, out int bytesWritten) -> bool
 static AvroSharp.Streams.AvroStreamReader.Open<T>(System.IO.Stream! stream, AvroSharp.Streams.AvroStreamOptions? options = null) -> AvroSharp.Streams.AvroStreamReader<T>!
 static AvroSharp.Streams.AvroStreamWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Streams.AvroStreamOptions? options = null) -> AvroSharp.Streams.AvroStreamWriter<T>!

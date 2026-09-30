@@ -1,19 +1,1 @@
 #nullable enable
-AvroSharp.Messages.AvroMessageReader<T>.ReadAsync(System.ReadOnlyMemory<byte> message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
-AvroSharp.Messages.AvroSchemaStore.GetSchemaAsync(long fingerprint, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Schemas.AvroSchema?>
-AvroSharp.Messages.IAvroSchemaResolver.GetSchemaAsync(long fingerprint, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Schemas.AvroSchema?>
-const AvroSharp.Generic.GenericDatumReaderOptions.DefaultMaxDepth = 128 -> int
-const AvroSharp.Generic.GenericDatumReaderOptions.DefaultMaxZeroSizeItems = 65536 -> int
-const AvroSharp.Generic.GenericDatumWriterOptions.DefaultMaxDepth = 128 -> int
-const AvroSharp.Schemas.AvroSchemaParseOptions.DefaultMaxDepth = 256 -> int
-AvroSharp.Generic.GenericDatumReader.Read(in System.Buffers.ReadOnlySequence<byte> data) -> AvroSharp.Generic.AvroValue
-static AvroSharp.Messages.AvroMessage.Write(System.Buffers.IBufferWriter<byte>! output, in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.GenericDatumWriter! writer) -> void
-static AvroSharp.Messages.AvroRegistryMessage.Write(System.Buffers.IBufferWriter<byte>! output, AvroSharp.Messages.AvroRegistryFraming! framing, AvroSharp.Messages.AvroSchemaId id, in AvroSharp.Generic.AvroValue value, AvroSharp.Generic.GenericDatumWriter! writer) -> void
-AvroSharp.Schemas.AvroSchema.HasSameCanonicalForm(AvroSharp.Schemas.AvroSchema! other) -> bool
-AvroSharp.Containers.DeflateCodec
-AvroSharp.Containers.DeflateCodec.DeflateCodec(System.IO.Compression.CompressionLevel level = System.IO.Compression.CompressionLevel.Optimal) -> void
-AvroSharp.Containers.DeflateCodec.Level.get -> System.IO.Compression.CompressionLevel
-override AvroSharp.Containers.DeflateCodec.Compress(System.ReadOnlyMemory<byte> source, System.Buffers.IBufferWriter<byte>! destination) -> void
-override AvroSharp.Containers.DeflateCodec.Decompress(System.ReadOnlyMemory<byte> source, System.Buffers.IBufferWriter<byte>! destination) -> void
-override AvroSharp.Containers.DeflateCodec.Name.get -> string!
-static AvroSharp.Containers.DeflateCodec.Default.get -> AvroSharp.Containers.DeflateCodec!
