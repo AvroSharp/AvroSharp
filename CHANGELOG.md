@@ -43,11 +43,14 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
   - `AvroRegistryMessage.Write(output, framing, id, in AvroValue, GenericDatumWriter)` (#134).
 - **Default limits as constants:** `GenericDatumReaderOptions.DefaultMaxDepth` and `DefaultMaxZeroSizeItems`, `GenericDatumWriterOptions.DefaultMaxDepth` and `AvroSchemaParseOptions.DefaultMaxDepth` (#134).
 - **Generator settings (#134):**
-  - The **`AvroSharpNamespaceMap`** MSBuild property, `avro.ns:CSharp.Ns` entries separated by `;`, like the CLI's `--namespace-map`.
+  - The **`AvroSharpNamespaceMap`** MSBuild property, `avro.ns:CSharp.Ns` entries separated by `;` or `,`, like the CLI's `--namespace-map`. The package's `build/AvroSharp.Generators.targets` passes `;` on as `,`, since the compiler reads the property from an `.editorconfig` file, where `;` starts a comment.
   - Generator properties accept their values in any case.
   - A value the generator doesn't recognize is warning **AVROGEN006**; before, a typo was ignored silently.
   - `--language-version 7` implies `--no-nullable`.
 - **Records built from another record's fields:** a record given a field that belongs to another record takes a copy, so `new RecordSchema(name, other.Fields.Append(field))` works. It threw before (#134).
+- **Documentation:**
+  - [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md): the plan, and the Apache.Avro API next to AvroSharp's. Its code is the Migration sample's, which CI runs against both libraries, and a test keeps the two in step (#21).
+  - The GeneratorPackage sample: an application's project with the `AvroSharp.Generators` package, its MSBuild settings and schemas across files, and how to use the generator from source instead (#126, #74).
 - A dev container (`.devcontainer/`) and `build/ci-local.sh`, which build and test as the Linux CI job does. The container has Ubuntu 24.04 with the .NET 8, 9 and 10 SDKs, the Native AOT prerequisites, CI's variables and a cached NuGet volume; the script runs the job's steps in order. DocFX and ReportGenerator are pinned local tools (`.config/dotnet-tools.json`), used by CI, the docs workflow and the container alike (#139).
 
 ### Fixed

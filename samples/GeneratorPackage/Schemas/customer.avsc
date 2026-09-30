@@ -1,0 +1,4 @@
+{"type":"record","name":"Customer","namespace":"com.example.crm","fields":[
+  {"name":"customer_id","type":"long"},
+  {"name":"display_name","type":"string"}
+]}

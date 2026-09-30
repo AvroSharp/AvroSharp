@@ -1,0 +1,4 @@
+{"type":"record","name":"Heartbeat","doc":"No Avro namespace, so the C# type goes into AvroSharpNamespace.","fields":[
+  {"name":"service_name","type":"string"},
+  {"name":"sent_at","type":{"type":"long","logicalType":"timestamp-micros"}}
+]}

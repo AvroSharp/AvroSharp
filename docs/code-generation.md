@@ -25,7 +25,7 @@ Reference the package, and pass your schema files to the compiler as `Additional
 </ItemGroup>
 ```
 
-That is all. The package brings in the [AvroSharp](https://www.nuget.org/packages/AvroSharp) runtime package. The types appear as you edit the schemas; no build step or checked-in code is needed. See [the GeneratedTypes sample](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratedTypes) for a complete project.
+That is all. The package brings in the [AvroSharp](https://www.nuget.org/packages/AvroSharp) runtime package. The types appear as you edit the schemas; no build step or checked-in code is needed. See [the GeneratorPackage sample](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratorPackage) for a complete project with every setting, and [GeneratedTypes](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratedTypes) for container files and schema evolution.
 
 Schema files may refer to named types that other files define, in any order. A type defined identically in several files, as schema sets written for Apache's tooling often are, is generated once.
 
@@ -163,4 +163,4 @@ A build with an older SDK can use the [command-line tool](cli.md) instead, and c
 
 ## Using the generator from source
 
-A package reference is the supported way. A project in the same repository as a build of the generator can reference its project instead, as this repository's samples, tests and benchmarks do ([`build/UseLocalGenerator.targets`](https://github.com/zcsizmadia/AvroSharp/blob/main/build/UseLocalGenerator.targets)): as an `Analyzer` project reference, with the generator's own dependencies (`AvroSharp.dll` and `AvroSharp.CodeGen.dll`) added as analyzers, and the `AvroSharp*` properties made visible to the compiler. The package does all of this itself.
+A package reference is the supported way. A project in the same repository as a build of the generator can reference its project instead, as this repository's samples, tests and benchmarks do ([`build/UseLocalGenerator.targets`](https://github.com/zcsizmadia/AvroSharp/blob/main/build/UseLocalGenerator.targets)): as an `Analyzer` project reference, with the generator's own dependencies (`AvroSharp.dll` and `AvroSharp.CodeGen.dll`) added as analyzers, and the package's `build/AvroSharp.Generators.props` and `.targets` imported, which pass the `AvroSharp*` properties to the compiler. The package does all of this itself. [The GeneratorPackage sample](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratorPackage#building-the-generator-from-source) has the details and caveats.

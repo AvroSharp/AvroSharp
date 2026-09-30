@@ -33,7 +33,7 @@
   <ItemGroup>
     <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
     <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
-    <None Include="build\AvroSharp.Generators.props" Pack="true" PackagePath="build;buildTransitive" />
+    <None Include="build\AvroSharp.Generators.props;build\AvroSharp.Generators.targets" Pack="true" PackagePath="build;buildTransitive" />
   </ItemGroup>
 
   <!-- Pack the generator and the assemblies it loads (netstandard2.0 builds) into analyzers/dotnet/cs. -->

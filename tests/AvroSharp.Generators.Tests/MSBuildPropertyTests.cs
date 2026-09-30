@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,6 +30,38 @@ public class MSBuildPropertyTests
         await Assert.That(diagnostics.Select(d => d.ToString())).IsEmpty();
         await Assert.That(compile.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
         await Assert.That(sources.Single().SourceText.ToString()).Contains("namespace Example.shop");
+    }
+
+    /// <summary>
+    /// The compiler reads the properties from the .editorconfig file that the SDK writes, where ';' starts a comment:
+    /// every entry after the first was lost. build/AvroSharp.Generators.targets passes the ';' on as ','.
+    /// </summary>
+    [Test]
+    public async Task AvroSharpNamespaceMap_KeepsEveryEntry_ThroughTheEditorConfigFile()
+    {
+        const string Customer = """
+            {"type":"record","name":"Customer","namespace":"com.example.crm","fields":[{"name":"id","type":"long"}]}
+            """;
+        var value = ThroughEditorConfig("com.example.shop:Shop.Orders,com.example.crm:Shop.Customers");
+
+        var (sources, diagnostics, _) = GeneratorHarness.RunWithProperties(
+            [("order.avsc", Schema), ("customer.avsc", Customer)],
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["AvroSharpNamespaceMap"] = value });
+
+        await Assert.That(ThroughEditorConfig("com.example.shop:Shop.Orders;com.example.crm:Shop.Customers")).IsEqualTo("com.example.shop:Shop.Orders");
+        await Assert.That(diagnostics.Select(d => d.ToString())).IsEmpty();
+        var code = string.Join("\n", sources.Select(s => s.SourceText.ToString()));
+        await Assert.That(code).Contains("namespace Shop.Orders");
+        await Assert.That(code).Contains("namespace Shop.Customers");
+    }
+
+    // The value the compiler gets for a property the SDK writes to the project's .editorconfig file.
+    private static string ThroughEditorConfig(string value)
+    {
+        var text = $"is_global = true\nbuild_property.AvroSharpNamespaceMap = {value}\n";
+        var config = AnalyzerConfig.Parse(Microsoft.CodeAnalysis.Text.SourceText.From(text), "/project/obj/project.GeneratedMSBuildEditorConfig.editorconfig");
+        var options = AnalyzerConfigSet.Create(ImmutableArray.Create(config)).GlobalConfigOptions.AnalyzerOptions;
+        return options.Single(option => option.Key.EndsWith("AvroSharpNamespaceMap", StringComparison.OrdinalIgnoreCase)).Value;
     }
 
     [Test]

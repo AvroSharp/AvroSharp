@@ -1,0 +1,7 @@
+{"type":"record","name":"Order","namespace":"com.example.shop","doc":"Refers to com.example.crm.Customer, which customer.avsc defines.","fields":[
+  {"name":"order_id","type":{"type":"string","logicalType":"uuid"}},
+  {"name":"placed","type":{"type":"long","logicalType":"timestamp-millis"}},
+  {"name":"total","type":{"type":"bytes","logicalType":"decimal","precision":12,"scale":2}},
+  {"name":"customer","type":"com.example.crm.Customer"},
+  {"name":"note","type":["null","string"],"default":null}
+]}
