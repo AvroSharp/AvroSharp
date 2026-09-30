@@ -9,7 +9,7 @@
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
 
-**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Samples](samples/README.md)
+**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md) · [Samples](samples/README.md)
 
 > **Status:** an early preview (0.x). The API may still change before 1.0. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
@@ -28,6 +28,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 - Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and streams.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
 - Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
+- Releases on its own schedule. Apache.Avro, the C# library of the Apache Avro project, ships with the whole project through the Apache release process, which gives every language the same careful, voted releases, a few times a year. As a standalone .NET library, AvroSharp can ship features and fixes as soon as they are ready, and take up users' feature requests quickly. [Feature requests](https://github.com/zcsizmadia/AvroSharp/issues) are welcome.
 
 ## Getting started
 

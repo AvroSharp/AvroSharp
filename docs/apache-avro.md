@@ -104,7 +104,7 @@ The limits are options (`GenericDatumReaderOptions`, `AvroFileReaderOptions`, `A
 
 ## Moving from Apache.Avro
 
-The two libraries interoperate on the wire, so services can move one at a time. Within one codebase:
+[Migrating from Apache.Avro](migrating-from-apache-avro.md) maps the APIs one by one, with code for both libraries. The two libraries interoperate on the wire, so services can move one at a time. Within one codebase:
 
 1. **Generate types that work with both.** Reference `AvroSharp.Generators` and set `<AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>`. The generated classes replace avrogen's: code written for them compiles unchanged (the same property names, `_SCHEMA` and `Schema`), and Apache's `SpecificDatumWriter<T>`/`SpecificDatumReader<T>` still accept them. See [the compatibility mode](code-generation.md#migrating-from-avrogen-the-apacheavro-compatibility-mode).
 2. **Move call sites one at a time** to AvroSharp's serializers: `order.ToAvroBytes()`, `AvroFileWriter.Create<Order>(stream)`, `AvroFileReader.Open<Order>(stream)`, `AvroMessage`, `AvroRegistryMessage`.

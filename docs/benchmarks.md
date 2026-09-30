@@ -85,7 +85,7 @@ With `--gate`, the process exits non-zero unless, in every group (class, categor
 
 ## Rules for fast paths
 
-A SIMD or bulk path stays only if it beats both Apache.Avro and AvroSharp's plain scalar loop, on every tested CPU, x64 and Arm64, on uniform and on mixed data ([#29](https://github.com/zcsizmadia/AvroSharp/issues/29)). A result within 3% of the scalar loop counts as noise; anything slower by more than 3% removes the path. No path is picked by CPU vendor at startup. The [design notes](design.md) record the decisions and the machines they were measured on: an i7-12800H, an EPYC 7543, an i5-3570K and a Ryzen 5 3500U.
+A SIMD or bulk path stays only if it beats Apache.Avro on every tested CPU, and AvroSharp's plain scalar loop on current CPUs, on uniform and on mixed data ([#29](https://github.com/zcsizmadia/AvroSharp/issues/29), revised in [#135](https://github.com/zcsizmadia/AvroSharp/issues/135)). A result within 3% of the scalar loop counts as noise; anything slower by more than 3% removes the path. A CPU more than 10 years old may be slower than the loop, but a change never makes a current CPU slower. The paths are measured on x64; there is no Arm64 machine to benchmark on, and CI tests the same paths on Arm64. No path is picked by CPU vendor at startup. The [design notes](design.md) record the decisions and the machines they were measured on: an i7-12800H, an EPYC 7543, an i5-3570K and a Ryzen 5 3500U.
 
 ## Recorded runs
 

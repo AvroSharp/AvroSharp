@@ -1,0 +1,9 @@
+<Project>
+
+  <!-- The compiler passes CompilerVisibleProperty values in an .editorconfig file, where ';' starts a comment, so the
+       entries of AvroSharpNamespaceMap after the first would be lost. The generator also reads ',' as the separator. -->
+  <PropertyGroup Condition="'$(AvroSharpNamespaceMap)' != ''">
+    <AvroSharpNamespaceMap>$(AvroSharpNamespaceMap.Replace(';', ','))</AvroSharpNamespaceMap>
+  </PropertyGroup>
+
+</Project>

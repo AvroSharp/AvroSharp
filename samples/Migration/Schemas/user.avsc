@@ -1,0 +1,7 @@
+{"type":"record","name":"User","namespace":"migration","fields":[
+  {"name":"id","type":"long"},
+  {"name":"name","type":"string"},
+  {"name":"email","type":["null","string"],"default":null},
+  {"name":"status","type":{"type":"enum","name":"Status","symbols":["ACTIVE","SUSPENDED"]}},
+  {"name":"joined","type":{"type":"int","logicalType":"date"}}
+]}

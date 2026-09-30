@@ -100,7 +100,9 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
     {
         var entries = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var part in (value ?? string.Empty).Split(';').Select(part => part.Trim()).Where(part => part.Length > 0))
+        // ',' as well as ';': the compiler reads the properties from an .editorconfig file, where ';' starts a comment, so
+        // build/AvroSharp.Generators.targets passes the ';' of the MSBuild property on as ','.
+        foreach (var part in (value ?? string.Empty).Split(';', ',').Select(part => part.Trim()).Where(part => part.Length > 0))
         {
             var colon = part.IndexOf(':');
             var avro = colon < 0 ? string.Empty : part[..colon].Trim();

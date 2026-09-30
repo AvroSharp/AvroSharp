@@ -17,7 +17,7 @@ Reference the package and pass your schema files to the compiler as `AdditionalF
 </ItemGroup>
 ```
 
-The package brings in the `AvroSharp` runtime package. Each named type becomes a C# type: a record becomes a `partial class`, an enum a C# enum, and a fixed type a class that wraps exactly its number of bytes. Records get serializers that call `AvroWriter`/`AvroReader` directly:
+[The GeneratorPackage sample](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratorPackage) is a complete project. The package brings in the `AvroSharp` runtime package. Each named type becomes a C# type: a record becomes a `partial class`, an enum a C# enum, and a fixed type a class that wraps exactly its number of bytes. Records get serializers that call `AvroWriter`/`AvroReader` directly:
 
 ```csharp
 byte[] bytes = order.ToAvroBytes();

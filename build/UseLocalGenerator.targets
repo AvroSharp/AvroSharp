@@ -1,5 +1,9 @@
 <Project>
 
+  <!-- The MSBuild settings the generator reads, as the package passes them on. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\src\AvroSharp.Generators\build\AvroSharp.Generators.props" />
+  <Import Project="$(MSBuildThisFileDirectory)..\src\AvroSharp.Generators\build\AvroSharp.Generators.targets" />
+
   <!-- For projects in this repository that use the source generator from source rather than from its package.
        The compiler loads only assemblies passed to it as analyzers, so the generator's own dependencies (which the
        package ships next to it in analyzers/) are added here from the generator's output folder. -->
@@ -10,10 +14,6 @@
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"
                       GlobalPropertiesToRemove="OutDir;OutputPath" />
-    <CompilerVisibleProperty Include="AvroSharpNamespace" />
-    <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
-    <CompilerVisibleProperty Include="AvroSharpApacheCompatible" />
-    <CompilerVisibleProperty Include="AvroSharpPropertyNames" />
   </ItemGroup>
 
   <Target Name="AvroSharpAddGeneratorDependencies" AfterTargets="ResolveProjectReferences">
