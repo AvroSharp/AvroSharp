@@ -30,6 +30,18 @@ public class BulkReadTests
             yield return () => copy;
         }
 
+        // Streaks of multi-byte values of lengths around the scalar batch (8), the vector width (16) and their multiples,
+        // each followed by small values, so the bulk path switches between its scalar batch and the vector check (#135).
+        var streaks = new List<long>();
+        foreach (var length in new[] { 200, 7, 8, 9, 15, 16, 17, 23, 24, 25, 55, 56, 63, 64, 65, 120, 127, 128, 129 })
+        {
+            streaks.AddRange(Enumerable.Range(0, length).Select(i => 1_790_000_000_000_000L + (i * 1_000L)));
+            streaks.AddRange(Enumerable.Range(0, 20).Select(i => (long)(i % 30)));
+        }
+
+        var streakValues = streaks.ToArray();
+        yield return () => streakValues;
+
         // Random mixtures with different densities of multi-byte values.
         foreach (var density in new[] { 0.0, 0.05, 0.3, 1.0 })
         {
