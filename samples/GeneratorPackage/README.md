@@ -1,6 +1,6 @@
 # GeneratorPackage
 
-What an application writes to generate C# types from Avro schema files with the [`AvroSharp.Generators`](../../src/AvroSharp.Generators/README.md) package. [GeneratorPackage.csproj](GeneratorPackage.csproj) is the whole setup, and [Program.cs](Program.cs) uses the types.
+What an application writes to generate C# types from Avro schema files with the [`AvroSharp.Generators`](https://www.nuget.org/packages/AvroSharp.Generators) package. [GeneratorPackage.csproj](GeneratorPackage.csproj) is the whole setup, and [Program.cs](Program.cs) uses the types.
 
 In this repository, [`samples/Directory.Build.targets`](../Directory.Build.targets) replaces the package with the generator built from source, so CI tests the current code. Copied out of the repository, the project uses the package from nuget.org.
 
@@ -29,7 +29,7 @@ The sample sets each of them:
 | `AvroSharpNamespaceMap` | `com.example.shop:Shop.Orders;com.example.crm:Shop.Customers` | C# namespaces for Avro namespaces, and those under them. The longest match wins. |
 | `AvroSharpPropertyNames` | `pascal` | `order_id` becomes `OrderId` (the default). `avro` keeps the Avro names, as Apache's avrogen does. |
 | `AvroSharpLogicalTypes` | `native` | `uuid` is a `Guid`, `timestamp-millis` a `DateTimeOffset` and `decimal` a `decimal` (the default). `raw` keeps the underlying `string`, `long` and `byte[]`. |
-| `AvroSharpApacheCompatible` | not set | `true` makes the types Apache.Avro's `ISpecificRecord` too. The [Migration](../Migration/) sample shows it. |
+| `AvroSharpApacheCompatible` | not set | `true` makes the types Apache.Avro's `ISpecificRecord` too. The [Migration](../Migration/Program.cs) sample shows it. |
 
 The namespaces are C# only: the schemas keep their Avro names, so the data and the fingerprints stay the same. A value the generator doesn't recognize is warning AVROGEN006, and the default is used. The [code generation guide](../../docs/code-generation.md) has every option and the type mapping.
 
