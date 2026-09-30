@@ -69,6 +69,10 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
   - A `LogicalTypeBenchmarks` and a resolution benchmark with defaults were added to measure these.
 - Tests for the remaining gaps of the test review (#142): enum and fixed aliases, the resolving reader's options, the JSON writer's widening, depth limit and shape errors, maps of any `IReadOnlyDictionary`, hostile container files (overlong varints, truncation on the async path, trailing bytes when pipelined), `AvroRegistryMessageReader.ReadAsync` with a missing schema or a cancelled fetch, logical-value range errors, and control characters in schemas.
 - The nightly fuzzing workflow also runs a random-schema code-generation test (#141): random schemas, with hostile names and every kind of default, are generated, compiled for C# 7.3, 12 and the latest version, and round-tripped. PR CI runs it on 100 schemas.
+- **The performance gate checks every benchmark (#157).** `LogicalTypeBenchmarks` was not gated: its methods weren't named `AvroSharp_*`, and only one of its categories had an Apache.Avro baseline.
+  - Each logical type and operation is now a group with an Apache.Avro baseline, adding decimal reads, decimal on fixed and timestamp reads. `uuid` on fixed has no Apache.Avro equivalent.
+  - `ResolutionBenchmarks` gains an Apache.Avro baseline for reading with defaults.
+  - The gate fails a benchmark it can't compare, instead of skipping it. Benchmarks without an Apache.Avro equivalent are marked `Ungated`.
 - The API reference on the documentation site is built from the net10.0 build, so it shows the .NET 8+ API (`AvroSerializer`, `IAvroSerializable<T>` and the overloads that take no delegates), and lists those members with their equivalents on other targets (#136).
 
 ## [0.2.0] - 2026-09-29
