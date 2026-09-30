@@ -147,7 +147,7 @@ public abstract class AvroSchema
             return true;
         }
 
-        if (Fingerprint64 != other.Fingerprint64 || !string.Equals(CanonicalForm, other.CanonicalForm, StringComparison.Ordinal))
+        if (Fingerprint64 != other.Fingerprint64 || !GetCanonicalUtf8().AsSpan().SequenceEqual(other.GetCanonicalUtf8()))
         {
             return false;
         }
@@ -156,25 +156,28 @@ public abstract class AvroSchema
         return true;
     }
 
+    // The canonical form as UTF-8, which the fingerprint and comparisons use, and as a string only when asked for (#135).
     private sealed class CanonicalData
     {
-        private CanonicalData(byte[] utf8, string text, long fingerprint)
+        private string? _text;
+
+        private CanonicalData(byte[] utf8, long fingerprint)
         {
             Utf8 = utf8;
-            Text = text;
             Fingerprint = fingerprint;
         }
 
         public byte[] Utf8 { get; }
 
-        public string Text { get; }
+        // Benign race: concurrent callers decode identical strings and one reference wins.
+        public string Text => _text ??= System.Text.Encoding.UTF8.GetString(Utf8);
 
         public long Fingerprint { get; }
 
         public static CanonicalData Create(AvroSchema schema)
         {
             var utf8 = CanonicalFormWriter.Write(schema);
-            return new CanonicalData(utf8, System.Text.Encoding.UTF8.GetString(utf8), SchemaFingerprint.Crc64Avro(utf8));
+            return new CanonicalData(utf8, SchemaFingerprint.Crc64Avro(utf8));
         }
     }
 }
