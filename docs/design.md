@@ -532,7 +532,7 @@ AvroSharp/
 
   Rules for SIMD code:
   - net8+ only, inside `#if NET8_0_OR_GREATER`, using the portable `Vector128` API so one path covers x64 and Arm64; netstandard gets the scalar version.
-  - SIMD and bulk paths (decided in #29, revised in #135). BenchmarkDotNet decides, on uniform and mixed data, x64 and Arm64:
+  - SIMD and bulk paths (decided in #29, revised in #135). BenchmarkDotNet decides, on uniform and mixed data, on x64. There is no Arm64 machine to benchmark on: Arm64 runs the same `Vector128` paths, and CI tests them there.
     - **Apache.Avro, on every tested CPU, old or new:** a path must be faster than Apache.Avro. This is the absolute rule. A path that isn't is removed.
     - **Our plain scalar loop, on current CPUs:** a path must beat it, or at least not be slower by more than 3%, the noise between repeated runs on an idle machine. A path that fails is removed. An old CPU, more than 10 years old, may be slower than the loop: it doesn't hold back a path that wins on current CPUs, as long as the first rule holds there too.
     - **Never a newer CPU for an older one:** a change that makes a current CPU slower is not accepted, even if an older CPU gains from it.
@@ -582,7 +582,7 @@ AvroSharp/
 
   *Status*: part 1 is done: synchronous `AvroFileWriter`/`AvroFileReader` (for generic values and, through delegates, generated types) with the null and deflate codecs and pluggable `AvroCodec`s; Apache's `weather.avro`, `weather-sorted.avro` (deflate) and `syncInMeta.avro` are read like Apache.Avro reads them, and files go both ways with Apache.Avro for random schemas. The reader bounds block sizes, including decompressed size, and object counts. Container benchmarks exist for null and deflate; they have not been run. Part 2 added single-object encoding (`AvroMessage`, `AvroMessageReader`, `IAvroSchemaStore`), which reads and writes Java's `messageV1` byte for byte. Part 3 added asynchronous reading and writing (`OpenAsync`, `ReadAllAsync`, `WriteAsync`, `FlushAsync`, `DisposeAsync`), with no synchronous I/O on those paths. Part 4 added sync/seek for splittable reads (`PreviousSync`, `Seek`, `Sync`, `PastSync`). Still to do: pipelined reading through channels, the snappy, zstandard, bzip2 and xz codecs, streams of datums without a container, and container fuzz targets.
 - **M6 — Code generation, remaining (3 weeks)**: protocols (`.avpr`), codegen options, CLI tool with `dnx`/AOT packaging, snapshot + compile-roundtrip + generator tests. *Exit*: generated P/S/N/L/E benchmarks beat Apache Specific by the target margins and are the best AvroSharp tier; snapshot suite for ≥ 25 schemas; generator incremental-cache tests green; tool published as hybrid RID package.
-- **M7 — Hardening → 1.0 (2 weeks)**: docs site (DocFX or mkdocs), samples, API review (freeze `PublicAPI.Shipped.txt`), package validation baseline, fuzz nightly for 2 weeks with no open crashes, coverage ≥ 90 %. *Exit*: **full benchmark matrix gate passes in a local run on x64 and Arm64**, 1.0.0 tagged.
+- **M7 — Hardening → 1.0 (2 weeks)**: docs site (DocFX or mkdocs), samples, API review (freeze `PublicAPI.Shipped.txt`), package validation baseline, fuzz nightly for 2 weeks with no open crashes, coverage ≥ 90 %. *Exit*: **full benchmark matrix gate passes in a local run on x64**, 1.0.0 tagged.
 - **v1.x**: `AvroSharp.Idl` (.avdl → protocol), `AvroSharp.Confluent`, Bzip2/Xz codecs if not in 1.0, parallel block decoding, `SearchValues`/SIMD varint batch decode, `Utf8String`-style zero-copy string views.
 
 ---
