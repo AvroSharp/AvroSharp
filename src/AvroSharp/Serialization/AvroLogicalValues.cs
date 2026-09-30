@@ -1,6 +1,8 @@
 using System;
 using System.Buffers.Binary;
+using System.Buffers.Text;
 using System.Globalization;
+using System.Text;
 using AvroSharp.IO;
 
 namespace AvroSharp.Serialization;
@@ -108,10 +110,11 @@ public static class AvroLogicalValues
     /// <param name="reader">The source.</param>
     public static Guid ReadUuidString(ref AvroReader reader)
     {
-        var text = reader.ReadString();
-        return Guid.TryParseExact(text, "D", out var uuid)
+        // Parsed from the UTF-8 bytes, without a string (#135).
+        var utf8 = reader.ReadStringUtf8();
+        return Utf8Parser.TryParse(utf8, out Guid uuid, out var consumed, 'D') && consumed == utf8.Length
             ? uuid
-            : throw new AvroDataException($"'{text}' is not a UUID in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.");
+            : throw new AvroDataException($"'{Encoding.UTF8.GetString(utf8)}' is not a UUID in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.");
     }
 
     /// <summary>Writes a <c>uuid</c> on <c>string</c>, in lowercase hyphenated form.</summary>
@@ -119,13 +122,10 @@ public static class AvroLogicalValues
     /// <param name="uuid">The UUID.</param>
     public static void WriteUuidString(ref AvroWriter writer, Guid uuid)
     {
-#if NET8_0_OR_GREATER
-        Span<char> text = stackalloc char[36];
-        uuid.TryFormat(text, out _, "D");
-        writer.WriteString(text);
-#else
-        writer.WriteString(uuid.ToString("D", CultureInfo.InvariantCulture));
-#endif
+        // Formatted as UTF-8 straight away, not as UTF-16 and then transcoded (#135).
+        Span<byte> utf8 = stackalloc byte[36];
+        Utf8Formatter.TryFormat(uuid, utf8, out _, 'D');
+        writer.WriteStringUtf8(utf8);
     }
 
     /// <summary>Reads a <c>uuid</c> on <c>fixed(16)</c>: the 16 bytes in RFC 4122 (big-endian) order.</summary>
