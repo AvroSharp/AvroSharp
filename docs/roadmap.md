@@ -7,12 +7,12 @@ The live status of each milestone. The milestones and their exit criteria come f
 | M0: skeleton and CI | Done | The packages are published to nuget.org from the maintainer's account, since 0.1.1. |
 | M1: schemas | Done | |
 | M2: binary encoding and the generic model | Done | |
-| M2.5: code generation from `.avsc` files | Done | Union classes (#14), `required`/`init` (#15), cyclic cross-file references (#16), options (#18), JSON for generated types (#19), random-schema tests (#141) |
+| M2.5: code generation from `.avsc` files | Done | Union classes (#14), `required`/`init` (#15), cyclic cross-file references (#16), options (#18), JSON for generated types (#19) |
 | M3: schema resolution | Done | |
 | M4: attribute generator and `AvroSerializer<T>` | Not started | #31 |
 | M5: container files, codecs, single-object encoding | Done | |
 | M6: CLI tool and protocols | Started | The `avrosharp` tool (`gen`, `schema canonical`, `schema fingerprint`) ships in 0.2.0; protocols are open (#33) |
-| M7: hardening and 1.0 | Started | #35: API review (#73), docs site and samples (#74, #126), public API before 1.0 (#134), CI consuming the packages (#136), dev container (#139). Done: package metadata (#66), coverage (#75), release workflows (#76), nightly fuzzing (#34) |
+| M7: hardening and 1.0 | Started | #35: docs site and samples (#74, #126), migration guide (#21). Done: package metadata (#66), coverage (#75), release workflows (#76), nightly fuzzing (#34), public API before 1.0 (#134), the API freeze and package validation baseline (#73), CI consuming the packages (#136), dev container (#139), performance review (#135) |
 | Integrations | Started | #77: Confluent (#79). Done: schema references (#80), registry wire framing (#81) and the field walker (#82). Remaining core work: the typed serializer lookup (#31) |
 
 ## Done, in more detail

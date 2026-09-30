@@ -27,10 +27,12 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
   - `SchemaFingerprint.Crc64AvroEmpty` is a `long`;
   - `ConfluentSchemaIdHeader.Encode` takes an `AvroSchemaId`.
 - **`AvroCodec.CreateDeflate`** is replaced by `new DeflateCodec(level)`.
+- **`AvroCodecNames`** moves to `AvroSharp.Containers`, next to `AvroCodec` (#73).
 - **Validation:** the generic and schema parse options reject a `MaxDepth` below 1 and a negative `MaxZeroSizeItems`. `CodeGenOptions` rejects nullable annotations with a `LanguageVersion` below 8, and any version below 7.
 
 ### Added
 
+- **The public API is frozen for 1.0 (#73).** Every package declares its API as shipped, and package validation compares each with its 0.2.0 on nuget.org. The breaks listed above are the only ones allowed; any other fails the pack.
 - **`AvroMessageReader<T>.ReadAsync`**, which fetches an unknown fingerprint through the resolver once, and **`AvroSchemaStore.GetSchemaAsync`** (#134).
 - **`AvroSchema.HasSameCanonicalForm`:** whether two schemas have the same encoding. `Equals` stays reference equality, as `AvroSchema`'s docs now say (#134).
 - **`DeflateCodec`:** the built-in codec is public, with `Default` and `Level`, as the Codecs package's codecs have (#134).

@@ -7,6 +7,8 @@
     <TargetFrameworks>$(LibraryTargetFrameworks)</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <!-- The breaks since 0.2.0 are listed in each project's CompatibilitySuppressions.xml; the baseline becomes 1.0.0 after 1.0. -->
+    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
     <!-- Polyfill: include the ArgumentNullException/ArgumentOutOfRangeException ThrowIf* helpers. -->
