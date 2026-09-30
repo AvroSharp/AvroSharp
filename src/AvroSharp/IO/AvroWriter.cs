@@ -183,20 +183,23 @@ public ref struct AvroWriter
             return;
         }
 
-        // One pass when the buffer has room for the longest possible encoding (3 bytes per UTF-16 char) after room
-        // for its length prefix: encode, then write the real length and, if its prefix is shorter, move the bytes
-        // down. Otherwise count first, so the prefix can be written before the bytes; both passes are vectorized.
+        // One pass when the buffer has room for the longest possible encoding (3 bytes per UTF-16 char) and its
+        // length prefix: encode after a prefix sized for 1 byte per char, then write the real length. The bytes move
+        // only when the real length needs a longer prefix (non-ASCII text near a varint boundary), not for every
+        // ASCII string of 22 to 63 chars (#135). Otherwise count first, so the prefix can be written before the bytes;
+        // both passes are vectorized.
         var maxBytes = (long)value.Length * 3;
         var maxPrefix = VarintLength((ulong)maxBytes << 1);
         if (maxPrefix + maxBytes <= _buffer.Length - _buffered)
         {
             var start = _buffered;
-            var written = Encoding.UTF8.GetBytes(value, _buffer[(start + maxPrefix)..]);
+            var guess = VarintLength((ulong)value.Length << 1);
+            var written = Encoding.UTF8.GetBytes(value, _buffer[(start + guess)..]);
             var length = (ulong)written << 1;
             var prefix = VarintLength(length);
-            if (prefix < maxPrefix)
+            if (prefix > guess)
             {
-                _buffer.Slice(start + maxPrefix, written).CopyTo(_buffer[(start + prefix)..]);
+                _buffer.Slice(start + guess, written).CopyTo(_buffer[(start + prefix)..]);
             }
 
             _ = WriteVarintLoop(_buffer[start..], length);
