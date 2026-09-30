@@ -13,6 +13,8 @@
   href: docs/benchmarks.md
 - name: vs Apache.Avro
   href: docs/apache-avro.md
+- name: Migrating from Apache.Avro
+  href: docs/migrating-from-apache-avro.md
 - name: Docs
   href: docs/README.md
 - name: Changelog

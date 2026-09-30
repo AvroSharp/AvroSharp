@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The code of docs/migrating-from-apache-avro.md, run against both libraries. A test checks that every C# block of
+       the guide appears in Program.cs, so the guide only shows code that compiles and runs. An application would
+       reference the AvroSharp.Generators package instead of the generator in this repository. -->
+  <PropertyGroup>
+    <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Apache.Avro" />
+    <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>

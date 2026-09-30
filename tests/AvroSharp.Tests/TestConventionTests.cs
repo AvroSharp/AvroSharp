@@ -53,7 +53,7 @@ public class TestConventionTests
         return text[start..(end - 1)];
     }
 
-    private static string RepositoryRoot()
+    internal static string RepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {

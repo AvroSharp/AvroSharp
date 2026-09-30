@@ -13,7 +13,8 @@ The documentation site is at **[zcsizmadia.github.io/AvroSharp](https://zcsizmad
 
 - [API reference](api/index.md): every public type, from the XML documentation.
 - [Benchmarks](benchmarks.md): the results against Apache.Avro, what is measured, and how to run the suite and the performance gate.
-- [AvroSharp and Apache.Avro](apache-avro.md): what differs, when Apache.Avro is the better fit, and how to migrate.
+- [AvroSharp and Apache.Avro](apache-avro.md): what differs, and when Apache.Avro is the better fit.
+- [Migrating from Apache.Avro](migrating-from-apache-avro.md): Apache.Avro code and its AvroSharp equivalent, from schemas to generated types, with the compatibility mode and what has no equivalent.
 - [Design](design.md): the design proposal, the decisions made since, and how the repository differs from the proposal.
 - [Roadmap](roadmap.md): the status of each milestone and where the open work is tracked.
 - [Fuzzing](../fuzz/README.md): the libFuzzer targets and how to run them.

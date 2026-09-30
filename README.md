@@ -9,7 +9,7 @@
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
 
-**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Samples](samples/README.md)
+**[Documentation](https://zcsizmadia.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://zcsizmadia.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md) · [Samples](samples/README.md)
 
 > **Status:** an early preview (0.x). The API may still change before 1.0. Working today:
 > - schemas (parsing, writing, canonical form, fingerprints);
