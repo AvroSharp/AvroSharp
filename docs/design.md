@@ -448,6 +448,17 @@ Order m = reader.Decode(bytes);
   - **Limits:** each options class has public default constants (`GenericDatumReaderOptions.DefaultMaxDepth` and `DefaultMaxZeroSizeItems`, `GenericDatumWriterOptions.DefaultMaxDepth`, `AvroSchemaParseOptions.DefaultMaxDepth`), in place of the literal 128 in four places. The limits reject out-of-range values when set: a depth of at least 1, and zero or more items.
   - **Missing overloads, added:** `GenericDatumReader.Read(in ReadOnlySequence<byte>)`, `AvroMessage.Write(output, in AvroValue, GenericDatumWriter)` and `AvroRegistryMessage.Write(output, framing, id, in AvroValue, GenericDatumWriter)`. The `ToArray` overloads now call them.
 
+**The freeze (#73).** The API of the four library packages is declared shipped.
+- **Declarations:** every public member is in the package's `PublicAPI.Shipped.txt`, and `PublicAPI.Unshipped.txt` holds only new members from here on.
+- **Package validation:** `PackageValidationBaselineVersion` 0.2.0 compares each package with its last release on nuget.org.
+  - The breaks made since 0.2.0, the #134 renames and moves, are listed in each project's `CompatibilitySuppressions.xml`: 174 entries in `AvroSharp` (every target framework counts once) and 14 in `AvroSharp.CodeGen`.
+  - `AvroSharp.Codecs` and `AvroSharp.Generators` have none.
+  - Any other break fails the pack. A deliberate one before 1.0 is added by packing with `-p:GenerateCompatibilitySuppressionFile=true` and committing the file.
+  - After 1.0.0 is released, the baseline becomes 1.0.0 and the suppression files go.
+- **Decided in the freeze:**
+  - `AvroCodecNames` moved to `AvroSharp.Containers`, next to `AvroCodec`; it was the only type outside its folder's namespace.
+  - `AvroSharp.CodeGen`'s API is kept as it is: `CSharpCodeGenerator.Generate`, `CodeGenOptions`, `GeneratedSource`, `SchemaFileSet`, `LogicalTypeMapping` and `PropertyNaming`. The CLI and the source generator use nothing else.
+  - Generated union types (#14) and `required`/`init` members (#15) are deferred past 1.0. Each will come as a `CodeGenOptions` setting (and its MSBuild property and CLI option) that is off by default, so code generated without it keeps its shape, and adding it is not a break.
 ---
 
 ## 9. Repo structure and engineering hygiene

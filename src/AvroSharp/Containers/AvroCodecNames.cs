@@ -1,4 +1,4 @@
-namespace AvroSharp;
+namespace AvroSharp.Containers;
 
 /// <summary>
 /// The codec names registered by the Avro specification for the <c>avro.codec</c>

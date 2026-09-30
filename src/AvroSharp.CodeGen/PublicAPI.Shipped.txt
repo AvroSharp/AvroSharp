@@ -4,12 +4,12 @@ AvroSharp.CodeGen.CodeGenOptions
 AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.init -> void
 AvroSharp.CodeGen.CodeGenOptions.CodeGenOptions() -> void
-AvroSharp.CodeGen.CodeGenOptions.Namespace.get -> string?
-AvroSharp.CodeGen.CodeGenOptions.Namespace.init -> void
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.get -> int
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.init -> void
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.get -> AvroSharp.CodeGen.LogicalTypeMapping
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.init -> void
+AvroSharp.CodeGen.CodeGenOptions.Namespace.get -> string?
+AvroSharp.CodeGen.CodeGenOptions.Namespace.init -> void
 AvroSharp.CodeGen.CodeGenOptions.NamespaceMap.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 AvroSharp.CodeGen.CodeGenOptions.NamespaceMap.init -> void
 AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.get -> bool

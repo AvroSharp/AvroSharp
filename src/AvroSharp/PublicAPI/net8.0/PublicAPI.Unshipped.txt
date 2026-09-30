@@ -1,2 +1,1 @@
 #nullable enable
-static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(in System.Buffers.ReadOnlySequence<byte> data, AvroSharp.Schemas.AvroSchema! writerSchema) -> T
