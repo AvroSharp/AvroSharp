@@ -4,6 +4,7 @@ The documentation site is at **[avrosharp.github.io/AvroSharp](https://avrosharp
 
 ## Guides
 
+- [Getting started](getting-started/index.md): installing, a first program, and a page per task, each built from a sample: generated types, container files, schema evolution, logical types and JSON.
 - [Guide](../README.md): getting started, the generic data model, container files and codecs, single-object messages and schema registries, and streams.
 - [Code generation](code-generation.md): the `AvroSharp.Generators` source generator: setup, MSBuild properties, type mapping, schema evolution, diagnostics, and moving from avrogen.
 - [Command-line tool](cli.md): `avrosharp gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.

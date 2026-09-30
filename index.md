@@ -26,7 +26,8 @@ A high-performance, Native AOT-friendly .NET implementation of the [Apache Avroâ
 
 ## Guides
 
-- [Getting started](README.md#getting-started): parse a schema, write and read values, read an older version of the data, JSON ([`AvroSharp.Schemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.html), [`AvroSharp.Generic`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.html)).
+- [Getting started](docs/getting-started/index.md): installing, a first program, and a page per task, each built from a runnable sample.
+- [First steps](README.md#getting-started): parse a schema, write and read values, read an older version of the data, JSON ([`AvroSharp.Schemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.html), [`AvroSharp.Generic`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.html)).
 - [Object container files](README.md#object-container-files): writing and reading `.avro` files, synchronously and asynchronously, with any codec ([`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html), [`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html)).
 - [Single-object encoding](README.md#single-object-encoding) and [schema registries](README.md#schema-registries): messages that carry their schema's fingerprint or ID, with Confluent, Apicurio and AWS Glue framing ([`AvroSharp.Messages`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.html)).
 - [Streams of objects](README.md#streams-of-objects): objects one after another, for sockets and pipes ([`AvroSharp.Streams`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.html)).

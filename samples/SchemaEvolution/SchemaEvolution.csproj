@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- An application would reference the AvroSharp package instead:
+       <PackageReference Include="AvroSharp" Version="..." /> -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+  </ItemGroup>
+
+</Project>

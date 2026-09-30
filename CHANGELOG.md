@@ -53,6 +53,8 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 - **Documentation:**
   - [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md): the plan, and the Apache.Avro API next to AvroSharp's. Its code is the Migration sample's, which CI runs against both libraries, and a test keeps the two in step (#21).
   - The GeneratorPackage sample: an application's project with the `AvroSharp.Generators` package, its MSBuild settings and schemas across files, and how to use the generator from source instead (#126, #74).
+  - A Getting started section: installing, a first program, generated types, container files, schema evolution, logical types and JSON. Each page's code is a sample's (the new ContainerFiles, SchemaEvolution, LogicalTypes and Json samples), and a test keeps them in step.
+  - Links from the guides and READMEs to the API reference, an API map, namespace overviews, and cross-references between the API pages.
 - A dev container (`.devcontainer/`) and `build/ci-local.sh`, which build and test as the Linux CI job does. The container has Ubuntu 24.04 with the .NET 8, 9 and 10 SDKs, the Native AOT prerequisites, CI's variables and a cached NuGet volume; the script runs the job's steps in order. DocFX and ReportGenerator are pinned local tools (`.config/dotnet-tools.json`), used by CI, the docs workflow and the container alike (#139).
 
 ### Fixed

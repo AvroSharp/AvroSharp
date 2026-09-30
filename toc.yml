@@ -1,4 +1,6 @@
 # The DocFX site's top navigation (docfx.json builds from the repository root).
+- name: Getting started
+  href: docs/getting-started/
 - name: Guide
   href: README.md
 - name: Code generation

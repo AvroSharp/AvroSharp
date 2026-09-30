@@ -10,12 +10,19 @@ namespace AvroSharp.Tests;
 public class DocumentationTests
 {
     /// <summary>
-    /// Every C# block of the migration guide appears in the Migration sample (#21). The sample is built and run against
-    /// both libraries, so a block that drifts from it no longer compiles, or no longer does what the guide says.
+    /// Every C# block of a guide appears in its sample: the migration guide in the Migration sample (#21), and each
+    /// getting-started page in its own. CI builds and runs the samples, so a block that drifts from its sample no longer
+    /// compiles, or no longer does what the page says.
     /// </summary>
     [Test]
-    [Arguments("docs/migrating-from-apache-avro.md", "samples/Migration/Program.cs")]
-    public async Task EveryCSharpBlock_IsCodeOfItsSample(string guide, string sample)
+    [Arguments("docs/migrating-from-apache-avro.md", "samples/Migration/Program.cs", 10)]
+    [Arguments("docs/getting-started/index.md", "samples/GettingStarted/Program.cs", 4)]
+    [Arguments("docs/getting-started/generated-types.md", "samples/GeneratorPackage/Program.cs", 3)]
+    [Arguments("docs/getting-started/containers.md", "samples/ContainerFiles/Program.cs", 3)]
+    [Arguments("docs/getting-started/schema-evolution.md", "samples/SchemaEvolution/Program.cs", 3)]
+    [Arguments("docs/getting-started/logical-types.md", "samples/LogicalTypes/Program.cs", 3)]
+    [Arguments("docs/getting-started/json.md", "samples/Json/Program.cs", 3)]
+    public async Task EveryCSharpBlock_IsCodeOfItsSample(string guide, string sample, int minimumBlocks)
     {
         var root = TestConventionTests.RepositoryRoot();
         var program = Lines(File.ReadAllText(Path.Combine(root, sample)));
@@ -23,7 +30,7 @@ public class DocumentationTests
 
         var missing = blocks.Where(block => !Contains(program, Lines(block))).Select(block => Lines(block)[0]).ToList();
 
-        await Assert.That(blocks.Count).IsGreaterThan(10);
+        await Assert.That(blocks.Count).IsGreaterThanOrEqualTo(minimumBlocks);
         await Assert.That(missing).IsEmpty();
     }
 

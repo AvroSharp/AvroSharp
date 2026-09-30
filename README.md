@@ -9,7 +9,7 @@
 
 A high-performance .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification.
 
-**[Documentation](https://avrosharp.github.io/AvroSharp/)** · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md) · [Integrations](docs/integrations.md) · [Samples](samples/README.md)
+**[Documentation](https://avrosharp.github.io/AvroSharp/)** · [Getting started](docs/getting-started/index.md) · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md) · [Integrations](docs/integrations.md) · [Samples](samples/README.md)
 
 > **Status:** a release candidate for 1.0.0. The public API is frozen, and from 1.0 it follows [semantic versioning](https://semver.org/): no breaking changes before 2.0. It has:
 > - schemas (parsing, writing, canonical form, fingerprints);

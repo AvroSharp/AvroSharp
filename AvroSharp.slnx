@@ -23,6 +23,10 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/GettingStarted/GettingStarted.csproj" />
+    <Project Path="samples/ContainerFiles/ContainerFiles.csproj" />
+    <Project Path="samples/Json/Json.csproj" />
+    <Project Path="samples/LogicalTypes/LogicalTypes.csproj" />
+    <Project Path="samples/SchemaEvolution/SchemaEvolution.csproj" />
     <Project Path="samples/GeneratedTypes/GeneratedTypes.csproj" />
     <Project Path="samples/GeneratorPackage/GeneratorPackage.csproj" />
     <Project Path="samples/Messaging/Messaging.csproj" />

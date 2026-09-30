@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- An application references the AvroSharp and AvroSharp.Codecs packages instead:
+       <PackageReference Include="AvroSharp" Version="..." />
+       <PackageReference Include="AvroSharp.Codecs" Version="..." /> -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp\AvroSharp.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Codecs\AvroSharp.Codecs.csproj" />
+  </ItemGroup>
+
+  <!-- The sample shows the synchronous API next to the asynchronous one in the same async Main. -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1849</NoWarn>
+  </PropertyGroup>
+
+</Project>
