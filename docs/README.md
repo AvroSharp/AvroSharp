@@ -7,6 +7,7 @@ The documentation site is at **[zcsizmadia.github.io/AvroSharp](https://zcsizmad
 - [Guide](../README.md): getting started, the generic data model, container files and codecs, single-object messages and schema registries, and streams.
 - [Code generation](code-generation.md): the `AvroSharp.Generators` source generator: setup, MSBuild properties, type mapping, schema evolution, diagnostics, and moving from avrogen.
 - [Command-line tool](cli.md): `avrosharp gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.
+- [Integrations](integrations.md): schema registries and message brokers today, and the planned add-on packages for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue.
 - [Samples](../samples/README.md): runnable programs for the main APIs, run by CI.
 
 ## Reference
@@ -38,3 +39,4 @@ Dated notes from reviews and benchmark runs. Each one records what was measured,
 | 2026-09-28 | [perf/varints-parse at 41d6483](reviews/2026-09-28-varints-parse-rerun.md): the second run on both machines, with the record and container benchmarks |
 | 2026-09-28 | [perf/varints-parse on CPUs with fast PDEP](reviews/2026-09-28-varints-parse-fast-pdep.md): the i7-12800H and an EPYC 7543 at 8164630, and the bulk Mixed1-10 fix |
 | 2026-09-28 | [perf/varints-parse on CPUs without fast PDEP](reviews/2026-09-28-varints-parse-slow-pdep.md): the i5-3570K and the nas at 8164630, the full suite |
+| 2026-09-30 | [Ecosystem integrations spike](reviews/2026-09-30-ecosystem.md): an `AvroSharp.Confluent` prototype on Confluent's serde classes, and which add-on packages to build (#78) |
