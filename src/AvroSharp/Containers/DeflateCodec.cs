@@ -6,19 +6,36 @@ using System.Runtime.InteropServices;
 
 namespace AvroSharp.Containers;
 
-/// <summary>Raw DEFLATE (RFC 1951) without zlib framing, as the specification requires, using the BCL's <see cref="DeflateStream"/>.</summary>
-internal sealed class DeflateCodec(CompressionLevel level) : AvroCodec
+/// <summary>
+/// The <c>deflate</c> codec: raw DEFLATE (RFC 1951) without zlib framing, as the specification requires, using the
+/// BCL's <see cref="DeflateStream"/>.
+/// </summary>
+/// <remarks>Instances are immutable and thread-safe.</remarks>
+public sealed class DeflateCodec : AvroCodec
 {
+    /// <summary>Creates a deflate codec.</summary>
+    /// <param name="level">The compression level; it affects writing only.</param>
+    public DeflateCodec(CompressionLevel level = CompressionLevel.Optimal) => Level = level;
+
+    /// <summary>Gets the codec with <see cref="CompressionLevel.Optimal"/> compression, also <see cref="AvroCodec.Deflate"/>.</summary>
+    public static DeflateCodec Default { get; } = new();
+
+    /// <summary>Gets the compression level.</summary>
+    public CompressionLevel Level { get; }
+
+    /// <inheritdoc/>
     public override string Name => AvroCodecNames.Deflate;
 
+    /// <inheritdoc/>
     public override void Compress(ReadOnlyMemory<byte> source, IBufferWriter<byte> destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        using var deflate = new DeflateStream(new BufferWriterStream(destination), level, leaveOpen: false);
+        using var deflate = new DeflateStream(new BufferWriterStream(destination), Level, leaveOpen: false);
         var segment = AsSegment(source);
         deflate.Write(segment.Array!, segment.Offset, segment.Count);
     }
 
+    /// <inheritdoc/>
     public override void Decompress(ReadOnlyMemory<byte> source, IBufferWriter<byte> destination)
     {
         ArgumentNullException.ThrowIfNull(destination);

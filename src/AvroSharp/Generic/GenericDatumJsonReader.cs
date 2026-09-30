@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.Generic;
@@ -31,12 +30,12 @@ public sealed class GenericDatumJsonReader
 
     private GenericDatumJsonReader(AvroSchema schema, GenericDatumReaderOptions options)
     {
-        Schema = schema;
+        WriterSchema = schema;
         _options = options;
     }
 
     /// <summary>Gets the schema the data was written with.</summary>
-    public AvroSchema Schema { get; }
+    public AvroSchema WriterSchema { get; }
 
     // Each record level nests at most a few JSON levels (the record, a union wrapper, arrays and maps in between);
     // this bounds the parser before the record depth is checked.
@@ -152,7 +151,7 @@ public sealed class GenericDatumJsonReader
         try
         {
             var converter = new Converter(_options.MaxDepth, wrappedUnions: true);
-            return converter.Convert(Schema, root);
+            return converter.Convert(WriterSchema, root);
         }
         catch (AvroDataException ex) when (ErrorPath.Get(ex) is { } path)
         {

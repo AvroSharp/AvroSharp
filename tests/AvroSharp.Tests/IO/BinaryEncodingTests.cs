@@ -225,9 +225,9 @@ public class BinaryEncodingTests
 
     private static (bool Overflowed, int Written) TryWriteMixture(byte[] destination)
     {
-        var writer = AvroSharp.Serialization.AvroGeneratedCode.BeginTryWrite(destination);
+        var writer = AvroSharp.Serialization.Generated.AvroGeneratedCode.BeginTryWrite(destination);
         WriteMixtureValues(ref writer);
-        return (!AvroSharp.Serialization.AvroGeneratedCode.EndTryWrite(ref writer, out var written), written);
+        return (!AvroSharp.Serialization.Generated.AvroGeneratedCode.EndTryWrite(ref writer, out var written), written);
     }
 
     private static void WriteMixtureValues(ref AvroWriter w)
@@ -272,7 +272,7 @@ public class BinaryEncodingTests
 
         var reader = new AvroReader(bytes);
         var count = reader.ReadBlockCount(out var size);
-        reader.Skip(size);
+        reader.SkipRaw(size);
         var end = reader.ReadBlockCount(out var endSize);
         var marker = reader.ReadInt();
 
@@ -297,7 +297,7 @@ public class BinaryEncodingTests
         var reader = new AvroReader(bytes);
         reader.SkipVarint();
         reader.SkipBytes();
-        reader.Skip(3);
+        reader.SkipRaw(3);
         await Assert.That(reader.ReadInt()).IsEqualTo(7);
     }
 

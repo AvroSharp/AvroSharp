@@ -16,7 +16,7 @@ namespace AvroSharp.CodeGen;
 /// </remarks>
 internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 {
-    private const string Support = "global::AvroSharp.Serialization.AvroGeneratedCode";
+    private const string Support = "global::AvroSharp.Serialization.Generated.AvroGeneratedCode";
     private const string CollectionsMarshal = "global::System.Runtime.InteropServices.CollectionsMarshal";
 
     private int _next;
@@ -228,7 +228,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
             return;
         }
 
-        if (types.Codec(array.Items) is { } codec)
+        if (types.Serializer(array.Items) is { } codec)
         {
             w.Line($"{Support}.WriteList<{types.TypeOf(array.Items)}, {codec}>(ref writer, {expression}, {CSharpNames.Literal(field)}, depth + 1);");
             return;
@@ -265,7 +265,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
     private void WriteMap(CodeWriter w, MapSchema map, string expression, string field, bool notNull)
     {
-        if (types.Codec(map.Values) is { } codec)
+        if (types.Serializer(map.Values) is { } codec)
         {
             w.Line($"{Support}.WriteMap<{types.TypeOf(map.Values)}, {codec}>(ref writer, {expression}, {CSharpNames.Literal(field)}, depth + 1);");
             return;
@@ -291,7 +291,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         {
             var branch = union.Branches[helper.ValueIndex];
             w.Line(helper.Suffix.Length == 0
-                ? $"{Support}.WriteNullable<{types.TypeOf(branch)}, {types.Codec(branch)}>(ref writer, {expression}, {Int(helper.ValueIndex)}, depth + 1);"
+                ? $"{Support}.WriteNullable<{types.TypeOf(branch)}, {types.Serializer(branch)}>(ref writer, {expression}, {Int(helper.ValueIndex)}, depth + 1);"
                 : $"{Support}.WriteNullable{helper.Suffix}(ref writer, {expression}, {Int(helper.ValueIndex)});");
             return;
         }
@@ -363,7 +363,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
             return;
         }
 
-        if (types.Codec(array.Items) is { } codec)
+        if (types.Serializer(array.Items) is { } codec)
         {
             w.Line($"{target} = {Support}.ReadList<{types.TypeOf(array.Items)}, {codec}>(ref reader, {existing}, {Int(TypeMapper.MinimumSize(array.Items))}, depth + 1);");
             return;
@@ -392,7 +392,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
     {
         // Each entry has at least a key length byte. The first block's count sizes the dictionary, as in the generic reader.
         var minimumEntrySize = (int)System.Math.Min(1L + TypeMapper.MinimumSize(map.Values), int.MaxValue);
-        if (types.Codec(map.Values) is { } codec)
+        if (types.Serializer(map.Values) is { } codec)
         {
             w.Line($"{target} = {Support}.ReadMap<{types.TypeOf(map.Values)}, {codec}>(ref reader, {(reuse ? target : "null")}, {Int(minimumEntrySize)}, depth + 1);");
             return;
@@ -422,7 +422,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         {
             var branch = union.Branches[helper.ValueIndex];
             w.Line(helper.Suffix.Length == 0
-                ? $"{target} = {Support}.ReadNullable<{types.TypeOf(branch)}, {types.Codec(branch)}>(ref reader, {Int(helper.ValueIndex)}, depth + 1);"
+                ? $"{target} = {Support}.ReadNullable<{types.TypeOf(branch)}, {types.Serializer(branch)}>(ref reader, {Int(helper.ValueIndex)}, depth + 1);"
                 : $"{target} = {Support}.ReadNullable{helper.Suffix}(ref reader, {Int(helper.ValueIndex)});");
             return;
         }

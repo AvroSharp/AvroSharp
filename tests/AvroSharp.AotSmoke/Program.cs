@@ -94,7 +94,7 @@ foreach (var codec in new[] { AvroSharp.Containers.AvroCodec.Null, AvroSharp.Con
         count += record.Equals((AvroSharp.Generic.AvroValue)alice) ? 1 : 0;
     }
 
-    Check(count == 10 && Same(reader.Codec, codec.Name), $"container file with the {codec.Name} codec");
+    Check(count == 10 && Same(reader.Codec.Name, codec.Name), $"container file with the {codec.Name} codec");
 }
 
 // Single-object encoding.

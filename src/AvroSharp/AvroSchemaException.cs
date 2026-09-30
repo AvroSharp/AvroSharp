@@ -1,6 +1,6 @@
 using System;
 
-namespace AvroSharp.Schemas;
+namespace AvroSharp;
 
 /// <summary>
 /// Raised when a schema is invalid, either while parsing schema JSON or while constructing a schema in code.

@@ -4,18 +4,18 @@ AvroSharp.CodeGen.CodeGenOptions
 AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.init -> void
 AvroSharp.CodeGen.CodeGenOptions.CodeGenOptions() -> void
-AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.get -> string?
-AvroSharp.CodeGen.CodeGenOptions.DefaultNamespace.init -> void
+AvroSharp.CodeGen.CodeGenOptions.Namespace.get -> string?
+AvroSharp.CodeGen.CodeGenOptions.Namespace.init -> void
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.get -> int
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.init -> void
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.get -> AvroSharp.CodeGen.LogicalTypeMapping
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.init -> void
-AvroSharp.CodeGen.CodeGenOptions.NamespaceMapping.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
-AvroSharp.CodeGen.CodeGenOptions.NamespaceMapping.init -> void
+AvroSharp.CodeGen.CodeGenOptions.NamespaceMap.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+AvroSharp.CodeGen.CodeGenOptions.NamespaceMap.init -> void
 AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.init -> void
-AvroSharp.CodeGen.CodeGenOptions.PropertyNaming.get -> AvroSharp.CodeGen.PropertyNaming?
-AvroSharp.CodeGen.CodeGenOptions.PropertyNaming.init -> void
+AvroSharp.CodeGen.CodeGenOptions.PropertyNames.get -> AvroSharp.CodeGen.PropertyNaming?
+AvroSharp.CodeGen.CodeGenOptions.PropertyNames.init -> void
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.init -> void
 AvroSharp.CodeGen.GeneratedSource
@@ -35,7 +35,7 @@ AvroSharp.CodeGen.PropertyNaming.Avro = 1 -> AvroSharp.CodeGen.PropertyNaming
 AvroSharp.CodeGen.PropertyNaming.PascalCase = 0 -> AvroSharp.CodeGen.PropertyNaming
 AvroSharp.CodeGen.SchemaFileSet
 AvroSharp.CodeGen.SchemaFileSet.DefinedIn.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
-AvroSharp.CodeGen.SchemaFileSet.Errors.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Schemas.AvroSchemaException!>!
+AvroSharp.CodeGen.SchemaFileSet.Errors.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.AvroSchemaException!>!
 AvroSharp.CodeGen.SchemaFileSet.GetErrorMessage(string! path) -> string!
 AvroSharp.CodeGen.SchemaFileSet.Schemas.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>!
 AvroSharp.CodeGen.SchemaFileSet.SchemasByPath.get -> System.Collections.Generic.IReadOnlyDictionary<string!, AvroSharp.Schemas.AvroSchema!>!

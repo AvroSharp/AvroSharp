@@ -271,12 +271,12 @@ Scenarios × implementations (AvroSharp-Gen, AvroSharp-Dynamic, AvroSharp-Generi
 - Input: `AvroSchema`/`AvroProtocol` (+ later IDL via `AvroSharp.Idl`).
 - Stage 1: **model** — `CsModel` (namespaces, types: `CsRecord`, `CsEnum`, `CsFixed`, `CsUnion`, members, attributes, mapped CLR types), naming conventions applied, collisions resolved (`Type` vs `Type_`, keyword escaping), reserved-name/keyword handling, dependency ordering.
 - Stage 2: **emitter** — text via an indented writer; emits (a) types, (b) `static AvroSchema Schema` parsed once from the JSON, which is embedded as `public const string SchemaJson` on every target (a UTF-8 literal on net8+ was smaller, but made `SchemaJson` a property and put the schema in the source twice), (c) optional serializer/deserializer/resolution-plan partials (same code the attribute generator emits).
-- `CodeGenOptions`: `TypeKind` (record | class | struct-for-fixed), `RecordsAreSealed`, `UseRequired`, `UseInit`, `Nullable`, `CollectionType` (`List<T>` | `T[]` | `ImmutableArray<T>` | `IReadOnlyList<T>`), `MapType` (`Dictionary` | `IReadOnlyDictionary`), `NamingConvention` (PascalCase properties, preserve enum symbols with `[AvroSymbol("...")]`), `NamespaceMapping` (Avro ns → C# ns), `TypeOverrides` (schema fullname → CLR type), `GenerateSerializers`, `GenerateSchemaProperty`, `Accessibility`.
+- `CodeGenOptions`: `TypeKind` (record | class | struct-for-fixed), `RecordsAreSealed`, `UseRequired`, `UseInit`, `Nullable`, `CollectionType` (`List<T>` | `T[]` | `ImmutableArray<T>` | `IReadOnlyList<T>`), `MapType` (`Dictionary` | `IReadOnlyDictionary`), `NamingConvention` (PascalCase properties, preserve enum symbols with `[AvroSymbol("...")]`), `NamespaceMap` (Avro ns → C# ns), `TypeOverrides` (schema fullname → CLR type), `GenerateSerializers`, `GenerateSchemaProperty`, `Accessibility`.
 
 Front-ends:
 1. **CLI** `AvroSharp.Tool`, the `avrosharp` command: a framework-dependent `dotnet tool` (like Apache.Avro's `avrogen`) on System.CommandLine 2.0, built for .NET 8 and .NET 10 with `RollForward=Major`, so it runs on .NET 8 or later; `dnx AvroSharp.Tool ...` runs it without installing it.
    - **Done** (#33, first part):
-     - `gen <inputs>... -o <folder>`: inputs are files, or folders searched recursively for `*.avsc`, parsed together in any order (`SchemaFileSet`, shared with the source generator). Options map one to one onto `CodeGenOptions`: `-n/--namespace`, `-m/--namespace-map avro:csharp` (`NamespaceMapping`: the longest Avro namespace that equals or prefixes a type's gets another C# namespace, as avrogen's `--namespace`; not with the Apache mode, since Apache.Avro finds types by the schema's full name), `--logical-types native|raw`, `--property-names pascal|avro`, `--apache-compatible`, `--no-nullable`, `--no-date-only`, `--language-version <n>` (7 or later). One `.g.cs` file per named type, in folders for its C# namespace (`com/example/Order.g.cs`; a type without an Avro namespace takes `--namespace` if any schema is invalid or generation fails. Renamed properties are reported as `info AVROGEN005`.
+     - `gen <inputs>... -o <folder>`: inputs are files, or folders searched recursively for `*.avsc`, parsed together in any order (`SchemaFileSet`, shared with the source generator). Options map one to one onto `CodeGenOptions`: `-n/--namespace`, `-m/--namespace-map avro:csharp` (`NamespaceMap`: the longest Avro namespace that equals or prefixes a type's gets another C# namespace, as avrogen's `--namespace`; not with the Apache mode, since Apache.Avro finds types by the schema's full name), `--logical-types native|raw`, `--property-names pascal|avro`, `--apache-compatible`, `--no-nullable`, `--no-date-only`, `--language-version <n>` (7 or later). One `.g.cs` file per named type, in folders for its C# namespace (`com/example/Order.g.cs`; a type without an Avro namespace takes `--namespace` if any schema is invalid or generation fails. Renamed properties are reported as `info AVROGEN005`.
      - `schema canonical <inputs>...` and `schema fingerprint <inputs>... [-a crc64|md5|sha256] [-f hex|base64|decimal]`: inputs as for `gen`, or `-` for one schema on standard input; `-r/--reference` adds files whose named types the inputs use. One input prints the result alone, several print `path: result` lines. `hex` and `base64` are the fingerprint's bytes as Avro writes them (CRC-64 little-endian); `decimal` is the signed CRC-64, as Java's `SchemaNormalization.parsingFingerprint64`, for `crc64` only.
      - **Output:** results and `info` lines on standard output; errors on standard error, as `path(line,column): error AVROGEN001: message` for schemas (the generator's diagnostic IDs), `error AVROGEN003: message` when generation fails, and `error: message` otherwise.
      - **Exit codes:** 0 success; 1 the command failed (an invalid schema, a missing file, output that could not be written); 2 the command line is not valid (an unknown command or option, a missing or invalid argument), with the error and a pointer to the command's `--help`.
@@ -394,6 +394,59 @@ AvroMessage.Encode(buffer, order);
 var reader = new AvroMessageReader<Order>(schemaStore);  // ISchemaStore: fingerprint -> schema
 Order m = reader.Decode(bytes);
 ```
+
+### 8.1 Compatibility policy and the pre-1.0 API review (#134)
+
+**Generated code and the runtime.** The source generator and `avrosharp gen` emit calls into a support surface. Code from `avrosharp gen` is often checked in and not regenerated, so from 1.0 that surface is a compatibility contract:
+- **Where it lives:** `AvroSharp.Serialization.Generated`:
+  - `AvroGeneratedCode`, `AvroRecordPlan`, `AvroPlanCache` and `AvroConversion`;
+  - `AvroUninitialized`;
+  - `IAvroValueSerializer<T>` and the primitive serializers (`AvroIntSerializer` and the others).
+- **Visibility:** every one of these types is `[EditorBrowsable(Never)]`. They exist for generated code, not for users.
+- **Compatibility:**
+  - Code generated by version x.y compiles and runs against runtime x.z for any z ≥ y. Within a major version, the surface only grows.
+  - A member leaves only after a release that marks it `[Obsolete]`, and only in a major version.
+  - A generator of version x.y may need runtime x.y or later. The source generator and the runtime ship together. Each generated type's `[GeneratedCode("AvroSharp.CodeGen", version)]` names its generator's version, the lowest runtime version it needs.
+- **Before 1.0:** the policy starts at 1.0. The 0.x releases may still change the surface; the CHANGELOG lists each change and says to regenerate.
+- **Kept:** `AvroGeneratedCode.SerializeToArray<T>` looks like a duplicate of `AvroSerializer.Serialize<T>`, but it stays. Generated `ToAvroBytes()` calls it on every target, and `AvroSerializer.Serialize<T>` needs static abstract members, so it exists only on .NET 8 and later.
+
+**Decisions of the review.** Each item of #134, changed or kept:
+- **The support surface:** moved to `AvroSharp.Serialization.Generated`, as above.
+  - `AvroWriteAction<T>` and `AvroReadFunc<T>` stay in `AvroSharp.Serialization`: the file, stream and message APIs take them.
+  - Removed, because generated code no longer calls them: `GetRecordPlan(writer, reader)` without the cache, `PutTypeMismatch(object?, string, string)`, and `AvroRecordPlan.Target(int)`/`Conversion(int)`.
+- **"Codec" means block compression only:**
+  - `IAvroCodec<T>` is now `IAvroValueSerializer<T>`, and the primitive codecs are `Avro…Serializer`.
+  - The generated nested struct is now `ValueSerializer`. As `AvroCodec`, it hid `AvroSharp.Containers.AvroCodec` inside users' partial classes.
+- **Schema lookup:** one noun for each role.
+  - The interfaces are resolvers: `IAvroSchemaResolver` (by fingerprint, for single-object messages) and `IAvroSchemaIdResolver` (by registry ID).
+  - The `…Store` classes are their in-memory implementations.
+  - Both interfaces have a synchronous and an asynchronous lookup. On netstandard2.0, which has no default interface members, adding one after 1.0 would break every implementer.
+  - `AvroMessageReader<T>` has `ReadAsync`, like `AvroRegistryMessageReader<T>`. It fetches an unknown fingerprint once; a failed or cancelled fetch isn't cached.
+- **`AvroSerializer`:** `Serialize(output, value)` and `TrySerialize(destination, value, out bytesWritten)` take the output first, as every other write API does. `Deserialize<T>(in ReadOnlySequence<byte>, AvroSchema writerSchema)` completes the read overloads.
+- **Names that pair:**
+  - `GenericDatumReader.Schema` and `GenericDatumJsonReader.Schema` are now `WriterSchema`, as everywhere else. (The writers' `Schema` is the only schema they have, so it stays.)
+  - `AvroFileReader<T>.Codec` is now the `AvroCodec`, as `AvroFileWriterOptions.Codec` is; `Codec.Name` is the header's `avro.codec`.
+  - `AvroFileWriterOptions.Metadata` holds `ReadOnlyMemory<byte>` values, as `AvroFileReader<T>.Metadata` does.
+  - `AvroValue`'s factories pair with its accessors: `FromBytes`, `FromRecord` and `FromFixed` (were `FromByteArray`, `FromGenericRecord` and `FromGenericFixed`). Primitives take their .NET names (`FromInt32`/`AsInt32`), and the other kinds their Avro names; the struct's docs state the rule. CA2225 wants the .NET names for the implicit operators' alternates, and is suppressed there.
+  - `EnumSchema.Default` is now `DefaultSymbol`, like the constructor parameter; `Default` read like a static.
+  - `AvroReader.Skip(long)` is now `SkipRaw`, so it doesn't read as a sibling of `SkipBytes()`, which skips an Avro `bytes` value.
+- **Exceptions:** `AvroException`, `AvroDataException` (malformed data) and `AvroSchemaException` (invalid schemas) are all in the `AvroSharp` namespace. Code in any `AvroSharp.*` namespace sees them without a `using`.
+- **Schema equality:** `AvroSchema.HasSameCanonicalForm(AvroSchema)` is public: it compares encodings, and remembers the last match. `Equals` stays reference equality by design, because schemas with the same canonical form can differ in docs, aliases, defaults and properties; `AvroSchema`'s docs say so. `AvroGeneratedCode.IsSameSchema` is gone, and generated code calls `HasSameCanonicalForm`.
+- **`DeflateCodec`:** the built-in codec is public, with the Codecs package's shape: `DeflateCodec.Default`, a constructor that takes the `CompressionLevel`, and `Level`. `AvroCodec.Deflate` stays as the short spelling, next to `AvroCodec.Null`. `AvroCodec.CreateDeflate` is gone.
+- **`RecordField`:** a field keeps `Record` and `Position`, which the readers and the generator use. A record given a field that already belongs to another one attaches a copy instead of throwing, so `new RecordSchema(name, other.Fields.Append(field))` works. Parsed schemas always create fresh fields, so they never copy.
+- **Generator options:** one name per setting across `CodeGenOptions`, MSBuild and the CLI.
+  - `CodeGenOptions.Namespace`, `NamespaceMap`, `LogicalTypes`, `PropertyNames` and `ApacheCompatible`; were `DefaultNamespace`, `NamespaceMapping` and `PropertyNaming`.
+  - MSBuild `AvroSharpNamespace`, `AvroSharpNamespaceMap` (new), `AvroSharpLogicalTypes`, `AvroSharpPropertyNames` and `AvroSharpApacheCompatible`.
+  - CLI `--namespace`, `--namespace-map`, `--logical-types`, `--property-names` and `--apache-compatible`.
+  - The values are the same everywhere (`native|raw`, `pascal|avro`, `true|false`), case-insensitive in MSBuild. An MSBuild value the generator doesn't recognize is warning AVROGEN006, and the default is used.
+  - `NullableAnnotations` with a `LanguageVersion` below 8, or a version below 7, is an `ArgumentException`. The CLI derives it: `--language-version 7` implies `--no-nullable`. The source generator takes both from the project.
+- **Small ones:**
+  - `SchemaFingerprint.Crc64AvroEmpty` is a `long`, like every fingerprint. The polynomial isn't public.
+  - `AvroFileReader<T>.TryGetMetadataString` replaces `GetMetadataString`.
+  - `ConfluentSchemaIdHeader.Encode` takes the `AvroSchemaId` that `TryDecode` gives, and rejects a numeric ID.
+  - `GenericRecord.TryGetValue(int position, …)` names its parameter as the indexer does.
+  - **Limits:** each options class has public default constants (`GenericDatumReaderOptions.DefaultMaxDepth` and `DefaultMaxZeroSizeItems`, `GenericDatumWriterOptions.DefaultMaxDepth`, `AvroSchemaParseOptions.DefaultMaxDepth`), in place of the literal 128 in four places. The limits reject out-of-range values when set: a depth of at least 1, and zero or more items.
+  - **Missing overloads, added:** `GenericDatumReader.Read(in ReadOnlySequence<byte>)`, `AvroMessage.Write(output, in AvroValue, GenericDatumWriter)` and `AvroRegistryMessage.Write(output, framing, id, in AvroValue, GenericDatumWriter)`. The `ToArray` overloads now call them.
 
 ---
 

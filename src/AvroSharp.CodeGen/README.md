@@ -13,7 +13,7 @@ using AvroSharp.CodeGen;
 using AvroSharp.Schemas;
 
 var schemas = new[] { AvroSchema.Parse(File.ReadAllText("order.avsc")) };
-var options = new CodeGenOptions { DefaultNamespace = "Shop", PropertyNaming = PropertyNaming.PascalCase };
+var options = new CodeGenOptions { Namespace = "Shop", PropertyNames = PropertyNaming.PascalCase };
 
 foreach (var source in CSharpCodeGenerator.Generate(schemas, options))
 {
@@ -21,6 +21,6 @@ foreach (var source in CSharpCodeGenerator.Generate(schemas, options))
 }
 ```
 
-`CodeGenOptions` also selects how logical types are mapped (`LogicalTypes`), the Apache.Avro compatibility mode (`ApacheCompatible`), property names (`PropertyNaming`), whether the target framework has `DateOnly`/`TimeOnly` (`TargetHasDateOnly`), and the C# version the code may use (`NullableAnnotations` for C# 8; `LanguageVersion`, where 11 or later adds `IAvroSerializable<T>` on .NET 8 and later).
+`CodeGenOptions` also selects namespace mappings (`NamespaceMap`), how logical types are mapped (`LogicalTypes`), the Apache.Avro compatibility mode (`ApacheCompatible`), property names (`PropertyNames`), whether the target framework has `DateOnly`/`TimeOnly` (`TargetHasDateOnly`), and the C# version the code may use (`NullableAnnotations`, which needs C# 8; `LanguageVersion`, 7 or later, where 11 or later adds `IAvroSerializable<T>` on .NET 8 and later).
 
 The generated code needs the `AvroSharp` package at runtime. This package's public API will be reviewed before 1.0 ([#73](https://github.com/zcsizmadia/AvroSharp/issues/73)).

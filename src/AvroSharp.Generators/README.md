@@ -30,9 +30,12 @@ var upgraded = shop.Order.FromAvroBytes(oldBytes, writerSchema);   // schema evo
 | Property | Values | Effect |
 |---|---|---|
 | `AvroSharpNamespace` | a C# namespace | The namespace of types without an Avro namespace |
+| `AvroSharpNamespaceMap` | `avro.ns:CSharp.Ns`, separated by `;` | Maps Avro namespaces (and those under them) to C# namespaces, as avrogen's `--namespace` does |
 | `AvroSharpPropertyNames` | `avro`, `pascal` | `avro` keeps the Avro field names, as Apache's `avrogen` does; `pascal` converts them to PascalCase. Defaults to PascalCase, or to the Avro names with `AvroSharpApacheCompatible` |
-| `AvroSharpLogicalTypes` | `raw` | Keeps logical types as their underlying types instead of `DateOnly`, `Guid`, `decimal`, … |
-| `AvroSharpApacheCompatible` | `true` | Generated types also implement Apache.Avro's `ISpecificRecord` and have avrogen's `_SCHEMA` and instance `Schema`; AvroSharp's schema is then `AvroSharpSchema` (requires a reference to Apache.Avro) |
+| `AvroSharpLogicalTypes` | `native`, `raw` | `raw` keeps logical types as their underlying types instead of `DateOnly`, `Guid`, `decimal`, … |
+| `AvroSharpApacheCompatible` | `true`, `false` | With `true`, generated types also implement Apache.Avro's `ISpecificRecord` and have avrogen's `_SCHEMA` and instance `Schema`; AvroSharp's schema is then `AvroSharpSchema` (requires a reference to Apache.Avro) |
+
+Values are case-insensitive. An unrecognized value is warning AVROGEN006, and the default is used.
 
 ## Requirements
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using AvroSharp.IO;
 
-namespace AvroSharp.Serialization;
+namespace AvroSharp.Serialization.Generated;
 
 /// <summary>How a generated reader turns one writer field into its reader field.</summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
@@ -69,14 +69,6 @@ public sealed class AvroRecordPlan
 
     /// <summary>Gets the number of reader fields that take their default value.</summary>
     public int DefaultCount => _defaults.Length;
-
-    /// <summary>Gets the reader field position that writer field <paramref name="step"/> fills, or -1 to skip it.</summary>
-    /// <param name="step">The writer field position.</param>
-    public int Target(int step) => _steps[step].Target;
-
-    /// <summary>Gets how writer field <paramref name="step"/> is read.</summary>
-    /// <param name="step">The writer field position.</param>
-    public AvroConversion Conversion(int step) => _steps[step].Conversion;
 
     /// <summary>
     /// Gets the reader field position that writer field <paramref name="step"/> fills (or -1 to skip it) and how it is

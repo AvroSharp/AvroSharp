@@ -241,8 +241,6 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
                 {
                     throw new ArgumentException($"Metadata key '{entry.Key}' is reserved: keys beginning with '{AvroContainerFormat.ReservedPrefix}' belong to the specification.", nameof(options));
                 }
-
-                ArgumentNullException.ThrowIfNull(entry.Value, nameof(options));
             }
         }
 
@@ -261,7 +259,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
             foreach (var entry in metadata)
             {
                 writer.WriteString(entry.Key);
-                writer.WriteBytes(entry.Value);
+                writer.WriteBytes(entry.Value.Span);
             }
         }
 

@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using AvroSharp.IO;
 
-namespace AvroSharp.Serialization;
+namespace AvroSharp.Serialization.Generated;
 
 /// <summary>
 /// Reads and writes one value of a type, for the collection and union helpers of <see cref="AvroGeneratedCode"/>.
@@ -10,16 +10,16 @@ namespace AvroSharp.Serialization;
 /// </summary>
 /// <typeparam name="T">The type of the values.</typeparam>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public interface IAvroCodec<T>
+public interface IAvroValueSerializer<T>
 {
     /// <summary>Reads a value.</summary>
     /// <param name="reader">The source.</param>
-    /// <param name="depth">The nesting depth of records, checked by record codecs.</param>
+    /// <param name="depth">The nesting depth of records, checked by record serializers.</param>
     T Read(ref AvroReader reader, int depth);
 
     /// <summary>Writes a value, which is not <see langword="null"/>.</summary>
     /// <param name="writer">The destination.</param>
     /// <param name="value">The value.</param>
-    /// <param name="depth">The nesting depth of records, checked by record codecs.</param>
+    /// <param name="depth">The nesting depth of records, checked by record serializers.</param>
     void Write(ref AvroWriter writer, T value, int depth);
 }

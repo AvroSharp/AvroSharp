@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 
 namespace AvroSharp.Tests.Containers;
 
@@ -38,7 +37,7 @@ public class ContainerAsyncTests
         await using var reader = await AvroFileReader.OpenGenericAsync(file);
         var read = await ToListAsync(reader.ReadAllAsync());
 
-        await Assert.That(reader.Codec).IsEqualTo(codec);
+        await Assert.That(reader.Codec.Name).IsEqualTo(codec);
         await Assert.That(read.SequenceEqual(rows)).IsTrue();
         await Assert.That(file.AsyncReads).IsGreaterThan(0);
     }
@@ -91,7 +90,7 @@ public class ContainerAsyncTests
     {
         // 100 KB of metadata, delivered a few bytes at a time: the header is parsed again after each geometric fill.
         var big = Enumerable.Range(0, 100_000).Select(i => (byte)i).ToArray();
-        var bytes = ContainerFileTests.WriteFile(ContainerFileTests.Rows(3), new AvroFileWriterOptions { Metadata = new Dictionary<string, byte[]> { ["big"] = big } });
+        var bytes = ContainerFileTests.WriteFile(ContainerFileTests.Rows(3), new AvroFileWriterOptions { Metadata = new Dictionary<string, ReadOnlyMemory<byte>> { ["big"] = big } });
         var stream = new AsyncOnlyStream(bytes) { MaxChunk = 5, AllowSync = !async };
 
         int count;

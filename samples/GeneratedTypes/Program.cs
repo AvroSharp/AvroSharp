@@ -41,7 +41,7 @@ var readerOptions = new AvroFileReaderOptions { Codecs = AvroCodecs.All, LeaveOp
 using (var reader = AvroFileReader.Open<Order>(file, readerOptions))
 {
     var read = reader.ReadAll().ToList();
-    Console.WriteLine($"Container file: {file.Length} bytes ({reader.Codec}), {read.Count} orders");
+    Console.WriteLine($"Container file: {file.Length} bytes ({reader.Codec.Name}), {read.Count} orders");
     Check(read.Count == orders.Count && string.Equals(read[999].Customer, orders[999].Customer, StringComparison.Ordinal) && string.Equals(read[9].Note, "gift", StringComparison.Ordinal));
 }
 

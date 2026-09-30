@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -32,16 +33,16 @@ public sealed partial class GenericDatumReader
 
     private GenericDatumReader(AvroSchema schema, GenericDatumReaderOptions options)
     {
-        Schema = schema;
+        WriterSchema = schema;
         ReaderSchema = schema;
         _limits = new ReadLimits(options);
         _root = new Builder().Build(schema);
     }
 
     /// <summary>Gets the schema the data was written with.</summary>
-    public AvroSchema Schema { get; }
+    public AvroSchema WriterSchema { get; }
 
-    /// <summary>Gets the schema that values are read as: the same as <see cref="Schema"/> unless resolving between versions.</summary>
+    /// <summary>Gets the schema that values are read as: the same as <see cref="WriterSchema"/> unless resolving between versions.</summary>
     public AvroSchema ReaderSchema { get; }
 
     /// <summary>
@@ -70,6 +71,14 @@ public sealed partial class GenericDatumReader
     /// <summary>Reads one value from contiguous data.</summary>
     /// <param name="data">The encoded value.</param>
     public AvroValue Read(ReadOnlySpan<byte> data)
+    {
+        var reader = new AvroReader(data);
+        return Read(ref reader);
+    }
+
+    /// <summary>Reads one value from a sequence of buffers.</summary>
+    /// <param name="data">The encoded value.</param>
+    public AvroValue Read(in ReadOnlySequence<byte> data)
     {
         var reader = new AvroReader(data);
         return Read(ref reader);

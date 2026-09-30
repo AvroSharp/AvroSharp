@@ -150,14 +150,14 @@ internal sealed class CSharpNames(CodeGenOptions options)
     /// <summary>Gets the C# namespace for a named type, or <see langword="null"/> for the global namespace.</summary>
     public string? Namespace(NamedSchema schema)
     {
-        var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? options.DefaultNamespace : Map(schema.Name.Namespace!);
+        var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? options.Namespace : Map(schema.Name.Namespace!);
         return string.IsNullOrEmpty(ns) ? null : string.Join(".", ns!.Split('.').Select(Identifier));
     }
 
-    /// <summary>Applies <see cref="CodeGenOptions.NamespaceMapping"/>: the longest key that is the namespace or its prefix.</summary>
+    /// <summary>Applies <see cref="CodeGenOptions.NamespaceMap"/>: the longest key that is the namespace or its prefix.</summary>
     private string Map(string avroNamespace)
     {
-        if (options.NamespaceMapping is not { Count: > 0 } mapping)
+        if (options.NamespaceMap is not { Count: > 0 } mapping)
         {
             return avroNamespace;
         }

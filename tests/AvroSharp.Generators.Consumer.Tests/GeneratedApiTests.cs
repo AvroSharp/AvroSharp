@@ -154,8 +154,18 @@ public class GeneratedApiTests
         var bytes = AvroSerializer.Serialize(order);
         await Assert.That(bytes).IsEquivalentTo(order.ToAvroBytes(), CollectionOrdering.Matching);
         await Assert.That(AvroSerializer.Deserialize<shop.Order>(bytes).ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
-        await Assert.That(AvroSerializer.TrySerialize(order, new byte[bytes.Length], out var written)).IsTrue();
+        await Assert.That(AvroSerializer.TrySerialize(new byte[bytes.Length], order, out var written)).IsTrue();
         await Assert.That(written).IsEqualTo(bytes.Length);
+
+        // The output first, as every write API takes it; and reads from a sequence, as written or with a writer schema
+        // (another instance, so the resolving path runs).
+        var output = new System.Buffers.ArrayBufferWriter<byte>();
+        AvroSerializer.Serialize(output, order);
+        var sequence = new System.Buffers.ReadOnlySequence<byte>(output.WrittenMemory);
+        var writerSchema = Schemas.AvroSchema.Parse(shop.Order.SchemaJson);
+        await Assert.That(output.WrittenSpan.ToArray()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
+        await Assert.That(AvroSerializer.Deserialize<shop.Order>(sequence).ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
+        await Assert.That(AvroSerializer.Deserialize<shop.Order>(sequence, writerSchema).ToAvroBytes()).IsEquivalentTo(bytes, CollectionOrdering.Matching);
 
         using var file = new System.IO.MemoryStream();
         using (var writer = Containers.AvroFileWriter.Create<shop.Order>(file, new Containers.AvroFileWriterOptions { LeaveOpen = true }))

@@ -82,17 +82,20 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     /// <summary>Gets the header metadata, including the <c>avro.schema</c> and <c>avro.codec</c> entries.</summary>
     public IReadOnlyDictionary<string, ReadOnlyMemory<byte>> Metadata { get; private set; } = null!;
 
-    /// <summary>Gets the name of the codec the blocks are compressed with.</summary>
-    public string Codec => _codec.Name;
+    /// <summary>Gets the codec the blocks are compressed with; its <see cref="AvroCodec.Name"/> is the header's <c>avro.codec</c>.</summary>
+    public AvroCodec Codec => _codec;
 
     private int Buffered => _inputEnd - _inputStart;
 
-    /// <summary>Gets a metadata entry decoded as UTF-8, or <see langword="null"/> when the header has no such key.</summary>
+    /// <summary>Gets a metadata entry decoded as UTF-8.</summary>
     /// <param name="key">The key.</param>
-    public string? GetMetadataString(string key)
+    /// <param name="value">The entry, when the header has it.</param>
+    /// <returns><see langword="false"/> when the header has no such key.</returns>
+    public bool TryGetMetadataString(string key, [NotNullWhen(true)] out string? value)
     {
         ArgumentNullException.ThrowIfNull(key);
-        return Metadata.TryGetValue(key, out var value) ? Encoding.UTF8.GetString(value.Span) : null;
+        value = Metadata.TryGetValue(key, out var bytes) ? Encoding.UTF8.GetString(bytes.Span) : null;
+        return value is not null;
     }
 
     /// <summary>Reads the next object.</summary>

@@ -42,7 +42,7 @@ internal static class LogicalTypes
         {
             AvroLogicalTypeKind.Date => dateOnly
                 // Day numbers count from 0001-01-01; 1970-01-01 is day 719,162. No DateTime or division either way.
-                ? new("global::System.DateOnly", e => $"writer.WriteInt({e}.DayNumber - 719162);", $"global::System.DateOnly.FromDayNumber(global::AvroSharp.Serialization.AvroGeneratedCode.DayNumberFromDays(reader.ReadInt()))")
+                ? new("global::System.DateOnly", e => $"writer.WriteInt({e}.DayNumber - 719162);", $"global::System.DateOnly.FromDayNumber(global::AvroSharp.Serialization.Generated.AvroGeneratedCode.DayNumberFromDays(reader.ReadInt()))")
                 : new("global::System.DateTime", e => $"writer.WriteInt({Values}.DaysFromDate({e}));", $"{Values}.DateFromDays(reader.ReadInt())"),
             AvroLogicalTypeKind.TimeMillis => Time(dateOnly, "Milliseconds", "Int"),
             AvroLogicalTypeKind.TimeMicros => Time(dateOnly, "Microseconds", "Long"),

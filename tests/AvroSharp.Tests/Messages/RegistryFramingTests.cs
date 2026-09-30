@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Messages;
 using AvroSharp.Schemas;
 
@@ -47,6 +46,11 @@ public class RegistryFramingTests
         // Compression shrinks the repetitive name; the others carry the plain Avro data after the header.
         var plain = GenericDatumWriter.Create(s_schema).WriteToArray(value);
         await Assert.That(framing.Compresses ? message.Length < plain.Length : message.AsSpan(framing.HeaderLength).SequenceEqual(plain)).IsTrue();
+
+        // Written into a buffer writer, the message is the same.
+        var output = new System.Buffers.ArrayBufferWriter<byte>();
+        AvroRegistryMessage.Write(output, framing, id, value, GenericDatumWriter.Create(s_schema));
+        await Assert.That(output.WrittenSpan.ToArray()).IsEquivalentTo(message, TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]
@@ -221,12 +225,13 @@ public class RegistryFramingTests
     [Test]
     public async Task ConfluentHeaderIds_AreEncodedAsVersionOneGuids_AndReadWithReadPayload()
     {
-        var header = ConfluentSchemaIdHeader.Encode(s_guid);
+        var header = ConfluentSchemaIdHeader.Encode(AvroSchemaId.FromGuid(s_guid));
         var payload = GenericDatumWriter.Create(s_schema).WriteToArray(User(3, "h"));
         var reader = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.ConfluentGuid, StoreWith(AvroSchemaId.FromGuid(s_guid)));
 
         await Assert.That(Convert.ToHexString(header)).IsEqualTo("0100112233445566778899AABBCCDDEEFF");
         await Assert.That(ConfluentSchemaIdHeader.TryDecode(header, out var id) && id.Guid == s_guid).IsTrue();
+        await Assert.That(Assert.Throws<ArgumentException>(() => ConfluentSchemaIdHeader.Encode(AvroSchemaId.FromNumber(5))).Message).StartsWith("Confluent's schema ID header carries a GUID; the ID is a number.");
         await Assert.That(ConfluentSchemaIdHeader.TryDecode(header.AsSpan(0, 16), out _)).IsFalse();
         await Assert.That(reader.ReadPayload(id, payload).AsRecord()["name"].AsString()).IsEqualTo("h");
         await Assert.That((await reader.ReadPayloadAsync(id, payload)).AsRecord()["id"].AsInt64()).IsEqualTo(3L);

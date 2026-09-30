@@ -71,14 +71,14 @@ public sealed class EnumSchema : NamedSchema
         }
 
         Symbols = symbols;
-        Default = defaultSymbol;
+        DefaultSymbol = defaultSymbol;
     }
 
     /// <summary>Gets the symbols, in declaration order (the order defines each symbol's ordinal).</summary>
     public IReadOnlyList<string> Symbols { get; }
 
     /// <summary>Gets the default symbol used during schema resolution, or <see langword="null"/>.</summary>
-    public string? Default { get; }
+    public string? DefaultSymbol { get; }
 
     /// <summary>Gets the ordinal of a symbol.</summary>
     /// <param name="symbol">The symbol (case-sensitive).</param>

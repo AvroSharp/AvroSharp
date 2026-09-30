@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Messages;
 using AvroSharp.Schemas;
 
@@ -30,6 +30,11 @@ public class SingleObjectEncodingTests
         await Assert.That(record["name"].AsString()).IsEqualTo("Bill");
         await Assert.That(record["tags"].AsArray().Select(t => t.AsString()).SequenceEqual(new[] { "dog_lover", "cat_hater" })).IsTrue();
         await Assert.That(written.AsSpan().SequenceEqual(message)).IsTrue();
+
+        // Written into a buffer writer, the message is the same.
+        var output = new System.Buffers.ArrayBufferWriter<byte>();
+        AvroMessage.Write(output, record, GenericDatumWriter.Create(schema));
+        await Assert.That(output.WrittenSpan.SequenceEqual(message)).IsTrue();
     }
 
     [Test]
@@ -138,13 +143,62 @@ public class SingleObjectEncodingTests
     }
 
     [Test]
-    public async Task AStoreThatReturnsTheWrongSchema_IsReported()
+    public async Task AResolverThatReturnsTheWrongSchema_IsReported()
     {
         var message = AvroMessage.ToArray(User(s_v1, 1, "a"), GenericDatumWriter.Create(s_v1));
 
-        var ex = Assert.Throws<AvroException>(() => AvroMessageReader.CreateGeneric(new WrongStore()).Read(message));
+        var ex = Assert.Throws<AvroException>(() => AvroMessageReader.CreateGeneric(new WrongResolver()).Read(message));
 
-        await Assert.That(ex.Message).Contains("schema store returned");
+        await Assert.That(ex.Message).Contains("schema resolver returned");
+    }
+
+    [Test]
+    public async Task ReadAsync_FetchesAnUnknownFingerprintOnce_AndReadUsesTheCache()
+    {
+        var resolver = new FetchingResolver(_ => s_v1);
+        var reader = AvroMessageReader.CreateGeneric(resolver);
+        var message = AvroMessage.ToArray(User(s_v1, 7, "a"), GenericDatumWriter.Create(s_v1));
+
+        var syncBeforeFetch = Assert.Throws<AvroDataException>(() => reader.Read(message));
+        var first = await reader.ReadAsync(message);
+        var second = await reader.ReadAsync(message);
+        var sync = reader.Read(message);
+
+        await Assert.That(syncBeforeFetch.Message).Contains("the schema resolver does not know");
+        await Assert.That(first.AsRecord()["id"].AsInt32()).IsEqualTo(7);
+        await Assert.That(second).IsEqualTo(first);
+        await Assert.That(sync).IsEqualTo(first);
+        await Assert.That(resolver.AsyncCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ReadAsync_WhenTheResolverFindsNoSchema_IsRejected_AndNotCached()
+    {
+        var resolver = new FetchingResolver(_ => null);
+        var reader = AvroMessageReader.CreateGeneric(resolver);
+        var message = AvroMessage.ToArray(User(s_v1, 7, "a"), GenericDatumWriter.Create(s_v1));
+
+        var first = await Assert.ThrowsAsync<AvroDataException>(async () => await reader.ReadAsync(message));
+        await Assert.ThrowsAsync<AvroDataException>(async () => await reader.ReadAsync(message));
+
+        await Assert.That(first!.Message).IsEqualTo($"The message was written with a schema whose fingerprint (0x{s_v1.Fingerprint64:X16}) the schema resolver does not know.");
+        await Assert.That(resolver.AsyncCalls).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task ReadAsync_PassesTheTokenToTheFetch_AndACancelledFetchIsNotCached()
+    {
+        // The first fetch waits until it is cancelled; the next one finds the schema.
+        var resolver = new FetchingResolver(_ => s_v1, waitForCancellation: call => call == 1);
+        var reader = AvroMessageReader.CreateGeneric(resolver);
+        var message = AvroMessage.ToArray(User(s_v1, 7, "a"), GenericDatumWriter.Create(s_v1));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await reader.ReadAsync(message, cancellation.Token));
+
+        await Assert.That((await reader.ReadAsync(message)).AsRecord()["id"].AsInt32()).IsEqualTo(7);
+        await Assert.That(resolver.AsyncCalls).IsEqualTo(2);
     }
 
     private static (AvroSchema Schema, byte[] Message) MessageV1() => (
@@ -153,8 +207,30 @@ public class SingleObjectEncodingTests
 
     private static GenericRecord User(RecordSchema schema, int id, string name) => new(schema) { ["id"] = id, ["name"] = name };
 
-    private sealed class WrongStore : IAvroSchemaStore
+    private sealed class WrongResolver : IAvroSchemaResolver
     {
         public AvroSchema? GetSchema(long fingerprint) => s_v2;
+
+        public ValueTask<AvroSchema?> GetSchemaAsync(long fingerprint, CancellationToken cancellationToken = default) => new(s_v2);
+    }
+
+    /// <summary>Knows nothing synchronously; fetches asynchronously what <c>answer</c> gives for the call number (from 1), optionally waiting for cancellation first.</summary>
+    private sealed class FetchingResolver(Func<int, AvroSchema?> answer, Func<int, bool>? waitForCancellation = null) : IAvroSchemaResolver
+    {
+        public int AsyncCalls { get; private set; }
+
+        public AvroSchema? GetSchema(long fingerprint) => null;
+
+        public async ValueTask<AvroSchema?> GetSchemaAsync(long fingerprint, CancellationToken cancellationToken = default)
+        {
+            var call = ++AsyncCalls;
+            if (waitForCancellation?.Invoke(call) == true)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+
+            await Task.Yield();
+            return answer(call);
+        }
     }
 }

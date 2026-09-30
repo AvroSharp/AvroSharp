@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.Tests.Containers;
@@ -30,7 +29,7 @@ public class ContainerFileTests
         var json = GenericDatumJsonReader.Create(reader.WriterSchema);
         var expected = WeatherJsonLines().Select(json.Read).ToList();
 
-        await Assert.That(reader.Codec).IsEqualTo(codec);
+        await Assert.That(reader.Codec.Name).IsEqualTo(codec);
         await Assert.That(((NamedSchema)reader.WriterSchema).FullName).IsEqualTo("test.Weather");
         await Assert.That(records.Count).IsEqualTo(expected.Count);
         // weather-sorted.avro holds the same records in another order, compressed with deflate by Java.
@@ -72,7 +71,7 @@ public class ContainerFileTests
         var bytes = WriteFile(rows, options);
         using var reader = AvroFileReader.OpenGeneric(new MemoryStream(bytes));
 
-        await Assert.That(reader.Codec).IsEqualTo(codec);
+        await Assert.That(reader.Codec.Name).IsEqualTo(codec);
         await Assert.That(reader.WriterSchema.CanonicalForm).IsEqualTo(s_schema.CanonicalForm);
         await Assert.That(reader.ReadAll().SequenceEqual(rows)).IsTrue();
     }
@@ -83,9 +82,14 @@ public class ContainerFileTests
         var rows = Rows(2000);
 
         var plain = WriteFile(rows, new AvroFileWriterOptions { Codec = AvroCodec.Null });
-        var deflated = WriteFile(rows, new AvroFileWriterOptions { Codec = AvroCodec.CreateDeflate(CompressionLevel.Fastest) });
+        var deflated = WriteFile(rows, new AvroFileWriterOptions { Codec = new DeflateCodec(CompressionLevel.Fastest) });
 
         await Assert.That(deflated.Length).IsLessThan(plain.Length / 2);
+
+        // The built-in codec has the add-on codecs' shape: Default, and the level it was made with.
+        await Assert.That(AvroCodec.Deflate).IsSameReferenceAs(DeflateCodec.Default);
+        await Assert.That(DeflateCodec.Default.Level).IsEqualTo(CompressionLevel.Optimal);
+        await Assert.That(new DeflateCodec(CompressionLevel.Fastest).Level).IsEqualTo(CompressionLevel.Fastest);
     }
 
     [Test]
@@ -103,21 +107,24 @@ public class ContainerFileTests
     {
         var options = new AvroFileWriterOptions
         {
-            Metadata = new Dictionary<string, byte[]> { ["app.owner"] = Encoding.UTF8.GetBytes("team-a"), ["app.raw"] = [0, 255] },
+            Metadata = new Dictionary<string, ReadOnlyMemory<byte>> { ["app.owner"] = Encoding.UTF8.GetBytes("team-a"), ["app.raw"] = new byte[] { 0, 255 } },
         };
 
         using var reader = AvroFileReader.OpenGeneric(new MemoryStream(WriteFile(Rows(1), options)));
 
-        await Assert.That(reader.GetMetadataString("app.owner")).IsEqualTo("team-a");
+        await Assert.That(reader.TryGetMetadataString("app.owner", out var owner)).IsTrue();
+        await Assert.That(owner).IsEqualTo("team-a");
         await Assert.That(reader.Metadata["app.raw"].ToArray().SequenceEqual(new byte[] { 0, 255 })).IsTrue();
-        await Assert.That(reader.GetMetadataString("avro.codec")).IsEqualTo("null");
-        await Assert.That(reader.GetMetadataString("missing")).IsNull();
+        await Assert.That(reader.TryGetMetadataString("avro.codec", out var codec)).IsTrue();
+        await Assert.That(codec).IsEqualTo("null");
+        await Assert.That(reader.TryGetMetadataString("missing", out var missing)).IsFalse();
+        await Assert.That(missing).IsNull();
     }
 
     [Test]
     public async Task ReservedMetadataKeys_AreRejected()
     {
-        var options = new AvroFileWriterOptions { Metadata = new Dictionary<string, byte[]> { ["avro.custom"] = [1] } };
+        var options = new AvroFileWriterOptions { Metadata = new Dictionary<string, ReadOnlyMemory<byte>> { ["avro.custom"] = new byte[] { 1 } } };
 
         var ex = Assert.Throws<ArgumentException>(() => AvroFileWriter.CreateGeneric(new MemoryStream(), s_schema, options));
 

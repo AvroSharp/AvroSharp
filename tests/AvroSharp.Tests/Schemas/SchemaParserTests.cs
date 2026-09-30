@@ -126,7 +126,7 @@ public class SchemaParserTests
     {
         var schema = (EnumSchema)AvroSchema.Parse("""{"type":"enum","name":"Suit","symbols":["SPADES","HEARTS"],"default":"HEARTS"}""");
         await Assert.That(schema.Symbols).IsEquivalentTo(new[] { "SPADES", "HEARTS" }, CollectionOrdering.Matching);
-        await Assert.That(schema.Default).IsEqualTo("HEARTS");
+        await Assert.That(schema.DefaultSymbol).IsEqualTo("HEARTS");
         await Assert.That(schema.TryGetOrdinal("HEARTS", out var ordinal)).IsTrue();
         await Assert.That(ordinal).IsEqualTo(1);
         await Assert.That(schema.TryGetOrdinal("CLUBS", out _)).IsFalse();

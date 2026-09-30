@@ -18,12 +18,12 @@ namespace app.events
             "{\"type\":\"fixed\",\"name\":\"Hash\",\"namespace\":\"app.events\",\"size\":2}";
 
         /// <summary>Gets the Avro schema of this type.</summary>
-        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? global::AvroSharp.Serialization.AvroGeneratedCode.PublishSchema(ref s_schema, global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
+        public static global::AvroSharp.Schemas.AvroSchema Schema => s_schema ?? global::AvroSharp.Serialization.Generated.AvroGeneratedCode.PublishSchema(ref s_schema, global::AvroSharp.Schemas.AvroSchema.Parse(SchemaJson));
 
         /// <summary>Creates a value from exactly <see cref="Size"/> bytes. The array is not copied.</summary>
         public Hash(byte[] value)
         {
-            Value = global::AvroSharp.Serialization.AvroGeneratedCode.CheckFixedSize(value, Size, "app.events.Hash");
+            Value = global::AvroSharp.Serialization.Generated.AvroGeneratedCode.CheckFixedSize(value, Size, "app.events.Hash");
         }
 
         /// <summary>Gets the bytes.</summary>

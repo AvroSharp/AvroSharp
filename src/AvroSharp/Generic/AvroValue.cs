@@ -31,6 +31,12 @@ namespace AvroSharp.Generic;
 /// factories wrap existing memory. <see cref="AsArray"/> still returns their items as values, and
 /// <see cref="TryGetInt64Array"/> and the other typed accessors return the memory without a copy.
 /// </para>
+/// <para>
+/// Factories and accessors pair by name: <c>From…</c> creates what <c>As…</c> returns. Primitives are named after their
+/// .NET type (<see cref="FromInt32"/> and <see cref="AsInt32"/>, <c>Int64</c>, <c>Single</c>, <c>Double</c>, <c>Boolean</c>,
+/// <c>String</c>), and the other kinds after their Avro type (<see cref="FromBytes"/>, <c>Record</c>, <c>Fixed</c>,
+/// <c>Array</c>, <c>Map</c>, <c>Enum</c>).
+/// </para>
 /// </remarks>
 public readonly struct AvroValue : IEquatable<AvroValue>
 {
@@ -96,6 +102,7 @@ public readonly struct AvroValue : IEquatable<AvroValue>
 
     /// <summary>Creates a <c>bytes</c> value, or <c>null</c> for a <see langword="null"/> array. The array is not copied.</summary>
     /// <param name="value">The value.</param>
+#pragma warning disable CA2225 // The named alternates are FromBytes, FromRecord and FromFixed, which pair with AsBytes, AsRecord and AsFixed.
     public static implicit operator AvroValue(byte[]? value) => new(0, value);
 
     /// <summary>Creates a record value, or <c>null</c>.</summary>
@@ -105,6 +112,7 @@ public readonly struct AvroValue : IEquatable<AvroValue>
     /// <summary>Creates a fixed value, or <c>null</c>.</summary>
     /// <param name="value">The value.</param>
     public static implicit operator AvroValue(GenericFixed? value) => new(0, value);
+#pragma warning restore CA2225
 
     /// <summary>Compares two values structurally (see <see cref="Equals(AvroValue)"/>).</summary>
     /// <param name="left">The first value.</param>
@@ -142,15 +150,15 @@ public readonly struct AvroValue : IEquatable<AvroValue>
 
     /// <summary>Creates a <c>bytes</c> value, or <c>null</c>. The array is not copied.</summary>
     /// <param name="value">The value.</param>
-    public static AvroValue FromByteArray(byte[]? value) => value;
+    public static AvroValue FromBytes(byte[]? value) => value;
 
     /// <summary>Creates a record value, or <c>null</c>.</summary>
     /// <param name="value">The value.</param>
-    public static AvroValue FromGenericRecord(GenericRecord? value) => value;
+    public static AvroValue FromRecord(GenericRecord? value) => value;
 
     /// <summary>Creates a fixed value, or <c>null</c>.</summary>
     /// <param name="value">The value.</param>
-    public static AvroValue FromGenericFixed(GenericFixed? value) => value;
+    public static AvroValue FromFixed(GenericFixed? value) => value;
 
     /// <summary>Creates an array value from a list (for example a <see cref="List{T}"/> or an array). The list is not copied.</summary>
     /// <param name="items">The items.</param>

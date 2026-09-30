@@ -6,7 +6,7 @@ using AvroSharp.Generic;
 using AvroSharp.Interop.Tests;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
-using AvroSharp.Serialization;
+using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Generators.Consumer.Tests;
 
@@ -40,9 +40,11 @@ public class ResolutionPlanTests
     {
         var other = AvroSchema.Parse("""{"type":"record","name":"Other","fields":[{"name":"id","type":"long"}]}""");
 
-        await Assert.That(AvroGeneratedCode.GetRecordPlan(other, evo.Person.Schema)).IsNull();
-        await Assert.That(AvroGeneratedCode.GetRecordPlan(AvroSchema.Parse("\"long\""), evo.Person.Schema)).IsNull();
-        await Assert.That(AvroGeneratedCode.GetRecordPlan(evo.Person.Schema, evo.Person.Schema)).IsSameReferenceAs(AvroGeneratedCode.GetRecordPlan(evo.Person.Schema, evo.Person.Schema));
+        await Assert.That(Plan(other, evo.Person.Schema)).IsNull();
+        await Assert.That(Plan(AvroSchema.Parse("\"long\""), evo.Person.Schema)).IsNull();
+
+        // Plans are shared across types' caches: built once per pair of schemas.
+        await Assert.That(Plan(evo.Person.Schema, evo.Person.Schema)).IsSameReferenceAs(Plan(evo.Person.Schema, evo.Person.Schema));
     }
 
     [Test]
@@ -154,4 +156,11 @@ public class ResolutionPlanTests
         ("float", 0) => "int",
         _ => name,
     };
+
+    // A plan through a fresh cache, as a generated type with no plan yet gets one.
+    private static AvroRecordPlan? Plan(AvroSchema writer, AvroSchema reader)
+    {
+        AvroPlanCache? cache = null;
+        return AvroGeneratedCode.GetRecordPlan(writer, reader, ref cache);
+    }
 }

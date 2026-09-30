@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.Containers;
 using AvroSharp.Generic;
-using AvroSharp.IO;
 using AvroSharp.Schemas;
 using TUnit.Assertions.Enums;
 
@@ -42,7 +41,7 @@ public class CodecTests
         using var reader = Open("java-avro/weather-" + codec + ".avro");
         var records = reader.ReadAll().ToList();
 
-        await Assert.That(reader.Codec).IsEqualTo(codec);
+        await Assert.That(reader.Codec.Name).IsEqualTo(codec);
         await Assert.That(records).IsEquivalentTo(expected, CollectionOrdering.Matching);
     }
 
@@ -56,7 +55,7 @@ public class CodecTests
         using var reader = Open("java-avro/many-" + codec + ".avro");
         var records = reader.ReadAll().ToList();
 
-        await Assert.That(reader.Codec).IsEqualTo(codec);
+        await Assert.That(reader.Codec.Name).IsEqualTo(codec);
         await Assert.That(records.Count).IsEqualTo(8000);
         await Assert.That(records.SequenceEqual(expected)).IsTrue();
     }
@@ -84,7 +83,7 @@ public class CodecTests
 
         using var reader = Open("apache-avro/weather-snappy.avro");
 
-        await Assert.That(reader.Codec).IsEqualTo("snappy");
+        await Assert.That(reader.Codec.Name).IsEqualTo("snappy");
         await Assert.That(reader.ReadAll().ToList()).IsEquivalentTo(expected, CollectionOrdering.Matching);
     }
 
@@ -97,7 +96,7 @@ public class CodecTests
         var file = Write(codec, values, syncInterval: 1000);
         using var reader = AvroFileReader.OpenGeneric(new MemoryStream(file), options: new AvroFileReaderOptions { Codecs = AvroCodecs.All });
 
-        await Assert.That(reader.Codec).IsEqualTo(codec.Name);
+        await Assert.That(reader.Codec.Name).IsEqualTo(codec.Name);
         await Assert.That(reader.ReadAll().Select(v => v.AsRecord()).SequenceEqual(values)).IsTrue();
     }
 

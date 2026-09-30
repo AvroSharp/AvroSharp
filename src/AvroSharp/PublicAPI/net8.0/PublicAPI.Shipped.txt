@@ -10,7 +10,7 @@ static AvroSharp.Containers.AvroFileReader.OpenAsync<T>(System.IO.Stream! stream
 static AvroSharp.Containers.AvroFileWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Containers.AvroFileWriterOptions? options = null) -> AvroSharp.Containers.AvroFileWriter<T>!
 static AvroSharp.Messages.AvroMessage.ToArray<T>(T value) -> byte[]!
 static AvroSharp.Messages.AvroMessage.Write<T>(System.Buffers.IBufferWriter<byte>! output, T value) -> void
-static AvroSharp.Messages.AvroMessageReader.Create<T>(AvroSharp.Messages.IAvroSchemaStore! store) -> AvroSharp.Messages.AvroMessageReader<T>!
+static AvroSharp.Messages.AvroMessageReader.Create<T>(AvroSharp.Messages.IAvroSchemaResolver! resolver) -> AvroSharp.Messages.AvroMessageReader<T>!
 static AvroSharp.Messages.AvroRegistryMessage.ToArray<T>(AvroSharp.Messages.AvroRegistryFraming! framing, AvroSharp.Messages.AvroSchemaId id, T value) -> byte[]!
 static AvroSharp.Messages.AvroRegistryMessage.Write<T>(System.Buffers.IBufferWriter<byte>! output, AvroSharp.Messages.AvroRegistryFraming! framing, AvroSharp.Messages.AvroSchemaId id, T value) -> void
 static AvroSharp.Messages.AvroRegistryMessageReader.Create<T>(AvroSharp.Messages.AvroRegistryFraming! framing, AvroSharp.Messages.IAvroSchemaIdResolver! resolver, AvroSharp.Messages.AvroRegistryReaderOptions? options = null) -> AvroSharp.Messages.AvroRegistryMessageReader<T>!
@@ -18,7 +18,7 @@ static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(System.ReadOnlySpan
 static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(System.ReadOnlySpan<byte> data, AvroSharp.Schemas.AvroSchema! writerSchema) -> T
 static AvroSharp.Serialization.AvroSerializer.Deserialize<T>(in System.Buffers.ReadOnlySequence<byte> data) -> T
 static AvroSharp.Serialization.AvroSerializer.Serialize<T>(T value) -> byte[]!
-static AvroSharp.Serialization.AvroSerializer.Serialize<T>(T value, System.Buffers.IBufferWriter<byte>! output) -> void
-static AvroSharp.Serialization.AvroSerializer.TrySerialize<T>(T value, System.Span<byte> destination, out int bytesWritten) -> bool
+static AvroSharp.Serialization.AvroSerializer.Serialize<T>(System.Buffers.IBufferWriter<byte>! output, T value) -> void
+static AvroSharp.Serialization.AvroSerializer.TrySerialize<T>(System.Span<byte> destination, T value, out int bytesWritten) -> bool
 static AvroSharp.Streams.AvroStreamReader.Open<T>(System.IO.Stream! stream, AvroSharp.Streams.AvroStreamOptions? options = null) -> AvroSharp.Streams.AvroStreamReader<T>!
 static AvroSharp.Streams.AvroStreamWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Streams.AvroStreamOptions? options = null) -> AvroSharp.Streams.AvroStreamWriter<T>!

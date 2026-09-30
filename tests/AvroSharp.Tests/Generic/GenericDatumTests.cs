@@ -47,6 +47,9 @@ public class GenericDatumTests
         await Assert.That(read).IsEqualTo((AvroValue)record);
         await Assert.That(read.AsRecord()["status"].AsEnumSymbol()).IsEqualTo("PAID");
         await Assert.That(read.AsRecord()["counts"].AsArray().Count).IsEqualTo(40);
+
+        // The same from a sequence of one-byte segments.
+        await Assert.That(GenericDatumReader.Create(schema).Read(AvroSharp.Tests.IO.Segments.ByteByByte(bytes))).IsEqualTo((AvroValue)record);
     }
 
     [Test]

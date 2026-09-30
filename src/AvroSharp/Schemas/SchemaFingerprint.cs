@@ -8,8 +8,11 @@ namespace AvroSharp.Schemas;
 /// </summary>
 public static class SchemaFingerprint
 {
-    /// <summary>The CRC-64-AVRO fingerprint of empty input, and the polynomial used by the algorithm.</summary>
-    public const ulong Crc64AvroEmpty = 0xC15D213AA4D7A795UL;
+    /// <summary>The CRC-64-AVRO fingerprint of empty input, as <see cref="Crc64Avro(ReadOnlySpan{byte})"/> returns it.</summary>
+    public const long Crc64AvroEmpty = unchecked((long)Crc64Polynomial);
+
+    // The specification's EMPTY constant: the fingerprint's initial value and the polynomial of its table.
+    private const ulong Crc64Polynomial = 0xC15D213AA4D7A795UL;
 
     private static readonly ulong[] s_crc64Table = CreateCrc64Table();
 
@@ -18,7 +21,7 @@ public static class SchemaFingerprint
     public static long Crc64Avro(ReadOnlySpan<byte> data)
     {
         var table = s_crc64Table;
-        var fp = Crc64AvroEmpty;
+        var fp = Crc64Polynomial;
         foreach (var b in data)
         {
             fp = (fp >> 8) ^ table[(int)((fp ^ b) & 0xFF)];
@@ -71,7 +74,7 @@ public static class SchemaFingerprint
             var fp = (ulong)i;
             for (var j = 0; j < 8; j++)
             {
-                fp = (fp >> 1) ^ (Crc64AvroEmpty & (0UL - (fp & 1)));
+                fp = (fp >> 1) ^ (Crc64Polynomial & (0UL - (fp & 1)));
             }
 
             table[i] = fp;

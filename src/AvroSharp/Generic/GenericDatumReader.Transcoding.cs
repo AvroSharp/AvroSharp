@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using AvroSharp.Buffers;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
-using AvroSharp.Serialization;
+using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Generic;
 

@@ -20,7 +20,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     public string Nullable(string referenceType) => options.NullableAnnotations ? referenceType + "?" : referenceType;
 
     /// <summary>Gets how record fields become property names: the option, or the mode's default (avrogen's names for Apache).</summary>
-    public PropertyNaming Naming => options.PropertyNaming ?? (options.ApacheCompatible ? PropertyNaming.Avro : PropertyNaming.PascalCase);
+    public PropertyNaming Naming => options.PropertyNames ?? (options.ApacheCompatible ? PropertyNaming.Avro : PropertyNaming.PascalCase);
 
     /// <summary>
     /// Gets whether the generated code may use C# 11 for .NET 8 and later (behind <c>#if NET8_0_OR_GREATER</c>): UTF-8
@@ -35,19 +35,19 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// Gets the struct codec type for values of <paramref name="schema"/>, used by the collection and union helpers,
     /// or <see langword="null"/> when there is none (logical types, enums, fixed, collections and unions stay inline).
     /// </summary>
-    public string? Codec(AvroSchema schema) => schema switch
+    public string? Serializer(AvroSchema schema) => schema switch
     {
         _ when Logical(schema) is not null => null,
-        RecordSchema record => names.TypeName(record) + ".AvroCodec",
+        RecordSchema record => names.TypeName(record) + ".ValueSerializer",
         PrimitiveSchema => schema.Type switch
         {
-            AvroSchemaType.Boolean => Support + "AvroBooleanCodec",
-            AvroSchemaType.Int => Support + "AvroIntCodec",
-            AvroSchemaType.Long => Support + "AvroLongCodec",
-            AvroSchemaType.Float => Support + "AvroFloatCodec",
-            AvroSchemaType.Double => Support + "AvroDoubleCodec",
-            AvroSchemaType.String => Support + "AvroStringCodec",
-            AvroSchemaType.Bytes => Support + "AvroBytesCodec",
+            AvroSchemaType.Boolean => Support + "AvroBooleanSerializer",
+            AvroSchemaType.Int => Support + "AvroIntSerializer",
+            AvroSchemaType.Long => Support + "AvroLongSerializer",
+            AvroSchemaType.Float => Support + "AvroFloatSerializer",
+            AvroSchemaType.Double => Support + "AvroDoubleSerializer",
+            AvroSchemaType.String => Support + "AvroStringSerializer",
+            AvroSchemaType.Bytes => Support + "AvroBytesSerializer",
             _ => null,
         },
         _ => null,
@@ -91,7 +91,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         return suffix is null ? null : (suffix, others[0]);
     }
 
-    private const string Support = "global::AvroSharp.Serialization.";
+    private const string Support = "global::AvroSharp.Serialization.Generated.";
 
     /// <summary>
     /// Gets a field's schema default as a C# expression for the constructor, or <see langword="null"/> when there is

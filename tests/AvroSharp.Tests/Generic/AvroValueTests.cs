@@ -26,12 +26,12 @@ public class AvroValueTests
         await Assert.That(AvroValue.FromSingle(1.5f).AsDouble()).IsEqualTo(1.5);
         await Assert.That(AvroValue.FromDouble(Math.E).AsDouble()).IsEqualTo(Math.E);
         await Assert.That(AvroValue.FromString("s").AsString()).IsEqualTo("s");
-        await Assert.That(AvroValue.FromByteArray([1, 2]).AsBytes()).IsEquivalentTo(new byte[] { 1, 2 }, CollectionOrdering.Matching);
+        await Assert.That(AvroValue.FromBytes([1, 2]).AsBytes()).IsEquivalentTo(new byte[] { 1, 2 }, CollectionOrdering.Matching);
         await Assert.That(AvroValue.FromEnum(enumSchema, 1).AsEnumSymbol()).IsEqualTo("B");
         await Assert.That(AvroValue.FromEnum(enumSchema, "A").AsEnumOrdinal()).IsEqualTo(0);
         await Assert.That(AvroValue.FromEnum(enumSchema, "A").EnumSchema).IsSameReferenceAs(enumSchema);
-        await Assert.That(AvroValue.FromGenericFixed(new GenericFixed(fixedSchema, [1, 2])).Kind).IsEqualTo(AvroValueKind.Fixed);
-        await Assert.That(AvroValue.FromGenericRecord(new GenericRecord(recordSchema)).Kind).IsEqualTo(AvroValueKind.Record);
+        await Assert.That(AvroValue.FromFixed(new GenericFixed(fixedSchema, [1, 2])).Kind).IsEqualTo(AvroValueKind.Fixed);
+        await Assert.That(AvroValue.FromRecord(new GenericRecord(recordSchema)).Kind).IsEqualTo(AvroValueKind.Record);
         await Assert.That(AvroValue.FromArray(new AvroValue[] { 1 }).Kind).IsEqualTo(AvroValueKind.Array);
         await Assert.That(AvroValue.FromMap(new Dictionary<string, AvroValue>()).Kind).IsEqualTo(AvroValueKind.Map);
         await Assert.That(AvroValue.FromString(null).IsNull).IsTrue();
@@ -60,7 +60,7 @@ public class AvroValueTests
     [Test]
     public async Task Equality_IsStructural()
     {
-        await Assert.That(AvroValue.FromByteArray([1, 2])).IsEqualTo(AvroValue.FromByteArray([1, 2]));
+        await Assert.That(AvroValue.FromBytes([1, 2])).IsEqualTo(AvroValue.FromBytes([1, 2]));
         await Assert.That(AvroValue.FromDouble(double.NaN)).IsEqualTo(AvroValue.FromDouble(double.NaN));
         await Assert.That(AvroValue.FromInt32(1) == AvroValue.FromInt64(1)).IsFalse();
         await Assert.That(AvroValue.FromArray(new AvroValue[] { 1, "a" })).IsEqualTo(AvroValue.FromArray(new List<AvroValue> { 1, "a" }));

@@ -6,6 +6,11 @@ using System.Text.Json;
 namespace AvroSharp.Schemas;
 
 /// <summary>A field of a <see cref="RecordSchema"/>.</summary>
+/// <remarks>
+/// A field belongs to one record, which sets its <see cref="Record"/> and <see cref="Position"/>. A record given a
+/// field that already belongs to another one takes a copy, so <c>new RecordSchema(name, other.Fields.Append(field))</c>
+/// works and leaves <c>other</c> as it was.
+/// </remarks>
 public sealed class RecordField
 {
     private static readonly IReadOnlyDictionary<string, JsonElement> s_noProperties = new Dictionary<string, JsonElement>(0, StringComparer.Ordinal);
@@ -100,14 +105,12 @@ public sealed class RecordField
     /// <inheritdoc />
     public override string ToString() => $"{Name}: {Schema.CanonicalForm}";
 
-    internal void Attach(RecordSchema record, int position)
+    // Attaches this field to its record, or a copy when it already belongs to one.
+    internal RecordField Attach(RecordSchema record, int position)
     {
-        if (Record is not null)
-        {
-            throw new AvroSchemaException($"Field '{Name}' already belongs to record '{Record.FullName}'; create a new field instance.");
-        }
-
-        Record = record;
-        Position = position;
+        var field = Record is null ? this : new RecordField(Name, Schema, DefaultValue, Doc, Order, [.. Aliases], Properties, validate: false);
+        field.Record = record;
+        field.Position = position;
+        return field;
     }
 }

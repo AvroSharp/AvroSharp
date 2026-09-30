@@ -94,7 +94,7 @@ public class ContainerIOTests
         var rows = ContainerFileTests.Rows(3);
         var file = ContainerFileTests.WriteFile(rows, new AvroFileWriterOptions
         {
-            Metadata = new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["app.big"] = big, ["app.small"] = [1, 2, 3] },
+            Metadata = new Dictionary<string, ReadOnlyMemory<byte>>(StringComparer.Ordinal) { ["app.big"] = big, ["app.small"] = new byte[] { 1, 2, 3 } },
         });
 
         using var reader = AvroFileReader.OpenGeneric(new CountingStream(file) { MaxRead = 1 });

@@ -1,6 +1,6 @@
 using System;
 
-namespace AvroSharp.IO;
+namespace AvroSharp;
 
 /// <summary>Raised when Avro binary data is malformed or truncated.</summary>
 public class AvroDataException : AvroException

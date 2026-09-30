@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using AvroSharp.Schemas;
-using AvroSharp.Serialization;
+using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Generic;
 
@@ -79,7 +79,7 @@ public sealed partial class GenericDatumReader
     private static AvroRecordPlan.Step StepFor(AvroSchema writer, RecordField readerField, string path)
     {
         var reader = readerField.Schema;
-        if (AvroGeneratedCode.IsSameSchema(writer, reader))
+        if (writer.HasSameCanonicalForm(reader))
         {
             return new AvroRecordPlan.Step(readerField.Position, AvroConversion.None, skip: null, transcoder: null);
         }

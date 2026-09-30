@@ -1,8 +1,13 @@
+using System;
+
 namespace AvroSharp.Schemas;
 
 /// <summary>Options for <see cref="AvroSchemaParser"/>.</summary>
 public sealed class AvroSchemaParseOptions
 {
+    /// <summary>The default <see cref="MaxDepth"/>: 256.</summary>
+    public const int DefaultMaxDepth = 256;
+
     /// <summary>Gets the default options.</summary>
     public static AvroSchemaParseOptions Default { get; } = new();
 
@@ -25,8 +30,16 @@ public sealed class AvroSchemaParseOptions
     /// </summary>
     public bool AllowComments { get; init; }
 
-    /// <summary>Gets the maximum JSON nesting depth. Defaults to 256.</summary>
-    public int MaxDepth { get; init; } = 256;
+    /// <summary>Gets the maximum JSON nesting depth, at least 1. The default is <see cref="DefaultMaxDepth"/>.</summary>
+    public int MaxDepth
+    {
+        get;
+        init
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            field = value;
+        }
+    } = DefaultMaxDepth;
 
     /// <summary>
     /// Gets whether a named type that an earlier <see cref="AvroSchemaParser.Parse(string)"/> call on the same parser
