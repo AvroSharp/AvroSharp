@@ -227,18 +227,15 @@ public sealed class GenericDatumJsonWriter
 
     private sealed class EnumNode(EnumSchema schema) : WriterNode
     {
+        // The symbol is the value's own, found in the schema it is written as: the binary writer's check.
         public override void Write(Utf8JsonWriter writer, in AvroValue value, int depth) =>
-            writer.WriteStringValue(value.EnumSchema is { } enumSchema && enumSchema.Name == schema.Name
-                ? schema.Symbols[(int)value.Bits]
-                : throw Mismatch(schema, value));
+            writer.WriteStringValue(schema.Symbols[GenericDatumWriter.EnumOrdinal(schema, value)]);
     }
 
     private sealed class FixedNode(FixedSchema schema) : WriterNode
     {
         public override void Write(Utf8JsonWriter writer, in AvroValue value, int depth) =>
-            AvroJsonConventions.WriteByteString(writer, value.Reference is GenericFixed fixedValue && fixedValue.Schema.Name == schema.Name
-                ? fixedValue.Bytes.Span
-                : throw Mismatch(schema, value));
+            AvroJsonConventions.WriteByteString(writer, GenericDatumWriter.FixedBytes(schema, value));
     }
 
     private sealed class ArrayNode(WriterNode items) : WriterNode

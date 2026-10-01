@@ -222,4 +222,52 @@ public class GenericDatumTests
             ["nothing"] = AvroValue.Null,
         };
     }
+
+    /// <summary>
+    /// An enum value read with one version of an enum and written as another was written with its own ordinal: a
+    /// reordered symbol became another symbol, silently, and a symbol the target lacks was written anyway. Its symbol is
+    /// now found in the schema it is written as, by the binary and the JSON writer, directly and in a union (Apache.Avro's
+    /// TestUnion_enum).
+    /// </summary>
+    [Test]
+    public async Task AnEnumValue_IsWrittenAsItsSymbol_InTheSchemaItIsWrittenAs()
+    {
+        var reordered = (EnumSchema)AvroSchema.Parse("""{"type":"enum","name":"e","symbols":["s2","s1"]}""");
+        var target = (EnumSchema)AvroSchema.Parse("""{"type":"enum","name":"e","symbols":["s1","s2"]}""");
+        var wider = (EnumSchema)AvroSchema.Parse("""{"type":"enum","name":"e","symbols":["s1","s2","s3"]}""");
+        var union = AvroSchema.Parse("""["null",{"type":"enum","name":"e","symbols":["s1","s2"]}]""");
+
+        var bytes = GenericDatumWriter.Create(target).WriteToArray(AvroValue.FromEnum(reordered, "s1"));
+        var inUnion = GenericDatumWriter.Create(union).WriteToArray(AvroValue.FromEnum(reordered, "s1"));
+        var json = GenericDatumJsonWriter.Create(target).WriteToString(AvroValue.FromEnum(reordered, "s1"));
+        var missing = Assert.Throws<AvroException>(() => GenericDatumWriter.Create(target).WriteToArray(AvroValue.FromEnum(wider, "s3")));
+        var missingJson = Assert.Throws<AvroException>(() => GenericDatumJsonWriter.Create(target).WriteToString(AvroValue.FromEnum(wider, "s3")));
+
+        await Assert.That(GenericDatumReader.Create(target).Read(bytes).AsEnumSymbol()).IsEqualTo("s1");
+        await Assert.That(GenericDatumReader.Create(union).Read(inUnion).AsEnumSymbol()).IsEqualTo("s1");
+        await Assert.That(json).IsEqualTo("\"s1\"");
+        await Assert.That(missing.Message).IsEqualTo("The symbol 's3' is not in the enum e it is written as.");
+        await Assert.That(missingJson.Message).IsEqualTo("The symbol 's3' is not in the enum e it is written as.");
+    }
+
+    /// <summary>
+    /// A fixed value of another size than the schema it is written as wrote all its bytes, shifting every field after it.
+    /// It is now an error, for the binary and the JSON writer, directly and in a union (Apache.Avro's TestUnion_fixed).
+    /// </summary>
+    [Test]
+    public async Task AFixedValueOfAnotherSize_IsAnError()
+    {
+        var three = (FixedSchema)AvroSchema.Parse("""{"type":"fixed","name":"f","size":3}""");
+        var two = AvroSchema.Parse("""{"type":"fixed","name":"f","size":2}""");
+        var union = AvroSchema.Parse("""["null",{"type":"fixed","name":"f","size":2}]""");
+        var value = AvroValue.FromFixed(new GenericFixed(three, [1, 2, 3]));
+
+        var direct = Assert.Throws<AvroException>(() => GenericDatumWriter.Create(two).WriteToArray(value));
+        var inUnion = Assert.Throws<AvroException>(() => GenericDatumWriter.Create(union).WriteToArray(value));
+        var json = Assert.Throws<AvroException>(() => GenericDatumJsonWriter.Create(two).WriteToString(value));
+
+        await Assert.That(direct.Message).IsEqualTo("A fixed value of 3 bytes cannot be written as f, which has 2.");
+        await Assert.That(inUnion.Message).Contains("A fixed value of 3 bytes cannot be written as f, which has 2.");
+        await Assert.That(json.Message).IsEqualTo("A fixed value of 3 bytes cannot be written as f, which has 2.");
+    }
 }

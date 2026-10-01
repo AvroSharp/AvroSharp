@@ -235,17 +235,50 @@ public sealed class GenericDatumWriter
     private sealed class EnumNode(EnumSchema schema) : WriterNode
     {
         public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
-            writer.WriteEnum(value.EnumSchema is { } enumSchema && enumSchema.Name == schema.Name
-                ? (int)value.Bits
-                : throw Mismatch(schema, value));
+            writer.WriteEnum(EnumOrdinal(schema, value));
     }
 
     private sealed class FixedNode(FixedSchema schema) : WriterNode
     {
         public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
-            writer.WriteFixed(value.Reference is GenericFixed fixedValue && fixedValue.Schema.Name == schema.Name
-                ? fixedValue.Bytes.Span
-                : throw Mismatch(schema, value));
+            writer.WriteFixed(FixedBytes(schema, value));
+    }
+
+    /// <summary>
+    /// The ordinal of an enum value's symbol in the schema it is written as. A value's ordinal is its position in its own
+    /// schema's symbols, which another version of the enum may order differently, or lack: written as is, it was another
+    /// symbol, or none. The value's schema itself, or the same symbol at the same position, needs no lookup.
+    /// </summary>
+    internal static int EnumOrdinal(EnumSchema schema, in AvroValue value)
+    {
+        if (value.EnumSchema is not { } own || own.Name != schema.Name)
+        {
+            throw Mismatch(schema, value);
+        }
+
+        var ordinal = (int)value.Bits;
+        if (ReferenceEquals(own, schema)
+            || (ordinal < schema.Symbols.Count && string.Equals(schema.Symbols[ordinal], own.Symbols[ordinal], StringComparison.Ordinal)))
+        {
+            return ordinal;
+        }
+
+        return schema.TryGetOrdinal(own.Symbols[ordinal], out var mapped)
+            ? mapped
+            : throw new AvroException($"The symbol '{own.Symbols[ordinal]}' is not in the enum {schema.FullName} it is written as.");
+    }
+
+    /// <summary>A fixed value's bytes, which must be exactly the size of the schema it is written as.</summary>
+    internal static ReadOnlySpan<byte> FixedBytes(FixedSchema schema, in AvroValue value)
+    {
+        if (value.Reference is not GenericFixed fixedValue || fixedValue.Schema.Name != schema.Name)
+        {
+            throw Mismatch(schema, value);
+        }
+
+        return fixedValue.Bytes.Length == schema.Size
+            ? fixedValue.Bytes.Span
+            : throw new AvroException($"A fixed value of {fixedValue.Bytes.Length} bytes cannot be written as {schema.FullName}, which has {schema.Size}.");
     }
 
     private sealed class ArrayNode(WriterNode items) : WriterNode

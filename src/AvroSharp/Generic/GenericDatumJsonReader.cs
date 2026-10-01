@@ -125,16 +125,7 @@ public sealed class GenericDatumJsonReader
 
         using (document)
         {
-            try
-            {
-                return Convert(document.RootElement);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // The caller's reader was not validated up front: JsonElement reports invalid UTF-8 in a string only
-                // when the string is transcoded. Every other JsonElement access checks the value kind first.
-                throw new AvroDataException("The JSON contains a string that is not valid UTF-8.", ex);
-            }
+            return Convert(document.RootElement);
         }
     }
 
@@ -159,6 +150,13 @@ public sealed class GenericDatumJsonReader
         catch (AvroDataException ex) when (ErrorPath.Get(ex) is { } path)
         {
             throw new AvroDataException($"At {ErrorPath.DescribeJson(path)}: {ex.Message}", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // JsonElement reports a string that is not Unicode text only when it transcodes it: invalid UTF-8 from a
+            // caller's reader, which was not validated up front, or an escaped unpaired surrogate (\ud800). Every other
+            // JsonElement access checks the value kind first.
+            throw new AvroDataException("The JSON contains a string that is not Unicode text: invalid UTF-8, or an escaped unpaired surrogate.", ex);
         }
     }
 

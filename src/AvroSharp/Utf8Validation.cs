@@ -8,6 +8,74 @@ namespace AvroSharp;
 /// </summary>
 internal static class Utf8Validation
 {
+    /// <summary>
+    /// Returns whether JSON text escapes an unpaired surrogate (<c>\uD800</c> to <c>\uDFFF</c> without its pair), which is
+    /// valid JSON syntax but not Unicode text: <c>GetString</c> throws <see cref="InvalidOperationException"/> for it, and
+    /// a schema holding one could not be written back. Only <c>\u</c> escapes can hold one, since valid UTF-8 has no
+    /// surrogates; malformed escapes are left to the JSON parser.
+    /// </summary>
+    public static bool HasUnpairedSurrogateEscape(ReadOnlySpan<byte> json)
+    {
+        var i = 0;
+        while (true)
+        {
+            var next = json.Slice(i).IndexOf((byte)'\\');
+            if (next < 0)
+            {
+                return false;
+            }
+
+            i += next;
+            if (i + 6 > json.Length || json[i + 1] != (byte)'u' || !TryHex(json.Slice(i + 2, 4), out var unit))
+            {
+                i += 2;   // another escape, such as \\ or \", or a malformed one
+                continue;
+            }
+
+            if (unit is >= 0xDC00 and <= 0xDFFF)
+            {
+                return true;
+            }
+
+            if (unit is >= 0xD800 and <= 0xDBFF)
+            {
+                if (i + 12 > json.Length || json[i + 6] != (byte)'\\' || json[i + 7] != (byte)'u'
+                    || !TryHex(json.Slice(i + 8, 4), out var low) || low is < 0xDC00 or > 0xDFFF)
+                {
+                    return true;
+                }
+
+                i += 12;
+                continue;
+            }
+
+            i += 6;
+        }
+    }
+
+    private static bool TryHex(ReadOnlySpan<byte> digits, out int value)
+    {
+        value = 0;
+        foreach (var digit in digits)
+        {
+            var nibble = digit switch
+            {
+                >= (byte)'0' and <= (byte)'9' => digit - '0',
+                >= (byte)'a' and <= (byte)'f' => digit - 'a' + 10,
+                >= (byte)'A' and <= (byte)'F' => digit - 'A' + 10,
+                _ => -1,
+            };
+            if (nibble < 0)
+            {
+                return false;
+            }
+
+            value = (value << 4) | nibble;
+        }
+
+        return true;
+    }
+
     /// <summary>Returns whether <paramref name="utf8"/> is well-formed UTF-8 (no overlong forms, surrogates or values above U+10FFFF).</summary>
     public static bool IsValid(ReadOnlySpan<byte> utf8)
     {
