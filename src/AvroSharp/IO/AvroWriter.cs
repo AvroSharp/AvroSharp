@@ -439,6 +439,14 @@ public ref struct AvroWriter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint64(ulong value)
     {
+        var position = _buffered;
+        if (value < 0x80 && (uint)position < (uint)_buffer.Length)
+        {
+            At(position) = (byte)value;
+            _buffered = position + 1;
+            return;
+        }
+
         // The fast paths need room for a whole 8-byte store. An IBufferWriter destination simply grows; near the end
         // of a fixed span the exact-size path writes only the bytes the value needs.
         if (_buffer.Length - _buffered < MaxVarint64Length)
