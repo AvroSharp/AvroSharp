@@ -74,6 +74,12 @@ Only the C# names change. The schemas keep their Avro names, so the data and the
 
 `FromAvroBytes(bytes, writerSchema)` reads data written with another version of the schema, by the same rules as the generic reader: see [Schema evolution](schema-evolution.md). Container files carry their writer schema, and the [GeneratedTypes sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratedTypes) reads a file an older version wrote.
 
+## Starting from C# types instead
+
+When the C# types come first and there's no schema file, mark a `partial` class `[AvroSerializable]`. The same package then generates its schema from its members, and gives it the members of the types above.
+- The [SerializableTypes sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/SerializableTypes) shows one with a nested record, an enum and a union.
+- [Code generation](../code-generation.md#from-c-types-avroserializable) has the type mapping and the attributes.
+
 ## Next
 
 - The [GeneratorPackage sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratorPackage) is this page's project, with every MSBuild setting and how to see the generated files.

@@ -226,6 +226,7 @@ var sameUser = migration.User.FromAvroBytes(specificOutput.ToArray());
 | `SpecificDatumReader<T>(writer, reader)` + `BinaryDecoder` + `Read` | `T.FromAvroBytes(bytes)`, or `T.FromAvroBytes(bytes, writerSchema)` to resolve another version |
 | `DataFileWriter<T>` of a specific type | [`AvroFileWriter.Create<T>(stream)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.Create.html) (.NET 8 and later), or [`AvroFileWriter.Create(stream, T.AvroSharpSchema, T.Write)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.Create.html) |
 | avrogen, run by hand | the build, or the [`avrosharp` tool](cli.md#coming-from-avrogen) with `--apache-compatible` for checked-in code |
+| `ReflectWriter<T>` and `ReflectReader<T>` on your own classes, against a schema you wrote | `[AvroSerializable]` on the class (made `partial`): the generator writes the schema and the serializers, and the type gets the API above ([details](code-generation.md#from-c-types-avroserializable)). Apache's `[AvroField("name")]` becomes `[AvroName("name")]`. |
 
 For generated code there's no reflection and no boxing, and the generated readers resolve older schema versions directly. [Code generation](code-generation.md) describes the generator and its options.
 
@@ -273,7 +274,7 @@ The two libraries don't need to reference each other: both read and write the sa
 
 ## What has no direct equivalent
 
-- **Apache's reflect API**, which derives schemas from existing classes. AvroSharp generates classes from schemas. An attribute-driven generator is planned (#31).
+- **Reflection over classes you can't change.** `[AvroSerializable]` needs a `partial` class it can add to. For a class from another assembly, write a schema file and generate a type from it, or copy into an `[AvroSerializable]` type.
 - **Protocols and RPC** (`.avpr`, `Avro.ipc`) aren't supported (#33).
 - **Stream-based encoders:** `BinaryEncoder`/`BinaryDecoder` over a `Stream` become [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html)/[`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) over a span, an `IBufferWriter<byte>` or a `ReadOnlySequence<byte>`. [`AvroStreamWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.AvroStreamWriter.html)/[`AvroStreamReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.AvroStreamReader.html) handle a stream of objects without a container. A loop that reads a stream value by value needs rewriting, usually around a pipe or a container file.
 - **Custom codecs:** derive from [`AvroCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroCodec.html). That's the same idea as Apache's `Codec`, with a different signature (`ReadOnlyMemory<byte>` in, `IBufferWriter<byte>` out).

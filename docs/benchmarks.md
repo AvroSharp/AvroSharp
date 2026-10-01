@@ -38,6 +38,7 @@ Changes since that run, measured on the same machine and recorded in the [change
 - **Schema parsing** of a small schema is 2.07× faster than Apache.Avro, up from 1.08× (#103).
 - **Varint encode** of 3-byte values is 1.52× faster than Apache.Avro, up from 1.09× (#102).
 - **Wide records** (140 fields): a generated read takes 525 ns, against 729 ns before (#113).
+- **Types with `[AvroSerializable]`** (#31) run the same serializers as generated code. On an EPYC 7543 a record reads 4.7–4.8× and writes 7.2–7.4× faster than Apache.Avro, as fast as the type generated from `.avsc` ([the run](reviews/2026-10-01-attribute-generator.md)).
 
 The performance review ([#135](https://github.com/AvroSharp/AvroSharp/issues/135)), measured on an EPYC 7543, made decimal writes 2.9× faster (62 µs per 1,024 `decimal(18,4)` values on bytes, against 94 µs for Apache.Avro), made `uuid` strings faster than Apache.Avro both ways, and made schema parsing 9–13% faster and the resolving generic reader 9–10% faster. The [changelog](../CHANGELOG.md) has the details.
 
@@ -47,7 +48,7 @@ The suite is in [`bench/AvroSharp.Benchmarks`](https://github.com/AvroSharp/Avro
 
 | Class | What it measures |
 |---|---|
-| `GenericRecordBenchmarks` | Writing and reading one order record: AvroSharp's generic and generated code against Apache.Avro's generic datum writer and reader. |
+| `GenericRecordBenchmarks` | Writing and reading one order record: AvroSharp's generic model, the type generated from `.avsc`, and the same type written in C# with `[AvroSerializable]`, against Apache.Avro's generic datum writer and reader. |
 | `WideRecordBenchmarks` | A 140-field record of mostly optional primitives, the shape of many production event schemas. |
 | `ShowcaseBenchmarks` | Telemetry and counter records, and arrays of 1,000 ints, longs, doubles and booleans. |
 | `ResolutionBenchmarks` | Reading a record written with version 1 of a schema as version 2: a dropped field, promotions, added defaults, reordered enum symbols; and reading with record, array, map and bytes defaults. |
@@ -104,5 +105,6 @@ Each run that informed a decision is written up, with the machine, the code meas
 
 - [Full benchmark run, 2026-09-28](reviews/2026-09-28-benchmarks.md): every benchmark on an i7-12800H with .NET 10.
 - [Generated code, 2026-09-26](reviews/2026-09-26-generated-code.md): generated serializers against the generic model and Apache.Avro.
+- [`[AvroSerializable]` types, 2026-10-01](reviews/2026-10-01-attribute-generator.md): the attribute-driven generator's serializers against generated code and Apache.Avro.
 - [Varints and parsing on CPUs with fast PDEP](reviews/2026-09-28-varints-parse-fast-pdep.md) and [without it](reviews/2026-09-28-varints-parse-slow-pdep.md).
 - [Performance review, 2026-09-25](reviews/2026-09-25-performance.md): the hot paths against Apache.Avro.

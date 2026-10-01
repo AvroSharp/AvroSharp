@@ -58,6 +58,8 @@ Generated types also get what hand-written code usually adds around Avro:
 - `DateOnly`, `TimeOnly`, `DateTimeOffset`, `Guid` and `decimal` for logical types, with decimals written exactly or rejected, never rounded;
 - [`IAvroSerializable<T>`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSerializable-1.html) on .NET 8 and later, so files, streams and messages take the type with no delegates.
 
+The generator also works the other way round. A `partial` class you wrote, marked [`[AvroSerializable]`](code-generation.md#from-c-types-avroserializable), gets its schema and the same serializers from its members. Apache.Avro's reflect API does that job at run time: `ReflectWriter<T>` and `ReflectReader<T>` read and write existing classes, against a schema you write, by reflection. With `[AvroSerializable]` the schema comes from the class, and the code is generated at compile time. On the order record of the benchmarks, that's 4.7× faster reads and 7.2× faster writes than Apache.Avro ([the run](reviews/2026-10-01-attribute-generator.md)).
+
 ## Following the specification
 
 AvroSharp follows the Avro 1.12 specification, and matches Apache Avro Java where the specification leaves a choice. Where Apache.Avro 1.12.2 (C#) differs from the specification, AvroSharp's tests pin Apache's behavior, so a change in a later Apache release is noticed:
@@ -99,7 +101,7 @@ The limits are options ([`GenericDatumReaderOptions`](https://avrosharp.github.i
 ## When Apache.Avro is the better fit
 
 - **You need a final 1.x release today.** AvroSharp is at its 1.0 release candidate; the API is frozen, and 1.0.0 follows when .NET 11 is released.
-- **You serialize classes that have no schema file.** Apache.Avro's reflect API derives schemas from existing classes; AvroSharp generates classes from schemas, not the other way around.
+- **You serialize classes you can't change.** Apache.Avro's reflect API works with any class, at run time. AvroSharp's `[AvroSerializable]` needs a `partial` class it can add to, and doesn't support `init`-only members or primary constructors yet.
 - **You want the Apache Software Foundation's implementation**, maintained alongside the other Avro languages.
 
 ## Moving from Apache.Avro

@@ -262,6 +262,8 @@ Measured against Apache.Avro 1.12.2 with BenchmarkDotNet (i7-12800H, .NET 10, 20
 | Container reads | 2.90–7.36× (null, deflate, snappy, zstandard), up to 22.39× (xz) |
 | Container writes | 3.46–10.35× (all codecs but bzip2) |
 
+Types written in C# with `[AvroSerializable]` run the same serializers as generated code. On an EPYC 7543 (2026-10-01), their records read 4.7× and write 7.2× faster than Apache.Avro's.
+
 [The benchmarks page](docs/benchmarks.md) has every area, what is measured, and how to run the suite yourself. [AvroSharp and Apache.Avro](docs/apache-avro.md) covers the other differences, and how to migrate.
 
 ## Building
