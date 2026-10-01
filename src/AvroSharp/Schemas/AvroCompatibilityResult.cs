@@ -135,8 +135,14 @@ public sealed class AvroCompatibilityResult
         Verdict = verdict;
         Incompatibilities = incompatibilities;
         Warnings = warnings;
-        IsCompatible = (verdict == AvroCompatibilityVerdict.Compatible || (verdict == AvroCompatibilityVerdict.Partial && options.AllowPartial))
-            && !(options.WarningsAsErrors && warnings.Count > 0);
+        var readable = verdict switch
+        {
+            AvroCompatibilityVerdict.Compatible => true,
+            AvroCompatibilityVerdict.Partial => options.AllowPartial,
+            _ => false,
+        };
+        var warningsFail = options.WarningsAsErrors && warnings.Count > 0;
+        IsCompatible = readable && !warningsFail;
     }
 
     /// <summary>Gets the schema the data is written with.</summary>
