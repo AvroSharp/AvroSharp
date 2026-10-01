@@ -68,3 +68,77 @@ override AvroSharp.Schemas.AvroCompatibilityResult.ToString() -> string!
 static AvroSharp.Schemas.AvroCompatibilityOptions.Default.get -> AvroSharp.Schemas.AvroCompatibilityOptions!
 static AvroSharp.Schemas.AvroSchemaCompatibility.Check(AvroSharp.Schemas.AvroSchema! schema, System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>! previousVersions, AvroSharp.Schemas.AvroCompatibilityLevel level, AvroSharp.Schemas.AvroCompatibilityOptions? options = null) -> AvroSharp.Schemas.AvroCompatibilityReport!
 static AvroSharp.Schemas.AvroSchemaCompatibility.Check(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema, AvroSharp.Schemas.AvroCompatibilityOptions? options = null) -> AvroSharp.Schemas.AvroCompatibilityResult!
+abstract AvroSharp.Serialization.AvroTypeInfo.ReadObject(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema) -> object?
+abstract AvroSharp.Serialization.AvroTypeInfo.ReadObject(ref AvroSharp.IO.AvroReader reader) -> object?
+abstract AvroSharp.Serialization.AvroTypeInfo.Schema.get -> AvroSharp.Schemas.AvroSchema!
+abstract AvroSharp.Serialization.AvroTypeInfo.Type.get -> System.Type!
+abstract AvroSharp.Serialization.AvroTypeInfo.WriteObject(ref AvroSharp.IO.AvroWriter writer, object? value) -> void
+AvroSharp.Serialization.AvroAliasAttribute
+AvroSharp.Serialization.AvroAliasAttribute.Alias.get -> string!
+AvroSharp.Serialization.AvroAliasAttribute.AvroAliasAttribute(string! alias) -> void
+AvroSharp.Serialization.AvroDecimalAttribute
+AvroSharp.Serialization.AvroDecimalAttribute.AvroDecimalAttribute(int precision, int scale) -> void
+AvroSharp.Serialization.AvroDecimalAttribute.Precision.get -> int
+AvroSharp.Serialization.AvroDecimalAttribute.Scale.get -> int
+AvroSharp.Serialization.AvroDefaultAttribute
+AvroSharp.Serialization.AvroDefaultAttribute.AvroDefaultAttribute(string! json) -> void
+AvroSharp.Serialization.AvroDefaultAttribute.Json.get -> string!
+AvroSharp.Serialization.AvroDocAttribute
+AvroSharp.Serialization.AvroDocAttribute.AvroDocAttribute(string! doc) -> void
+AvroSharp.Serialization.AvroDocAttribute.Doc.get -> string!
+AvroSharp.Serialization.AvroEnumDefaultAttribute
+AvroSharp.Serialization.AvroEnumDefaultAttribute.AvroEnumDefaultAttribute() -> void
+AvroSharp.Serialization.AvroFieldAttribute
+AvroSharp.Serialization.AvroFieldAttribute.AvroFieldAttribute() -> void
+AvroSharp.Serialization.AvroFieldAttribute.Order.get -> int
+AvroSharp.Serialization.AvroFieldAttribute.Order.set -> void
+AvroSharp.Serialization.AvroFixedAttribute
+AvroSharp.Serialization.AvroFixedAttribute.AvroFixedAttribute(int size) -> void
+AvroSharp.Serialization.AvroFixedAttribute.Name.get -> string?
+AvroSharp.Serialization.AvroFixedAttribute.Name.set -> void
+AvroSharp.Serialization.AvroFixedAttribute.Namespace.get -> string?
+AvroSharp.Serialization.AvroFixedAttribute.Namespace.set -> void
+AvroSharp.Serialization.AvroFixedAttribute.Size.get -> int
+AvroSharp.Serialization.AvroIgnoreAttribute
+AvroSharp.Serialization.AvroIgnoreAttribute.AvroIgnoreAttribute() -> void
+AvroSharp.Serialization.AvroLogicalTypeAttribute
+AvroSharp.Serialization.AvroLogicalTypeAttribute.AvroLogicalTypeAttribute(string! name) -> void
+AvroSharp.Serialization.AvroLogicalTypeAttribute.Name.get -> string!
+AvroSharp.Serialization.AvroNameAttribute
+AvroSharp.Serialization.AvroNameAttribute.AvroNameAttribute(string! name) -> void
+AvroSharp.Serialization.AvroNameAttribute.Name.get -> string!
+AvroSharp.Serialization.AvroNaming
+AvroSharp.Serialization.AvroNaming.AsWritten = 0 -> AvroSharp.Serialization.AvroNaming
+AvroSharp.Serialization.AvroNaming.CamelCase = 1 -> AvroSharp.Serialization.AvroNaming
+AvroSharp.Serialization.AvroNamingPolicyAttribute
+AvroSharp.Serialization.AvroNamingPolicyAttribute.AvroNamingPolicyAttribute(AvroSharp.Serialization.AvroNaming fieldNames) -> void
+AvroSharp.Serialization.AvroNamingPolicyAttribute.FieldNames.get -> AvroSharp.Serialization.AvroNaming
+AvroSharp.Serialization.AvroSerializableAttribute
+AvroSharp.Serialization.AvroSerializableAttribute.AvroSerializableAttribute() -> void
+AvroSharp.Serialization.AvroSerializableAttribute.Doc.get -> string?
+AvroSharp.Serialization.AvroSerializableAttribute.Doc.set -> void
+AvroSharp.Serialization.AvroSerializableAttribute.FieldNames.get -> AvroSharp.Serialization.AvroNaming
+AvroSharp.Serialization.AvroSerializableAttribute.FieldNames.set -> void
+AvroSharp.Serialization.AvroSerializableAttribute.Name.get -> string?
+AvroSharp.Serialization.AvroSerializableAttribute.Name.set -> void
+AvroSharp.Serialization.AvroSerializableAttribute.Namespace.get -> string?
+AvroSharp.Serialization.AvroSerializableAttribute.Namespace.set -> void
+AvroSharp.Serialization.AvroTypeInfo
+AvroSharp.Serialization.AvroTypeInfo<T>
+AvroSharp.Serialization.AvroTypeInfo<T>.AvroTypeInfo(System.Func<AvroSharp.Schemas.AvroSchema!>! schema, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Serialization.AvroReadFunc<T>! read, System.Func<AvroSharp.Schemas.AvroSchema!, AvroSharp.Serialization.AvroReadFunc<T>!>? readFor = null) -> void
+AvroSharp.Serialization.AvroTypeInfo<T>.Read.get -> AvroSharp.Serialization.AvroReadFunc<T>!
+AvroSharp.Serialization.AvroTypeInfo<T>.ReadFor(AvroSharp.Schemas.AvroSchema! writerSchema) -> AvroSharp.Serialization.AvroReadFunc<T>!
+AvroSharp.Serialization.AvroTypeInfo<T>.Write.get -> AvroSharp.Serialization.AvroWriteAction<T>!
+AvroSharp.Serialization.AvroTypes
+AvroSharp.Serialization.AvroUnionAttribute
+AvroSharp.Serialization.AvroUnionAttribute.AvroUnionAttribute(params System.Type![]! types) -> void
+AvroSharp.Serialization.AvroUnionAttribute.Types.get -> System.Type![]!
+override AvroSharp.Serialization.AvroTypeInfo<T>.ReadObject(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema) -> object?
+override AvroSharp.Serialization.AvroTypeInfo<T>.ReadObject(ref AvroSharp.IO.AvroReader reader) -> object?
+override AvroSharp.Serialization.AvroTypeInfo<T>.Schema.get -> AvroSharp.Schemas.AvroSchema!
+override AvroSharp.Serialization.AvroTypeInfo<T>.Type.get -> System.Type!
+override AvroSharp.Serialization.AvroTypeInfo<T>.WriteObject(ref AvroSharp.IO.AvroWriter writer, object? value) -> void
+static AvroSharp.Serialization.AvroTypes.Get<T>() -> AvroSharp.Serialization.AvroTypeInfo<T>!
+static AvroSharp.Serialization.AvroTypes.Register<T>(AvroSharp.Serialization.AvroTypeInfo<T>! info) -> void
+static AvroSharp.Serialization.AvroTypes.TryGet(System.Type! type, out AvroSharp.Serialization.AvroTypeInfo? info) -> bool
+static AvroSharp.Serialization.AvroTypes.TryGet<T>(out AvroSharp.Serialization.AvroTypeInfo<T>? info) -> bool
