@@ -71,6 +71,9 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 ### Changed
 
+- **A coverage badge** in the README.
+  - CI's merged line coverage is written by `build/coverage-summary.sh` in shields.io's endpoint format.
+  - The docs workflow publishes it with the site. It now deploys after CI passes on main, not on every push.
 - **JSON numbers as Java reads them:** the JSON reader accepts a whole number written as `1.0` or `1e2` for an `int` or `long`, and `"INF"` and `"-INF"` for a `float` or `double`, as Java's `JsonDecoder` does. The writer is unchanged.
 - **Faster logical values, parsing, resolution and strings (#135).** Measured on the EPYC 7543 with main and the branch in parallel lanes on neighbouring CCDs, on both sockets:
   - **Decimal writes:** 2.9× faster on bytes (178–188 to 62 µs per 1,024 `decimal(18,4)` values; Apache.Avro takes 94 µs), and 2.6× on fixed. `Pow10`'s multiplication loop became a table, `decimal.GetBits` writes into the stack on .NET 5+, and the rounding check runs only for a value with more fractional digits than the scale (.NET 7+).

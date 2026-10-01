@@ -27,8 +27,19 @@ done
 filters=$(printf '+%s;' "${assemblies[@]}")
 dotnet tool restore > /dev/null
 dotnet tool run reportgenerator "-reports:artifacts/bin/**/TestResults/**/*.cobertura.xml;TestResults/**/*.cobertura.xml" \
-  -targetdir:artifacts/coverage -reporttypes:MarkdownSummaryGithub "-assemblyfilters:${filters%;}"
+  -targetdir:artifacts/coverage "-reporttypes:MarkdownSummaryGithub;JsonSummary" "-assemblyfilters:${filters%;}"
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   cat artifacts/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
 fi
+
+# The README's coverage badge (shields.io's endpoint format), which the docs workflow publishes with the site.
+line=$(sed -n 's/.*"linecoverage": *\([0-9.]*\).*/\1/p' artifacts/coverage/Summary.json | head -1)
+if [ -z "$line" ]; then
+  echo "::error::No line coverage in artifacts/coverage/Summary.json"
+  exit 1
+fi
+color=$(awk -v c="$line" 'BEGIN { print c >= 90 ? "brightgreen" : c >= 80 ? "green" : c >= 70 ? "yellowgreen" : "orange" }')
+printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$(awk -v c="$line" 'BEGIN { printf "%.1f", c }')" "$color" \
+  > artifacts/coverage/coverage.json
+cat artifacts/coverage/coverage.json

@@ -1,9 +1,12 @@
 name: Docs
 
 # Builds the documentation site (DocFX: the guide and docs from Markdown, the API reference from the XML
-# documentation) and publishes it to GitHub Pages from main. Pull requests build it, so broken links fail them.
+# documentation) and publishes it to GitHub Pages from main, after CI passes there: the site also carries that run's
+# coverage, which the README's badge reads (coverage.json). Pull requests build it, so broken links fail them.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   pull_request:
   workflow_dispatch:
@@ -12,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -21,9 +24,16 @@ env:
 
 jobs:
   build:
+    # After CI on main, only when it passed: the site is the code CI tested, with its coverage.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read # the coverage artifact of the CI run
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -46,13 +56,26 @@ jobs:
         shell: bash
         run: build/check-api-links.sh
 
+      # The coverage of the CI run that triggered this one, or for a manual run, of the latest passing CI run on main.
+      - name: Add the coverage badge
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          run=${RUN_ID:-$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')}
+          gh run download "$run" --repo "$GITHUB_REPOSITORY" --name coverage-badge --dir artifacts/coverage-badge
+          cp artifacts/coverage-badge/coverage.json artifacts/docs/coverage.json
+          cat artifacts/docs/coverage.json
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: artifacts/docs
 
   deploy:
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && (github.event.workflow_run.head_branch || github.ref_name) == 'main'
     runs-on: ubuntu-latest
     permissions:
       pages: write
