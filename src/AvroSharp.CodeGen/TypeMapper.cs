@@ -96,7 +96,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// <summary>
     /// Gets a field's schema default as a C# expression for the constructor, or <see langword="null"/> when there is
     /// none or it cannot be written as one (logical types, records, fixed values, and unions whose default is null).
-    /// A union's default is for its first branch, as the specification says.
+    /// A union's default is for the first branch it is a value of, as Avro 1.12 says.
     /// </summary>
     public string? DefaultValue(RecordField field)
     {
@@ -105,8 +105,32 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
             return null;
         }
 
-        var schema = field.Schema is UnionSchema union ? union.Branches[0] : field.Schema;
-        return Literal(schema, json);
+        return Literal(DefaultBranch(field.Schema, json), json);
+    }
+
+    // The schema a default is a value of: for a union, its first branch that accepts it, as the readers pick it
+    // (GenericDatumJsonReader), not always the first branch.
+    private static AvroSchema DefaultBranch(AvroSchema schema, System.Text.Json.JsonElement json)
+    {
+        if (schema is not UnionSchema union)
+        {
+            return schema;
+        }
+
+        foreach (var branch in union.Branches)
+        {
+            try
+            {
+                GenericDatumJsonReader.ReadDefault(branch, json);
+                return branch;
+            }
+            catch (System.Exception ex) when (ex is AvroException or System.InvalidOperationException or System.FormatException)
+            {
+                // Not a value of this branch.
+            }
+        }
+
+        return union.Branches[0];
     }
 
     /// <summary>
@@ -122,8 +146,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
             return null;
         }
 
-        var first = field.Schema is UnionSchema union ? union.Branches[0] : field.Schema;
-        if (first.Type == AvroSchemaType.Null)
+        if (DefaultBranch(field.Schema, json).Type == AvroSchemaType.Null)
         {
             return null;
         }
@@ -164,7 +187,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         switch (schema)
         {
             case UnionSchema union:
-                CheckDecimals(field, union.Branches[0], json);
+                CheckDecimals(field, DefaultBranch(union, json), json);
                 break;
             case ArraySchema array when json.ValueKind == System.Text.Json.JsonValueKind.Array:
                 foreach (var item in json.EnumerateArray())
@@ -231,8 +254,8 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
                 return schema.Type switch
                 {
                     AvroSchemaType.Boolean when json.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False => json.GetBoolean() ? "true" : "false",
-                    AvroSchemaType.Int when json.TryGetInt32(out var i) => i == int.MinValue ? "int.MinValue" : i.ToString(invariant),
-                    AvroSchemaType.Long when json.TryGetInt64(out var l) => l == long.MinValue ? "long.MinValue" : l.ToString(invariant) + "L",
+                    AvroSchemaType.Int when json.ValueKind == System.Text.Json.JsonValueKind.Number && json.TryGetInt32(out var i) => i == int.MinValue ? "int.MinValue" : i.ToString(invariant),
+                    AvroSchemaType.Long when json.ValueKind == System.Text.Json.JsonValueKind.Number && json.TryGetInt64(out var l) => l == long.MinValue ? "long.MinValue" : l.ToString(invariant) + "L",
                     AvroSchemaType.Float => Floating(json, "float", "f"),
                     AvroSchemaType.Double => Floating(json, "double", "d"),
                     AvroSchemaType.String when json.ValueKind == System.Text.Json.JsonValueKind.String => CSharpNames.Literal(json.GetString()!),

@@ -602,10 +602,21 @@ internal sealed class SchemaJsonReader
             }
         }
 
+        var simpleName = nameElement.GetString()!;
+
+        // A dotted name ignores the namespace attribute; otherwise a bad namespace is reported where it is written.
+        if (_options.ValidateNames && namespaceElement.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(@namespace)
+            && simpleName.AsSpan().IndexOf('.') < 0 && !AvroNames.IsValidNamespace(@namespace.AsSpan()))
+        {
+            Pop();
+            Push("namespace");
+            throw Error($"'{@namespace}' is not a valid Avro namespace.");
+        }
+
         SchemaName name;
         try
         {
-            name = new SchemaName(nameElement.GetString()!, @namespace, _options.ValidateNames);
+            name = new SchemaName(simpleName, @namespace, _options.ValidateNames);
         }
         catch (AvroSchemaException ex)
         {

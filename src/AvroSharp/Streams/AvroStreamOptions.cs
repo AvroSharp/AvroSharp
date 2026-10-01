@@ -3,6 +3,8 @@ using System;
 namespace AvroSharp.Streams;
 
 /// <summary>Options for <see cref="AvroStreamReader{T}"/> and <see cref="AvroStreamWriter{T}"/>.</summary>
+/// <seealso cref="AvroStreamReader"/>
+/// <seealso cref="AvroStreamWriter"/>
 public sealed class AvroStreamOptions
 {
     /// <summary>The default <see cref="BufferSize"/>: 64 KiB.</summary>

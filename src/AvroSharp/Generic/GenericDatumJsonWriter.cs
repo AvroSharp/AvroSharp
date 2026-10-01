@@ -22,6 +22,9 @@ namespace AvroSharp.Generic;
 /// strings <c>"NaN"</c>, <c>"Infinity"</c> and <c>"-Infinity"</c>, as Apache.Avro C# writes them.
 /// </para>
 /// </remarks>
+/// <seealso cref="GenericDatumJsonReader"/>
+/// <seealso cref="GenericDatumWriter"/>
+/// <seealso cref="GenericDatumWriterOptions"/>
 public sealed class GenericDatumJsonWriter
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumJsonWriter> s_cache = new();
@@ -224,18 +227,17 @@ public sealed class GenericDatumJsonWriter
 
     private sealed class EnumNode(EnumSchema schema) : WriterNode
     {
+        private readonly EnumSymbolMap _symbols = new(schema);
+
+        // The value's own symbol, found in the schema it is written as, as the binary writer does.
         public override void Write(Utf8JsonWriter writer, in AvroValue value, int depth) =>
-            writer.WriteStringValue(value.EnumSchema is { } enumSchema && enumSchema.Name == schema.Name
-                ? schema.Symbols[(int)value.Bits]
-                : throw Mismatch(schema, value));
+            writer.WriteStringValue(schema.Symbols[_symbols.Ordinal(value)]);
     }
 
     private sealed class FixedNode(FixedSchema schema) : WriterNode
     {
         public override void Write(Utf8JsonWriter writer, in AvroValue value, int depth) =>
-            AvroJsonConventions.WriteByteString(writer, value.Reference is GenericFixed fixedValue && fixedValue.Schema.Name == schema.Name
-                ? fixedValue.Bytes.Span
-                : throw Mismatch(schema, value));
+            AvroJsonConventions.WriteByteString(writer, GenericDatumWriter.FixedBytes(schema, value));
     }
 
     private sealed class ArrayNode(WriterNode items) : WriterNode

@@ -2,9 +2,9 @@
 
 ## Ground rules
 
-- **Implement from the specification.** AvroSharp is a clean-room implementation of the Apache Avro™ specification under the MIT license. Apache.Avro (Apache-2.0) may be read for design ideas and used as a test oracle, but its code must not be copied or ported into `src/`. Code derived from Chr.Avro (MIT) must keep its copyright notice in `THIRD-PARTY-NOTICES.md`.
+- **Implement from the specification.** AvroSharp is a clean-room implementation of the Apache Avro™ specification under the MIT license. Apache.Avro (Apache-2.0) may be read for design ideas and used as a test oracle, but its code must not be copied or ported into `src/`. Code derived from Chr.Avro (MIT) must keep its copyright notice in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 - **No reflection on serialization paths.** Typed serialization is produced by source generators and must stay Native AOT and trimming compatible.
-- **Performance is a feature.** AvroSharp must be faster than Apache.Avro, with fewer allocations, on every scenario in the benchmark suite. Benchmarks run locally only, on request, on an idle machine (never in CI):
+- **Performance is a feature.** AvroSharp must be faster than Apache.Avro, with fewer allocations, on every scenario in the [benchmark suite](docs/benchmarks.md). Benchmarks run locally only, on request, on an idle machine (never in CI):
 
   ```shell
   dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory --gate
@@ -71,12 +71,14 @@ It takes about as long as the CI job. Passing it means passing the Linux CI job 
 It doesn't cover:
 - **Windows and .NET Framework:** the Windows jobs and the net481 tests run in CI only.
 - **The other architecture:** the container runs on the host's architecture, so only CI runs both.
-- **Fuzzing:** the nightly libFuzzer runs are in `fuzz/README.md`. The random-schema test runs with the other tests, on 100 schemas.
+- **Fuzzing:** the nightly libFuzzer runs are in [`fuzz/README.md`](fuzz/README.md). The random-schema test runs with the other tests, on 100 schemas.
 - **Benchmarks:** these need a quiet, dedicated machine, not a container.
 
 ## Public API
 
-Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt`; the build fails otherwise.
+The public API is frozen for 1.0, and from 1.0 follows [semantic versioning](https://semver.org/): a breaking change waits for the next major version. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
+
+Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its baseline release (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), and a break that isn't listed in the project's `CompatibilitySuppressions.xml` fails the pack.
 
 ## Workflow
 
@@ -95,7 +97,7 @@ Versions come from git tags through MinVer: `v1.2.3`, or `v1.2.3-alpha.1` for a 
 
 The push uses nuget.org's [trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing), so no API key is stored. It needs, once:
 
-- **on nuget.org:** a trusted publishing policy for the nuget.org account that owns the `AvroSharp*` packages (`zcsizmadia`). The policy names repository owner `zcsizmadia`, repository `AvroSharp`, workflow file `release.yml` and environment `nuget`.
+- **on nuget.org:** a trusted publishing policy for the nuget.org account that owns the `AvroSharp*` packages (`zcsizmadia`). The policy names repository owner `AvroSharp` (the organization; the repository moved there from `zcsizmadia` on 2026-09-30), repository `AvroSharp`, workflow file `release.yml` and environment `nuget`.
 - **on GitHub:** an environment named `nuget` (Settings → Environments; add required reviewers there to approve each publish), and a repository variable `NUGET_USER` holding that nuget.org account or organization name.
 
 The workflow asks GitHub for an OIDC token, and `NuGet/login` exchanges it for a key that is valid for about an hour.

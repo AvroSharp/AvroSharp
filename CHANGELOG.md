@@ -12,7 +12,7 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
   - `IAvroCodec<T>` is now `IAvroValueSerializer<T>`, the primitive codecs `Avro…Serializer`, and the generated nested `AvroCodec` struct `ValueSerializer`: "codec" means block compression only.
   - Removed, because generated code no longer calls them: `GetRecordPlan(writer, reader)` without the cache, `PutTypeMismatch(object?, string, string)`, `AvroRecordPlan.Target(int)` and `Conversion(int)`, and `IsSameSchema` (use `AvroSchema.HasSameCanonicalForm`).
 - **Exceptions:** `AvroDataException` (was `AvroSharp.IO`) and `AvroSchemaException` (was `AvroSharp.Schemas`) are in `AvroSharp`.
-- **Schema lookup:** `IAvroSchemaStore` is now `IAvroSchemaResolver`, with `GetSchemaAsync`, which an implementer has to add. The `AvroMessageReader` factories name its parameter `resolver`.
+- **Schema lookup:** `IAvroSchemaStore` is now `IAvroSchemaResolver`, with `GetSchemaAsync`, which an implementer has to add. The `AvroMessageReader` factories name its parameter `resolver`, and `AvroMessageReader.CreateGeneric` names its reader options `readerOptions`, as the other reader factories do.
 - **`AvroSerializer`:** `Serialize(output, value)` and `TrySerialize(destination, value, out bytesWritten)` take the output first.
 - **Renamed:**
   - `GenericDatumReader.Schema` and `GenericDatumJsonReader.Schema` are now `WriterSchema`;
@@ -20,22 +20,24 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
   - `AvroReader.Skip(long)` is now `SkipRaw`;
   - `AvroValue.FromByteArray`, `FromGenericRecord` and `FromGenericFixed` are now `FromBytes`, `FromRecord` and `FromFixed`;
   - `AvroFileReader<T>.GetMetadataString` is now `TryGetMetadataString(key, out value)`;
+  - `GenericRecord.TryGetValue(int index, out AvroValue value)` names its first parameter `position`, as the rest of `GenericRecord` does;
   - `CodeGenOptions.DefaultNamespace`, `NamespaceMapping` and `PropertyNaming` are now `Namespace`, `NamespaceMap` and `PropertyNames`.
 - **Changed types:**
   - `AvroFileReader<T>.Codec` is the `AvroCodec` (its name is `Codec.Name`);
   - `AvroFileWriterOptions.Metadata` holds `ReadOnlyMemory<byte>` values;
   - `SchemaFingerprint.Crc64AvroEmpty` is a `long`;
-  - `ConfluentSchemaIdHeader.Encode` takes an `AvroSchemaId`.
+  - `ConfluentSchemaIdHeader.Encode` takes an `AvroSchemaId`, and rejects a numeric ID: the header holds a GUID.
 - **`AvroCodec.CreateDeflate`** is replaced by `new DeflateCodec(level)`.
 - **`AvroCodecNames`** moves to `AvroSharp.Containers`, next to `AvroCodec` (#73).
+- **`uuid` strings** with spaces around them are rejected (`AvroDataException`): the reader takes the RFC 4122 form only, as Java's `UUID.fromString` does. Before, `Guid.TryParseExact` trimmed them (#135).
 - **Validation:** the generic and schema parse options reject a `MaxDepth` below 1 and a negative `MaxZeroSizeItems`. `CodeGenOptions` rejects nullable annotations with a `LanguageVersion` below 8, and any version below 7.
 
 ### Added
 
 - **The public API is frozen for 1.0 (#73).** Every package declares its API as shipped, and package validation compares each with its 0.2.0 on nuget.org. The breaks listed above are the only ones allowed; any other fails the pack.
-- **`AvroMessageReader<T>.ReadAsync`**, which fetches an unknown fingerprint through the resolver once, and **`AvroSchemaStore.GetSchemaAsync`** (#134).
+- **`AvroMessageReader<T>.ReadAsync`**, which fetches an unknown fingerprint through the resolver and keeps its reader, and **`AvroSchemaStore.GetSchemaAsync`** (#134).
 - **`AvroSchema.HasSameCanonicalForm`:** whether two schemas have the same encoding. `Equals` stays reference equality, as `AvroSchema`'s docs now say (#134).
-- **`DeflateCodec`:** the built-in codec is public, with `Default` and `Level`, as the Codecs package's codecs have (#134).
+- **`DeflateCodec`:** the built-in codec is public, with `Default` and `Level`, as the Codecs package's codecs have (#134). It rejects a level the runtime doesn't have when it is made, rather than when a writer compresses its first block.
 - **New overloads:**
   - `AvroSerializer.Deserialize<T>(in ReadOnlySequence<byte>, AvroSchema writerSchema)`;
   - `GenericDatumReader.Read(in ReadOnlySequence<byte>)`;
@@ -43,7 +45,7 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
   - `AvroRegistryMessage.Write(output, framing, id, in AvroValue, GenericDatumWriter)` (#134).
 - **Default limits as constants:** `GenericDatumReaderOptions.DefaultMaxDepth` and `DefaultMaxZeroSizeItems`, `GenericDatumWriterOptions.DefaultMaxDepth` and `AvroSchemaParseOptions.DefaultMaxDepth` (#134).
 - **Generator settings (#134):**
-  - The **`AvroSharpNamespaceMap`** MSBuild property, `avro.ns:CSharp.Ns` entries separated by `;` or `,`, like the CLI's `--namespace-map`. The package's `build/AvroSharp.Generators.targets` passes `;` on as `,`, since the compiler reads the property from an `.editorconfig` file, where `;` starts a comment.
+  - The **`AvroSharpNamespaceMap`** MSBuild property, `avro.ns:CSharp.Ns` entries separated by `;` or `,`, like the CLI's `--namespace-map`. The package's `build/AvroSharp.Generators.targets` passes it on with `,` for `;` and line breaks, since the compiler reads it from an `.editorconfig` file, where `;` starts a comment and a line break ends the value. So the entries can also be written one per line, or given with `-p:`.
   - Generator properties accept their values in any case.
   - A value the generator doesn't recognize is warning **AVROGEN006**; before, a typo was ignored silently.
   - `--language-version 7` implies `--no-nullable`.
@@ -51,15 +53,25 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 - **Documentation:**
   - [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md): the plan, and the Apache.Avro API next to AvroSharp's. Its code is the Migration sample's, which CI runs against both libraries, and a test keeps the two in step (#21).
   - The GeneratorPackage sample: an application's project with the `AvroSharp.Generators` package, its MSBuild settings and schemas across files, and how to use the generator from source instead (#126, #74).
+  - A Getting started section: installing, a first program, generated types, container files, schema evolution, logical types and JSON. Each page's code is a sample's (the new ContainerFiles, SchemaEvolution, LogicalTypes and Json samples), and a test keeps them in step.
+  - Links from the guides and READMEs to the API reference, an API map, namespace overviews, and cross-references between the API pages.
 - A dev container (`.devcontainer/`) and `build/ci-local.sh`, which build and test as the Linux CI job does. The container has Ubuntu 24.04 with the .NET 8, 9 and 10 SDKs, the Native AOT prerequisites, CI's variables and a cached NuGet volume; the script runs the job's steps in order. DocFX and ReportGenerator are pinned local tools (`.config/dotnet-tools.json`), used by CI, the docs workflow and the container alike (#139).
 
 ### Fixed
 
+- **Enum and fixed values written as another schema:** the generic binary and JSON writers wrote an enum value's ordinal in its own schema, so a symbol at another position in the target schema became another symbol, silently, and one the target lacks was written anyway; and a fixed value of another size wrote all its bytes, shifting every later field. The symbol is now found in the target schema, and the size is checked. Values of the target schema itself, or of a copy parsed separately, write faster than before.
+- **Escaped unpaired surrogates** (`\ud800`) in a schema or in JSON data threw `InvalidOperationException`. A schema with one, anywhere, is now an `AvroSchemaException` (container file headers included), and JSON data an `AvroDataException`.
+- **.NET Framework:** the JSON reader read `-0.0` as `+0.0` and rejected a number beyond `double`'s range; it reads `-0.0` and an infinity, as on the other targets and in Java.
+- A bad namespace is reported at `$.namespace`, not `$.name`.
 - A fixed type named `Equals` or `GetHashCode` generated code that did not compile (CS0542); it is renamed, with a note, like the other generated member names (#141).
 - A decimal default that the generated C# `decimal` cannot hold (beyond 96 bits, or with more digits than the precision) generated code whose constructor threw; it is now a generation error (#141).
+- **Union defaults in generated code** are for the first branch they are a value of, as Avro 1.12 says and the readers do, not always the first branch. `["int","string"]` with a string default failed to generate, a `[enum,"string"]` default that isn't a symbol generated code that didn't compile, and a decimal default in a later branch escaped the check above.
+- **C# 7.0 and 7.1 projects:** the generator read C# 7.0 as version 0 and accepted 7.1, whose generated code doesn't compile (readonly structs need C# 7.2). Both are now error AVROGEN003, which says to set `<LangVersion>` to 7.3 or later. `CodeGenOptions.LanguageVersion` 7 means C# 7.2 or later.
+- A default that isn't a value of its field's schema, on a field built in code (the parser checks parsed ones), made `GenericDatumReader.Create` and the generated-code plan throw `AvroDataException`. It is now the documented `AvroSchemaException`, naming the field.
 
 ### Changed
 
+- **JSON numbers as Java reads them:** the JSON reader accepts a whole number written as `1.0` or `1e2` for an `int` or `long`, and `"INF"` and `"-INF"` for a `float` or `double`, as Java's `JsonDecoder` does. The writer is unchanged.
 - **Faster logical values, parsing, resolution and strings (#135).** Measured on the EPYC 7543 with main and the branch in parallel lanes on neighbouring CCDs, on both sockets:
   - **Decimal writes:** 2.9× faster on bytes (178–188 to 62 µs per 1,024 `decimal(18,4)` values; Apache.Avro takes 94 µs), and 2.6× on fixed. `Pow10`'s multiplication loop became a table, `decimal.GetBits` writes into the stack on .NET 5+, and the rounding check runs only for a value with more fractional digits than the scale (.NET 7+).
   - **`uuid` strings:** writes −40%, reads −50%. They're parsed from and formatted to UTF-8 (`Utf8Parser`/`Utf8Formatter`), without a string, and are faster than Apache.Avro both ways.
@@ -242,7 +254,7 @@ Packages: `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen` and `AvroSharp.Ge
 - Generated code needed C# 9 (`new()` initializers, `??=`, `is { }` and `is not` patterns), so it failed to compile in netstandard2.0 and .NET Framework projects, which default to C# 7.3. It now uses constructs every version accepts, and emits nullable annotations only for C# 8 and later.
 - Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.
 
-[Unreleased]: https://github.com/zcsizmadia/AvroSharp/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/zcsizmadia/AvroSharp/releases/tag/v0.2.0
-[0.1.1]: https://github.com/zcsizmadia/AvroSharp/releases/tag/v0.1.1
-[0.1.0]: https://github.com/zcsizmadia/AvroSharp/releases/tag/v0.1.0
+[Unreleased]: https://github.com/AvroSharp/AvroSharp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/AvroSharp/AvroSharp/releases/tag/v0.2.0
+[0.1.1]: https://github.com/AvroSharp/AvroSharp/releases/tag/v0.1.1
+[0.1.0]: https://github.com/AvroSharp/AvroSharp/releases/tag/v0.1.0

@@ -12,6 +12,9 @@ namespace AvroSharp.Messages;
 /// the schema ID, then the object's Avro binary encoding (zlib-compressed for <see cref="AvroRegistryFraming.AwsGlueCompressed"/>).
 /// No registry client is involved: the caller supplies the ID. To read, use <see cref="AvroRegistryMessageReader{T}"/>.
 /// </summary>
+/// <seealso cref="AvroRegistryMessageReader"/>
+/// <seealso cref="AvroRegistryFraming"/>
+/// <seealso cref="AvroSchemaId"/>
 public static class AvroRegistryMessage
 {
     /// <summary>Writes one object as a framed message.</summary>

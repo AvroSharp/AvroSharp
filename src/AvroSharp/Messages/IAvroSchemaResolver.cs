@@ -7,9 +7,13 @@ namespace AvroSharp.Messages;
 /// <summary>
 /// Finds writer schemas by their CRC-64-AVRO fingerprint, for reading single-object encoded messages: a synchronous
 /// lookup of what is already known, and an asynchronous one that may fetch. <see cref="AvroMessageReader{T}"/> uses the
-/// lookup in <c>Read</c> and the asynchronous one when <c>ReadAsync</c> meets a fingerprint for the first time.
+/// lookup in <see cref="AvroMessageReader{T}.Read"/> and the asynchronous one when
+/// <see cref="AvroMessageReader{T}.ReadAsync"/> meets a fingerprint for the first time.
 /// <see cref="AvroSchemaStore"/> is the in-memory implementation.
 /// </summary>
+/// <seealso cref="AvroSchemaStore"/>
+/// <seealso cref="AvroMessageReader"/>
+/// <seealso cref="AvroMessage"/>
 public interface IAvroSchemaResolver
 {
     /// <summary>Gets the schema with the given fingerprint if it is already known, or <see langword="null"/>.</summary>

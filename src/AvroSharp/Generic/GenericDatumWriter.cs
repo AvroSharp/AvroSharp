@@ -16,6 +16,10 @@ namespace AvroSharp.Generic;
 /// tree of typed writer nodes, so writing does not inspect the schema; instances are cached per schema and are
 /// thread-safe.
 /// </summary>
+/// <seealso cref="GenericDatumReader"/>
+/// <seealso cref="GenericDatumWriterOptions"/>
+/// <seealso cref="GenericDatumJsonWriter"/>
+/// <seealso cref="AvroWriter"/>
 public sealed class GenericDatumWriter
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumWriter> s_cache = new();
@@ -230,18 +234,36 @@ public sealed class GenericDatumWriter
 
     private sealed class EnumNode(EnumSchema schema) : WriterNode
     {
+        private readonly EnumSymbolMap _symbols = new(schema);
+
         public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
-            writer.WriteEnum(value.EnumSchema is { } enumSchema && enumSchema.Name == schema.Name
-                ? (int)value.Bits
-                : throw Mismatch(schema, value));
+            writer.WriteEnum(_symbols.Ordinal(value));
     }
 
     private sealed class FixedNode(FixedSchema schema) : WriterNode
     {
         public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
-            writer.WriteFixed(value.Reference is GenericFixed fixedValue && fixedValue.Schema.Name == schema.Name
-                ? fixedValue.Bytes.Span
-                : throw Mismatch(schema, value));
+            writer.WriteFixed(FixedBytes(schema, value));
+    }
+
+    /// <summary>
+    /// A fixed value's bytes, which must be exactly the size of the schema it is written as. A value of that schema itself
+    /// has its size: <see cref="GenericFixed"/> checks it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ReadOnlySpan<byte> FixedBytes(FixedSchema schema, in AvroValue value) =>
+        value.Reference is GenericFixed fixedValue && ReferenceEquals(fixedValue.Schema, schema) ? fixedValue.Bytes.Span : CheckedFixedBytes(schema, value);
+
+    private static ReadOnlySpan<byte> CheckedFixedBytes(FixedSchema schema, in AvroValue value)
+    {
+        if (value.Reference is not GenericFixed fixedValue || fixedValue.Schema.Name != schema.Name)
+        {
+            throw Mismatch(schema, value);
+        }
+
+        return fixedValue.Bytes.Length == schema.Size
+            ? fixedValue.Bytes.Span
+            : throw new AvroException($"A fixed value of {fixedValue.Bytes.Length} bytes cannot be written as {schema.FullName}, which has {schema.Size}.");
     }
 
     private sealed class ArrayNode(WriterNode items) : WriterNode

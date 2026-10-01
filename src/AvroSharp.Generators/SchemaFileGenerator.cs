@@ -70,10 +70,11 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
             HasDateOnly: compilation.GetTypeByMetadataName("System.DateOnly") is not null,
             HasApache: compilation.GetTypeByMetadataName("Avro.Specific.ISpecificRecord") is not null));
 
-        // The project's major C# version: nullable annotations need 8, static abstract members 11.
-        // netstandard2.0 and .NET Framework projects default to C# 7.3.
+        // The project's major C# version: nullable annotations need 8, static abstract members 11. netstandard2.0 and
+        // .NET Framework projects default to C# 7.3. The enum's values are 7 for C# 7.0 and 701 to 703 for 7.1 to 7.3,
+        // then 800 and up; the generated code needs 7.2 (readonly structs), so 7.0 and 7.1 are reported as 0.
         var language = context.ParseOptionsProvider.Select(static (options, _) =>
-            options is CSharpParseOptions csharp ? (int)csharp.LanguageVersion.MapSpecifiedToEffectiveVersion() / 100 : 7);
+            options is CSharpParseOptions csharp ? MajorVersion(csharp.LanguageVersion.MapSpecifiedToEffectiveVersion()) : 7);
 
         var results = files.Combine(properties).Combine(target).Combine(language)
             .Select(static (input, cancellationToken) => Generate(
@@ -146,8 +147,16 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
     }
 
     /// <summary>Parses every file together (see <see cref="SchemaFileSet"/>), then generates code for all of them.</summary>
+    private static int MajorVersion(LanguageVersion version) => version < LanguageVersion.CSharp7_2 ? 0 : (int)version / 100;
+
     private static GenerationResult Generate(ImmutableArray<SchemaFile> files, CodeGenOptions options, CancellationToken cancellationToken)
     {
+        if (options.LanguageVersion == 0)
+        {
+            var message = "The generated code needs C# 7.2 or later, and the project uses C# 7.0 or 7.1: set <LangVersion> to 7.3 or later.";
+            return new GenerationResult(new EquatableArray<GeneratedSource>([]), new EquatableArray<DiagnosticInfo>([new DiagnosticInfo(s_generationFailed.Id, message, null, 0, 0)]));
+        }
+
         var set = SchemaFileSet.Parse(files.Select(file => (file.Path, file.Text)), cancellationToken);
         var parsed = set.Schemas;
         var definedIn = set.DefinedIn;

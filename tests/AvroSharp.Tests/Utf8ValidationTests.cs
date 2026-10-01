@@ -46,6 +46,49 @@ public class Utf8ValidationTests
         await Assert.That(reader.Read(Wrap("\"", hex, "\"")).AsString()).IsEqualTo(expected);
     }
 
+    /// <summary>
+    /// An escaped unpaired surrogate is valid JSON syntax but not Unicode text, and threw InvalidOperationException from
+    /// the schema parser (in a name, doc, symbol, default or custom property, and so in a container file's header) and
+    /// from the JSON reader. Pairs, and escaped backslashes before a <c>u</c>, are still read.
+    /// </summary>
+    [Test]
+    [Arguments("""{"type":"record","name":"R","doc":"\ud800","fields":[]}""")]
+    [Arguments("""{"type":"record","name":"R","doc":"x\udc00y","fields":[]}""")]
+    [Arguments("""{"type":"enum","name":"E","symbols":["A"],"doc":"\uD83D"}""")]
+    [Arguments("""{"type":"record","name":"R","fields":[{"name":"s","type":"string","default":"\ud800"}]}""")]
+    [Arguments("""{"type":"int","x":"\ud800"}""")]
+    [Arguments("""{"type":"int","x":{"\ud800":1}}""")]
+    public async Task AnEscapedUnpairedSurrogate_InASchema_IsASchemaError(string json)
+    {
+        var ex = Assert.Throws<AvroSchemaException>(() => AvroSchema.Parse(json));
+
+        await Assert.That(ex.Message).StartsWith("The schema JSON escapes an unpaired surrogate");
+    }
+
+    [Test]
+    public async Task EscapedSurrogatePairs_AndEscapedBackslashes_AreRead()
+    {
+        var schema = AvroSchema.Parse("""{"type":"record","name":"R","doc":"\ud83d\ude00 a\\ud800","fields":[]}""");
+
+        await Assert.That(((RecordSchema)schema).Doc).IsEqualTo("\U0001F600 a\\ud800");
+        await Assert.That(GenericDatumJsonReader.Create(AvroSchema.String).Read("\"\\ud83d\\ude00\"").AsString()).IsEqualTo("\U0001F600");
+    }
+
+    [Test]
+    [Arguments("\"\\ud800\"", "\"string\"")]
+    [Arguments("{\"\\udc00\":1}", """{"type":"map","values":"int"}""")]
+    [Arguments("\"\\ud800\"", """{"type":"enum","name":"E","symbols":["A"]}""")]
+    public async Task AnEscapedUnpairedSurrogate_InJsonData_IsADataError(string json, string schemaJson)
+    {
+        var reader = GenericDatumJsonReader.Create(AvroSchema.Parse(schemaJson));
+
+        var fromString = Assert.Throws<AvroDataException>(() => reader.Read(json));
+        var fromUtf8 = Assert.Throws<AvroDataException>(() => reader.Read(Encoding.UTF8.GetBytes(json)));
+
+        await Assert.That(fromString.Message).IsEqualTo("The JSON contains a string that is not Unicode text: invalid UTF-8, or an escaped unpaired surrogate.");
+        await Assert.That(fromUtf8.Message).IsEqualTo(fromString.Message);
+    }
+
     private static byte[] Wrap(string before, string hex, string after) =>
         [.. Encoding.UTF8.GetBytes(before), .. Convert.FromHexString(hex), .. Encoding.UTF8.GetBytes(after)];
 }

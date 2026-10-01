@@ -7,9 +7,10 @@ namespace AvroSharp.Serialization;
 /// <summary>
 /// A type with generated Avro serializers, as static members, so generic code can read and write it without delegates
 /// or reflection (see <see cref="AvroSerializer"/>). Every record the AvroSharp source generator emits implements it
-/// on .NET 8 and later.
+/// on .NET 8 and later, when the project compiles as C# 11 or later.
 /// </summary>
 /// <typeparam name="TSelf">The type itself.</typeparam>
+/// <seealso cref="AvroSerializer"/>
 public interface IAvroSerializable<TSelf>
     where TSelf : IAvroSerializable<TSelf>
 {

@@ -1,12 +1,12 @@
 # Ecosystem integrations spike (#78)
 
-The timeboxed spike of [#78](https://github.com/zcsizmadia/AvroSharp/issues/78): whether an `AvroSharp.Confluent` package can be built on Confluent's own serializer classes, what it gains, and which other add-on packages to build. Done on 2026-09-30 against main at `9a5928c`.
+The timeboxed spike of [#78](https://github.com/AvroSharp/AvroSharp/issues/78): whether an `AvroSharp.Confluent` package can be built on Confluent's own serializer classes, what it gains, and which other add-on packages to build. Done on 2026-09-30 against main at `9a5928c`.
 
 ## Summary
 
 | Candidate | Decision | Why |
 |---|---|---|
-| `AvroSharp.Confluent` ([#79](https://github.com/zcsizmadia/AvroSharp/issues/79)) | **Go, first** | Works on Confluent's public base classes with no Apache.Avro; interoperates byte for byte; 8.7× faster to serialize and 6.5× to deserialize |
+| `AvroSharp.Confluent` ([#79](https://github.com/AvroSharp/AvroSharp/issues/79)) | **Go, first** | Works on Confluent's public base classes with no Apache.Avro; interoperates byte for byte; 8.7× faster to serialize and 6.5× to deserialize |
 | `AvroSharp.KafkaFlow` | **Go, after Confluent** | Two small interfaces (MIT); today's Confluent Avro adapter builds Apache's serializer by reflection |
 | `AvroSharp.Azure.SchemaRegistry` | **Go, lower priority** | No abstraction to plug into, but `SchemaRegistryClient` and `MessageContent` are enough (MIT) |
 | `AvroSharp.Aws.Glue` | **Go, lower priority** | The wire format is already in AvroSharp; the official .NET SDK is a 113 MB native wrapper for Linux only |
@@ -63,11 +63,11 @@ The prototype needs `Confluent.SchemaRegistry` **2.14.0 or later**. Before 2.11 
 | 2.13.0 → 2.14.0 | `GetSubjectName` returns `Task<string>` instead of `string`, and `subjectNameStrategy` is an `AsyncSubjectNameStrategyDelegate` (breaking) |
 | 2.14.0 → 2.15.1 | none |
 
-So the package should depend on `[2.14.0, 3.0.0)`, and CI should build and test it against the lowest and the newest Confluent version it allows ([#83](https://github.com/zcsizmadia/AvroSharp/issues/83)). A later break in a minor version then fails CI instead of an application.
+So the package should depend on `[2.14.0, 3.0.0)`, and CI should build and test it against the lowest and the newest Confluent version it allows ([#83](https://github.com/AvroSharp/AvroSharp/issues/83)). A later break in a minor version then fails CI instead of an application.
 
 ### Work left for #79
 
-- **Field-level rules (CSFLE):** Confluent's encryption executor calls the serde's field transformer. AvroSharp's `AvroValueTransformer` ([#82](https://github.com/zcsizmadia/AvroSharp/issues/82)) already walks the generic model by schema, with each field's path and properties; the package connects it to Confluent's `FieldTransformer`, and generated types reach it through the generic model (or a typed walker, if that is too slow). The prototype throws `NotSupportedException` instead of skipping them.
+- **Field-level rules (CSFLE):** Confluent's encryption executor calls the serde's field transformer. AvroSharp's `AvroValueTransformer` ([#82](https://github.com/AvroSharp/AvroSharp/issues/82)) already walks the generic model by schema, with each field's path and properties; the package connects it to Confluent's `FieldTransformer`, and generated types reach it through the generic model (or a typed walker, if that is too slow). The prototype throws `NotSupportedException` instead of skipping them.
 - **CEL rules:** Confluent's `CelExecutor` recognizes only Apache.Avro's `ISpecificRecord` and `GenericRecord`. Types generated in the compatibility mode work; for plain AvroSharp types, CEL rules are not supported unless Confluent's executor is extended. Document it.
 - **Migration rules:** Confluent converts through JSON. AvroSharp has JSON readers and writers, so the same path works; the prototype throws.
 - **`GenericRecord` and primitive types,** besides generated types, and a .NET Standard 2.0 path through `IAvroWritable`/`IAvroReadable` (the prototype uses the .NET 8 static interface).

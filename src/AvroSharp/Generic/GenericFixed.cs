@@ -4,6 +4,7 @@ using AvroSharp.Schemas;
 namespace AvroSharp.Generic;
 
 /// <summary>A fixed value in the generic data model: a schema and exactly <see cref="FixedSchema.Size"/> bytes.</summary>
+/// <seealso cref="AvroValue"/>
 public sealed class GenericFixed : IEquatable<GenericFixed>
 {
     private readonly byte[] _bytes;

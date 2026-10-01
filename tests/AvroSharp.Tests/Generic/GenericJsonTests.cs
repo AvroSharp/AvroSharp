@@ -103,6 +103,110 @@ public class GenericJsonTests
         await Assert.That(GenericDatumJsonReader.Create(floats).Read(floatJson)).IsEqualTo(floatValue);
     }
 
+    /// <summary>The sign of a negative zero survives reading, on every target: .NET Framework's System.Text.Json reads it as +0.0, which the reader corrects.</summary>
+    [Test]
+    public async Task NegativeZero_IsReadAsNegativeZero()
+    {
+        var read = GenericDatumJsonReader.Create(AvroSchema.Parse("\"double\"")).Read("-0.0").AsDouble();
+
+        await Assert.That(read).IsEqualTo(0.0);
+        await Assert.That(BitConverter.DoubleToInt64Bits(read)).IsEqualTo(long.MinValue);
+    }
+
+    /// <summary>A double literal beyond double's range reads as infinity, as Jackson's parser in Java does, on every target (.NET Framework's System.Text.Json fails on it).</summary>
+    [Test]
+    public async Task DoubleBeyondRange_IsReadAsInfinity()
+    {
+        var reader = GenericDatumJsonReader.Create(AvroSchema.Parse("\"double\""));
+
+        await Assert.That(reader.Read("1e400").AsDouble()).IsEqualTo(double.PositiveInfinity);
+        await Assert.That(reader.Read("-1e400").AsDouble()).IsEqualTo(double.NegativeInfinity);
+    }
+
+    /// <summary>A union branch is named by its Avro type, so a logical type's branch is named after the type under it.</summary>
+    [Test]
+    public async Task UnionBranchesWithLogicalTypes_AreNamedByTheUnderlyingType()
+    {
+        var date = AvroSchema.Parse("""["null",{"type":"int","logicalType":"date"}]""");
+        var uuid = AvroSchema.Parse("""["null",{"type":"string","logicalType":"uuid"}]""");
+
+        var day = GenericDatumJsonReader.Create(date).Read("""{"int":123}""");
+        var id = GenericDatumJsonReader.Create(uuid).Read("""{"string":"00112233-4455-6677-8899-aabbccddeeff"}""");
+
+        await Assert.That(day.AsInt32()).IsEqualTo(123);
+        await Assert.That(id.AsString()).IsEqualTo("00112233-4455-6677-8899-aabbccddeeff");
+    }
+
+    /// <summary>
+    /// An int or long written with a fraction or an exponent is read when its value is whole, as Java's JsonDecoder
+    /// does: readInt and readLong take a VALUE_NUMBER_FLOAT token when |value - round(value)| is within MIN_VALUE.
+    /// </summary>
+    [Test]
+    [Arguments("int", "1.0", 1L)]
+    [Arguments("int", "1e2", 100L)]
+    [Arguments("int", "-2.50e1", -25L)]
+    [Arguments("int", "2147483647.0", 2147483647L)]
+    [Arguments("long", "1.0", 1L)]
+    [Arguments("long", "1e2", 100L)]
+    [Arguments("long", "9.0e15", 9_000_000_000_000_000L)]
+    public async Task WholeNumbersWithAFractionOrExponent_AreReadAsIntAndLong(string type, string json, long expected)
+    {
+        var read = GenericDatumJsonReader.Create(AvroSchema.Parse($"\"{type}\"")).Read(json);
+
+        await Assert.That(read.Kind).IsEqualTo(string.Equals(type, "int", StringComparison.Ordinal) ? AvroValueKind.Int : AvroValueKind.Long);
+        await Assert.That(read.AsInt64()).IsEqualTo(expected);
+    }
+
+    /// <summary>A fractional or out-of-range value is still not an int or long; Java's readInt and readLong throw for these too.</summary>
+    [Test]
+    [Arguments("int", "1.5", "Expected an int")]
+    [Arguments("int", "1e-1", "Expected an int")]
+    [Arguments("int", "2147483648.0", "Expected an int")]
+    [Arguments("int", "1e10", "Expected an int")]
+    [Arguments("long", "1.5", "Expected a long")]
+    [Arguments("long", "1e19", "Expected a long")]
+    public async Task FractionalOrOutOfRangeNumbers_AreRejectedAsIntAndLong(string type, string json, string message)
+    {
+        var ex = Assert.Throws<AvroDataException>(() => GenericDatumJsonReader.Create(AvroSchema.Parse($"\"{type}\"")).Read(json));
+        await Assert.That(ex.Message).Contains(message);
+    }
+
+    /// <summary>
+    /// The non-finite strings Java's JsonDecoder reads for float and double: "NaN", "Infinity" and "-Infinity", which
+    /// Jackson writes, and "INF" and "-INF" (isPositiveInfinityString and isNegativeInfinityString). The writer still
+    /// writes only the first three.
+    /// </summary>
+    [Test]
+    [Arguments("\"NaN\"", double.NaN)]
+    [Arguments("\"Infinity\"", double.PositiveInfinity)]
+    [Arguments("\"-Infinity\"", double.NegativeInfinity)]
+    [Arguments("\"INF\"", double.PositiveInfinity)]
+    [Arguments("\"-INF\"", double.NegativeInfinity)]
+    public async Task NonFiniteStrings_JavaAccepts_AreRead(string json, double expected)
+    {
+        var asDouble = GenericDatumJsonReader.Create(AvroSchema.Parse("\"double\"")).Read(json).AsDouble();
+        var asFloat = GenericDatumJsonReader.Create(AvroSchema.Parse("\"float\"")).Read(json).AsSingle();
+
+        await Assert.That(asDouble.Equals(expected)).IsTrue();
+        await Assert.That(asFloat.Equals((float)expected)).IsTrue();
+    }
+
+    /// <summary>Java's isNaNString and the infinity checks compare exactly, so other spellings and the empty string are rejected.</summary>
+    [Test]
+    [Arguments("\"nan\"")]
+    [Arguments("\"inf\"")]
+    [Arguments("\"infinity\"")]
+    [Arguments("\"+Infinity\"")]
+    [Arguments("\"\"")]
+    public async Task OtherNonFiniteStrings_AreRejected(string json)
+    {
+        var asDouble = Assert.Throws<AvroDataException>(() => GenericDatumJsonReader.Create(AvroSchema.Parse("\"double\"")).Read(json));
+        var asFloat = Assert.Throws<AvroDataException>(() => GenericDatumJsonReader.Create(AvroSchema.Parse("\"float\"")).Read(json));
+
+        await Assert.That(asDouble.Message).Contains("Expected a double, found a string");
+        await Assert.That(asFloat.Message).Contains("Expected a float, found a string");
+    }
+
     [Test]
     public async Task RecordFields_MayAppearInAnyOrder_AndMissingFieldsTakeTheirDefault()
     {

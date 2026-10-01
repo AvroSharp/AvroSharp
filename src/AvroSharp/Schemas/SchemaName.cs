@@ -3,7 +3,8 @@ using System;
 namespace AvroSharp.Schemas;
 
 /// <summary>
-/// The full name of a named schema (record, enum or fixed): a simple name and an optional namespace.
+/// The full name of a <see cref="NamedSchema">named schema</see> (record, enum or fixed): a simple name and an
+/// optional namespace.
 /// </summary>
 /// <remarks>
 /// Names are compared by <see cref="FullName"/>, ordinally. The empty namespace and a <see langword="null"/>

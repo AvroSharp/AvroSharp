@@ -14,14 +14,18 @@ namespace AvroSharp.Generic;
 /// <para>
 /// The input follows the specification (see <see cref="GenericDatumJsonWriter"/>). Record fields may appear in any
 /// order; a missing field takes its default value, and a missing field without a default, an unknown field or a
-/// repeated field is an error. <c>float</c> and <c>double</c> also accept the strings <c>"NaN"</c>,
-/// <c>"Infinity"</c> and <c>"-Infinity"</c>.
+/// repeated field is an error. As in Apache Avro Java, <c>int</c> and <c>long</c> also accept a whole number written
+/// with a fraction or an exponent, such as <c>1.0</c> or <c>1e2</c>, and <c>float</c> and <c>double</c> also accept
+/// the strings <c>"NaN"</c>, <c>"Infinity"</c>, <c>"-Infinity"</c>, <c>"INF"</c> and <c>"-INF"</c>.
 /// </para>
 /// <para>
 /// A union branch is identified by its full name, as the specification requires. For a named type, a name without
 /// the namespace is also accepted when exactly one branch has it.
 /// </para>
 /// </remarks>
+/// <seealso cref="GenericDatumJsonWriter"/>
+/// <seealso cref="GenericDatumReader"/>
+/// <seealso cref="GenericDatumReaderOptions"/>
 public sealed class GenericDatumJsonReader
 {
     private static readonly ConditionalWeakTable<AvroSchema, GenericDatumJsonReader> s_cache = new();
@@ -122,16 +126,7 @@ public sealed class GenericDatumJsonReader
 
         using (document)
         {
-            try
-            {
-                return Convert(document.RootElement);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // The caller's reader was not validated up front: JsonElement reports invalid UTF-8 in a string only
-                // when the string is transcoded. Every other JsonElement access checks the value kind first.
-                throw new AvroDataException("The JSON contains a string that is not valid UTF-8.", ex);
-            }
+            return Convert(document.RootElement);
         }
     }
 
@@ -157,8 +152,52 @@ public sealed class GenericDatumJsonReader
         {
             throw new AvroDataException($"At {ErrorPath.DescribeJson(path)}: {ex.Message}", ex);
         }
+        catch (InvalidOperationException ex)
+        {
+            // JsonElement reports a string that is not Unicode text only when it transcodes it: invalid UTF-8 from a
+            // caller's reader, which was not validated up front, or an escaped unpaired surrogate (\ud800). Every other
+            // JsonElement access checks the value kind first.
+            throw new AvroDataException("The JSON contains a string that is not Unicode text: invalid UTF-8, or an escaped unpaired surrogate.", ex);
+        }
     }
 
+#if NETSTANDARD
+    // .NET Framework's System.Text.Json reads -0.0 as +0.0, and fails for a number beyond the type's range, where .NET
+    // (Core) gives -0.0 and an infinity, as IEEE 754 and Java do. The JSON syntax is already validated, so a number
+    // that doesn't fit is too large. A zero is corrected only when its bits are positive zero's. On .NET 8 and later,
+    // and on .NET Core running this build, this is TryGetDouble.
+    private static bool TryGetDouble(JsonElement json, out double value)
+    {
+        if (!json.TryGetDouble(out value))
+        {
+            value = json.GetRawText()[0] == '-' ? double.NegativeInfinity : double.PositiveInfinity;
+        }
+        else if (BitConverter.DoubleToInt64Bits(value) == 0 && json.GetRawText()[0] == '-')
+        {
+            value = -0.0;
+        }
+
+        return true;
+    }
+
+    private static bool TryGetSingle(JsonElement json, out float value)
+    {
+        if (!json.TryGetSingle(out value))
+        {
+            value = json.GetRawText()[0] == '-' ? float.NegativeInfinity : float.PositiveInfinity;
+        }
+        else if (BitConverter.DoubleToInt64Bits(value) == 0 && json.GetRawText()[0] == '-')
+        {
+            value = -0.0f;
+        }
+
+        return true;
+    }
+#else
+    private static bool TryGetDouble(JsonElement json, out double value) => json.TryGetDouble(out value);
+
+    private static bool TryGetSingle(JsonElement json, out float value) => json.TryGetSingle(out value);
+#endif
     private static AvroDataException Expected(string what, JsonElement actual) =>
         new($"Expected {what}, found {Describe(actual)}.");
 
@@ -203,11 +242,21 @@ public sealed class GenericDatumJsonReader
                         _ => throw Expected("a boolean", json),
                     };
                 case AvroSchemaType.Int:
-                    return json.ValueKind == JsonValueKind.Number && json.TryGetInt32(out var i) ? i : throw Expected("an int", json);
+                    if (json.ValueKind == JsonValueKind.Number && json.TryGetInt32(out var i))
+                    {
+                        return i;
+                    }
+
+                    return TryGetWholeNumber(json, int.MinValue, int.MaxValue, out var wi) ? (int)wi : throw Expected("an int", json);
                 case AvroSchemaType.Long:
-                    return json.ValueKind == JsonValueKind.Number && json.TryGetInt64(out var l) ? l : throw Expected("a long", json);
+                    if (json.ValueKind == JsonValueKind.Number && json.TryGetInt64(out var l))
+                    {
+                        return l;
+                    }
+
+                    return TryGetWholeNumber(json, long.MinValue, long.MaxValue, out var wl) ? wl : throw Expected("a long", json);
                 case AvroSchemaType.Float:
-                    if (json.ValueKind == JsonValueKind.Number && json.TryGetSingle(out var f))
+                    if (json.ValueKind == JsonValueKind.Number && TryGetSingle(json, out var f))
                     {
                         return f;
                     }
@@ -216,7 +265,7 @@ public sealed class GenericDatumJsonReader
                         ? (float)nf
                         : throw Expected("a float", json);
                 case AvroSchemaType.Double:
-                    if (json.ValueKind == JsonValueKind.Number && json.TryGetDouble(out var d))
+                    if (json.ValueKind == JsonValueKind.Number && TryGetDouble(json, out var d))
                     {
                         return d;
                     }
@@ -229,6 +278,21 @@ public sealed class GenericDatumJsonReader
                 default:
                     return json.ValueKind == JsonValueKind.String ? json.GetString() : throw Expected("a string", json);
             }
+        }
+
+        // A number written with a fraction or an exponent, such as 1.0 or 1e2, whose value is a whole number in range.
+        // Java's JsonDecoder accepts these for int and long; a number with a fractional part is rejected there too.
+        private static bool TryGetWholeNumber(JsonElement json, long min, long max, out long result)
+        {
+            if (json.ValueKind == JsonValueKind.Number && json.TryGetDecimal(out var value)
+                && value == decimal.Truncate(value) && value >= min && value <= max)
+            {
+                result = (long)value;
+                return true;
+            }
+
+            result = 0;
+            return false;
         }
 
         private static byte[] ByteString(JsonElement json, int size)

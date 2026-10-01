@@ -39,19 +39,23 @@ Changes since that run, measured on the same machine and recorded in the [change
 - **Varint encode** of 3-byte values is 1.52× faster than Apache.Avro, up from 1.09× (#102).
 - **Wide records** (140 fields): a generated read takes 525 ns, against 729 ns before (#113).
 
+The performance review ([#135](https://github.com/AvroSharp/AvroSharp/issues/135)), measured on an EPYC 7543, made decimal writes 2.9× faster (62 µs per 1,024 `decimal(18,4)` values on bytes, against 94 µs for Apache.Avro), made `uuid` strings faster than Apache.Avro both ways, and made schema parsing 9–13% faster and the resolving generic reader 9–10% faster. The [changelog](../CHANGELOG.md) has the details.
+
 ## What is measured
 
-The suite is in [`bench/AvroSharp.Benchmarks`](https://github.com/zcsizmadia/AvroSharp/tree/main/bench/AvroSharp.Benchmarks). Each class compares AvroSharp with Apache.Avro's equivalent API; [Chr.Avro](https://github.com/ch-robinson/dotnet-avro) appears in schema parsing for reference, and is not gated.
+The suite is in [`bench/AvroSharp.Benchmarks`](https://github.com/AvroSharp/AvroSharp/tree/main/bench/AvroSharp.Benchmarks). Each class compares AvroSharp with Apache.Avro's equivalent API; [Chr.Avro](https://github.com/ch-robinson/dotnet-avro) appears in schema parsing for reference, and is not gated.
 
 | Class | What it measures |
 |---|---|
 | `GenericRecordBenchmarks` | Writing and reading one order record: AvroSharp's generic and generated code against Apache.Avro's generic datum writer and reader. |
 | `WideRecordBenchmarks` | A 140-field record of mostly optional primitives, the shape of many production event schemas. |
 | `ShowcaseBenchmarks` | Telemetry and counter records, and arrays of 1,000 ints, longs, doubles and booleans. |
-| `ResolutionBenchmarks` | Reading a record written with version 1 of a schema as version 2: a dropped field, promotions, added defaults, reordered enum symbols. |
+| `ResolutionBenchmarks` | Reading a record written with version 1 of a schema as version 2: a dropped field, promotions, added defaults, reordered enum symbols; and reading with record, array, map and bytes defaults. |
+| `LogicalTypeBenchmarks` | Converting and coding 1,024 logical values, as generated code does per field: `decimal(18,4)` on bytes and on fixed, `uuid` on a string and on fixed, and `timestamp-micros`. Each logical type and operation is a group with its own Apache.Avro baseline. |
+| `MessageBenchmarks` | Reading one single-object message and one registry-framed message: the schema lookup and the decode. Not gated, since Apache.Avro's C# library has neither. |
 | `ContainerBenchmarks` | Writing and reading a file of 1,000 orders, per codec (null, deflate, snappy, zstandard, bzip2, xz), synchronous, asynchronous and pipelined. |
 | `SchemaParseBenchmarks` | Parsing a small and a large schema, and parsing plus the CRC-64-AVRO fingerprint, as a schema registry client does. |
-| `BinaryEncodingBenchmarks` | Encoding and decoding 64K random longs, strings and mixed values with the low-level writer and reader. |
+| `BinaryEncodingBenchmarks` | Encoding and decoding 64K random longs, strings and mixed values with the low-level writer and reader ([`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html) and [`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html)). |
 | `VarintBenchmarks` | 64K varints of each encoded length from 1 to 10 bytes, and of random lengths. |
 | `BulkReadBenchmarks` | Reading 64K array items in bulk, against Apache.Avro and against AvroSharp's own one-at-a-time loop. |
 
@@ -92,7 +96,7 @@ Two categories mark the exceptions. `Ungated` is for AvroSharp features that Apa
 
 ## Rules for fast paths
 
-A SIMD or bulk path stays only if it beats Apache.Avro on every tested CPU, and AvroSharp's plain scalar loop on current CPUs, on uniform and on mixed data ([#29](https://github.com/zcsizmadia/AvroSharp/issues/29), revised in [#135](https://github.com/zcsizmadia/AvroSharp/issues/135)). A result within 3% of the scalar loop counts as noise; anything slower by more than 3% removes the path. A CPU more than 10 years old may be slower than the loop, but a change never makes a current CPU slower. The paths are measured on x64; there is no Arm64 machine to benchmark on, and CI tests the same paths on Arm64. No path is picked by CPU vendor at startup. The [design notes](design.md) record the decisions and the machines they were measured on: an i7-12800H, an EPYC 7543, an i5-3570K and a Ryzen 5 3500U.
+A SIMD or bulk path stays only if it beats Apache.Avro on every tested CPU, and AvroSharp's plain scalar loop on current CPUs, on uniform and on mixed data ([#29](https://github.com/AvroSharp/AvroSharp/issues/29), revised in [#135](https://github.com/AvroSharp/AvroSharp/issues/135)). A result within 3% of the scalar loop counts as noise; anything slower by more than 3% removes the path. A CPU more than 10 years old may be slower than the loop, but a change never makes a current CPU slower. The paths are measured on x64; there is no Arm64 machine to benchmark on, and CI tests the same paths on Arm64. No path is picked by CPU vendor at startup. The [design notes](design.md) record the decisions and the machines they were measured on: an i7-12800H, an EPYC 7543, an i5-3570K and a Ryzen 5 3500U.
 
 ## Recorded runs
 

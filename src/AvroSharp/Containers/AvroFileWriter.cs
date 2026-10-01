@@ -12,6 +12,9 @@ using AvroSharp.Serialization;
 namespace AvroSharp.Containers;
 
 /// <summary>Creates <see cref="AvroFileWriter{T}"/> instances.</summary>
+/// <seealso cref="AvroFileWriterOptions"/>
+/// <seealso cref="AvroFileReader"/>
+/// <seealso cref="AvroCodec"/>
 public static class AvroFileWriter
 {
     /// <summary>Creates a writer. The header is written with the first block, or when the writer is flushed or disposed.</summary>
@@ -71,6 +74,9 @@ public static class AvroFileWriter
 /// </summary>
 /// <typeparam name="T">The type of the objects.</typeparam>
 /// <remarks>Instances are not thread-safe.</remarks>
+/// <seealso cref="AvroFileWriter"/>
+/// <seealso cref="AvroFileWriterOptions"/>
+/// <seealso cref="AvroFileReader{T}"/>
 public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
 {
     private readonly Stream _stream;

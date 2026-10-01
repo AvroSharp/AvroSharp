@@ -25,7 +25,7 @@ Reference the package, and pass your schema files to the compiler as `Additional
 </ItemGroup>
 ```
 
-That is all. The package brings in the [AvroSharp](https://www.nuget.org/packages/AvroSharp) runtime package. The types appear as you edit the schemas; no build step or checked-in code is needed. See [the GeneratorPackage sample](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratorPackage) for a complete project with every setting, and [GeneratedTypes](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratedTypes) for container files and schema evolution.
+That is all. The package brings in the [AvroSharp](https://www.nuget.org/packages/AvroSharp) runtime package. The types appear as you edit the schemas; no build step or checked-in code is needed. See [the GeneratorPackage sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratorPackage) for a complete project with every setting, and [GeneratedTypes](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratedTypes) for container files and schema evolution.
 
 Schema files may refer to named types that other files define, in any order. A type defined identically in several files, as schema sets written for Apache's tooling often are, is generated once.
 
@@ -42,13 +42,13 @@ Each named type becomes one C# type:
 The C# namespace is the Avro namespace. Types without one go into the namespace in `AvroSharpNamespace`, or the global namespace.
 
 Each record gets:
-- `Write(ref AvroWriter, T)` and `Read(ref AvroReader)`: serializers that call `AvroWriter`/`AvroReader` directly, in schema order;
+- `Write(ref AvroWriter, T)` and `Read(ref AvroReader)`: serializers that call [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html)/[`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) directly, in schema order;
 - `ToAvroBytes()`, `FromAvroBytes(...)`, `TryWriteAvroBytes(Span<byte>, out int)` and `WriteAvroBytes(IBufferWriter<byte>)`;
 - `ReadFrom(ref AvroReader)`, which fills an existing instance and reuses its lists, dictionaries and records;
 - `FromAvroBytes(bytes, writerSchema)`, which reads data written with another version of the schema;
-- a static `Schema`, and the interfaces `IAvroSpecificRecord`, `IAvroWritable` and `IAvroReadable`. On .NET 8 and later, with C# 11 or later, also `IAvroSerializable<T>`.
+- a static `Schema`, and the interfaces [`IAvroSpecificRecord`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSpecificRecord.html), [`IAvroWritable`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroWritable.html) and [`IAvroReadable`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroReadable.html). On .NET 8 and later, with C# 11 or later, also [`IAvroSerializable<T>`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSerializable-1.html).
 
-`new Order()` gives every field that has a schema default its default, as reading data that lacks the field would.
+`new Order()` gives every field that has a schema default its default, as reading data that lacks the field would. A union field's default is a value of the first branch it fits, which need not be the union's first branch, as Avro 1.12 says.
 
 ## Using the generated types
 
@@ -70,7 +70,7 @@ var reader = new AvroReader(data);
 order.ReadFrom(ref reader);
 ```
 
-On .NET 8 and later, the APIs that take a type need no delegates, through `IAvroSerializable<T>`:
+On .NET 8 and later, the APIs that take a type need no delegates, through [`IAvroSerializable<T>`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSerializable-1.html): [`AvroSerializer`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.AvroSerializer.html), [`AvroFileWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.html), [`AvroFileReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader.html) and [`AvroMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroMessage.html):
 
 ```csharp
 byte[] same = AvroSerializer.Serialize(order);
@@ -79,16 +79,16 @@ using var input = AvroFileReader.Open<shop.Order>(stream);           // resolves
 byte[] message = AvroMessage.ToArray(order);                          // single-object encoding
 ```
 
-On every target, pass the serializers instead: `AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)` and `AvroFileReader.Open<Order>(stream, _ => Order.Read)`. The [guide](../README.md) shows [container files](../README.md#object-container-files), [single-object messages](../README.md#single-object-encoding), [schema registries](../README.md#schema-registries) and [streams](../README.md#streams-of-objects) with generated types.
+On every target, pass the serializers instead: [`AvroFileWriter.Create<Order>(stream, Order.Schema, Order.Write)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.Create.html) and [`AvroFileReader.Open<Order>(stream, _ => Order.Read)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader.Open.html). The [guide](../README.md) shows [container files](../README.md#object-container-files), [single-object messages](../README.md#single-object-encoding), [schema registries](../README.md#schema-registries) and [streams](../README.md#streams-of-objects) with generated types.
 
 ## MSBuild properties
 
-Set these in the project file (or a `Directory.Build.props`). Each one has the same values as the [`avrosharp gen`](cli.md) option of the same name and the `CodeGenOptions` property of the same name. Values are case-insensitive, and a value the generator doesn't recognize is a warning (AVROGEN006), not ignored silently. The C# version, nullable annotations and `DateOnly` come from the project.
+Set these in the project file (or a `Directory.Build.props`). Each one has the same values as the [`avrosharp gen`](cli.md) option of the same name and the [`CodeGenOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.CodeGenOptions.html) property of the same name. Values are case-insensitive, and a value the generator doesn't recognize is a warning (AVROGEN006), and the default is used, instead of being ignored silently. The C# version, nullable annotations and `DateOnly` come from the project.
 
 | Property | Values | Effect |
 |---|---|---|
 | `AvroSharpNamespace` | a C# namespace | The namespace of types that have no Avro namespace (`--namespace`). |
-| `AvroSharpNamespaceMap` | `avro.ns:CSharp.Ns`, separated by `;` | Puts types of an Avro namespace, or of a namespace under it, into another C# namespace, as avrogen's `--namespace` does (`--namespace-map`). The longest matching entry wins. Not with `AvroSharpApacheCompatible`. |
+| `AvroSharpNamespaceMap` | `avro.ns:CSharp.Ns` entries, separated by `;` or `,`, or written one per line | Puts types of an Avro namespace, or of a namespace under it, into another C# namespace, as avrogen's `--namespace` does (`--namespace-map`). The longest matching entry wins. An entry that is not two namespaces around a colon is a warning (AVROGEN006) and is ignored; an Avro namespace mapped twice keeps its first entry. Not with `AvroSharpApacheCompatible`. |
 | `AvroSharpPropertyNames` | `pascal`, `avro` | `pascal` (the default) converts field names to PascalCase: `customer_name` becomes `CustomerName`, `USER_ID` becomes `UserId`. `avro` keeps the field names as written, as Apache's `avrogen` does, escaping C# keywords (`@class`). |
 | `AvroSharpLogicalTypes` | `native`, `raw` | `native` (the default) maps logical types to .NET types. `raw` keeps logical types as their underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others. |
 | `AvroSharpApacheCompatible` | `true`, `false` | `true` turns on the [Apache.Avro compatibility mode](#migrating-from-avrogen-the-apacheavro-compatibility-mode). |
@@ -101,7 +101,7 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
 </PropertyGroup>
 ```
 
-The C# version and the target framework come from the project: with C# 7.3 (netstandard2.0 and .NET Framework projects) the code has no nullable annotations, and on targets without `DateOnly`/`TimeOnly` it uses `DateTime` and `TimeSpan`.
+The C# version and the target framework come from the project: with C# 7.3 (netstandard2.0 and .NET Framework projects) the code has no nullable annotations, and on targets without `DateOnly`/`TimeOnly` it uses `DateTime` and `TimeSpan`. The generated code needs C# 7.2 or later: with C# 7.0 or 7.1 the generator reports AVROGEN003 and generates nothing.
 
 ## Type mapping
 
@@ -131,7 +131,7 @@ A generated type reads data written with any compatible version of its schema, f
 var upgraded = shop.Order.FromAvroBytes(oldBytes, writerSchema);
 ```
 
-The plan for each writer schema is built once and cached per type. Container files and single-object messages record the writer schema, so their readers resolve it without code: `AvroFileReader.Open<Order>(stream)` reads a file an older version wrote.
+The plan for each writer schema is built once and cached per type. Container files and single-object messages record the writer schema, so their readers resolve it without code: [`AvroFileReader.Open<Order>(stream)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader.Open.html) reads a file an older version wrote.
 
 ## Migrating from avrogen: the Apache.Avro compatibility mode
 
@@ -149,18 +149,19 @@ Apache.Avro 1.12.2 has limits in this mode, which the tests pin: its specific wr
 |---|---|---|
 | AVROGEN001 | Error | A schema file is not a valid Avro schema. The location is the file, line and column. |
 | AVROGEN002 | Error | The project does not reference the AvroSharp runtime package. |
-| AVROGEN003 | Error | Code generation failed, for example for a union of two branches with the same C# type. |
+| AVROGEN003 | Error | Code generation failed, for example for a union of two branches with the same C# type, or because the project uses C# 7.0 or 7.1. |
 | AVROGEN004 | Error | `AvroSharpApacheCompatible` is set, but the project does not reference Apache.Avro. |
-| AVROGEN005 | Info | A property was renamed to avoid a clash with another member (for example `user_id` and `userId` in one record). |
-| AVROGEN006 | Warning | An `AvroSharp…` MSBuild property has a value the generator doesn't recognize, for example `AvroSharpLogicalTypes` set to `rwa`. The message names the property and the value used instead. |
+| AVROGEN005 | Info | A property or type was renamed to avoid a clash with another member or a C# rule (for example `user_id` and `userId` in one record). |
+| AVROGEN006 | Warning | An `AvroSharp…` MSBuild property has a value the generator doesn't recognize, for example `AvroSharpLogicalTypes` set to `rwa`. The message names the property and the value used instead. Also reported for an `AvroSharpNamespaceMap` entry that is not valid or maps a namespace a second time. |
 
 ## Requirements
 
-- **To build:** the generator needs the .NET 10 SDK, or Visual Studio 2026 or later, because it runs AvroSharp inside the compiler ([#20](https://github.com/zcsizmadia/AvroSharp/issues/20)). Older SDKs cannot load it; [the design notes](design.md) record what fails.
+- **To build:** the generator needs the .NET 10 SDK, or Visual Studio 2026 or later, because it runs AvroSharp inside the compiler ([#20](https://github.com/AvroSharp/AvroSharp/issues/20)). Older SDKs cannot load it; [the design notes](design.md) record what fails.
 - **To run:** the generated code works on every target AvroSharp supports: .NET 8, 9 and 10, .NET Standard 2.0 and 2.1, and so .NET Framework.
+- **C# version:** the generated code needs C# 7.2 or later. The generator reports AVROGEN003 for a project on C# 7.0 or 7.1. For the [command-line tool's](cli.md) `--language-version` and [`CodeGenOptions.LanguageVersion`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.html), 7 means C# 7.2 or later.
 
 A build with an older SDK can use the [command-line tool](cli.md) instead, and compile the generated files as ordinary sources.
 
 ## Using the generator from source
 
-A package reference is the supported way. A project in the same repository as a build of the generator can reference its project instead, as this repository's samples, tests and benchmarks do ([`build/UseLocalGenerator.targets`](https://github.com/zcsizmadia/AvroSharp/blob/main/build/UseLocalGenerator.targets)): as an `Analyzer` project reference, with the generator's own dependencies (`AvroSharp.dll` and `AvroSharp.CodeGen.dll`) added as analyzers, and the package's `build/AvroSharp.Generators.props` and `.targets` imported, which pass the `AvroSharp*` properties to the compiler. The package does all of this itself. [The GeneratorPackage sample](https://github.com/zcsizmadia/AvroSharp/tree/main/samples/GeneratorPackage#building-the-generator-from-source) has the details and caveats.
+A package reference is the supported way. A project in the same repository as a build of the generator can reference its project instead, as this repository's samples, tests and benchmarks do ([`build/UseLocalGenerator.targets`](https://github.com/AvroSharp/AvroSharp/blob/main/build/UseLocalGenerator.targets)): as an `Analyzer` project reference, with the generator's own dependencies (`AvroSharp.dll` and `AvroSharp.CodeGen.dll`) added as analyzers, and the package's `build/AvroSharp.Generators.props` and `.targets` imported, which pass the `AvroSharp*` properties to the compiler. The package does all of this itself. [The GeneratorPackage sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratorPackage#building-the-generator-from-source) has the details and caveats.

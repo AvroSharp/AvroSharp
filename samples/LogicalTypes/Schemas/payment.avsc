@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "Payment",
+  "namespace": "billing",
+  "doc": "A card payment: each field is a logical type on an Avro primitive type.",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "booked_on", "type": {"type": "int", "logicalType": "date"}},
+    {"name": "cutoff", "type": {"type": "int", "logicalType": "time-millis"}},
+    {"name": "authorized_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "captured_at", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+    {"name": "terminal_time", "type": {"type": "long", "logicalType": "local-timestamp-millis"}},
+    {"name": "amount", "type": {"type": "bytes", "logicalType": "decimal", "precision": 9, "scale": 2}},
+    {"name": "exchange_rate", "type": {"type": "fixed", "name": "Rate", "size": 8, "logicalType": "decimal", "precision": 12, "scale": 6}}
+  ]
+}

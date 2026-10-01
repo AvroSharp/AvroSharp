@@ -6,6 +6,8 @@ using AvroSharp.Schemas;
 namespace AvroSharp.Generic;
 
 /// <summary>A record in the generic data model: a schema and one <see cref="AvroValue"/> per field.</summary>
+/// <seealso cref="AvroValue"/>
+/// <seealso cref="RecordSchema"/>
 public sealed class GenericRecord : IEquatable<GenericRecord>
 {
     private readonly AvroValue[] _values;

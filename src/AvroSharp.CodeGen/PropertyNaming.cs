@@ -1,6 +1,7 @@
 namespace AvroSharp.CodeGen;
 
 /// <summary>How record fields become C# property names.</summary>
+/// <seealso cref="CodeGenOptions.PropertyNames"/>
 public enum PropertyNaming
 {
     /// <summary>PascalCase: <c>customer_name</c> becomes <c>CustomerName</c>.</summary>

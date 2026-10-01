@@ -14,6 +14,9 @@ namespace AvroSharp.Messages;
 /// fingerprint, then the object's binary encoding. A reader looks the fingerprint up in an
 /// <see cref="IAvroSchemaResolver"/> to find the writer schema (see <see cref="AvroMessageReader{T}"/>).
 /// </summary>
+/// <seealso cref="AvroMessageReader"/>
+/// <seealso cref="IAvroSchemaResolver"/>
+/// <seealso cref="AvroSchemaStore"/>
 public static class AvroMessage
 {
     /// <summary>The length of the header: two marker bytes and the 8-byte fingerprint.</summary>

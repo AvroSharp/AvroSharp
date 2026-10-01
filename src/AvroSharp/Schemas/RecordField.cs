@@ -79,6 +79,7 @@ public sealed class RecordField
     public AvroSchema Schema { get; }
 
     /// <summary>Gets the JSON default value, or <see langword="null"/> when the field has no default.</summary>
+    /// <seealso cref="AvroSharp.Generic.GenericDatumJsonReader.ReadDefault(AvroSchema, JsonElement)"/>
     public JsonElement? DefaultValue { get; }
 
     /// <summary>Gets a value indicating whether the field has a default value.</summary>

@@ -15,7 +15,7 @@
         "files": [
           "index.md", "toc.yml", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
           "docs/api/**.yml", "docs/api/index.md", "docs/roadmap.md", "docs/design.md", "docs/README.md", "docs/reviews/*.md",
-          "docs/code-generation.md", "docs/cli.md", "docs/benchmarks.md", "docs/apache-avro.md", "docs/migrating-from-apache-avro.md", "docs/integrations.md",
+          "docs/code-generation.md", "docs/cli.md", "docs/benchmarks.md", "docs/apache-avro.md", "docs/migrating-from-apache-avro.md", "docs/integrations.md", "docs/getting-started/*.md", "docs/getting-started/toc.yml",
           "samples/README.md", "samples/*/README.md", "fuzz/README.md"
         ]
       }
@@ -23,6 +23,7 @@
     "resource": [
       { "files": [ "LICENSE", "THIRD-PARTY-NOTICES.md", "samples/**/*.cs", "samples/**/*.avsc", "samples/**/*.csproj", "samples/**/global.json", "samples/Directory.Build.targets", "build/UseLocalGenerator.targets", "fuzz/AvroSharp.Fuzz/*.cs" ] }
     ],
+    "overwrite": [ { "files": [ "docs/namespaces/*.md" ] } ],
     "output": "artifacts/docs",
     "template": [ "default", "modern" ],
     "globalMetadata": {
@@ -30,7 +31,7 @@
       "_appTitle": "AvroSharp",
       "_appFooter": "AvroSharp is MIT licensed. Apache Avro, Avro and Apache are trademarks of The Apache Software Foundation.",
       "_enableSearch": true,
-      "_gitContribute": { "repo": "https://github.com/zcsizmadia/AvroSharp", "branch": "main" }
+      "_gitContribute": { "repo": "https://github.com/AvroSharp/AvroSharp", "branch": "main" }
     }
   }
 }

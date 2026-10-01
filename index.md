@@ -2,9 +2,9 @@
 
 A high-performance, Native AOT-friendly .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification: schemas, binary and JSON encoding, schema evolution, source-generated serializers, container files with every codec, single-object encoding and schema-registry framing.
 
-[Get started](README.md#getting-started) · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](docs/api/index.md) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [GitHub](https://github.com/zcsizmadia/AvroSharp)
+[Get started](README.md#getting-started) · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](docs/api/index.md) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [GitHub](https://github.com/AvroSharp/AvroSharp)
 
-> **Status:** an early preview (0.x). The API may still change before 1.0.
+> **Status:** a release candidate for 1.0.0. The public API is frozen, and from 1.0 it follows [semantic versioning](https://semver.org/): no breaking changes before 2.0.
 
 ## Why AvroSharp
 
@@ -18,18 +18,19 @@ A high-performance, Native AOT-friendly .NET implementation of the [Apache Avro�
 
 | Package | What it is | Docs |
 |---|---|---|
-| [AvroSharp](https://www.nuget.org/packages/AvroSharp) | The runtime: schemas, readers and writers, the generic model, container files, messages and streams | [Guide](README.md), [API](docs/api/index.md) |
+| [AvroSharp](https://www.nuget.org/packages/AvroSharp) | The runtime: schemas ([`AvroSharp.Schemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.html)), readers and writers ([`AvroSharp.IO`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.html), [`AvroSharp.Serialization`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.html)), the generic model ([`AvroSharp.Generic`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.html)), container files ([`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html)), messages ([`AvroSharp.Messages`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.html)) and streams ([`AvroSharp.Streams`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.html)) | [Guide](README.md), [API](docs/api/index.md) |
 | [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) | The source generator: C# types from `.avsc` files as the project builds | [Code generation](docs/code-generation.md) |
 | [AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool) | `avrosharp`, the `dotnet tool`: code generation, canonical forms and fingerprints from the command line | [Command-line tool](docs/cli.md) |
-| [AvroSharp.Codecs](https://www.nuget.org/packages/AvroSharp.Codecs) | The snappy, zstandard, bzip2 and xz codecs, fully managed | [Codecs](README.md#object-container-files) |
-| [AvroSharp.CodeGen](https://www.nuget.org/packages/AvroSharp.CodeGen) | The code generation engine, for your own tools | [API](docs/api/index.md) |
+| [AvroSharp.Codecs](https://www.nuget.org/packages/AvroSharp.Codecs) | The snappy, zstandard, bzip2 and xz codecs, fully managed | [Codecs](README.md#object-container-files), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html) |
+| [AvroSharp.CodeGen](https://www.nuget.org/packages/AvroSharp.CodeGen) | The code generation engine, for your own tools: [`CSharpCodeGenerator`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.CSharpCodeGenerator.html) | [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.html) |
 
 ## Guides
 
-- [Getting started](README.md#getting-started): parse a schema, write and read values, read an older version of the data, JSON.
-- [Object container files](README.md#object-container-files): writing and reading `.avro` files, synchronously and asynchronously, with any codec.
-- [Single-object encoding](README.md#single-object-encoding) and [schema registries](README.md#schema-registries): messages that carry their schema's fingerprint or ID, with Confluent, Apicurio and AWS Glue framing.
-- [Streams of objects](README.md#streams-of-objects): objects one after another, for sockets and pipes.
+- [Getting started](docs/getting-started/index.md): installing, a first program, and a page per task, each built from a runnable sample.
+- [First steps](README.md#getting-started): parse a schema, write and read values, read an older version of the data, JSON ([`AvroSharp.Schemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.html), [`AvroSharp.Generic`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.html)).
+- [Object container files](README.md#object-container-files): writing and reading `.avro` files, synchronously and asynchronously, with any codec ([`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html), [`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html)).
+- [Single-object encoding](README.md#single-object-encoding) and [schema registries](README.md#schema-registries): messages that carry their schema's fingerprint or ID, with Confluent, Apicurio and AWS Glue framing ([`AvroSharp.Messages`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.html)).
+- [Streams of objects](README.md#streams-of-objects): objects one after another, for sockets and pipes ([`AvroSharp.Streams`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.html)).
 - [Integrations](docs/integrations.md): message brokers and schema registries, and the planned add-on packages for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue.
 - [Code generation](docs/code-generation.md): the source generator, its MSBuild properties, type mapping, schema evolution, and moving from avrogen.
 - [The avrosharp tool](docs/cli.md): `gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.
@@ -37,7 +38,7 @@ A high-performance, Native AOT-friendly .NET implementation of the [Apache Avro�
 
 ## Reference
 
-- [API reference](docs/api/index.md): every public type, from the XML documentation.
+- [API reference](docs/api/index.md): every public type, from the XML documentation, by namespace: [`AvroSharp`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.html), [`AvroSharp.Schemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.html), [`AvroSharp.Generic`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.html), [`AvroSharp.IO`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.html), [`AvroSharp.Serialization`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.html), [`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html), [`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html), [`AvroSharp.Messages`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.html), [`AvroSharp.Streams`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.html) and [`AvroSharp.CodeGen`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.html).
 - [Benchmarks](docs/benchmarks.md): the results against Apache.Avro, what is measured, and how to run it.
 - [AvroSharp and Apache.Avro](docs/apache-avro.md): what differs, when to use which, and how to migrate.
 - [Design](docs/design.md): the design and the decisions made since.

@@ -3,6 +3,8 @@ using System;
 namespace AvroSharp;
 
 /// <summary>The base class for errors raised by AvroSharp.</summary>
+/// <seealso cref="AvroDataException"/>
+/// <seealso cref="AvroSchemaException"/>
 public class AvroException : Exception
 {
     /// <summary>Initializes a new instance of the <see cref="AvroException"/> class.</summary>

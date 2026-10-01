@@ -10,11 +10,9 @@ using AvroSharp.Serialization.Generated;
 
 namespace AvroSharp.Generic;
 
-/// <summary>
-/// Resolution into bytes: reads data of a writer schema and writes the same values in a reader schema's encoding,
-/// following the same rules as the resolving reader, without materializing generic values. Generated types use it to
-/// read data of another schema version with their own reader.
-/// </summary>
+// Resolution into bytes: reads data of a writer schema and writes the same values in a reader schema's encoding,
+// following the same rules as the resolving reader, without materializing generic values. Generated types use it to
+// read data of another schema version with their own reader.
 public sealed partial class GenericDatumReader
 {
     // Keyed by the reader's schema, then the writer's (#129): each value references both schemas, and a value lives as

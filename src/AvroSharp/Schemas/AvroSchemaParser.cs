@@ -17,6 +17,8 @@ namespace AvroSharp.Schemas;
 /// Parsing is atomic: if a schema is invalid, none of its named types are added to <see cref="NamedSchemas"/>.
 /// Instances are not thread-safe.
 /// </remarks>
+/// <seealso cref="AvroSchemaParseOptions"/>
+/// <seealso cref="AvroSchema"/>
 public sealed class AvroSchemaParser
 {
     private readonly Dictionary<string, NamedSchema> _namedSchemas = new(StringComparer.Ordinal);
@@ -131,6 +133,25 @@ public sealed class AvroSchemaParser
         }
     }
 
+    // Strings that JsonElement can't give as text: invalid UTF-8, and escaped unpaired surrogates, which a custom
+    // property or a default would carry into ToJson unread.
+    private static void CheckText(ReadOnlySpan<byte> utf8Json)
+    {
+        if (!Utf8Validation.IsValid(utf8Json))
+        {
+            throw new AvroSchemaException("The schema JSON is not valid UTF-8.", path: null, lineNumber: null, bytePositionInLine: null);
+        }
+
+        if (Utf8Validation.HasUnpairedSurrogateEscape(utf8Json))
+        {
+            throw new AvroSchemaException(
+                "The schema JSON escapes an unpaired surrogate (\\uD800 to \\uDFFF without its pair), which is not Unicode text.",
+                path: null,
+                lineNumber: null,
+                bytePositionInLine: null);
+        }
+    }
+
     // PERF (#103): the JSON is parsed into a pooled JsonDocument, which is returned when parsing ends; the defaults
     // and custom properties a schema keeps are cloned out of it. JsonElement.ParseValue, which owns its memory, cost
     // about 2 us more for a small schema, a fixed cost of every parse.
@@ -143,10 +164,8 @@ public sealed class AvroSchemaParser
             MaxDepth = Options.MaxDepth,
         };
 
-        if (!Utf8Validation.IsValid(utf8Json.Span))
-        {
-            throw new AvroSchemaException("The schema JSON is not valid UTF-8.", path: null, lineNumber: null, bytePositionInLine: null);
-        }
+        CheckText(utf8Json.Span);
+
 
         JsonDocument document;
         try

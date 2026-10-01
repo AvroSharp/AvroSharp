@@ -25,6 +25,8 @@ namespace AvroSharp.IO;
 /// It writes values only; it does not check them against a schema.
 /// </para>
 /// </remarks>
+/// <seealso cref="AvroReader"/>
+/// <seealso cref="AvroSharp.Generic.GenericDatumWriter"/>
 public ref struct AvroWriter
 {
     private const int MinimumBufferSize = 256;

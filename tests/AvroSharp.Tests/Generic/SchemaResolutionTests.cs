@@ -264,6 +264,47 @@ public class SchemaResolutionTests
         await Assert.That(GenericDatumReader.Create(list, listReader).Read(chain).AsRecord()["extra"].AsInt32()).IsEqualTo(0);
     }
 
+    /// <summary>
+    /// A default comes from the reader's schema, not from input, so the limit on zero-size items doesn't apply to it:
+    /// 70,000 nulls, over the default limit of 65,536, read with the default options and with a higher limit.
+    /// </summary>
+    [Test]
+    public async Task ADefault_OverTheZeroSizeLimit_IsRead()
+    {
+        var writer = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"int"}]}""");
+        var nulls = string.Join(",", Enumerable.Repeat("null", 70_000));
+        var reader = AvroSchema.Parse($$"""{"type":"record","name":"R","fields":[{"name":"a","type":"int"},{"name":"z","type":{"type":"array","items":"null"},"default":[{{nulls}}]}]}""");
+        var bytes = GenericDatumWriter.Create(writer).WriteToArray(new GenericRecord((RecordSchema)writer) { ["a"] = 7 });
+
+        var read = GenericDatumReader.Create(writer, reader).Read(bytes).AsRecord();
+        var generous = GenericDatumReader.Create(writer, reader, new GenericDatumReaderOptions { MaxZeroSizeItems = 1_000_000 }).Read(bytes).AsRecord();
+
+        await Assert.That(read["a"].AsInt32()).IsEqualTo(7);
+        await Assert.That(read["z"].AsArray().Count).IsEqualTo(70_000);
+        await Assert.That(generous["z"].AsArray().Count).IsEqualTo(70_000);
+    }
+
+    /// <summary>
+    /// A field built in code isn't checked against its default, as a parsed one is: resolving it is the schema error
+    /// the reader documents, naming the field, for the generic reader and for the plan generated code uses.
+    /// </summary>
+    [Test]
+    public async Task ADefaultThatIsNotAValueOfItsSchema_IsASchemaError_NamingTheField()
+    {
+        var inner = new RecordSchema(new SchemaName("I"), [new RecordField("x", AvroSchema.Int)]);
+        var writer = new RecordSchema(new SchemaName("R"), [new RecordField("a", AvroSchema.Int)]);
+        using var five = System.Text.Json.JsonDocument.Parse("5");
+        var reader = new RecordSchema(new SchemaName("R"), [new RecordField("a", AvroSchema.Int), new RecordField("b", inner, five.RootElement.Clone())]);
+
+        var generic = Assert.Throws<AvroSchemaException>(() => GenericDatumReader.Create(writer, reader));
+        AvroSharp.Serialization.Generated.AvroPlanCache? cache = null;
+        var plan = Assert.Throws<AvroSchemaException>(() => AvroSharp.Serialization.Generated.AvroGeneratedCode.GetRecordPlan(writer, reader, ref cache));
+
+        await Assert.That(generic.Message).StartsWith("At $: the default of the reader's field 'R.b' is not a value of its schema:");
+        await Assert.That(plan.Message).StartsWith("At $: the default of the reader's field 'R.b' is not a value of its schema:");
+        await Assert.That(generic.InnerException).IsTypeOf<AvroDataException>();
+    }
+
     [Test]
     public async Task EnumSymbols_AreMatchedByName_AndUnknownOnesTakeTheReaderDefault()
     {
@@ -585,6 +626,40 @@ public class SchemaResolutionTests
     /// Resolves with the generic reader, and checks that the transcoder generated types use (which writes the reader's
     /// encoding directly) gives the same bytes as the resolved value written again.
     /// </summary>
+    /// <summary>A record default that omits an inner field takes that field's own default, so {"a":1} fills in b = "z".</summary>
+    [Test]
+    public async Task NestedRecordDefault_FillsInnerFieldsFromTheirDefaults()
+    {
+        var writer = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"id","type":"int"}]}""");
+        var reader = AvroSchema.Parse("""
+            {"type":"record","name":"R","fields":[{"name":"id","type":"int"},
+              {"name":"inner","type":{"type":"record","name":"Inner","fields":[
+                {"name":"a","type":"int"},{"name":"b","type":"string","default":"z"}]},"default":{"a":1}}]}
+            """);
+
+        var read = Resolve(writer, reader, new GenericRecord((RecordSchema)writer) { ["id"] = 7 }).AsRecord();
+        var inner = read["inner"].AsRecord();
+
+        await Assert.That(inner["a"].AsInt32()).IsEqualTo(1);
+        await Assert.That(inner["b"].AsString()).IsEqualTo("z");
+    }
+
+    /// <summary>
+    /// Resolution ignores logical types, as Java's resolver does: a decimal written at scale 2 and read at scale 3
+    /// keeps its unscaled bytes, so 1.23 reads back as 0.123. Rescaling would be a different rule from Java's.
+    /// </summary>
+    [Test]
+    public async Task DecimalsOfDifferentScales_PassTheBytesThrough()
+    {
+        var writer = AvroSchema.Parse("""{"type":"bytes","logicalType":"decimal","precision":9,"scale":2}""");
+        var reader = AvroSchema.Parse("""{"type":"bytes","logicalType":"decimal","precision":9,"scale":3}""");
+        byte[] unscaled = [0x00, 0x7B]; // 123
+
+        var read = Resolve(writer, reader, unscaled);
+
+        await Assert.That(read.AsBytes()).IsEquivalentTo(unscaled, CollectionOrdering.Matching);
+    }
+
     private static AvroValue Resolve(AvroSchema writer, AvroSchema reader, AvroValue value)
     {
         var bytes = GenericDatumWriter.Create(writer).WriteToArray(value);

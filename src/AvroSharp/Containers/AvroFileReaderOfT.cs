@@ -22,6 +22,9 @@ namespace AvroSharp.Containers;
 /// </summary>
 /// <typeparam name="T">The type of the objects.</typeparam>
 /// <remarks>Instances are not thread-safe.</remarks>
+/// <seealso cref="AvroFileReader"/>
+/// <seealso cref="AvroFileReaderOptions"/>
+/// <seealso cref="AvroFileWriter{T}"/>
 public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 {
     private const int InputBufferSize = 16 * 1024;

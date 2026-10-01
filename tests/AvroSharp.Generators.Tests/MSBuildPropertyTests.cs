@@ -55,6 +55,26 @@ public class MSBuildPropertyTests
         await Assert.That(code).Contains("namespace Shop.Customers");
     }
 
+    /// <summary>
+    /// The .targets passes the map on as <c>_AvroSharpNamespaceMap</c>, with ',' for ';' and line breaks, because a map
+    /// written one entry per line, or given on the command line with <c>-p:</c>, reached the compiler without its entries.
+    /// The generator reads that copy, and <c>AvroSharpNamespaceMap</c> only without it.
+    /// </summary>
+    [Test]
+    public async Task ThePassedOnMap_TakesPrecedence()
+    {
+        var (sources, diagnostics, _) = GeneratorHarness.RunWithProperties(
+            [("order.avsc", Schema)],
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["AvroSharpNamespaceMap"] = "",
+                ["_AvroSharpNamespaceMap"] = ",      com.example.shop:Shop.Orders,      org.other:Other,",
+            });
+
+        await Assert.That(diagnostics.Select(d => d.ToString())).IsEmpty();
+        await Assert.That(sources.Single().SourceText.ToString()).Contains("namespace Shop.Orders");
+    }
+
     // The value the compiler gets for a property the SDK writes to the project's .editorconfig file.
     private static string ThroughEditorConfig(string value)
     {
@@ -119,7 +139,7 @@ public class MSBuildPropertyTests
         var tooOld = Assert.Throws<ArgumentException>(() => CSharpCodeGenerator.Generate([schema], new CodeGenOptions { LanguageVersion = 6, NullableAnnotations = false }));
 
         await Assert.That(ex.Message).StartsWith("Nullable annotations need C# 8 or later, and the language version is 7: set NullableAnnotations to false.");
-        await Assert.That(tooOld.Message).StartsWith("The language version 6 is below the lowest supported, C# 7.");
+        await Assert.That(tooOld.Message).StartsWith("The language version 6 is below the lowest supported, C# 7 (7.2 or later: the generated code has readonly structs).");
         await Assert.That(CSharpCodeGenerator.Generate([schema], new CodeGenOptions { LanguageVersion = 7, NullableAnnotations = false }).Count).IsEqualTo(1);
     }
 }

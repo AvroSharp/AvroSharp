@@ -68,6 +68,8 @@ public class SchemaFileGeneratorTests
     /// Apache compatibility mode).
     /// </summary>
     [Test]
+    [Arguments(LanguageVersion.CSharp7_2, false)]
+    [Arguments(LanguageVersion.CSharp7_2, true)]
     [Arguments(LanguageVersion.CSharp7_3, false)]
     [Arguments(LanguageVersion.CSharp7_3, true)]
     [Arguments(LanguageVersion.CSharp8, false)]
@@ -94,6 +96,24 @@ public class SchemaFileGeneratorTests
         await Assert.That(generatorDiagnostics).IsEmpty();
         await Assert.That(sources.Length).IsGreaterThanOrEqualTo(3);
         await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+    }
+
+    /// <summary>
+    /// The generated code needs C# 7.2 (readonly structs). C# 7.0 was read as version 0 and 7.1 as 7, which generated
+    /// code that didn't compile; both are now an error that says what to set.
+    /// </summary>
+    [Test]
+    [Arguments(LanguageVersion.CSharp7)]
+    [Arguments(LanguageVersion.CSharp7_1)]
+    public async Task CSharp7_0And7_1_AreAnError(LanguageVersion version)
+    {
+        var (sources, generatorDiagnostics, _) = GeneratorHarness.Run(
+            [("order.avsc", """{"type":"record","name":"Order","fields":[{"name":"id","type":"long"}]}""")], languageVersion: version);
+
+        await Assert.That(sources).IsEmpty();
+        await Assert.That(generatorDiagnostics.Select(d => (d.Id, d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)))).IsEquivalentTo(
+            [("AVROGEN003", "The generated code needs C# 7.2 or later, and the project uses C# 7.0 or 7.1: set <LangVersion> to 7.3 or later.")],
+            TUnit.Assertions.Enums.CollectionOrdering.Matching);
     }
 
     [Test]

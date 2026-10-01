@@ -4,8 +4,10 @@ using System.Security.Cryptography;
 namespace AvroSharp.Schemas;
 
 /// <summary>
-/// Schema fingerprints computed over the Parsing Canonical Form, as described by the specification.
+/// Schema fingerprints computed over the <see cref="AvroSchema.CanonicalForm">Parsing Canonical Form</see>, as
+/// described by the specification.
 /// </summary>
+/// <seealso cref="AvroSchema.Fingerprint64"/>
 public static class SchemaFingerprint
 {
     /// <summary>The CRC-64-AVRO fingerprint of empty input, as <see cref="Crc64Avro(ReadOnlySpan{byte})"/> returns it.</summary>

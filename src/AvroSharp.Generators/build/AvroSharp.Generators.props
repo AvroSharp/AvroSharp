@@ -3,7 +3,8 @@
   <!-- Lets the generator read its MSBuild properties (see the Code generation docs). -->
   <ItemGroup>
     <CompilerVisibleProperty Include="AvroSharpNamespace" />
-    <CompilerVisibleProperty Include="AvroSharpNamespaceMap" />
+    <!-- AvroSharpNamespaceMap, as the .targets passes it on in a form the compiler keeps. -->
+    <CompilerVisibleProperty Include="_AvroSharpNamespaceMap" />
     <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
     <CompilerVisibleProperty Include="AvroSharpApacheCompatible" />
     <CompilerVisibleProperty Include="AvroSharpPropertyNames" />

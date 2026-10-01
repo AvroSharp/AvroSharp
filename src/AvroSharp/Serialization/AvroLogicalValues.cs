@@ -202,10 +202,19 @@ public static class AvroLogicalValues
             throw new AvroException($"The decimal {value.ToString(CultureInfo.InvariantCulture)} does not fit in {size} bytes.");
         }
 
+        // Unscaled writes all 16 bytes, sign-extended, so up to 16 the fixed value is their end. Copying them into a
+        // second, sign-filled buffer made this 1.5x slower than Apache.Avro on an i7-12800H with .NET 8 (3.5x slower than
+        // on .NET 9 there), most likely a store-forwarding stall on the overlapping wide and narrow stores.
+        if (size <= 16)
+        {
+            writer.WriteFixed(bytes[(16 - size)..]);
+            return;
+        }
+
         Span<byte> destination = size <= 64 ? stackalloc byte[64] : new byte[size];
         destination = destination[..size];
-        destination.Fill(value < 0 ? (byte)0xFF : (byte)0);
-        bytes[(16 - Math.Min(size, 16))..].CopyTo(destination[Math.Max(0, size - 16)..]);
+        destination.Fill(bytes[0] >= 0x80 ? (byte)0xFF : (byte)0);
+        bytes.CopyTo(destination[(size - 16)..]);
         writer.WriteFixed(destination);
     }
 

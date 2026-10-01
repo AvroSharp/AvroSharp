@@ -10,6 +10,9 @@ using AvroSharp.Serialization;
 namespace AvroSharp.Messages;
 
 /// <summary>Creates <see cref="AvroMessageReader{T}"/> instances.</summary>
+/// <seealso cref="AvroMessage"/>
+/// <seealso cref="IAvroSchemaResolver"/>
+/// <seealso cref="AvroSchemaStore"/>
 public static class AvroMessageReader
 {
     /// <summary>Creates a reader of messages of any schema <paramref name="resolver"/> finds.</summary>
@@ -24,13 +27,13 @@ public static class AvroMessageReader
     /// <summary>Creates a reader of messages as generic values.</summary>
     /// <param name="resolver">Finds each message's writer schema.</param>
     /// <param name="readerSchema">The schema to resolve every message to; <see langword="null"/> reads each as written.</param>
-    /// <param name="options">The generic reader's options, or <see langword="null"/> for the defaults.</param>
-    public static AvroMessageReader<AvroValue> CreateGeneric(IAvroSchemaResolver resolver, AvroSchema? readerSchema = null, GenericDatumReaderOptions? options = null) =>
+    /// <param name="readerOptions">The generic reader's options, or <see langword="null"/> for the defaults.</param>
+    public static AvroMessageReader<AvroValue> CreateGeneric(IAvroSchemaResolver resolver, AvroSchema? readerSchema = null, GenericDatumReaderOptions? readerOptions = null) =>
         new(resolver, writerSchema =>
         {
             var reader = readerSchema is null
-                ? GenericDatumReader.Create(writerSchema, options)
-                : GenericDatumReader.Create(writerSchema, readerSchema, options);
+                ? GenericDatumReader.Create(writerSchema, readerOptions)
+                : GenericDatumReader.Create(writerSchema, readerSchema, readerOptions);
             return (ref r) => reader.Read(ref r);
         });
 
@@ -50,6 +53,9 @@ public static class AvroMessageReader
 /// </summary>
 /// <typeparam name="T">The type read.</typeparam>
 /// <remarks>Instances are thread-safe when the read functions are.</remarks>
+/// <seealso cref="AvroMessageReader"/>
+/// <seealso cref="AvroMessage"/>
+/// <seealso cref="AvroSchemaStore"/>
 public sealed class AvroMessageReader<T>
 {
     private readonly IAvroSchemaResolver _resolver;

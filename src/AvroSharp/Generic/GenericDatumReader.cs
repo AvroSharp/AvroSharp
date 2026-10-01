@@ -17,6 +17,10 @@ namespace AvroSharp.Generic;
 /// <see cref="Create(AvroSchema, AvroSchema, GenericDatumReaderOptions?)"/> reads data written with one schema version
 /// as another (schema resolution), following the specification's rules.
 /// </remarks>
+/// <seealso cref="GenericDatumWriter"/>
+/// <seealso cref="GenericDatumReaderOptions"/>
+/// <seealso cref="GenericDatumJsonReader"/>
+/// <seealso cref="AvroReader"/>
 public sealed partial class GenericDatumReader
 {
     // Items pre-allocated for an array or map before any are read; larger blocks grow as items arrive, so a block

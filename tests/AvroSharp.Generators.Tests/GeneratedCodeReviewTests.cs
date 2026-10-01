@@ -125,12 +125,40 @@ public class GeneratedCodeReviewTests
     }
 
     /// <summary>
+    /// A union's default is for the first branch it is a value of (Avro 1.12), which the generator took to be always the
+    /// first branch: a string default of <c>["int","string"]</c> failed to generate, and one of <c>[enum,"string"]</c> that
+    /// isn't a symbol generated a symbol that doesn't exist. The defaults now match what a reader gives the field.
+    /// </summary>
+    [Test]
+    public async Task UnionDefaults_AreForTheBranchTheyAreAValueOf()
+    {
+        const string Schema = """
+            {"type":"record","name":"U","namespace":"unions","fields":[
+              {"name":"n","type":["int","string"],"default":"abc"},
+              {"name":"c","type":[{"type":"enum","name":"Color","symbols":["RED"]},"string"],"default":"BLUE"},
+              {"name":"r","type":[{"type":"enum","name":"Tone","symbols":["RED"]},"string"],"default":"RED"}
+            ]}
+            """;
+
+        var (_, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run([("unions.avsc", Schema)]);
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+
+        var type = GeneratorHarness.GenerateAndLoad([("unions.avsc", Schema)]).GetType("unions.U")!;
+        var value = Activator.CreateInstance(type)!;
+        await Assert.That(type.GetProperty("N")!.GetValue(value)).IsEqualTo("abc");
+        await Assert.That(type.GetProperty("C")!.GetValue(value)).IsEqualTo("BLUE");
+        await Assert.That(type.GetProperty("R")!.GetValue(value)!.ToString()).IsEqualTo("RED");
+    }
+
+    /// <summary>
     /// A decimal default beyond System.Decimal or the precision is valid in the schema, but the generated constructor
-    /// threw (#141). It is a generation error.
+    /// threw (#141). It is a generation error, in a union's later branch too.
     /// </summary>
     [Test]
     [Arguments("""{"type":"fixed","name":"Wide","size":16,"logicalType":"decimal","precision":28}""", "\"\\u007f\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\\u00ff\"", "does not fit in System.Decimal")]
     [Arguments("""{"type":"array","items":{"type":"bytes","logicalType":"decimal","precision":2}}""", "[\"\\u0001\\u0000\"]", "digits")]
+    [Arguments("""["boolean",{"type":"bytes","logicalType":"decimal","precision":4,"scale":2}]""", "\"\\u0027\\u0010\"", "digits")]
     public async Task DecimalDefaultsTheCSharpDecimalCannotHold_AreAnError(string type, string defaultValue, string reason)
     {
         var schema = $$"""{"type":"record","name":"Big","namespace":"dec","fields":[{"name":"d","type":{{type}},"default":{{defaultValue}}}]}""";

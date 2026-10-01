@@ -15,6 +15,9 @@ namespace AvroSharp.Codecs;
 /// Uses the fully managed ZstdSharp library. Instances are thread-safe: compression and decompression contexts are
 /// kept per thread and reused.
 /// </remarks>
+/// <seealso cref="AvroCodecs"/>
+/// <seealso cref="AvroFileWriterOptions.Codec"/>
+/// <seealso cref="AvroFileReaderOptions.Codecs"/>
 public sealed class ZstandardCodec : AvroCodec
 {
     /// <summary>The default compression level, 3, the same as Java's <c>CodecFactory.zstandardCodec</c>.</summary>

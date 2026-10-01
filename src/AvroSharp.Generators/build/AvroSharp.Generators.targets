@@ -1,9 +1,11 @@
 <Project>
 
-  <!-- The compiler passes CompilerVisibleProperty values in an .editorconfig file, where ';' starts a comment, so the
-       entries of AvroSharpNamespaceMap after the first would be lost. The generator also reads ',' as the separator. -->
+  <!-- The compiler passes CompilerVisibleProperty values in an .editorconfig file, where ';' starts a comment and a line
+       break ends the value, so AvroSharpNamespaceMap would lose every entry after the first, or all of them when the
+       list is written one entry per line. Its entries are passed on separated by ',', which the generator also reads.
+       A copy, because a property given on the command line (-p:) can't be changed. -->
   <PropertyGroup Condition="'$(AvroSharpNamespaceMap)' != ''">
-    <AvroSharpNamespaceMap>$(AvroSharpNamespaceMap.Replace(';', ','))</AvroSharpNamespaceMap>
+    <_AvroSharpNamespaceMap>$([System.Text.RegularExpressions.Regex]::Replace('$(AvroSharpNamespaceMap)', '[;\r\n]+', ','))</_AvroSharpNamespaceMap>
   </PropertyGroup>
 
 </Project>

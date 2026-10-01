@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AvroSharp.Buffers;
 using AvroSharp.Containers;
 using AvroSharp.IO;
+using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Containers;
 
@@ -330,6 +331,50 @@ public class ContainerHostileInputTests
 
         await Assert.That(reader.ReadAll().Count()).IsEqualTo(1);
         await Assert.That(ex.Message).Contains("AvroFileReaderOptions.MaxSchemaLength");
+    }
+
+    /// <summary>
+    /// An empty block (0 objects in 0 bytes) between two blocks is skipped and the records after it are read. This
+    /// pins a difference from Apache.Avro C# 1.12.2, which stops at the empty block and reads only the first record:
+    /// that is an Apache bug, since the specification allows any number of objects in a block.
+    /// </summary>
+    [Test]
+    public async Task AnEmptyBlockBetweenTwoBlocks_IsSkipped()
+    {
+        var header = Header();
+        var bytes = Build((ref w) =>
+        {
+            w.WriteRaw(header);
+            w.WriteLong(1);
+            w.WriteLong(1);
+            w.WriteLong(5);
+            w.WriteRaw(new byte[SyncSize]);
+            w.WriteLong(0);
+            w.WriteLong(0);
+            w.WriteRaw(new byte[SyncSize]);
+            w.WriteLong(1);
+            w.WriteLong(1);
+            w.WriteLong(-6);
+            w.WriteRaw(new byte[SyncSize]);
+        });
+
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(bytes));
+
+        await Assert.That(reader.ReadAll().Select(v => v.AsInt64()).ToArray()).IsEquivalentTo(new[] { 5L, -6L }, CollectionOrdering.Matching);
+    }
+
+    /// <summary>
+    /// An empty avro.codec is not taken as "null", which only an absent key means: it is an unknown codec, rejected
+    /// when the file is opened like any other codec the reader lacks.
+    /// </summary>
+    [Test]
+    public async Task AnEmptyCodecName_IsRejected()
+    {
+        var bytes = WithBlock(1, [0x02], codec: string.Empty);
+
+        var ex = Assert.Throws<AvroException>(() => AvroFileReader.OpenGeneric(new MemoryStream(bytes)));
+
+        await Assert.That(ex.Message).IsEqualTo("The file is compressed with the '' codec, which is not available; add it to AvroFileReaderOptions.Codecs.");
     }
 
     /// <summary>A header for the schema <c>long</c> (or <paramref name="schema"/>) whose sync marker is all zeros.</summary>

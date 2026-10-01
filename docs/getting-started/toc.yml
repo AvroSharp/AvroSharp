@@ -1,0 +1,13 @@
+# The Getting started section's sidebar.
+- name: Getting started
+  href: index.md
+- name: Generated types
+  href: generated-types.md
+- name: Container files
+  href: containers.md
+- name: Schema evolution
+  href: schema-evolution.md
+- name: Logical types
+  href: logical-types.md
+- name: JSON
+  href: json.md

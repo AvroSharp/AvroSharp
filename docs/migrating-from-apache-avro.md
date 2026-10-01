@@ -2,7 +2,7 @@
 
 This guide maps code written for Apache.Avro (the `Apache.Avro` NuGet package) to AvroSharp. Both libraries implement the same specification, so they read each other's data. Services, and the code within one service, can move one step at a time.
 
-Every example here is taken from the [Migration sample](../samples/Migration/Program.cs). CI builds and runs it against both libraries, and a test checks that each code block below appears in it, so the examples compile against the current API. [AvroSharp and Apache.Avro](apache-avro.md) compares the two libraries. Automated fixes for the mechanical parts are planned in [#151](https://github.com/zcsizmadia/AvroSharp/issues/151).
+Every example here is taken from the [Migration sample](../samples/Migration/Program.cs). CI builds and runs it against both libraries, and a test checks that each code block below appears in it, so the examples compile against the current API. [AvroSharp and Apache.Avro](apache-avro.md) compares the two libraries. Automated fixes for the mechanical parts are planned in [#151](https://github.com/AvroSharp/AvroSharp/issues/151).
 
 ## The plan
 
@@ -15,12 +15,12 @@ Every example here is taken from the [Migration sample](../samples/Migration/Pro
 
 | Apache.Avro | AvroSharp |
 |---|---|
-| `Avro` (`Schema`, `RecordSchema`, `SchemaNormalization`) | `AvroSharp.Schemas` (`AvroSchema`, `RecordSchema`, fingerprints on the schema) |
-| `Avro.Generic` | `AvroSharp.Generic` |
-| `Avro.Specific` | Generated types, and `AvroSharp.Serialization` (`AvroSerializer`) |
-| `Avro.IO` (`BinaryEncoder`, `BinaryDecoder`) | `AvroSharp.IO` (`AvroWriter`, `AvroReader`), over spans, buffer writers and sequences |
-| `Avro.File` (`DataFileWriter<T>`, `DataFileReader<T>`, `Codec`) | `AvroSharp.Containers` (`AvroFileWriter`, `AvroFileReader`, `AvroCodec`); other codecs are in the `AvroSharp.Codecs` package |
-| `AvroException`, `SchemaParseException`, `AvroTypeException` | `AvroSharp` (`AvroException`, `AvroSchemaException`, `AvroDataException`) |
+| `Avro` (`Schema`, `RecordSchema`, `SchemaNormalization`) | [`AvroSharp.Schemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.html) ([`AvroSchema`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.html), [`RecordSchema`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.RecordSchema.html), fingerprints on the schema) |
+| `Avro.Generic` | [`AvroSharp.Generic`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.html) |
+| `Avro.Specific` | Generated types, and [`AvroSharp.Serialization`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.html) ([`AvroSerializer`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.AvroSerializer.html)) |
+| `Avro.IO` (`BinaryEncoder`, `BinaryDecoder`) | [`AvroSharp.IO`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.html) ([`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html), [`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html)), over spans, buffer writers and sequences |
+| `Avro.File` (`DataFileWriter<T>`, `DataFileReader<T>`, `Codec`) | [`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html) ([`AvroFileWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.html), [`AvroFileReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader.html), [`AvroCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroCodec.html)); other codecs are in the [`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html) package |
+| `AvroException`, `SchemaParseException`, `AvroTypeException` | [`AvroSharp`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.html) ([`AvroException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroException.html), [`AvroSchemaException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroSchemaException.html), [`AvroDataException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroDataException.html)) |
 
 ## Schemas
 
@@ -39,21 +39,21 @@ long fingerprint = schema.Fingerprint64;
 string canonical = schema.CanonicalForm;
 ```
 
-- **Fingerprints are the same number.** `Fingerprint64` is CRC-64-AVRO of the Parsing Canonical Form, which is what `SchemaNormalization.ParsingFingerprint64` computes. It's worked out once per schema.
-- **Equality:** `Equals` on an AvroSchema is reference equality. `schema.HasSameCanonicalForm(other)` compares encodings.
-- **Several files:** parse them together with `new AvroSchemaParser()` and `Parse` once per file, so each file can refer to named types defined in the others. The source generator and the `avrosharp` tool do this for you.
+- **Fingerprints are the same number.** [`Fingerprint64`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.Fingerprint64.html) is CRC-64-AVRO of the Parsing Canonical Form, which is what `SchemaNormalization.ParsingFingerprint64` computes. It's worked out once per schema.
+- **Equality:** `Equals` on an AvroSchema is reference equality. [`schema.HasSameCanonicalForm(other)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.HasSameCanonicalForm.html) compares encodings.
+- **Several files:** parse them together with [`new AvroSchemaParser()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaParser.-ctor.html) and [`Parse`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaParser.Parse.html) once per file, so each file can refer to named types defined in the others. The source generator and the `avrosharp` tool do this for you.
 
 ## The generic model
 
 | Apache.Avro | AvroSharp |
 |---|---|
-| `GenericRecord`, values as `object` | `GenericRecord`, values as `AvroValue`: a 16-byte struct, primitives stored inline without boxing |
-| `record["name"]` returns `object`, which you cast | `record["name"]` returns `AvroValue`: `.AsString()`, `.AsInt64()`, `.AsRecord()`, `.IsNull`, `.Kind` |
-| `GenericEnum(schema, symbol)`, with `.Value` | `AvroValue.FromEnum(schema, symbol)`, with `.AsEnumSymbol()` and `.AsEnumOrdinal()`. No object is allocated |
-| `GenericFixed(schema, bytes)` | `GenericFixed(schema, bytes)` |
-| arrays as `object[]` or `IList` | `IReadOnlyList<AvroValue>`; arrays of primitives stay primitive (`TryGetInt64Array` and the others) |
+| `GenericRecord`, values as `object` | [`GenericRecord`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericRecord.html), values as [`AvroValue`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.html): a 16-byte struct, primitives stored inline without boxing |
+| `record["name"]` returns `object`, which you cast | `record["name"]` returns `AvroValue`: [`.AsString()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.AsString.html), [`.AsInt64()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.AsInt64.html), [`.AsRecord()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.AsRecord.html), [`.IsNull`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.IsNull.html), [`.Kind`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.Kind.html) |
+| `GenericEnum(schema, symbol)`, with `.Value` | [`AvroValue.FromEnum(schema, symbol)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.FromEnum.html), with [`.AsEnumSymbol()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.AsEnumSymbol.html) and [`.AsEnumOrdinal()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.AsEnumOrdinal.html). No object is allocated |
+| `GenericFixed(schema, bytes)` | [`GenericFixed(schema, bytes)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericFixed.-ctor.html) |
+| arrays as `object[]` or `IList` | `IReadOnlyList<AvroValue>`; arrays of primitives stay primitive ([`TryGetInt64Array`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.TryGetInt64Array.html) and the others) |
 | maps as `IDictionary<string, object>` | `IReadOnlyDictionary<string, AvroValue>` |
-| `null` | `AvroValue.Null` |
+| `null` | [`AvroValue.Null`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.Null.html) |
 
 Writing, with Apache.Avro:
 
@@ -99,12 +99,12 @@ string status = read["status"].AsEnumSymbol();
 bool noEmail = read["email"].IsNull;
 ```
 
-- **Readers and writers are built once per schema:** `GenericDatumReader.Create` and `GenericDatumWriter.Create` cache them. Keep them rather than creating one per value, as you would keep Apache's.
+- **Readers and writers are built once per schema:** [`GenericDatumReader.Create`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumReader.Create.html) and [`GenericDatumWriter.Create`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumWriter.Create.html) cache them. Keep them rather than creating one per value, as you would keep Apache's.
 - **Other ways to read and write:**
-  - `Write(IBufferWriter<byte>, value)` and `Read(ReadOnlySpan<byte>)`;
+  - [`Write(IBufferWriter<byte>, value)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumWriter.Write.html) and [`Read(ReadOnlySpan<byte>)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumReader.Read.html);
   - `ReadOnlySequence<byte>` overloads;
-  - an `AvroWriter`/`AvroReader` over your own buffer.
-- **Limits:** the readers limit nesting depth and the number of zero-size items (`GenericDatumReaderOptions`), so hostile input can't exhaust memory or the stack.
+  - an [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html)/[`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) over your own buffer.
+- **Limits:** the readers limit nesting depth and the number of zero-size items ([`GenericDatumReaderOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumReaderOptions.html)), so hostile input can't exhaust memory or the stack.
 
 ## Schema resolution
 
@@ -125,7 +125,7 @@ AvroSharp checks that the schemas can be resolved when the reader is created, no
 
 ## Container files
 
-Apache's `DataFileWriter<T>` and `DataFileReader<T>` map to `AvroFileWriter` and `AvroFileReader`, and the files are the same format. With Apache.Avro:
+Apache's `DataFileWriter<T>` and `DataFileReader<T>` map to [`AvroFileWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.html) and [`AvroFileReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader.html), and the files are the same format. With Apache.Avro:
 
 ```csharp
 var apacheFile = new MemoryStream();
@@ -158,13 +158,13 @@ using (var fileReader = AvroFileReader.OpenGeneric(apacheFile))
 
 | Apache.Avro | AvroSharp |
 |---|---|
-| `Codec.CreateCodec(Codec.Type.Null)`, `Codec.Type.Deflate` | `AvroCodec.Null`, `AvroCodec.Deflate` (or `new DeflateCodec(level)`) |
-| `Apache.Avro.File.Snappy`, `.Zstandard`, `.BZip2`, `.XZ` packages | the `AvroSharp.Codecs` package: `SnappyCodec`, `ZstandardCodec`, `Bzip2Codec`, `XzCodec`. They're managed code, so there's no native zstd library to deploy |
-| `reader.Next()` / `HasNext()` | `ReadAll()`, `ReadAllAsync()`, or `ReadAllPipelinedAsync()`, which decompresses the next blocks in the background |
-| `GetMetaString(key)` | `TryGetMetadataString(key, out value)`, and `Metadata` |
-| `Sync()`, `PastSync()`, `Seek()` | the same, for splitting a file between readers |
+| `Codec.CreateCodec(Codec.Type.Null)`, `Codec.Type.Deflate` | [`AvroCodec.Null`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroCodec.Null.html), [`AvroCodec.Deflate`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroCodec.Deflate.html) (or [`new DeflateCodec(level)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.DeflateCodec.-ctor.html)) |
+| `Apache.Avro.File.Snappy`, `.Zstandard`, `.BZip2`, `.XZ` packages | the [`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html) package: [`SnappyCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.SnappyCodec.html), [`ZstandardCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.ZstandardCodec.html), [`Bzip2Codec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.Bzip2Codec.html), [`XzCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.XzCodec.html). They're managed code, so there's no native zstd library to deploy |
+| `reader.Next()` / `HasNext()` | [`ReadAll()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.ReadAll.html), [`ReadAllAsync()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.ReadAllAsync.html), or [`ReadAllPipelinedAsync()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.ReadAllPipelinedAsync.html), which decompresses the next blocks in the background |
+| `GetMetaString(key)` | [`TryGetMetadataString(key, out value)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.TryGetMetadataString.html), and [`Metadata`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.Metadata.html) |
+| `Sync()`, `PastSync()`, `Seek()` | the same ([`Sync`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.Sync.html), [`PastSync`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.PastSync.html), [`Seek`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.Seek.html)), for splitting a file between readers |
 
-The readers bound block sizes and metadata, so a corrupt or hostile file fails with an `AvroDataException`, not an out-of-memory error. Async writing and reading need no synchronous I/O.
+The readers bound block sizes and metadata, so a corrupt or hostile file fails with an [`AvroDataException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroDataException.html), not an out-of-memory error. Async writing and reading need no synchronous I/O.
 
 ## Generated types
 
@@ -201,7 +201,7 @@ var sameUser = migration.User.FromAvroBytes(specificOutput.ToArray());
 |---|---|
 | `SpecificDatumWriter<T>` + `BinaryEncoder` + `Write` | `value.ToAvroBytes()`, `TryWriteAvroBytes(Span<byte>, out n)`, `T.Write(ref writer, value)` |
 | `SpecificDatumReader<T>(writer, reader)` + `BinaryDecoder` + `Read` | `T.FromAvroBytes(bytes)`, or `T.FromAvroBytes(bytes, writerSchema)` to resolve another version |
-| `DataFileWriter<T>` of a specific type | `AvroFileWriter.Create<T>(stream)` (.NET 8 and later), or `AvroFileWriter.Create(stream, T.AvroSharpSchema, T.Write)` |
+| `DataFileWriter<T>` of a specific type | [`AvroFileWriter.Create<T>(stream)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.Create.html) (.NET 8 and later), or [`AvroFileWriter.Create(stream, T.AvroSharpSchema, T.Write)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.Create.html) |
 | avrogen, run by hand | the build, or the [`avrosharp` tool](cli.md#coming-from-avrogen) with `--apache-compatible` for checked-in code |
 
 For generated code there's no reflection and no boxing, and the generated readers resolve older schema versions directly. [Code generation](code-generation.md) describes the generator and its options.
@@ -226,9 +226,9 @@ Code that uses these properties has to be checked by hand. It usually still comp
 
 | Apache.Avro | AvroSharp |
 |---|---|
-| `SchemaParseException` | `AvroSchemaException`, with the JSON path, line and column of the problem |
-| `AvroTypeException`, `AvroException` while reading | `AvroDataException`, for malformed or truncated data |
-| `AvroException` while writing | `AvroException`, naming the field |
+| `SchemaParseException` | [`AvroSchemaException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroSchemaException.html), with the JSON path, line and column of the problem |
+| `AvroTypeException`, `AvroException` while reading | [`AvroDataException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroDataException.html), for malformed or truncated data |
+| `AvroException` while writing | [`AvroException`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.AvroException.html), naming the field |
 
 ```csharp
 try
@@ -252,6 +252,6 @@ The two libraries don't need to reference each other: both read and write the sa
 
 - **Apache's reflect API**, which derives schemas from existing classes. AvroSharp generates classes from schemas. An attribute-driven generator is planned (#31).
 - **Protocols and RPC** (`.avpr`, `Avro.ipc`) aren't supported (#33).
-- **Stream-based encoders:** `BinaryEncoder`/`BinaryDecoder` over a `Stream` become `AvroWriter`/`AvroReader` over a span, an `IBufferWriter<byte>` or a `ReadOnlySequence<byte>`. `AvroStreamWriter`/`AvroStreamReader` handle a stream of objects without a container. A loop that reads a stream value by value needs rewriting, usually around a pipe or a container file.
-- **Custom codecs:** derive from `AvroCodec`. That's the same idea as Apache's `Codec`, with a different signature (`ReadOnlyMemory<byte>` in, `IBufferWriter<byte>` out).
-- **Single-object messages and schema registries:** Apache.Avro for C# has no single-object encoding. AvroSharp's `AvroMessage` and `AvroRegistryMessage` (Confluent, Apicurio, AWS Glue) are new, not replacements.
+- **Stream-based encoders:** `BinaryEncoder`/`BinaryDecoder` over a `Stream` become [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html)/[`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) over a span, an `IBufferWriter<byte>` or a `ReadOnlySequence<byte>`. [`AvroStreamWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.AvroStreamWriter.html)/[`AvroStreamReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.AvroStreamReader.html) handle a stream of objects without a container. A loop that reads a stream value by value needs rewriting, usually around a pipe or a container file.
+- **Custom codecs:** derive from [`AvroCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroCodec.html). That's the same idea as Apache's `Codec`, with a different signature (`ReadOnlyMemory<byte>` in, `IBufferWriter<byte>` out).
+- **Single-object messages and schema registries:** Apache.Avro for C# has no single-object encoding. AvroSharp's [`AvroMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroMessage.html) and [`AvroRegistryMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroRegistryMessage.html) (Confluent, Apicurio, AWS Glue) are new, not replacements.

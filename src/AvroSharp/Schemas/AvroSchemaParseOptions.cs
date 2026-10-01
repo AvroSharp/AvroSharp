@@ -3,6 +3,7 @@ using System;
 namespace AvroSharp.Schemas;
 
 /// <summary>Options for <see cref="AvroSchemaParser"/>.</summary>
+/// <seealso cref="AvroSchema"/>
 public sealed class AvroSchemaParseOptions
 {
     /// <summary>The default <see cref="MaxDepth"/>: 256.</summary>
@@ -16,6 +17,7 @@ public sealed class AvroSchemaParseOptions
     /// specification's <c>[A-Za-z_][A-Za-z0-9_]*</c> rule. Defaults to <see langword="true"/>.
     /// Disable only to read legacy schemas produced by non-conforming tools.
     /// </summary>
+    /// <seealso cref="AvroNames"/>
     public bool ValidateNames { get; init; } = true;
 
     /// <summary>

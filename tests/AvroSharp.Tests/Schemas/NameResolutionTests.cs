@@ -191,6 +191,42 @@ public class NameResolutionTests
         await Assert.That(ex.Path).IsEqualTo("$.name");
     }
 
+    /// <summary>An invalid namespace attribute is reported at $.namespace, where it is written, not at $.name.</summary>
+    [Test]
+    [Arguments("a..b")]
+    [Arguments("1a")]
+    [Arguments("a.")]
+    public async Task InvalidNamespace_IsRejectedAtTheNamespaceAttribute(string @namespace)
+    {
+        var ex = Assert.Throws<AvroSchemaException>(() => AvroSchema.Parse($$"""{"type":"fixed","name":"F","namespace":"{{@namespace}}","size":1}"""));
+
+        await Assert.That(ex.Path).IsEqualTo("$.namespace");
+        await Assert.That(ex.Message).Contains($"'{@namespace}' is not a valid Avro namespace.");
+    }
+
+    /// <summary>
+    /// Field aliases are kept as written and not name-checked, as in Java, whose Field constructor validates the name
+    /// but adds aliases unchecked; a schema with such aliases from another library still parses.
+    /// </summary>
+    [Test]
+    public async Task FieldAliases_AreNotNameChecked()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"f","type":"int","aliases":["bad alias","a.b"]}]}""");
+
+        await Assert.That(schema.Fields[0].Aliases).IsEquivalentTo(new[] { "bad alias", "a.b" }, CollectionOrdering.Matching);
+    }
+
+    /// <summary>A field alias may equal another field's name; aliases only matter when resolving against a writer.</summary>
+    [Test]
+    public async Task FieldAlias_MayEqualAnotherFieldsName()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""
+            {"type":"record","name":"R","fields":[{"name":"a","type":"int"},{"name":"b","type":"int","aliases":["a"]}]}
+            """);
+
+        await Assert.That(schema.Fields[1].Aliases).IsEquivalentTo(new[] { "a" }, CollectionOrdering.Matching);
+    }
+
     [Test]
     public async Task InvalidNames_AreAcceptedWhenValidationIsDisabled()
     {

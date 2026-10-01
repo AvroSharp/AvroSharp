@@ -8,6 +8,9 @@ namespace AvroSharp.Messages;
 /// Each registry's layout is a fixed instance; see <see cref="AvroRegistryMessage"/> and
 /// <see cref="AvroRegistryMessageReader{T}"/>.
 /// </summary>
+/// <seealso cref="AvroRegistryMessage"/>
+/// <seealso cref="AvroRegistryMessageReader"/>
+/// <seealso cref="AvroSchemaId"/>
 public sealed class AvroRegistryFraming
 {
     private enum Layout

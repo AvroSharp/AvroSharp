@@ -7,6 +7,8 @@ using AvroSharp.Schemas;
 namespace AvroSharp.Messages;
 
 /// <summary>A thread-safe, in-memory <see cref="IAvroSchemaResolver"/>.</summary>
+/// <seealso cref="AvroMessageReader"/>
+/// <seealso cref="AvroMessage"/>
 public sealed class AvroSchemaStore : IAvroSchemaResolver
 {
     private readonly ConcurrentDictionary<long, AvroSchema> _schemas = new();

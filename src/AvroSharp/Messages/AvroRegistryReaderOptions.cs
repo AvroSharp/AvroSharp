@@ -1,6 +1,7 @@
 namespace AvroSharp.Messages;
 
 /// <summary>Limits for <see cref="AvroRegistryMessageReader{T}"/>.</summary>
+/// <seealso cref="AvroRegistryMessageReader"/>
 public sealed class AvroRegistryReaderOptions
 {
     /// <summary>The default <see cref="MaxPayloadLength"/>: 64 MiB.</summary>

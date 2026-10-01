@@ -3,6 +3,8 @@ using System.Collections.Generic;
 namespace AvroSharp.CodeGen;
 
 /// <summary>Options for <see cref="CSharpCodeGenerator"/>.</summary>
+/// <seealso cref="CSharpCodeGenerator"/>
+/// <seealso cref="GeneratedSource"/>
 public sealed class CodeGenOptions
 {
     /// <summary>Gets the default options.</summary>

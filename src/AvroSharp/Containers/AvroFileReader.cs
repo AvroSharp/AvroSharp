@@ -9,6 +9,9 @@ using AvroSharp.Serialization;
 namespace AvroSharp.Containers;
 
 /// <summary>Opens <see cref="AvroFileReader{T}"/> instances.</summary>
+/// <seealso cref="AvroFileReaderOptions"/>
+/// <seealso cref="AvroFileWriter"/>
+/// <seealso cref="AvroCodec"/>
 public static class AvroFileReader
 {
     /// <summary>Reads a file's header and returns a reader of its objects.</summary>
