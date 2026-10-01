@@ -171,6 +171,43 @@ public class SingleObjectEncodingTests
         await Assert.That(resolver.AsyncCalls).IsEqualTo(1);
     }
 
+    /// <summary>
+    /// Concurrent reads of one new fingerprint, such as a batch read in parallel, each asked the resolver (#159). They
+    /// now wait for one fetch.
+    /// </summary>
+    [Test]
+    public async Task ConcurrentReadAsync_OfANewFingerprint_FetchItOnce()
+    {
+        var resolver = new SlowResolver(s_v1);
+        var reader = AvroMessageReader.CreateGeneric(resolver);
+        var messages = Enumerable.Range(0, 8).Select(i => AvroMessage.ToArray(User(s_v1, i, "x"), GenericDatumWriter.Create(s_v1))).ToList();
+
+        var read = await Task.WhenAll(messages.Select(m => reader.ReadAsync(m).AsTask()));
+
+        await Assert.That(resolver.AsyncCalls).IsEqualTo(1);
+        await Assert.That(read.Select(v => v.AsRecord()["id"].AsInt32())).IsEquivalentTo(Enumerable.Range(0, 8), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    /// <summary>
+    /// Bad data threw from the call itself (#160), so a batch started with Select, then awaited with WhenAll, stopped at
+    /// the first bad message. The failure is now the returned task's, on the cached path and the fetching one.
+    /// </summary>
+    [Test]
+    public async Task ReadAsync_WithBadData_ReturnsAFaultedTask()
+    {
+        var reader = AvroMessageReader.CreateGeneric(new AvroSchemaStore(s_v1));
+        var good = AvroMessage.ToArray(User(s_v1, 1, "a"), GenericDatumWriter.Create(s_v1));
+        byte[] notAMessage = [1, 2, 3];
+        var leftover = good.Concat(new byte[] { 0 }).ToArray();
+
+        var tasks = new[] { good, notAMessage, leftover }.Select(m => reader.ReadAsync(m).AsTask()).ToList();
+        await Assert.ThrowsAsync<AvroDataException>(async () => await Task.WhenAll(tasks));
+
+        await Assert.That(tasks[0].Status).IsEqualTo(TaskStatus.RanToCompletion);
+        await Assert.That(tasks[1].Exception!.InnerException).IsTypeOf<AvroDataException>();
+        await Assert.That(tasks[2].Exception!.InnerException).IsTypeOf<AvroDataException>();
+    }
+
     [Test]
     public async Task ReadAsync_WhenTheResolverFindsNoSchema_IsRejected_AndNotCached()
     {
@@ -231,6 +268,23 @@ public class SingleObjectEncodingTests
 
             await Task.Yield();
             return answer(call);
+        }
+    }
+
+    /// <summary>Knows nothing synchronously; each asynchronous fetch takes 100 ms, long enough for concurrent reads to overlap.</summary>
+    private sealed class SlowResolver(AvroSchema schema) : IAvroSchemaResolver
+    {
+        private int _asyncCalls;
+
+        public int AsyncCalls => Volatile.Read(ref _asyncCalls);
+
+        public AvroSchema? GetSchema(long fingerprint) => null;
+
+        public async ValueTask<AvroSchema?> GetSchemaAsync(long fingerprint, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _asyncCalls);
+            await Task.Delay(100, cancellationToken);
+            return schema;
         }
     }
 }

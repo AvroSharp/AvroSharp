@@ -62,6 +62,7 @@ public sealed class AvroMessageReader<T>
     private readonly Func<AvroSchema, AvroReadFunc<T>> _createReader;
     private readonly ConcurrentDictionary<long, CachedReader> _readers = new();
     private readonly System.Threading.Lock _createLock = new();
+    private readonly ConcurrentDictionary<long, SemaphoreSlim> _fetchGates = new();
 
     // Messages usually repeat one schema, so the last entry used is checked before the dictionary. Entries are
     // immutable and the field is read once per message, so concurrent readers always see a matching pair.
@@ -108,17 +109,25 @@ public sealed class AvroMessageReader<T>
 
     /// <summary>Reads one message, fetching its schema through the resolver when its fingerprint is new.</summary>
     /// <param name="message">The whole message: the header and the object's encoding, with nothing after it.</param>
-    /// <param name="cancellationToken">Cancels a fetch.</param>
+    /// <param name="cancellationToken">Cancels a fetch. Concurrent reads of the same new fingerprint fetch it once: the others wait for it.</param>
     /// <exception cref="AvroDataException">
     /// The message has no single-object header, the resolver does not know its schema, or its data is malformed or has
-    /// bytes left over.
+    /// bytes left over. Reported through the returned task, as every other failure is.
     /// </exception>
     public ValueTask<T> ReadAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default)
     {
-        var fingerprint = ReadHeader(message.Span);
-        return Lookup(fingerprint) is { } cached
-            ? new(Decode(cached, message.Span))
-            : FetchAndDecodeAsync(fingerprint, message, cancellationToken);
+        // Bad data fails the task rather than the call (#160), so reads started together, then awaited, all complete.
+        try
+        {
+            var fingerprint = ReadHeader(message.Span);
+            return Lookup(fingerprint) is { } cached
+                ? new(Decode(cached, message.Span))
+                : FetchAndDecodeAsync(fingerprint, message, cancellationToken);
+        }
+        catch (AvroException ex)
+        {
+            return new(Task.FromException<T>(ex));
+        }
     }
 
     private static long ReadHeader(ReadOnlySpan<byte> message) =>
@@ -147,10 +156,23 @@ public sealed class AvroMessageReader<T>
         return null;
     }
 
+    // One fetch per new fingerprint (#159): concurrent reads of it wait here, then find the reader the first one cached.
+    // A fetch that fails or is cancelled caches nothing, so the next waiter fetches with its own token.
     private async ValueTask<T> FetchAndDecodeAsync(long fingerprint, ReadOnlyMemory<byte> message, CancellationToken cancellationToken)
     {
-        var schema = await _resolver.GetSchemaAsync(fingerprint, cancellationToken).ConfigureAwait(false);
-        return Decode(CreateReader(fingerprint, schema), message.Span);
+        var gate = _fetchGates.GetOrAdd(fingerprint, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        CachedReader cached;
+        try
+        {
+            cached = Find(fingerprint) ?? CreateReader(fingerprint, await _resolver.GetSchemaAsync(fingerprint, cancellationToken).ConfigureAwait(false));
+        }
+        finally
+        {
+            gate.Release();
+        }
+
+        return Decode(cached, message.Span);
     }
 
     private static T Decode(CachedReader cached, ReadOnlySpan<byte> message)
