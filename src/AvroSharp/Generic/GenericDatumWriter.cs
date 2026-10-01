@@ -234,41 +234,16 @@ public sealed class GenericDatumWriter
 
     private sealed class EnumNode(EnumSchema schema) : WriterNode
     {
+        private readonly EnumSymbolMap _symbols = new(schema);
+
         public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
-            writer.WriteEnum(EnumOrdinal(schema, value));
+            writer.WriteEnum(_symbols.Ordinal(value));
     }
 
     private sealed class FixedNode(FixedSchema schema) : WriterNode
     {
         public override void Write(ref AvroWriter writer, in AvroValue value, int depth) =>
             writer.WriteFixed(FixedBytes(schema, value));
-    }
-
-    /// <summary>
-    /// The ordinal of an enum value's symbol in the schema it is written as. A value's ordinal is its position in its own
-    /// schema's symbols, which another version of the enum may order differently, or lack: written as is, it was another
-    /// symbol, or none. The value's schema itself, or the same symbol at the same position, needs no lookup.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static int EnumOrdinal(EnumSchema schema, in AvroValue value) =>
-        ReferenceEquals(value.Reference, schema) ? (int)value.Bits : MappedEnumOrdinal(schema, value);
-
-    private static int MappedEnumOrdinal(EnumSchema schema, in AvroValue value)
-    {
-        if (value.EnumSchema is not { } own || own.Name != schema.Name)
-        {
-            throw Mismatch(schema, value);
-        }
-
-        var ordinal = (int)value.Bits;
-        if (ordinal < schema.Symbols.Count && string.Equals(schema.Symbols[ordinal], own.Symbols[ordinal], StringComparison.Ordinal))
-        {
-            return ordinal;
-        }
-
-        return schema.TryGetOrdinal(own.Symbols[ordinal], out var mapped)
-            ? mapped
-            : throw new AvroException($"The symbol '{own.Symbols[ordinal]}' is not in the enum {schema.FullName} it is written as.");
     }
 
     /// <summary>

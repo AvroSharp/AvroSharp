@@ -251,6 +251,29 @@ public class GenericDatumTests
     }
 
     /// <summary>
+    /// The writer keeps the symbol map of the last other schema it saw. Values alternating between two such schemas, a
+    /// copy parsed separately and a reordered version, replace it each time, and each still writes its own symbol.
+    /// </summary>
+    [Test]
+    public async Task EnumValuesOfAlternatingSchemas_AreEachWrittenAsTheirSymbol()
+    {
+        const string Json = """{"type":"enum","name":"e","symbols":["a","b","c"]}""";
+        var target = (EnumSchema)AvroSchema.Parse(Json);
+        var copy = (EnumSchema)new AvroSchemaParser().Parse(Json);
+        var reordered = (EnumSchema)AvroSchema.Parse("""{"type":"enum","name":"e","symbols":["c","a","b"]}""");
+        var writer = GenericDatumWriter.Create(target);
+        var reader = GenericDatumReader.Create(target);
+
+        var symbols = Enumerable.Range(0, 30)
+            .Select(i => (Schema: i % 2 == 0 ? copy : reordered, Symbol: "abc"[i % 3].ToString()))
+            .Select(v => string.Equals(reader.Read(writer.WriteToArray(AvroValue.FromEnum(v.Schema, v.Symbol))).AsEnumSymbol(), v.Symbol, StringComparison.Ordinal))
+            .ToList();
+
+        await Assert.That(symbols.All(same => same)).IsTrue();
+        await Assert.That(ReferenceEquals(copy, target)).IsFalse();
+    }
+
+    /// <summary>
     /// A fixed value of another size than the schema it is written as wrote all its bytes, shifting every field after it.
     /// It is now an error, for the binary and the JSON writer, directly and in a union (Apache.Avro's TestUnion_fixed).
     /// </summary>
