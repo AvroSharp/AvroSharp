@@ -153,7 +153,7 @@ public class SchemaCompatibilityTests
         var result = AvroSchemaCompatibility.Check(AvroSchema.Parse(writer), AvroSchema.Parse(reader));
 
         await Assert.That(result.Verdict).IsEqualTo(verdict);
-        await Assert.That(Describe(result.Issues)).IsEqualTo(issues);
+        await Assert.That(Describe(result.Incompatibilities)).IsEqualTo(issues);
         await Assert.That(Describe(result.Warnings)).IsEqualTo(warnings);
         await Assert.That(result.IsCompatible).IsEqualTo(verdict == Compatible);
     }
@@ -170,7 +170,7 @@ public class SchemaCompatibilityTests
         _ = (issues, warnings);
         var (writerSchema, readerSchema) = (AvroSchema.Parse(writer), AvroSchema.Parse(reader));
         var result = AvroSchemaCompatibility.Check(writerSchema, readerSchema);
-        var deferred = result.Issues.All(issue => issue.Kind == AvroCompatibilityKind.MissingEnumSymbols || (issue.Path.Contains('[', StringComparison.Ordinal) && issue.Path.Contains(':', StringComparison.Ordinal)));
+        var deferred = result.Incompatibilities.All(issue => issue.Kind == AvroCompatibilityKind.MissingEnumSymbols || (issue.Path.Contains('[', StringComparison.Ordinal) && issue.Path.Contains(':', StringComparison.Ordinal)));
         var readerFails = Fails(() => GenericDatumReader.Create(writerSchema, readerSchema, new GenericDatumReaderOptions()));
         // No plan (names that don't match) sends generated code to the resolving reader, which fails.
         var planFails = Fails(() => _ = GenericDatumReader.GetRecordPlan(writerSchema, readerSchema) ?? throw new AvroSchemaException("No plan."));
@@ -210,7 +210,7 @@ public class SchemaCompatibilityTests
         var result = AvroSchemaCompatibility.Check(writer, reader);
 
         await Assert.That(result.Verdict).IsEqualTo(Incompatible);
-        await Assert.That(Describe(result.Issues)).IsEqualTo(
+        await Assert.That(Describe(result.Incompatibilities)).IsEqualTo(
             "TypeMismatch@$.a; MissingEnumSymbols@$.e; FixedSizeMismatch@$.f; NameMismatch@$.n; MissingUnionBranch@$.u[1:string]; MissingUnionBranch@$.u[2:boolean]; TypeMismatch@$.m{}; MissingDefault@$.added");
     }
 
@@ -230,9 +230,9 @@ public class SchemaCompatibilityTests
 
         var result = AvroSchemaCompatibility.Check(writer, reader);
 
-        await Assert.That(result.Issues.Count).IsEqualTo(1);
-        await Assert.That(result.Issues[0].Path).IsEqualTo("$.home.zip");
-        await Assert.That(result.Issues[0].OtherPaths).IsEquivalentTo(new[] { "$.work.zip" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(result.Incompatibilities.Count).IsEqualTo(1);
+        await Assert.That(result.Incompatibilities[0].Path).IsEqualTo("$.home.zip");
+        await Assert.That(result.Incompatibilities[0].OtherPaths).IsEquivalentTo(new[] { "$.work.zip" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(result.ToString()).Contains("$.home.zip: ").And.Contains("(also at $.work.zip)");
     }
 
@@ -245,25 +245,28 @@ public class SchemaCompatibilityTests
 
         var result = AvroSchemaCompatibility.Check(writer, reader);
 
-        await Assert.That(Describe(result.Issues)).IsEqualTo("InvalidDefault@$.a");
+        await Assert.That(Describe(result.Incompatibilities)).IsEqualTo("InvalidDefault@$.a");
         await Assert.That(Fails(() => GenericDatumReader.Create(writer, reader, new GenericDatumReaderOptions()))).IsTrue();
     }
 
     [Test]
-    public async Task Options_AllowPartialAndStrict()
+    public async Task Options_AllowPartialAndWarningsAsErrors_ChangeIsCompatible_NotTheVerdict()
     {
         var partial = AvroSchemaCompatibility.Check(AvroSchema.Parse(Enum1ABC), AvroSchema.Parse(Enum1AB), new AvroCompatibilityOptions { AllowPartial = true });
         var decimalWriter = AvroSchema.Parse("""{"type":"bytes","logicalType":"decimal","precision":5,"scale":2}""");
         var decimalReader = AvroSchema.Parse("""{"type":"bytes","logicalType":"decimal","precision":5,"scale":4}""");
         var lenient = AvroSchemaCompatibility.Check(decimalWriter, decimalReader);
-        var strict = AvroSchemaCompatibility.Check(decimalWriter, decimalReader, new AvroCompatibilityOptions { Strict = true });
+        var strict = AvroSchemaCompatibility.Check(decimalWriter, decimalReader, new AvroCompatibilityOptions { WarningsAsErrors = true });
 
         await Assert.That(partial.Verdict).IsEqualTo(Partial);
         await Assert.That(partial.IsCompatible).IsTrue();
         await Assert.That(lenient.IsCompatible).IsTrue();
-        await Assert.That(strict.Verdict).IsEqualTo(Incompatible);
+        await Assert.That(strict.Verdict).IsEqualTo(Compatible);
         await Assert.That(strict.IsCompatible).IsFalse();
+        await Assert.That(strict.Incompatibilities).IsEmpty();
         await Assert.That(Describe(strict.Warnings)).IsEqualTo("DecimalChanged@$");
+        await Assert.That(strict.ToString()).StartsWith("Compatible, with warnings, which count as errors.");
+        Assert.Throws<AvroSchemaException>(strict.ThrowIfIncompatible);
     }
 
     [Test]
@@ -291,9 +294,9 @@ public class SchemaCompatibilityTests
     {
         var versions = new[] { "\"int\"", "\"int\"", "\"int\"" }.Select(json => AvroSchema.Parse(json)).ToArray();
 
-        var report = AvroSchemaCompatibility.Check(AvroSchema.Parse("\"int\""), versions, level);
+        var report = AvroSchemaCompatibility.CheckVersions(AvroSchema.Parse("\"int\""), versions, level);
 
-        await Assert.That(string.Join(' ', report.Checks.Select(c => $"{c.Direction.ToString()[0]}{c.Version}"))).IsEqualTo(pairs);
+        await Assert.That(string.Join(' ', report.Checks.Select(c => $"{c.Direction.ToString()[0]}{c.Index}"))).IsEqualTo(pairs);
         await Assert.That(report.IsCompatible).IsTrue();
     }
 
@@ -305,13 +308,13 @@ public class SchemaCompatibilityTests
         var v1 = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"int"},{"name":"b","type":"int","default":0}]}""");
         var v2 = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"a","type":"int"},{"name":"b","type":"int"}]}""");
 
-        var latest = AvroSchemaCompatibility.Check(v2, [v0, v1], AvroCompatibilityLevel.Backward);
-        var transitive = AvroSchemaCompatibility.Check(v2, [v0, v1], AvroCompatibilityLevel.BackwardTransitive);
+        var latest = AvroSchemaCompatibility.CheckVersions(v2, [v0, v1], AvroCompatibilityLevel.Backward);
+        var transitive = AvroSchemaCompatibility.CheckVersions(v2, [v0, v1], AvroCompatibilityLevel.BackwardTransitive);
 
         await Assert.That(latest.IsCompatible).IsTrue();
         await Assert.That(transitive.IsCompatible).IsFalse();
         await Assert.That(transitive.Verdict).IsEqualTo(Incompatible);
-        await Assert.That(transitive.Checks.Single(c => !c.Result.IsCompatible).Version).IsEqualTo(0);
+        await Assert.That(transitive.Checks.Single(c => !c.Result.IsCompatible).Index).IsEqualTo(0);
         await Assert.That(transitive.ToString()).Contains("Reading version 0's data with the new schema: Incompatible.");
     }
 
@@ -321,10 +324,10 @@ public class SchemaCompatibilityTests
         var schema = AvroSchema.Parse("\"int\"");
 
         Assert.Throws<ArgumentNullException>(() => AvroSchemaCompatibility.Check(null!, schema));
-        Assert.Throws<ArgumentNullException>(() => AvroSchemaCompatibility.Check(schema, (AvroSchema)null!));
-        Assert.Throws<ArgumentNullException>(() => AvroSchemaCompatibility.Check(schema, (IReadOnlyList<AvroSchema>)null!, AvroCompatibilityLevel.Full));
-        Assert.Throws<ArgumentOutOfRangeException>(() => AvroSchemaCompatibility.Check(schema, [schema], (AvroCompatibilityLevel)99));
-        Assert.Throws<ArgumentException>(() => AvroSchemaCompatibility.Check(schema, [null!], AvroCompatibilityLevel.Backward));
+        Assert.Throws<ArgumentNullException>(() => AvroSchemaCompatibility.Check(schema, null!));
+        Assert.Throws<ArgumentNullException>(() => AvroSchemaCompatibility.CheckVersions(schema, null!, AvroCompatibilityLevel.Full));
+        Assert.Throws<ArgumentOutOfRangeException>(() => AvroSchemaCompatibility.CheckVersions(schema, [schema], (AvroCompatibilityLevel)99));
+        Assert.Throws<ArgumentException>(() => AvroSchemaCompatibility.CheckVersions(schema, [null!], AvroCompatibilityLevel.Backward));
         await Assert.That(AvroSchemaCompatibility.Check(schema, schema).Verdict).IsEqualTo(Compatible);
     }
 

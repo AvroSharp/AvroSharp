@@ -118,9 +118,6 @@ public static class CSharpCodeGenerator
 
     // The members the generator adds to each kind of type besides the fields' properties: a type may not have one
     // of these names (CS0542, #131).
-    /// <summary>The members the generator adds to a record, which a declared type may not have itself.</summary>
-    internal static IReadOnlyList<string> RecordMembers => s_recordMembers;
-
     private static readonly string[] s_recordMembers =
     [
         "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema", "s_apacheSchema", "s_plan",
@@ -128,6 +125,13 @@ public static class CSharpCodeGenerator
         "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "AvroTypeInfo",
         "s_typeInfo", "RegisterAvroType",
     ];
+
+    /// <summary>
+    /// The members the generator adds to a declared record, which the type may not have itself: a record's members
+    /// without the Apache.Avro compatibility mode's, since declared types never use that mode.
+    /// </summary>
+    internal static IReadOnlyList<string> DeclaredRecordMembers { get; } =
+        [.. s_recordMembers.Except(["AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_apacheSchema"], StringComparer.Ordinal)];
 
     private static readonly string[] s_fixedMembers =
     [

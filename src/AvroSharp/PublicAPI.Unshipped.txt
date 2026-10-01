@@ -3,7 +3,6 @@ AvroSharp.Serialization.Generated.AvroRecordPlan.DefaultReader(int index) -> Avr
 AvroSharp.Schemas.AvroCompatibilityCheck
 AvroSharp.Schemas.AvroCompatibilityCheck.Direction.get -> AvroSharp.Schemas.AvroCompatibilityDirection
 AvroSharp.Schemas.AvroCompatibilityCheck.Result.get -> AvroSharp.Schemas.AvroCompatibilityResult!
-AvroSharp.Schemas.AvroCompatibilityCheck.Version.get -> int
 AvroSharp.Schemas.AvroCompatibilityDirection
 AvroSharp.Schemas.AvroCompatibilityDirection.Backward = 0 -> AvroSharp.Schemas.AvroCompatibilityDirection
 AvroSharp.Schemas.AvroCompatibilityDirection.Forward = 1 -> AvroSharp.Schemas.AvroCompatibilityDirection
@@ -41,8 +40,6 @@ AvroSharp.Schemas.AvroCompatibilityOptions
 AvroSharp.Schemas.AvroCompatibilityOptions.AllowPartial.get -> bool
 AvroSharp.Schemas.AvroCompatibilityOptions.AllowPartial.init -> void
 AvroSharp.Schemas.AvroCompatibilityOptions.AvroCompatibilityOptions() -> void
-AvroSharp.Schemas.AvroCompatibilityOptions.Strict.get -> bool
-AvroSharp.Schemas.AvroCompatibilityOptions.Strict.init -> void
 AvroSharp.Schemas.AvroCompatibilityReport
 AvroSharp.Schemas.AvroCompatibilityReport.Checks.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroCompatibilityCheck!>!
 AvroSharp.Schemas.AvroCompatibilityReport.IsCompatible.get -> bool
@@ -51,7 +48,6 @@ AvroSharp.Schemas.AvroCompatibilityReport.ThrowIfIncompatible() -> void
 AvroSharp.Schemas.AvroCompatibilityReport.Verdict.get -> AvroSharp.Schemas.AvroCompatibilityVerdict
 AvroSharp.Schemas.AvroCompatibilityResult
 AvroSharp.Schemas.AvroCompatibilityResult.IsCompatible.get -> bool
-AvroSharp.Schemas.AvroCompatibilityResult.Issues.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroCompatibilityIssue!>!
 AvroSharp.Schemas.AvroCompatibilityResult.ReaderSchema.get -> AvroSharp.Schemas.AvroSchema!
 AvroSharp.Schemas.AvroCompatibilityResult.ThrowIfIncompatible() -> void
 AvroSharp.Schemas.AvroCompatibilityResult.Verdict.get -> AvroSharp.Schemas.AvroCompatibilityVerdict
@@ -66,7 +62,6 @@ override AvroSharp.Schemas.AvroCompatibilityIssue.ToString() -> string!
 override AvroSharp.Schemas.AvroCompatibilityReport.ToString() -> string!
 override AvroSharp.Schemas.AvroCompatibilityResult.ToString() -> string!
 static AvroSharp.Schemas.AvroCompatibilityOptions.Default.get -> AvroSharp.Schemas.AvroCompatibilityOptions!
-static AvroSharp.Schemas.AvroSchemaCompatibility.Check(AvroSharp.Schemas.AvroSchema! schema, System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>! previousVersions, AvroSharp.Schemas.AvroCompatibilityLevel level, AvroSharp.Schemas.AvroCompatibilityOptions? options = null) -> AvroSharp.Schemas.AvroCompatibilityReport!
 static AvroSharp.Schemas.AvroSchemaCompatibility.Check(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema, AvroSharp.Schemas.AvroCompatibilityOptions? options = null) -> AvroSharp.Schemas.AvroCompatibilityResult!
 abstract AvroSharp.Serialization.AvroTypeInfo.ReadObject(ref AvroSharp.IO.AvroReader reader, AvroSharp.Schemas.AvroSchema! writerSchema) -> object?
 abstract AvroSharp.Serialization.AvroTypeInfo.ReadObject(ref AvroSharp.IO.AvroReader reader) -> object?
@@ -88,10 +83,6 @@ AvroSharp.Serialization.AvroDocAttribute.AvroDocAttribute(string! doc) -> void
 AvroSharp.Serialization.AvroDocAttribute.Doc.get -> string!
 AvroSharp.Serialization.AvroEnumDefaultAttribute
 AvroSharp.Serialization.AvroEnumDefaultAttribute.AvroEnumDefaultAttribute() -> void
-AvroSharp.Serialization.AvroFieldAttribute
-AvroSharp.Serialization.AvroFieldAttribute.AvroFieldAttribute() -> void
-AvroSharp.Serialization.AvroFieldAttribute.Order.get -> int
-AvroSharp.Serialization.AvroFieldAttribute.Order.set -> void
 AvroSharp.Serialization.AvroFixedAttribute
 AvroSharp.Serialization.AvroFixedAttribute.AvroFixedAttribute(int size) -> void
 AvroSharp.Serialization.AvroFixedAttribute.Name.get -> string?
@@ -110,9 +101,6 @@ AvroSharp.Serialization.AvroNameAttribute.Name.get -> string!
 AvroSharp.Serialization.AvroNaming
 AvroSharp.Serialization.AvroNaming.AsWritten = 0 -> AvroSharp.Serialization.AvroNaming
 AvroSharp.Serialization.AvroNaming.CamelCase = 1 -> AvroSharp.Serialization.AvroNaming
-AvroSharp.Serialization.AvroNamingPolicyAttribute
-AvroSharp.Serialization.AvroNamingPolicyAttribute.AvroNamingPolicyAttribute(AvroSharp.Serialization.AvroNaming fieldNames) -> void
-AvroSharp.Serialization.AvroNamingPolicyAttribute.FieldNames.get -> AvroSharp.Serialization.AvroNaming
 AvroSharp.Serialization.AvroSerializableAttribute
 AvroSharp.Serialization.AvroSerializableAttribute.AvroSerializableAttribute() -> void
 AvroSharp.Serialization.AvroSerializableAttribute.Doc.get -> string?
@@ -139,7 +127,19 @@ override AvroSharp.Serialization.AvroTypeInfo<T>.Schema.get -> AvroSharp.Schemas
 override AvroSharp.Serialization.AvroTypeInfo<T>.Type.get -> System.Type!
 override AvroSharp.Serialization.AvroTypeInfo<T>.WriteObject(ref AvroSharp.IO.AvroWriter writer, object? value) -> void
 static AvroSharp.Serialization.AvroTypes.Get<T>() -> AvroSharp.Serialization.AvroTypeInfo<T>!
-static AvroSharp.Serialization.AvroTypes.Register<T>(AvroSharp.Serialization.AvroTypeInfo<T>! info) -> void
 static AvroSharp.Serialization.AvroTypes.TryGet(System.Type! type, out AvroSharp.Serialization.AvroTypeInfo? info) -> bool
 static AvroSharp.Serialization.AvroTypes.TryGet<T>(out AvroSharp.Serialization.AvroTypeInfo<T>? info) -> bool
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteFixedBytes(ref AvroSharp.IO.AvroWriter writer, byte[]? value, int size, string! field) -> void
+AvroSharp.Schemas.AvroCompatibilityCheck.Index.get -> int
+AvroSharp.Schemas.AvroCompatibilityOptions.WarningsAsErrors.get -> bool
+AvroSharp.Schemas.AvroCompatibilityOptions.WarningsAsErrors.init -> void
+AvroSharp.Schemas.AvroCompatibilityResult.Incompatibilities.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroCompatibilityIssue!>!
+static AvroSharp.Schemas.AvroSchemaCompatibility.CheckVersions(AvroSharp.Schemas.AvroSchema! schema, System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>! previousVersions, AvroSharp.Schemas.AvroCompatibilityLevel level, AvroSharp.Schemas.AvroCompatibilityOptions? options = null) -> AvroSharp.Schemas.AvroCompatibilityReport!
+AvroSharp.Serialization.AvroFieldPositionAttribute
+AvroSharp.Serialization.AvroFieldPositionAttribute.AvroFieldPositionAttribute(int position) -> void
+AvroSharp.Serialization.AvroFieldPositionAttribute.Position.get -> int
+AvroSharp.Serialization.AvroSerializableDefaultsAttribute
+AvroSharp.Serialization.AvroSerializableDefaultsAttribute.AvroSerializableDefaultsAttribute() -> void
+AvroSharp.Serialization.AvroSerializableDefaultsAttribute.FieldNames.get -> AvroSharp.Serialization.AvroNaming
+AvroSharp.Serialization.AvroSerializableDefaultsAttribute.FieldNames.set -> void
+static AvroSharp.Serialization.AvroTypes.Register<T>(AvroSharp.Serialization.AvroTypeInfo<T>! info) -> bool

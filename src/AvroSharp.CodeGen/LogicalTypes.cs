@@ -21,15 +21,27 @@ internal static class LogicalTypes
     private const int MaxDecimalPrecision = 28;
 
     /// <summary>
-    /// The schema property that keeps one logical type's underlying type, as <see cref="LogicalTypeMapping.Raw"/> keeps
-    /// every one: for values that .NET's types can't hold, such as a <c>timestamp-millis</c> of <c>Long.MaxValue</c>,
-    /// which Java reads. Custom properties are not part of the canonical form, so the schema's fingerprint is unchanged.
+    /// The schema property that sets one logical type's mapping, as <see cref="CodeGenOptions.LogicalTypes"/> sets every
+    /// one's: <c>"raw"</c> keeps its underlying type, for values that .NET's types can't hold (a <c>timestamp-millis</c>
+    /// of <c>Long.MaxValue</c>, which Java reads), and <c>"native"</c> maps it to its .NET type under a raw default.
+    /// Custom properties are not part of the canonical form, so the schema's fingerprint is unchanged.
     /// </summary>
-    public const string RawProperty = "avrosharp.raw";
+    public const string MappingProperty = "avrosharp.logicalType";
 
-    /// <summary>Gets whether <paramref name="schema"/> has <c>"avrosharp.raw": true</c>.</summary>
-    public static bool IsRaw(AvroSchema schema) =>
-        schema.Properties.TryGetValue(RawProperty, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.True;
+    /// <summary>Gets the mapping a schema sets with <see cref="MappingProperty"/>, or <see langword="null"/> when it sets none.</summary>
+    /// <exception cref="AvroException">The property is not <c>"raw"</c> or <c>"native"</c>.</exception>
+    public static LogicalTypeMapping? MappingOf(AvroSchema schema)
+    {
+        if (!schema.Properties.TryGetValue(MappingProperty, out var value))
+        {
+            return null;
+        }
+
+        var text = value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString() : null;
+        return string.Equals(text, "raw", StringComparison.Ordinal) ? LogicalTypeMapping.Raw
+            : string.Equals(text, "native", StringComparison.Ordinal) ? LogicalTypeMapping.Native
+            : throw new AvroException($"\"{MappingProperty}\" must be \"raw\" or \"native\", not {value.GetRawText()}.");
+    }
 
     /// <summary>Gets the mapping for <paramref name="schema"/>, or <see langword="null"/> when it keeps its underlying type.</summary>
     public static LogicalValue? For(AvroSchema schema, CodeGenOptions options)
@@ -48,21 +60,18 @@ internal static class LogicalTypes
             return null;
         }
 
-        if (IsRaw(schema))
-        {
-            // Apache's reader puts its own .NET type into the field, so the property can't be the underlying type there.
-            return options.ApacheCompatible
-                ? throw new AvroException($"\"{RawProperty}\" is not available with AvroSharpApacheCompatible: Apache.Avro's reader sets {logical.Name} fields to its own .NET type.")
-                : null;
-        }
+        var own = MappingOf(schema);
 
-        // Apache.Avro's specific reader calls Put with its own .NET types, so the compatibility mode always uses them.
+        // Apache.Avro's specific reader calls Put with its own .NET types, so the compatibility mode always uses them,
+        // and a schema can't keep its underlying type there.
         if (options.ApacheCompatible)
         {
-            return Apache(schema, logical);
+            return own == LogicalTypeMapping.Raw
+                ? throw new AvroException($"\"{MappingProperty}\": \"raw\" is not available with AvroSharpApacheCompatible: Apache.Avro's reader sets {logical.Name} fields to its own .NET type.")
+                : Apache(schema, logical);
         }
 
-        if (options.LogicalTypes == LogicalTypeMapping.Raw)
+        if ((own ?? options.LogicalTypes) == LogicalTypeMapping.Raw)
         {
             return null;
         }

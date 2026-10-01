@@ -57,16 +57,19 @@ public class CompatCommandTests
     }
 
     [Test]
-    public async Task Strict_FailsOnWarnings()
+    public async Task WarningsAsErrors_FailsOnWarnings_AndStrictIsItsAlias()
     {
         using var tool = new ToolRunner();
         var writer = tool.Write("w.avsc", """{"type":"bytes","logicalType":"decimal","precision":5,"scale":2}""");
         var reader = tool.Write("r.avsc", """{"type":"bytes","logicalType":"decimal","precision":5,"scale":4}""");
 
         var lenient = ToolRunner.Run("schema", "compat", writer, reader);
-        var strict = ToolRunner.Run("schema", "compat", writer, reader, "--strict");
+        var strict = ToolRunner.Run("schema", "compat", writer, reader, "--warnings-as-errors");
+        var alias = ToolRunner.Run("schema", "compat", writer, reader, "--strict");
 
         await Assert.That(lenient.ExitCode).IsEqualTo(0);
+        await Assert.That(alias.ExitCode).IsEqualTo(CompatCommand.Incompatible);
+        await Assert.That(strict.Output).StartsWith("Compatible, with warnings, which count as errors.");
         await Assert.That(lenient.Output).Contains("warning $: A decimal of scale 2 is read with scale 4");
         await Assert.That(strict.ExitCode).IsEqualTo(CompatCommand.Incompatible);
     }
@@ -82,9 +85,12 @@ public class CompatCommandTests
         var root = json.RootElement;
         await Assert.That(root.GetProperty("verdict").GetString()).IsEqualTo("incompatible");
         await Assert.That(root.GetProperty("compatible").GetBoolean()).IsFalse();
-        await Assert.That(root.GetProperty("issues")[0].GetProperty("kind").GetString()).IsEqualTo("MissingDefault");
-        await Assert.That(root.GetProperty("issues")[0].GetProperty("path").GetString()).IsEqualTo("$.note");
+        await Assert.That(root.GetProperty("incompatibilities")[0].GetProperty("kind").GetString()).IsEqualTo("missingDefault");
+        await Assert.That(root.GetProperty("incompatibilities")[0].GetProperty("path").GetString()).IsEqualTo("$.note");
         await Assert.That(root.GetProperty("warnings").GetArrayLength()).IsEqualTo(0);
+        await Assert.That(root.GetProperty("formatVersion").GetInt32()).IsEqualTo(1);
+        await Assert.That(root.GetProperty("writer").GetString()).EndsWith("v1.avsc");
+        await Assert.That(root.GetProperty("reader").GetString()).EndsWith("v3.avsc");
     }
 
     [Test]
@@ -102,8 +108,10 @@ public class CompatCommandTests
         using var json = JsonDocument.Parse(transitive.Output);
         var failed = json.RootElement.GetProperty("checks")[0];
         await Assert.That(json.RootElement.GetProperty("level").GetString()).IsEqualTo("backward-transitive");
-        await Assert.That(failed.GetProperty("version").GetString()).IsEqualTo(v1);
+        await Assert.That(failed.GetProperty("previous").GetString()).IsEqualTo(v1);
         await Assert.That(failed.GetProperty("direction").GetString()).IsEqualTo("backward");
+        await Assert.That(failed.GetProperty("index").GetInt32()).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("schema").GetString()).IsEqualTo(v3);
         await Assert.That(failed.GetProperty("verdict").GetString()).IsEqualTo("incompatible");
     }
 

@@ -4,7 +4,11 @@ using System.Text;
 
 namespace AvroSharp.Schemas;
 
-/// <summary>Whether data written with one schema can be read with another (<see cref="AvroSchemaCompatibility"/>).</summary>
+/// <summary>
+/// Whether data written with one schema can be read with another (<see cref="AvroSchemaCompatibility"/>): a fact
+/// about the schemas, which options don't change. The values are ordered from best to worst, and a report's verdict
+/// is the worst of its pairs'.
+/// </summary>
 public enum AvroCompatibilityVerdict
 {
     /// <summary>Every value written with the writer's schema can be read with the reader's.</summary>
@@ -22,9 +26,11 @@ public enum AvroCompatibilityVerdict
 }
 
 /// <summary>
-/// The kind of an <see cref="AvroCompatibilityIssue"/>. The first seven are incompatibilities; the six named as Java's
-/// <c>SchemaIncompatibilityType</c> values mean the same. The rest are warnings: the specification allows them, but
-/// the values read may differ from the values written.
+/// The kind of an <see cref="AvroCompatibilityIssue"/>: an incompatibility, or a warning
+/// (<see cref="AvroCompatibilityIssue.IsWarning"/>) about a difference the specification allows that can change the
+/// values read. The six named as Java's <c>SchemaIncompatibilityType</c> values mean the same. Later versions may add
+/// kinds of either sort, so code should not rely on the values' order, and a new warning can make a check with
+/// <see cref="AvroCompatibilityOptions.WarningsAsErrors"/> fail.
 /// </summary>
 public enum AvroCompatibilityKind
 {
@@ -87,7 +93,12 @@ public sealed class AvroCompatibilityIssue
     public AvroCompatibilityKind Kind { get; }
 
     /// <summary>Gets a value indicating whether the issue is a warning rather than an incompatibility.</summary>
-    public bool IsWarning => Kind >= AvroCompatibilityKind.LossyPromotion;
+    public bool IsWarning => Kind switch
+    {
+        AvroCompatibilityKind.LossyPromotion or AvroCompatibilityKind.LogicalTypeChanged or AvroCompatibilityKind.DecimalChanged
+            or AvroCompatibilityKind.UnqualifiedNameMatch or AvroCompatibilityKind.EnumDefaultUsed or AvroCompatibilityKind.AmbiguousFieldAlias => true,
+        _ => false,
+    };
 
     /// <summary>
     /// Gets where in the data the issue is: <c>$</c> for the whole value, then <c>.field</c> (the reader's field name),
@@ -117,14 +128,21 @@ public sealed class AvroCompatibilityIssue
 /// <summary>The result of <see cref="AvroSchemaCompatibility.Check(AvroSchema, AvroSchema, AvroCompatibilityOptions?)"/>.</summary>
 public sealed class AvroCompatibilityResult
 {
-    internal AvroCompatibilityResult(AvroSchema writerSchema, AvroSchema readerSchema, AvroCompatibilityVerdict verdict, IReadOnlyList<AvroCompatibilityIssue> issues, IReadOnlyList<AvroCompatibilityIssue> warnings, AvroCompatibilityOptions options)
+    internal AvroCompatibilityResult(AvroSchema writerSchema, AvroSchema readerSchema, AvroCompatibilityVerdict verdict, IReadOnlyList<AvroCompatibilityIssue> incompatibilities, IReadOnlyList<AvroCompatibilityIssue> warnings, AvroCompatibilityOptions options)
     {
         WriterSchema = writerSchema;
         ReaderSchema = readerSchema;
-        Verdict = options.Strict && warnings.Count > 0 ? AvroCompatibilityVerdict.Incompatible : verdict;
-        Issues = issues;
+        Verdict = verdict;
+        Incompatibilities = incompatibilities;
         Warnings = warnings;
-        IsCompatible = Verdict == AvroCompatibilityVerdict.Compatible || (Verdict == AvroCompatibilityVerdict.Partial && options.AllowPartial);
+        var readable = verdict switch
+        {
+            AvroCompatibilityVerdict.Compatible => true,
+            AvroCompatibilityVerdict.Partial => options.AllowPartial,
+            _ => false,
+        };
+        var warningsFail = options.WarningsAsErrors && warnings.Count > 0;
+        IsCompatible = readable && !warningsFail;
     }
 
     /// <summary>Gets the schema the data is written with.</summary>
@@ -133,17 +151,18 @@ public sealed class AvroCompatibilityResult
     /// <summary>Gets the schema the data is read with.</summary>
     public AvroSchema ReaderSchema { get; }
 
-    /// <summary>Gets the verdict. With <see cref="AvroCompatibilityOptions.Strict"/>, any warning makes it <see cref="AvroCompatibilityVerdict.Incompatible"/>.</summary>
+    /// <summary>Gets whether the data can be read: the schemas' verdict, which the options don't change (they change <see cref="IsCompatible"/>).</summary>
     public AvroCompatibilityVerdict Verdict { get; }
 
     /// <summary>
-    /// Gets a value indicating whether the verdict is <see cref="AvroCompatibilityVerdict.Compatible"/>, or
-    /// <see cref="AvroCompatibilityVerdict.Partial"/> when <see cref="AvroCompatibilityOptions.AllowPartial"/> is set.
+    /// Gets a value indicating whether the check passes: the verdict is <see cref="AvroCompatibilityVerdict.Compatible"/>,
+    /// or <see cref="AvroCompatibilityVerdict.Partial"/> with <see cref="AvroCompatibilityOptions.AllowPartial"/>, and
+    /// there are no warnings when <see cref="AvroCompatibilityOptions.WarningsAsErrors"/> is set.
     /// </summary>
     public bool IsCompatible { get; }
 
-    /// <summary>Gets every incompatibility, in the order the schemas are walked. Warnings are in <see cref="Warnings"/>, also with <see cref="AvroCompatibilityOptions.Strict"/>.</summary>
-    public IReadOnlyList<AvroCompatibilityIssue> Issues { get; }
+    /// <summary>Gets every incompatibility, in the order the schemas are walked. The warnings are in <see cref="Warnings"/>.</summary>
+    public IReadOnlyList<AvroCompatibilityIssue> Incompatibilities { get; }
 
     /// <summary>Gets the warnings: differences the specification allows that can change the values read.</summary>
     public IReadOnlyList<AvroCompatibilityIssue> Warnings { get; }
@@ -161,13 +180,14 @@ public sealed class AvroCompatibilityResult
     /// <summary>Returns the verdict, then one line per issue and warning.</summary>
     public override string ToString()
     {
-        var text = new StringBuilder(Describe(Verdict));
-        AvroCompatibilityReport.AppendIssues(text, Issues, Warnings, "  ");
+        var text = new StringBuilder(Describe(Verdict, IsCompatible));
+        AvroCompatibilityReport.AppendIssues(text, Incompatibilities, Warnings, "  ");
         return text.ToString();
     }
 
-    internal static string Describe(AvroCompatibilityVerdict verdict) => verdict switch
+    internal static string Describe(AvroCompatibilityVerdict verdict, bool isCompatible) => verdict switch
     {
+        AvroCompatibilityVerdict.Compatible when !isCompatible => "Compatible, with warnings, which count as errors.",
         AvroCompatibilityVerdict.Compatible => "Compatible.",
         AvroCompatibilityVerdict.Partial => "Partially compatible: some values written with the writer's schema cannot be read with the reader's.",
         _ => "Incompatible.",
@@ -183,8 +203,11 @@ public sealed class AvroCompatibilityOptions
     /// <summary>Gets a value indicating whether a <see cref="AvroCompatibilityVerdict.Partial"/> verdict counts as compatible.</summary>
     public bool AllowPartial { get; init; }
 
-    /// <summary>Gets a value indicating whether warnings make the verdict <see cref="AvroCompatibilityVerdict.Incompatible"/>.</summary>
-    public bool Strict { get; init; }
+    /// <summary>
+    /// Gets a value indicating whether warnings fail the check (<see cref="AvroCompatibilityResult.IsCompatible"/> is
+    /// <see langword="false"/> when there are any), as MSBuild's <c>TreatWarningsAsErrors</c> fails a build.
+    /// </summary>
+    public bool WarningsAsErrors { get; init; }
 }
 
 /// <summary>A schema registry's compatibility levels, as Confluent Schema Registry defines them.</summary>
@@ -222,18 +245,18 @@ public enum AvroCompatibilityDirection
     Forward,
 }
 
-/// <summary>One pair checked by <see cref="AvroSchemaCompatibility.Check(AvroSchema, IReadOnlyList{AvroSchema}, AvroCompatibilityLevel, AvroCompatibilityOptions?)"/>.</summary>
+/// <summary>One pair checked by <see cref="AvroSchemaCompatibility.CheckVersions"/>.</summary>
 public sealed class AvroCompatibilityCheck
 {
-    internal AvroCompatibilityCheck(int version, AvroCompatibilityDirection direction, AvroCompatibilityResult result)
+    internal AvroCompatibilityCheck(int index, AvroCompatibilityDirection direction, AvroCompatibilityResult result)
     {
-        Version = version;
+        Index = index;
         Direction = direction;
         Result = result;
     }
 
-    /// <summary>Gets the index of the earlier version in the list given.</summary>
-    public int Version { get; }
+    /// <summary>Gets the earlier version's index in the list given, from 0 (not a registry's version number).</summary>
+    public int Index { get; }
 
     /// <summary>Gets which way the pair reads.</summary>
     public AvroCompatibilityDirection Direction { get; }
@@ -256,7 +279,7 @@ public sealed class AvroCompatibilityReport
     /// <summary>Gets the level checked.</summary>
     public AvroCompatibilityLevel Level { get; }
 
-    /// <summary>Gets the worst verdict of the pairs checked.</summary>
+    /// <summary>Gets the worst verdict of the pairs checked (the verdicts are ordered from best to worst).</summary>
     public AvroCompatibilityVerdict Verdict { get; }
 
     /// <summary>Gets a value indicating whether every pair is compatible.</summary>
@@ -278,21 +301,21 @@ public sealed class AvroCompatibilityReport
     /// <summary>Returns the verdict, then each pair's verdict and issues.</summary>
     public override string ToString()
     {
-        var text = new StringBuilder(AvroCompatibilityResult.Describe(Verdict));
+        var text = new StringBuilder(AvroCompatibilityResult.Describe(Verdict, IsCompatible));
         foreach (var check in Checks)
         {
             text.AppendLine().Append(check.Direction == AvroCompatibilityDirection.Backward
-                ? $"Reading version {check.Version}'s data with the new schema: "
-                : $"Reading the new schema's data with version {check.Version}: ").Append(AvroCompatibilityResult.Describe(check.Result.Verdict));
-            AppendIssues(text, check.Result.Issues, check.Result.Warnings, "  ");
+                ? $"Reading version {check.Index}'s data with the new schema: "
+                : $"Reading the new schema's data with version {check.Index}: ").Append(AvroCompatibilityResult.Describe(check.Result.Verdict, check.Result.IsCompatible));
+            AppendIssues(text, check.Result.Incompatibilities, check.Result.Warnings, "  ");
         }
 
         return text.ToString();
     }
 
-    internal static void AppendIssues(StringBuilder text, IReadOnlyList<AvroCompatibilityIssue> issues, IReadOnlyList<AvroCompatibilityIssue> warnings, string indent)
+    internal static void AppendIssues(StringBuilder text, IReadOnlyList<AvroCompatibilityIssue> incompatibilities, IReadOnlyList<AvroCompatibilityIssue> warnings, string indent)
     {
-        foreach (var issue in issues.Concat(warnings))
+        foreach (var issue in incompatibilities.Concat(warnings))
         {
             text.AppendLine().Append(indent).Append(issue.IsWarning ? "warning " : string.Empty).Append(issue);
             if (issue.OtherPaths.Count > 0)

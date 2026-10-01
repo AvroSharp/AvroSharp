@@ -52,9 +52,11 @@ public class AvroTypesTests
         var first = new AvroTypeInfo<Marker>(() => { calls++; return AvroSchema.Parse("\"null\""); }, static (ref _, _) => { }, static (ref _) => new Marker());
         var second = new AvroTypeInfo<Marker>(() => AvroSchema.Parse("\"int\""), static (ref _, _) => { }, static (ref _) => new Marker());
 
-        AvroTypes.Register(first);
-        AvroTypes.Register(second);
+        var registered = AvroTypes.Register(first);
+        var again = AvroTypes.Register(second);
 
+        await Assert.That(registered).IsTrue();
+        await Assert.That(again).IsFalse();
         await Assert.That(ReferenceEquals(AvroTypes.Get<Marker>(), first)).IsTrue();
         await Assert.That(AvroTypes.TryGet(typeof(Marker), out var boxed) && ReferenceEquals(boxed, first)).IsTrue();
         await Assert.That(first.Schema.CanonicalForm).IsEqualTo("\"null\"");
@@ -77,6 +79,12 @@ public class AvroTypesTests
         Assert.Throws<ArgumentNullException>(() => AvroTypes.Register<Marker>(null!));
         Assert.Throws<ArgumentNullException>(() => AvroTypes.TryGet(null!, out _));
         Assert.Throws<ArgumentNullException>(() => new AvroTypeInfo<Marker>(null!, static (ref _, _) => { }, static (ref _) => new Marker()));
+        var nullValue = Assert.Throws<ArgumentNullException>(() =>
+        {
+            var writer = new AvroWriter(new byte[8]);
+            AvroTypes.Get<int>().WriteObject(ref writer, null);
+        });
+        await Assert.That(nullValue.Message).Contains("value type");
         await Assert.That(AvroTypes.Get<int>().ReadFor(AvroSchema.Parse("\"int\""))).IsNotNull();
     }
 

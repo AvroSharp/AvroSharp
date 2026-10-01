@@ -393,10 +393,10 @@ This covers `AvroSerializer`, `AvroFileReader.Open<T>`, `AvroMessageReader.Creat
 | `[AvroDefault("json")]` | property, field | The field's default, as Avro JSON. Checked at compile time against the field's schema (AVROGEN106). A nullable member gets `"default": null` without it. |
 | `[AvroDecimal(precision, scale)]` | `decimal` member | Required for `decimal`: Avro has no default precision. On `bytes`, or on `fixed` with `[AvroFixed]`. |
 | `[AvroFixed(size)]` with `Name` | `byte[]` member | A `fixed` type instead of `bytes`. The `Name` defaults to the member's name; the size is checked when writing. |
-| `[AvroLogicalType("timestamp-millis")]` | `DateTimeOffset`, `DateTime`, `TimeOnly`, `TimeSpan`, `DateOnly` member | Another logical type than the default for the member's type (§6.5.3). Annotating a raw `long`, `int` or `string` comes with `"avrosharp.raw"` (#179). |
+| `[AvroLogicalType("timestamp-millis")]` | `DateTimeOffset`, `DateTime`, `TimeOnly`, `TimeSpan`, `DateOnly`, `long`, `int` or `string` member | Another logical type than the default for the member's type (§6.5.3). On a raw `long`, `int` or `string` it annotates the value, which the member keeps (`"avrosharp.logicalType": "raw"`). |
 | `[AvroUnion(typeof(A), typeof(B), …)]` | property of type `object`, or of an abstract base class of the listed types | A union of the listed record types (and `null` when the member is nullable). Written by the value's runtime type, as `object?` unions are today. |
 | `[AvroEnumDefault]` | an enum member | The enum's `default` symbol, for readers that meet an unknown symbol. |
-| `[AvroField(Order = n)]` | property, field | The field's position, needed only when the fields are declared in more than one part of a partial type (see "Field order" below). |
+| `[AvroFieldPosition(n)]` | property, field | The field's position (Avro's own `"order"` is the sort order), needed only when the fields are declared in more than one part of a partial type (see "Field order" below). |
 
 The attributes leave out two things for now:
 - avro-rs's `flatten`;
@@ -405,11 +405,11 @@ The attributes leave out two things for now:
 **Naming:**
 - Field names are the member's name as written by default, so what you write is what you get.
 - `[AvroSerializable(FieldNames = AvroNaming.CamelCase)]` converts them, `PascalCase` to `pascalCase`. This is the inverse of the `.avsc` generator's default `PascalCase` property names, so a schema's `id` field and an `Id` property round-trip.
-- An assembly-level `[assembly: AvroNamingPolicy(AvroNaming.CamelCase)]` sets the default for every type.
+- An assembly-level `[assembly: AvroSerializableDefaults(FieldNames = AvroNaming.CamelCase)]` sets the default for every type; more assembly-wide defaults can join it.
 - Enum symbols use the member names as written; `[AvroName]` renames them.
 - The names are checked against the Avro name rules (AVROGEN104).
 
-**Field order** is declaration order. Roslyn orders the members of a partial type across files by syntax tree, which the build doesn't fix. So when the serialized members span more than one `partial` declaration, every one needs `[AvroField(Order = n)]` (AVROGEN109). Inherited members come first, base class first.
+**Field order** is declaration order. Roslyn orders the members of a partial type across files by syntax tree, which the build doesn't fix. So when the serialized members span more than one `partial` declaration, every one needs `[AvroFieldPosition(n)]` (AVROGEN109). Inherited members come first, base class first.
 
 **Members:**
 - **Included:** public instance properties with a getter and a setter or `init`, and public fields.
@@ -481,7 +481,6 @@ Generic types, and types nested in other types, are errors (AVROGEN107); enums m
 - **Types nested in other types** are an error (AVROGEN107). Enums may be nested.
 - **Enum values** must be 0, 1, 2 and so on (AVROGEN116).
 - **`[AvroUnion]`** goes on `object` members only, not on a base class.
-- **`[AvroLogicalType]` on a raw number** waits for `"avrosharp.raw"` (#179).
 - **Constructors:** a type that declares no constructors gets the public parameterless one back. Declaring the readers' private constructor would otherwise remove the implicit one.
 - **Member names** that the generator adds (`Schema`, `Write`, `Read` and the others) are an error on the type (AVROGEN117).
 
@@ -517,7 +516,7 @@ Generic types, and types nested in other types, are errors (AVROGEN107); enums m
 - AVROGEN117: a member with the name of a member the generator adds.
 - AVROGEN118: code generation failed (an internal error, with the message).
 
-All are errors except AVROGEN112, which is a warning.
+All are errors. AVROGEN112 was a warning in the design, but a misapplied attribute silently changes the schema, and an error can become a warning later without breaking builds, not the other way round.
 
 **Exit criteria** (from #31):
 - Typed benchmarks beat Apache's specific and reflect paths. They share the `.avsc` path's emitter, so this is checked by adding attribute-driven twins of `GenericRecordBenchmarks`' generated types.

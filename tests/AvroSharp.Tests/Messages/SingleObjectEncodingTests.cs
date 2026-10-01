@@ -230,9 +230,23 @@ public class SingleObjectEncodingTests
         var reader = AvroMessageReader.CreateGeneric(resolver);
         var message = AvroMessage.ToArray(User(s_v1, 7, "a"), GenericDatumWriter.Create(s_v1));
         using var cancellation = new CancellationTokenSource();
-        cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
 
-        await Assert.ThrowsAsync<OperationCanceledException>(async () => await reader.ReadAsync(message, cancellation.Token));
+        // Cancelled once the fetch waits, not on a timer: on a busy machine a timer fired before the fetch started, so
+        // the next read made the waiting call, with no token, and the test hung.
+        var read = reader.ReadAsync(message, cancellation.Token);
+        await Assert.That(await resolver.Waiting.WaitAsync(TimeSpan.FromSeconds(30))).IsTrue();
+        cancellation.Cancel();
+        var cancelled = false;
+        try
+        {
+            await read;
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
+
+        await Assert.That(cancelled).IsTrue();
 
         await Assert.That((await reader.ReadAsync(message)).AsRecord()["id"].AsInt32()).IsEqualTo(7);
         await Assert.That(resolver.AsyncCalls).IsEqualTo(2);
@@ -254,15 +268,21 @@ public class SingleObjectEncodingTests
     /// <summary>Knows nothing synchronously; fetches asynchronously what <c>answer</c> gives for the call number (from 1), optionally waiting for cancellation first.</summary>
     private sealed class FetchingResolver(Func<int, AvroSchema?> answer, Func<int, bool>? waitForCancellation = null) : IAvroSchemaResolver
     {
-        public int AsyncCalls { get; private set; }
+        private int _asyncCalls;
+
+        public int AsyncCalls => Volatile.Read(ref _asyncCalls);
+
+        /// <summary>Released when a fetch starts waiting for cancellation, so a test can cancel it then, not on a timer.</summary>
+        public SemaphoreSlim Waiting { get; } = new(0);
 
         public AvroSchema? GetSchema(long fingerprint) => null;
 
         public async ValueTask<AvroSchema?> GetSchemaAsync(long fingerprint, CancellationToken cancellationToken = default)
         {
-            var call = ++AsyncCalls;
+            var call = Interlocked.Increment(ref _asyncCalls);
             if (waitForCancellation?.Invoke(call) == true)
             {
+                Waiting.Release();
                 await Task.Delay(Timeout.Infinite, cancellationToken);
             }
 

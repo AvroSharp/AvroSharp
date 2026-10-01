@@ -29,6 +29,7 @@ public abstract class AvroTypeInfo
     /// <summary>Writes a value of <see cref="Type"/>.</summary>
     /// <param name="writer">The destination.</param>
     /// <param name="value">The value.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/> and <see cref="Type"/> is a value type.</exception>
     /// <exception cref="InvalidCastException"><paramref name="value"/> is not a <see cref="Type"/>.</exception>
     public abstract void WriteObject(ref AvroWriter writer, object? value);
 
@@ -83,7 +84,11 @@ public sealed class AvroTypeInfo<T> : AvroTypeInfo
 
     /// <summary>Gets the function that reads values written with <paramref name="writerSchema"/>: <see cref="Read"/> when it has the type's own encoding.</summary>
     /// <param name="writerSchema">The schema the data was written with.</param>
-    /// <exception cref="AvroSchemaException">The schemas cannot be resolved.</exception>
+    /// <remarks>
+    /// Schemas that can't be resolved fail here or when a value is read, depending on the type: a generated type
+    /// resolves when it reads (and caches the plan); a primitive resolves here.
+    /// </remarks>
+    /// <exception cref="AvroSchemaException">The schemas cannot be resolved (for a primitive, or a type whose function resolves at once).</exception>
     public AvroReadFunc<T> ReadFor(AvroSchema writerSchema)
     {
         ArgumentNullException.ThrowIfNull(writerSchema);
@@ -91,7 +96,15 @@ public sealed class AvroTypeInfo<T> : AvroTypeInfo
     }
 
     /// <inheritdoc/>
-    public override void WriteObject(ref AvroWriter writer, object? value) => Write(ref writer, (T)value!);
+    public override void WriteObject(ref AvroWriter writer, object? value)
+    {
+        if (value is null && default(T) is not null)
+        {
+            throw new ArgumentNullException(nameof(value), $"{typeof(T)} is a value type, which can't be null.");
+        }
+
+        Write(ref writer, (T)value!);
+    }
 
     /// <inheritdoc/>
     public override object? ReadObject(ref AvroReader reader) => Read(ref reader);
@@ -132,14 +145,18 @@ public static class AvroTypes
     /// <summary>Registers a type; generated code calls it. A type registered again keeps its first registration.</summary>
     /// <typeparam name="T">The type.</typeparam>
     /// <param name="info">The type's schema and functions.</param>
+    /// <returns><see langword="true"/> when this registered the type; <see langword="false"/> when it was registered already.</returns>
     [EditorBrowsable(EditorBrowsableState.Advanced)]
-    public static void Register<T>(AvroTypeInfo<T> info)
+    public static bool Register<T>(AvroTypeInfo<T> info)
     {
         ArgumentNullException.ThrowIfNull(info);
-        if (s_types.TryAdd(typeof(T), info))
+        if (!s_types.TryAdd(typeof(T), info))
         {
-            Cache<T>.Info = info;
+            return false;
         }
+
+        Cache<T>.Info = info;
+        return true;
     }
 
     /// <summary>Gets a type's registration.</summary>

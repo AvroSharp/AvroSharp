@@ -23,6 +23,9 @@ internal static class CompatCommand
     /// <summary>The schemas are incompatible.</summary>
     public const int Incompatible = 4;
 
+    // The JSON output's shape: a change that would break scripts parsing it gets a new number.
+    private const int FormatVersion = 1;
+
     private static readonly string[] s_levels = ["backward", "backward-transitive", "forward", "forward-transitive", "full", "full-transitive"];
 
     public static Command Create(TextWriter output, TextWriter error)
@@ -45,7 +48,7 @@ internal static class CompatCommand
             AllowMultipleArgumentsPerToken = true,
         };
         var json = new Option<bool>("--json") { Description = "Print the result as JSON." };
-        var strict = new Option<bool>("--strict") { Description = "Fail on warnings too: differences the specification allows that can change the values read, such as a decimal's scale." };
+        var warningsAsErrors = new Option<bool>("--warnings-as-errors", "--strict") { Description = "Fail on warnings too: differences the specification allows that can change the values read, such as a decimal's scale. The verdict stays what it is." };
         var allowPartial = new Option<bool>("--allow-partial") { Description = "Pass when only some values cannot be read (an enum symbol or a union branch the reader lacks)." };
 
         var command = new Command(
@@ -53,7 +56,7 @@ internal static class CompatCommand
             """
             Check whether data written with one schema can be read with another, with every reason it cannot. Exit codes:
             0 compatible, 1 a schema could not be read, 2 invalid command line, 3 partially compatible (some values cannot
-            be read), 4 incompatible.
+            be read), 4 incompatible, or warnings with --warnings-as-errors.
 
             Examples:
               avrosharp schema compat v1.avsc v2.avsc
@@ -63,7 +66,7 @@ internal static class CompatCommand
         command.Options.Add(level);
         command.Options.Add(references);
         command.Options.Add(json);
-        command.Options.Add(strict);
+        command.Options.Add(warningsAsErrors);
         command.Options.Add(allowPartial);
         command.Validators.Add(result =>
         {
@@ -75,7 +78,7 @@ internal static class CompatCommand
         });
         command.SetAction(result =>
         {
-            var options = new AvroCompatibilityOptions { Strict = result.GetValue(strict), AllowPartial = result.GetValue(allowPartial) };
+            var options = new AvroCompatibilityOptions { WarningsAsErrors = result.GetValue(warningsAsErrors), AllowPartial = result.GetValue(allowPartial) };
             return Run(result.GetValue(schemas)!, result.GetValue(references), result.GetValue(level), options, result.GetValue(json), output, error);
         });
         return command;
@@ -91,11 +94,11 @@ internal static class CompatCommand
         if (level is null)
         {
             var result = AvroSchemaCompatibility.Check(schemas[0], schemas[1], options);
-            output.WriteLine(json ? Json(writer => WriteResult(writer, result)) : result.ToString());
+            output.WriteLine(json ? Json(writer => WriteResult(writer, result, paths)) : result.ToString());
             return ExitCode(result.Verdict, result.IsCompatible);
         }
 
-        var report = AvroSchemaCompatibility.Check(schemas[^1], schemas[..^1], ParseLevel(level), options);
+        var report = AvroSchemaCompatibility.CheckVersions(schemas[^1], schemas[..^1], ParseLevel(level), options);
         output.WriteLine(json ? Json(writer => WriteReport(writer, report, level, paths)) : Text(report, paths));
         return ExitCode(report.Verdict, report.IsCompatible);
     }
@@ -175,8 +178,8 @@ internal static class CompatCommand
         foreach (var check in report.Checks)
         {
             text.AppendLine().Append(check.Direction == AvroCompatibilityDirection.Backward
-                ? $"Reading {paths[check.Version]}'s data with {paths[^1]}: "
-                : $"Reading {paths[^1]}'s data with {paths[check.Version]}: ").Append(check.Result);
+                ? $"Reading {paths[check.Index]}'s data with {paths[^1]}: "
+                : $"Reading {paths[^1]}'s data with {paths[check.Index]}: ").Append(check.Result);
         }
 
         return text.ToString();
@@ -203,14 +206,17 @@ internal static class CompatCommand
     private static void WriteReport(Utf8JsonWriter writer, AvroCompatibilityReport report, string level, string[] paths)
     {
         writer.WriteStartObject();
+        writer.WriteNumber("formatVersion", FormatVersion);
         writer.WriteString("level", level);
+        writer.WriteString("schema", paths[^1]);
         writer.WriteString("verdict", Verdict(report.Verdict));
         writer.WriteBoolean("compatible", report.IsCompatible);
         writer.WriteStartArray("checks");
         foreach (var check in report.Checks)
         {
             writer.WriteStartObject();
-            writer.WriteString("version", paths[check.Version]);
+            writer.WriteString("previous", paths[check.Index]);
+            writer.WriteNumber("index", check.Index);
             writer.WriteString("direction", check.Direction == AvroCompatibilityDirection.Backward ? "backward" : "forward");
             WriteResultProperties(writer, check.Result);
             writer.WriteEndObject();
@@ -220,9 +226,12 @@ internal static class CompatCommand
         writer.WriteEndObject();
     }
 
-    private static void WriteResult(Utf8JsonWriter writer, AvroCompatibilityResult result)
+    private static void WriteResult(Utf8JsonWriter writer, AvroCompatibilityResult result, string[] paths)
     {
         writer.WriteStartObject();
+        writer.WriteNumber("formatVersion", FormatVersion);
+        writer.WriteString("writer", paths[0]);
+        writer.WriteString("reader", paths[1]);
         WriteResultProperties(writer, result);
         writer.WriteEndObject();
     }
@@ -231,7 +240,7 @@ internal static class CompatCommand
     {
         writer.WriteString("verdict", Verdict(result.Verdict));
         writer.WriteBoolean("compatible", result.IsCompatible);
-        WriteIssues(writer, "issues", result.Issues);
+        WriteIssues(writer, "incompatibilities", result.Incompatibilities);
         WriteIssues(writer, "warnings", result.Warnings);
     }
 
@@ -241,7 +250,7 @@ internal static class CompatCommand
         foreach (var issue in issues)
         {
             writer.WriteStartObject();
-            writer.WriteString("kind", issue.Kind.ToString());
+            writer.WriteString("kind", JsonNamingPolicy.CamelCase.ConvertName(issue.Kind.ToString()));
             writer.WriteString("path", issue.Path);
             writer.WriteString("message", issue.Message);
             if (issue.OtherPaths.Count > 0)

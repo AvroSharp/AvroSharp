@@ -4,15 +4,16 @@ namespace AvroSharp.Serialization;
 
 /// <summary>How the attribute-driven generator turns C# member names into Avro field names.</summary>
 /// <seealso cref="AvroSerializableAttribute.FieldNames"/>
-/// <seealso cref="AvroNamingPolicyAttribute"/>
+/// <seealso cref="AvroSerializableDefaultsAttribute.FieldNames"/>
 public enum AvroNaming
 {
     /// <summary>The member's name as written, as Apache Avro's Java reflection and Apache.Avro's <c>[AvroField]</c> matching use it.</summary>
     AsWritten,
 
     /// <summary>
-    /// The first letter in lower case (<c>OrderId</c> is <c>orderId</c>), the convention of schemas written for Java
-    /// and most other languages. It is the inverse of the <c>.avsc</c> generator's default PascalCase property names.
+    /// camelCase, as System.Text.Json's <c>JsonNamingPolicy.CamelCase</c> converts names (<c>OrderId</c> is
+    /// <c>orderId</c>, <c>URLValue</c> is <c>urlValue</c>): the convention of schemas written for Java and most other
+    /// languages, and the inverse of the <c>.avsc</c> generator's default PascalCase property names.
     /// </summary>
     CamelCase,
 }
@@ -41,21 +42,20 @@ public sealed class AvroSerializableAttribute : Attribute
 
     /// <summary>
     /// Gets or sets how member names become field names. The default is the assembly's
-    /// <see cref="AvroNamingPolicyAttribute"/>, or <see cref="AvroNaming.AsWritten"/>.
+    /// <see cref="AvroSerializableDefaultsAttribute.FieldNames"/>, or <see cref="AvroNaming.AsWritten"/>.
     /// </summary>
     public AvroNaming FieldNames { get; set; }
 }
 
-/// <summary>The default <see cref="AvroSerializableAttribute.FieldNames"/> for every type in the assembly.</summary>
+/// <summary>
+/// Defaults for every <see cref="AvroSerializableAttribute"/> type in the assembly, such as
+/// <c>[assembly: AvroSerializableDefaults(FieldNames = AvroNaming.CamelCase)]</c>. A type's own settings win.
+/// </summary>
 [AttributeUsage(AttributeTargets.Assembly)]
-public sealed class AvroNamingPolicyAttribute : Attribute
+public sealed class AvroSerializableDefaultsAttribute : Attribute
 {
-    /// <summary>Initializes a new instance of the <see cref="AvroNamingPolicyAttribute"/> class.</summary>
-    /// <param name="fieldNames">How member names become field names.</param>
-    public AvroNamingPolicyAttribute(AvroNaming fieldNames) => FieldNames = fieldNames;
-
-    /// <summary>Gets how member names become field names.</summary>
-    public AvroNaming FieldNames { get; }
+    /// <summary>Gets or sets how member names become field names. The default is <see cref="AvroNaming.AsWritten"/>.</summary>
+    public AvroNaming FieldNames { get; set; }
 }
 
 /// <summary>The Avro name of a field, an enum symbol, or an enum, used as is, without the naming policy.</summary>
@@ -156,7 +156,8 @@ public sealed class AvroFixedAttribute : Attribute
 /// <summary>
 /// The logical type of a member, instead of its type's default (<c>timestamp-millis</c> for a
 /// <see cref="DateTimeOffset"/>, which is <c>timestamp-micros</c> by default). On a <see langword="long"/>,
-/// <see langword="int"/> or <see langword="string"/> member it annotates the raw value.
+/// <see langword="int"/> or <see langword="string"/> member it annotates the raw value, which the member keeps (the
+/// schema gets <c>"avrosharp.logicalType": "raw"</c>): for values .NET's types can't hold.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public sealed class AvroLogicalTypeAttribute : Attribute
@@ -191,12 +192,17 @@ public sealed class AvroEnumDefaultAttribute : Attribute
 }
 
 /// <summary>
-/// The field's position among the record's fields. Needed only when the fields are declared in more than one part of
+/// The field's position among the record's fields, like System.Text.Json's <c>[JsonPropertyOrder]</c> (not Avro's
+/// <c>"order"</c>, which is the field's sort order). Needed only when the fields are declared in more than one part of
 /// a partial type, whose order the compiler doesn't fix; then every field needs it.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-public sealed class AvroFieldAttribute : Attribute
+public sealed class AvroFieldPositionAttribute : Attribute
 {
-    /// <summary>Gets or sets the position, from 0.</summary>
-    public int Order { get; set; } = -1;
+    /// <summary>Initializes a new instance of the <see cref="AvroFieldPositionAttribute"/> class.</summary>
+    /// <param name="position">The position, from 0.</param>
+    public AvroFieldPositionAttribute(int position) => Position = position;
+
+    /// <summary>Gets the position, from 0.</summary>
+    public int Position { get; }
 }

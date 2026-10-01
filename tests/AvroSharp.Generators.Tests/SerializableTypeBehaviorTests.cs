@@ -60,7 +60,7 @@ public class SerializableTypeBehaviorTests
     [Test]
     public async Task TheAssemblyNamingPolicy_AppliesUnlessTheTypeSetsItsOwn()
     {
-        const string Code = "using System.Linq; using AvroSharp.Serialization; using AvroSharp.Schemas; [assembly: AvroNamingPolicy(AvroNaming.CamelCase)] namespace B; " + """
+        const string Code = "using System.Linq; using AvroSharp.Serialization; using AvroSharp.Schemas; [assembly: AvroSerializableDefaults(FieldNames = AvroNaming.CamelCase)] namespace B; " + """
             [AvroSerializable] public partial class A { public int OrderId { get; set; } public string URLValue { get; set; } = ""; }
             [AvroSerializable(FieldNames = AvroNaming.AsWritten)] public partial class B2 { public int OrderId { get; set; } }
             public static class Probe
@@ -166,6 +166,32 @@ public class SerializableTypeBehaviorTests
 
         await Assert.That(before).DoesNotContain("Sku");
         await Assert.That(OrderSource(driver)).Contains("Sku");
+    }
+
+    [Test]
+    public async Task ALogicalTypeOnARawNumber_KeepsTheValue_AndAnnotatesTheSchema()
+    {
+        const string Code = Usings + """
+            [AvroSerializable] public partial class Lease
+            {
+                [AvroLogicalType("timestamp-millis")] public long Expires { get; set; }
+                [AvroLogicalType("uuid")] public string Id { get; set; } = "";
+            }
+            public static class Probe
+            {
+                public static string Run()
+                {
+                    var lease = Lease.FromAvroBytes(new Lease { Expires = long.MaxValue, Id = "x" }.ToAvroBytes());
+                    return lease.Expires + "|" + Lease.SchemaJson;
+                }
+            }
+            """;
+
+        var result = Run(Code);
+
+        await Assert.That(result).StartsWith(long.MaxValue + "|");
+        await Assert.That(result).Contains("""{"type":"long","logicalType":"timestamp-millis","avrosharp.logicalType":"raw"}""");
+        await Assert.That(result).Contains("""{"type":"string","logicalType":"uuid","avrosharp.logicalType":"raw"}""");
     }
 
     private static string OrderSource(GeneratorDriver driver) =>

@@ -142,7 +142,7 @@ The verdicts follow the specification, and agree with what AvroSharp's readers d
 | Enum symbols the reader lacks, with no enum default | true | Partial, naming the symbols |
 | A writer union read as a type that only some branches match | true | Partial, naming the branches |
 | A field renamed through a reader field alias | true, but Apache's readers lose the field's data | Compatible, and the field is read |
-| A decimal whose scale changed | true, and values are read as other numbers | Compatible, with a `DecimalChanged` warning; `Strict` fails it |
+| A decimal whose scale changed | true, and values are read as other numbers | Compatible, with a `DecimalChanged` warning; `WarningsAsErrors` fails it |
 
 A `Partial` verdict is not `IsCompatible`, as in Java's `SchemaCompatibility` and schema registries; [`AvroCompatibilityOptions.AllowPartial`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityOptions.html) accepts it.
 

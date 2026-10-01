@@ -56,12 +56,12 @@ The results are those of [`AvroSchema.CanonicalForm`](https://avrosharp.github.i
 ```shell
 avrosharp schema compat v1.avsc v2.avsc                              # the writer's schema, then the reader's
 avrosharp schema compat --level backward-transitive v1.avsc v2.avsc v3.avsc   # the last against the earlier ones
-avrosharp schema compat v1.avsc v2.avsc --json --strict
+avrosharp schema compat v1.avsc v2.avsc --json --warnings-as-errors
 ```
 
 It prints the verdict and every issue, each with its path into the data. The check is [`AvroSchemaCompatibility`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html) in the library.
 - `--level` takes Confluent Schema Registry's levels: `backward`, `forward` and `full`, each with a `-transitive` version.
-- `--strict` fails on warnings, such as a changed decimal scale.
+- `--warnings-as-errors` (or `--strict`) fails on warnings, such as a changed decimal scale.
 - `--allow-partial` passes when only some values can't be read.
 
 ## Exit codes
@@ -72,6 +72,6 @@ It prints the verdict and every issue, each with its path into the data. The che
 | 1 | The command failed: an invalid schema, a missing file, or output that could not be written. |
 | 2 | The command line is not valid: an unknown command or option, a missing or invalid argument. |
 | 3 | `schema compat`: partially compatible; some values can't be read. |
-| 4 | `schema compat`: incompatible. |
+| 4 | `schema compat`: incompatible, or warnings with `--warnings-as-errors`. |
 
 Errors go to standard error, results and informational messages to standard output.

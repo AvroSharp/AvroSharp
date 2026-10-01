@@ -14,10 +14,10 @@ AVROGEN105 | AvroSharp | Error | Two members have the same Avro field name
 AVROGEN106 | AvroSharp | Error | An [AvroDefault] is not valid, or the built schema is not
 AVROGEN107 | AvroSharp | Error | An [AvroSerializable] type is generic or nested in another type
 AVROGEN108 | AvroSharp | Error | An [AvroSerializable] type has a primary constructor
-AVROGEN109 | AvroSharp | Error | Field order is ambiguous across partial declarations without [AvroField(Order)]
+AVROGEN109 | AvroSharp | Error | Field order is ambiguous across partial declarations without [AvroFieldPosition]
 AVROGEN110 | AvroSharp | Error | [AvroUnion] is not on an object member, or lists a type that is not a class
 AVROGEN111 | AvroSharp | Error | A member uses a class that is not [AvroSerializable], or whose attribute has errors
-AVROGEN112 | AvroSharp | Warning | An Avro attribute does not apply to the member it is on
+AVROGEN112 | AvroSharp | Error | An Avro attribute does not apply to the member it is on
 AVROGEN113 | AvroSharp | Error | Two C# types define the same Avro name
 AVROGEN114 | AvroSharp | Error | A DateTime member has no logical type
 AVROGEN115 | AvroSharp | Error | A member is init-only
