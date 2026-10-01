@@ -123,6 +123,14 @@ public sealed class AvroRecordPlan
     /// <param name="index">The default's index.</param>
     public ReadOnlySpan<byte> DefaultValue(int index) => _defaults[index];
 
+    /// <summary>
+    /// Gets a reader of default <paramref name="index"/>, with no limit on zero-size items: the encoding comes from the
+    /// reader's own schema, not from input, so a default of more such items than <see cref="AvroGeneratedCode.MaxZeroSizeItems"/>
+    /// is read, as the resolving generic reader reads it (#162).
+    /// </summary>
+    /// <param name="index">The default's index.</param>
+    public AvroReader DefaultReader(int index) => new(_defaults[index]) { ZeroSizeItems = long.MinValue / 2 };
+
     /// <summary>One writer field.</summary>
     internal readonly struct Step(int target, AvroConversion conversion, StepReader? skip, StepTranscoder? transcoder, int[]? enumMap = null, IReadOnlyList<string>? writerSymbols = null, string? readerEnum = null)
     {

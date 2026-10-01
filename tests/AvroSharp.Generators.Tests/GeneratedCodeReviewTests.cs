@@ -125,6 +125,41 @@ public class GeneratedCodeReviewTests
     }
 
     /// <summary>
+    /// The generated-code plan decoded a stored default with the limit on zero-size items that guards input, so a
+    /// default of more such items than the limit failed every read of older data (#162). The default comes from the
+    /// type's own schema: it is read, here 70,000 nulls, alone and inside a record default.
+    /// </summary>
+    [Test]
+    public async Task ADefaultOverTheZeroSizeLimit_IsRead_ByAGeneratedType()
+    {
+        var nulls = string.Join(",", Enumerable.Repeat("null", 70_000));
+        var schema = $$$"""
+            {"type":"record","name":"Big","namespace":"zero","fields":[
+              {"name":"a","type":"int"},
+              {"name":"z","type":{"type":"array","items":"null"},"default":[{{{nulls}}}]},
+              {"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"n","type":{"type":"array","items":"null"}}]},"default":{"n":[{{{nulls}}}]}}
+            ]}
+            """;
+        const string Probe = """
+            public static class Probe
+            {
+                public static object Read(byte[] data, AvroSharp.Schemas.AvroSchema writer) => zero.Big.FromAvroBytes(data, writer);
+            }
+            """;
+        var writer = AvroSchema.Parse("""{"type":"record","name":"Big","namespace":"zero","fields":[{"name":"a","type":"int"}]}""");
+        var bytes = GenericDatumWriter.Create(writer).WriteToArray(new GenericRecord((RecordSchema)writer) { ["a"] = 7 });
+        var assembly = GeneratorHarness.GenerateAndLoad([("zero.avsc", schema)], extraSource: Probe);
+
+        var value = assembly.GetType("Probe")!.GetMethod("Read")!.Invoke(null, [bytes, writer])!;
+        var type = value.GetType();
+        var inner = type.GetProperty("Inner")!.GetValue(value)!;
+
+        await Assert.That(type.GetProperty("A")!.GetValue(value)).IsEqualTo(7);
+        await Assert.That(((System.Collections.ICollection)type.GetProperty("Z")!.GetValue(value)!).Count).IsEqualTo(70_000);
+        await Assert.That(((System.Collections.ICollection)inner.GetType().GetProperty("N")!.GetValue(inner)!).Count).IsEqualTo(70_000);
+    }
+
+    /// <summary>
     /// A union's default is for the first branch it is a value of (Avro 1.12), which the generator took to be always the
     /// first branch: a string default of <c>["int","string"]</c> failed to generate, and one of <c>[enum,"string"]</c> that
     /// isn't a symbol generated a symbol that doesn't exist. The defaults now match what a reader gives the field.
