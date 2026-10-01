@@ -11,6 +11,8 @@
   href: docs/confluent.md
 - name: KafkaFlow
   href: docs/kafkaflow.md
+- name: Azure Schema Registry
+  href: docs/azure-schema-registry.md
 - name: Integrations
   href: docs/integrations.md
 - name: API reference

@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
   "metadata": [
     {
-      "src": [ { "files": [ "src/AvroSharp/AvroSharp.csproj", "src/AvroSharp.Codecs/AvroSharp.Codecs.csproj", "src/AvroSharp.CodeGen/AvroSharp.CodeGen.csproj", "src/AvroSharp.Confluent/AvroSharp.Confluent.csproj", "src/AvroSharp.KafkaFlow/AvroSharp.KafkaFlow.csproj" ] } ],
+      "src": [ { "files": [ "src/AvroSharp/AvroSharp.csproj", "src/AvroSharp.Codecs/AvroSharp.Codecs.csproj", "src/AvroSharp.CodeGen/AvroSharp.CodeGen.csproj", "src/AvroSharp.Confluent/AvroSharp.Confluent.csproj", "src/AvroSharp.KafkaFlow/AvroSharp.KafkaFlow.csproj", "src/AvroSharp.Azure.SchemaRegistry/AvroSharp.Azure.SchemaRegistry.csproj" ] } ],
       "properties": { "TargetFramework": "net10.0" },
       "dest": "docs/api",
       "namespaceLayout": "flattened",
@@ -15,7 +15,7 @@
         "files": [
           "index.md", "toc.yml", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
           "docs/api/**.yml", "docs/api/index.md", "docs/roadmap.md", "docs/design.md", "docs/README.md", "docs/reviews/*.md",
-          "docs/code-generation.md", "docs/cli.md", "docs/benchmarks.md", "docs/apache-avro.md", "docs/migrating-from-apache-avro.md", "docs/integrations.md", "docs/confluent.md", "docs/kafkaflow.md", "docs/getting-started/*.md", "docs/getting-started/toc.yml",
+          "docs/code-generation.md", "docs/cli.md", "docs/benchmarks.md", "docs/apache-avro.md", "docs/migrating-from-apache-avro.md", "docs/integrations.md", "docs/confluent.md", "docs/kafkaflow.md", "docs/azure-schema-registry.md", "docs/getting-started/*.md", "docs/getting-started/toc.yml",
           "samples/README.md", "samples/*/README.md", "fuzz/README.md"
         ]
       }

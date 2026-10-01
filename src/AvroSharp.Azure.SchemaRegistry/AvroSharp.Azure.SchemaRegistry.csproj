@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- An Azure Schema Registry serializer for Event Hubs and Service Bus messages (MessageContent): a replacement for
+       Microsoft.Azure.Data.SchemaRegistry.ApacheAvro, without Apache.Avro. -->
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net9.0;net8.0;netstandard2.0</TargetFrameworks>
+    <RootNamespace>AvroSharp.Azure.SchemaRegistry</RootNamespace>
+    <PackageId>AvroSharp.Azure.SchemaRegistry</PackageId>
+    <Description>An Azure Schema Registry serializer on AvroSharp for Event Hubs and Service Bus messages (MessageContent): generated and [AvroSerializable] types and generic records, with the content type and bytes of Microsoft's Avro serializer. No Apache.Avro.</Description>
+    <PackageTags>$(PackageTags);azure;schema-registry;event-hubs;service-bus</PackageTags>
+    <!-- A new package: there is no earlier version to validate against. -->
+    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AvroSharp\AvroSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- [1.2.0, 2.0.0), built against the lowest: the client's register, look-up and get-by-ID methods, and
+         Azure.Core's MessageContent. -->
+    <PackageReference Include="Azure.Data.SchemaRegistry" VersionOverride="[1.2.0, 2.0.0)" />
+  </ItemGroup>
+
+</Project>

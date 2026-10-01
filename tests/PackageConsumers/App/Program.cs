@@ -61,5 +61,26 @@ using (var registry = new CachedSchemaRegistryClient(new SchemaRegistryConfig { 
     _ = new AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver(registry, [typeof(Order)]);
 }
 
+// AvroSharp.Azure.SchemaRegistry loads with its Azure dependencies. A primitive has no name for the registry, which the
+// serializer reports before any call to the service.
+var azure = new AvroSharp.Azure.SchemaRegistry.AvroSharpSchemaRegistrySerializer(
+    new Azure.Data.SchemaRegistry.SchemaRegistryClient("consumer.servicebus.windows.net", new NoCredential()), "group");
+try
+{
+    azure.Serialize<Azure.Messaging.MessageContent, string>("text");
+    failures.Add("Azure Schema Registry serializer");
+}
+catch (ArgumentException)
+{
+}
+
 Console.WriteLine(failures.Count == 0 ? "App: ok" : "App failed: " + string.Join(", ", failures));
 return failures.Count == 0 ? 0 : 1;
+
+// A credential that is never asked for a token.
+internal sealed class NoCredential : Azure.Core.TokenCredential
+{
+    public override Azure.Core.AccessToken GetToken(Azure.Core.TokenRequestContext requestContext, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+    public override ValueTask<Azure.Core.AccessToken> GetTokenAsync(Azure.Core.TokenRequestContext requestContext, CancellationToken cancellationToken) => throw new NotSupportedException();
+}
