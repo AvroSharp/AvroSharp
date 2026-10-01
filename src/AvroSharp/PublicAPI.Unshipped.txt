@@ -142,3 +142,4 @@ static AvroSharp.Serialization.AvroTypes.Get<T>() -> AvroSharp.Serialization.Avr
 static AvroSharp.Serialization.AvroTypes.Register<T>(AvroSharp.Serialization.AvroTypeInfo<T>! info) -> void
 static AvroSharp.Serialization.AvroTypes.TryGet(System.Type! type, out AvroSharp.Serialization.AvroTypeInfo? info) -> bool
 static AvroSharp.Serialization.AvroTypes.TryGet<T>(out AvroSharp.Serialization.AvroTypeInfo<T>? info) -> bool
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteFixedBytes(ref AvroSharp.IO.AvroWriter writer, byte[]? value, int size, string! field) -> void

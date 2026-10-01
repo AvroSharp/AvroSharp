@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using AvroSharp.Schemas;
 
 namespace AvroSharp.CodeGen;
@@ -8,7 +9,8 @@ namespace AvroSharp.CodeGen;
 /// <param name="Type">The fully qualified C# type.</param>
 /// <param name="Write">Builds the statement that writes a value, given the expression that holds it.</param>
 /// <param name="Read">The expression that reads a value.</param>
-internal sealed record LogicalValue(string Type, Func<string, string> Write, string Read);
+/// <param name="IsValueType">Whether <paramref name="Type"/> is a value type; only a <c>byte[]</c> fixed is not.</param>
+internal sealed record LogicalValue(string Type, Func<string, string> Write, string Read, bool IsValueType = true);
 
 /// <summary>Chooses the <see cref="LogicalValue"/> for a schema under the configured <see cref="LogicalTypeMapping"/>.</summary>
 internal static class LogicalTypes
@@ -21,6 +23,15 @@ internal static class LogicalTypes
     /// <summary>Gets the mapping for <paramref name="schema"/>, or <see langword="null"/> when it keeps its underlying type.</summary>
     public static LogicalValue? For(AvroSchema schema, CodeGenOptions options)
     {
+        // A fixed held as a byte[] in a C# type the user declared ([AvroFixed]) is read and written as one, like a
+        // logical value, rather than through a generated wrapper type.
+        if (schema is FixedSchema { LogicalType: null } bytesFixed && options.ByteArrayFixed?.Contains(bytesFixed.FullName, StringComparer.Ordinal) == true)
+        {
+            var size = bytesFixed.Size.ToString(CultureInfo.InvariantCulture);
+            var field = CSharpNames.Literal(bytesFixed.FullName);
+            return new("byte[]", e => $"global::AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteFixedBytes(ref writer, {e}, {size}, {field});", $"global::AvroSharp.Serialization.Generated.AvroGeneratedCode.ReadFixedBytes(ref reader, {size})", IsValueType: false);
+        }
+
         if (schema.LogicalType is not { } logical)
         {
             return null;

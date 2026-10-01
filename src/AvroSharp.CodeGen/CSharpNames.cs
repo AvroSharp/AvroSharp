@@ -35,6 +35,9 @@ internal sealed class CSharpNames(CodeGenOptions options)
     // The C# name of each named type, by Avro full name, when it is not the Avro name (Generate assigns them).
     private readonly Dictionary<string, string> _typeNames = new(StringComparer.Ordinal);
 
+    // C# types that exist already (the attribute-driven generator's): their namespaces, by Avro full name. A null value is the global namespace.
+    private readonly Dictionary<string, string?> _declaredNamespaces = new(StringComparer.Ordinal);
+
     /// <summary>
     /// Escapes a C# keyword, reserved or contextual, with <c>@</c>. Avro names are already valid C# identifier
     /// characters.
@@ -43,6 +46,13 @@ internal sealed class CSharpNames(CodeGenOptions options)
 
     /// <summary>Gives a named type a C# name other than its Avro name.</summary>
     public void SetTypeName(NamedSchema schema, string name) => _typeNames[schema.FullName] = name;
+
+    /// <summary>Maps a named type to a C# type that exists already, which code generated for other types refers to.</summary>
+    public void SetDeclaredType(string avroFullName, string? csharpNamespace, string name)
+    {
+        _typeNames[avroFullName] = name;
+        _declaredNamespaces[avroFullName] = csharpNamespace;
+    }
 
     /// <summary>Gets a named type's C# name, unqualified and escaped.</summary>
     public string SimpleName(NamedSchema schema) =>
@@ -150,6 +160,11 @@ internal sealed class CSharpNames(CodeGenOptions options)
     /// <summary>Gets the C# namespace for a named type, or <see langword="null"/> for the global namespace.</summary>
     public string? Namespace(NamedSchema schema)
     {
+        if (_declaredNamespaces.TryGetValue(schema.FullName, out var declared))
+        {
+            return declared;
+        }
+
         var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? options.Namespace : Map(schema.Name.Namespace!);
         return string.IsNullOrEmpty(ns) ? null : string.Join(".", ns!.Split('.').Select(Identifier));
     }
