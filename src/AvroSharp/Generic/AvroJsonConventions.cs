@@ -89,7 +89,7 @@ internal static class AvroJsonConventions
         }
     }
 
-    /// <summary>Reads one of the three non-finite literals.</summary>
+    /// <summary>Reads a non-finite literal: one of the three written, or the "INF" and "-INF" Java's JsonDecoder also reads.</summary>
     public static bool TryParseNonFinite(string? value, out double result)
     {
         switch (value)
@@ -97,10 +97,10 @@ internal static class AvroJsonConventions
             case NaN:
                 result = double.NaN;
                 return true;
-            case PositiveInfinity:
+            case PositiveInfinity or "INF":
                 result = double.PositiveInfinity;
                 return true;
-            case NegativeInfinity:
+            case NegativeInfinity or "-INF":
                 result = double.NegativeInfinity;
                 return true;
             default:

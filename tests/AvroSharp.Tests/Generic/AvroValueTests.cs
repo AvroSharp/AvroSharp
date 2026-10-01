@@ -105,4 +105,32 @@ public class AvroValueTests
         Assert.Throws<ArgumentException>(() => new GenericFixed(schema, [1]));
         await Assert.That(new GenericFixed(schema, [1, 2]).Bytes.Length).IsEqualTo(2);
     }
+
+    /// <summary>Records compare doubles by bits, so a NaN field does not make a record unequal to its copy, and equal records hash alike.</summary>
+    [Test]
+    public async Task RecordsWithANaNField_AreEqual_AndHashAlike()
+    {
+        var schema = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"d","type":"double"}]}""");
+        var left = (AvroValue)new GenericRecord(schema) { ["d"] = double.NaN };
+        var right = (AvroValue)new GenericRecord(schema) { ["d"] = double.NaN };
+
+        await Assert.That(left).IsEqualTo(right);
+        await Assert.That(left.GetHashCode()).IsEqualTo(right.GetHashCode());
+    }
+
+    /// <summary>
+    /// The generic reader keeps an int array as a typed primitive array; it still equals, and hashes like, the same
+    /// values built as a list of AvroValues.
+    /// </summary>
+    [Test]
+    public async Task ATypedArrayFromTheReader_EqualsTheSameValuesAsAList()
+    {
+        var schema = AvroSchema.Parse("""{"type":"array","items":"int"}""");
+        var list = AvroValue.FromArray(new List<AvroValue> { 1, -2, 300 });
+        var read = GenericDatumReader.Create(schema).Read(GenericDatumWriter.Create(schema).WriteToArray(list));
+
+        await Assert.That(read).IsEqualTo(list);
+        await Assert.That(list).IsEqualTo(read);
+        await Assert.That(read.GetHashCode()).IsEqualTo(list.GetHashCode());
+    }
 }

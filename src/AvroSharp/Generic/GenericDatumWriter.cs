@@ -249,7 +249,11 @@ public sealed class GenericDatumWriter
     /// schema's symbols, which another version of the enum may order differently, or lack: written as is, it was another
     /// symbol, or none. The value's schema itself, or the same symbol at the same position, needs no lookup.
     /// </summary>
-    internal static int EnumOrdinal(EnumSchema schema, in AvroValue value)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static int EnumOrdinal(EnumSchema schema, in AvroValue value) =>
+        ReferenceEquals(value.Reference, schema) ? (int)value.Bits : MappedEnumOrdinal(schema, value);
+
+    private static int MappedEnumOrdinal(EnumSchema schema, in AvroValue value)
     {
         if (value.EnumSchema is not { } own || own.Name != schema.Name)
         {
@@ -257,8 +261,7 @@ public sealed class GenericDatumWriter
         }
 
         var ordinal = (int)value.Bits;
-        if (ReferenceEquals(own, schema)
-            || (ordinal < schema.Symbols.Count && string.Equals(schema.Symbols[ordinal], own.Symbols[ordinal], StringComparison.Ordinal)))
+        if (ordinal < schema.Symbols.Count && string.Equals(schema.Symbols[ordinal], own.Symbols[ordinal], StringComparison.Ordinal))
         {
             return ordinal;
         }
@@ -268,8 +271,15 @@ public sealed class GenericDatumWriter
             : throw new AvroException($"The symbol '{own.Symbols[ordinal]}' is not in the enum {schema.FullName} it is written as.");
     }
 
-    /// <summary>A fixed value's bytes, which must be exactly the size of the schema it is written as.</summary>
-    internal static ReadOnlySpan<byte> FixedBytes(FixedSchema schema, in AvroValue value)
+    /// <summary>
+    /// A fixed value's bytes, which must be exactly the size of the schema it is written as. A value of that schema itself
+    /// has its size: <see cref="GenericFixed"/> checks it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ReadOnlySpan<byte> FixedBytes(FixedSchema schema, in AvroValue value) =>
+        value.Reference is GenericFixed fixedValue && ReferenceEquals(fixedValue.Schema, schema) ? fixedValue.Bytes.Span : CheckedFixedBytes(schema, value);
+
+    private static ReadOnlySpan<byte> CheckedFixedBytes(FixedSchema schema, in AvroValue value)
     {
         if (value.Reference is not GenericFixed fixedValue || fixedValue.Schema.Name != schema.Name)
         {

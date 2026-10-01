@@ -626,6 +626,40 @@ public class SchemaResolutionTests
     /// Resolves with the generic reader, and checks that the transcoder generated types use (which writes the reader's
     /// encoding directly) gives the same bytes as the resolved value written again.
     /// </summary>
+    /// <summary>A record default that omits an inner field takes that field's own default, so {"a":1} fills in b = "z".</summary>
+    [Test]
+    public async Task NestedRecordDefault_FillsInnerFieldsFromTheirDefaults()
+    {
+        var writer = AvroSchema.Parse("""{"type":"record","name":"R","fields":[{"name":"id","type":"int"}]}""");
+        var reader = AvroSchema.Parse("""
+            {"type":"record","name":"R","fields":[{"name":"id","type":"int"},
+              {"name":"inner","type":{"type":"record","name":"Inner","fields":[
+                {"name":"a","type":"int"},{"name":"b","type":"string","default":"z"}]},"default":{"a":1}}]}
+            """);
+
+        var read = Resolve(writer, reader, new GenericRecord((RecordSchema)writer) { ["id"] = 7 }).AsRecord();
+        var inner = read["inner"].AsRecord();
+
+        await Assert.That(inner["a"].AsInt32()).IsEqualTo(1);
+        await Assert.That(inner["b"].AsString()).IsEqualTo("z");
+    }
+
+    /// <summary>
+    /// Resolution ignores logical types, as Java's resolver does: a decimal written at scale 2 and read at scale 3
+    /// keeps its unscaled bytes, so 1.23 reads back as 0.123. Rescaling would be a different rule from Java's.
+    /// </summary>
+    [Test]
+    public async Task DecimalsOfDifferentScales_PassTheBytesThrough()
+    {
+        var writer = AvroSchema.Parse("""{"type":"bytes","logicalType":"decimal","precision":9,"scale":2}""");
+        var reader = AvroSchema.Parse("""{"type":"bytes","logicalType":"decimal","precision":9,"scale":3}""");
+        byte[] unscaled = [0x00, 0x7B]; // 123
+
+        var read = Resolve(writer, reader, unscaled);
+
+        await Assert.That(read.AsBytes()).IsEquivalentTo(unscaled, CollectionOrdering.Matching);
+    }
+
     private static AvroValue Resolve(AvroSchema writer, AvroSchema reader, AvroValue value)
     {
         var bytes = GenericDatumWriter.Create(writer).WriteToArray(value);
