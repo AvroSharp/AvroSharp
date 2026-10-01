@@ -335,7 +335,7 @@ Rules: `[null, T]` → `T?`; `[null, T1, T2]` → `Union2<T1,T2>?`-style generat
 
 ### 6.5 The attribute-driven generator (#31)
 
-The `.avsc` generator starts from a schema and writes the C# types. This one starts from C# types the user wrote, and writes the schema and the serializers. Status: **design, for review.** Nothing below is implemented yet.
+The `.avsc` generator starts from a schema and writes the C# types. This one starts from C# types the user wrote, and writes the schema and the serializers. Status: **designed; implementation in progress.**
 
 #### 6.5.1 Shape
 
@@ -507,10 +507,10 @@ All are errors except AVROGEN112, which is a warning.
 - Snapshot tests of the generated code and of every diagnostic.
 - A round trip of every mapped type against the same schema written as `.avsc`: the same canonical form, and byte-identical data.
 
-**Open decisions:**
-1. The default field naming. Recommended: as written, with camelCase opt-in per type or assembly.
-2. `DateTime` as an error unless annotated, as recommended, or a default of `timestamp-micros` (UTC).
-3. Whether `AvroTypes` (§6.5.4) ships with this, or as its own issue first, since the `.avsc` types need it too. Recommended: with this.
+**Decided (2026-10-01):**
+1. **Field names are as written by default.** This is Apache's rule, as Java's `ReflectData` and Apache C#'s `[AvroField]` matching use member names unchanged. camelCase is opt-in, per type or per assembly. The docs say that a project whose schemas are read by Java or other languages should set camelCase for the assembly, since their fields are camelCase by convention.
+2. **`DateTime` is an error unless annotated** (AVROGEN114).
+3. **`AvroTypes` ships with #31.**
 
 ---
 
