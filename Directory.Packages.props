@@ -5,7 +5,7 @@
     <CentralPackageTransitivePinningEnabled Condition="'$(CentralPackageTransitivePinningEnabled)' == ''">true</CentralPackageTransitivePinningEnabled>
     <!-- The Confluent version the build uses. AvroSharp.Confluent depends on [2.14.0, 3.0.0): 2.14.0 changed the serde
          base classes' protected members in a minor release (GetSubjectName became async), so older versions can't load
-         it. CI also builds and tests against the lowest (ConfluentVersion=2.14.0). -->
+         it. To build and test against the lowest: -p:ConfluentVersion=2.14.0. -->
     <ConfluentVersion Condition="'$(ConfluentVersion)' == ''">2.15.1</ConfluentVersion>
   </PropertyGroup>
 

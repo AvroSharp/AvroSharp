@@ -20,7 +20,7 @@ All notable changes to this project are documented here. The format follows [Kee
     - With `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, the serializer checks that the type's schema encodes like the schema whose ID the message carries.
     - Tombstones follow Confluent: a null value is written with no body, and reading one into a value type throws.
   - **Builder extensions** for Confluent.Kafka's producer and consumer builders.
-  - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Confluent.SchemaRegistry [2.14.0, 3.0.0). CI tests the lowest and the newest version, and against Redpanda.
+  - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Confluent.SchemaRegistry [2.14.0, 3.0.0). The tests run against both ends of that range (`-p:ConfluentVersion=2.14.0` for the lowest) and against Redpanda.
   - **Not supported yet:** field rules (field-level encryption, `CEL_FIELD`), migration rules, and CEL on generic values. These and the other follow-ups are #186 to #203.
 
 ## [1.0.0-rc.1] - 2026-10-01

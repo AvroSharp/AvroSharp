@@ -100,18 +100,29 @@ public class RedpandaTests(RedpandaFixture redpanda)
 /// <summary>One Redpanda container for the class.</summary>
 public sealed class RedpandaFixture : IAsyncInitializer, IAsyncDisposable
 {
-    // The image's default (v22) predates the registry API that Confluent.SchemaRegistry 2.15 uses.
-    private readonly RedpandaContainer _container = new RedpandaBuilder("docker.redpanda.com/redpandadata/redpanda:v25.2.1").Build();
+    private RedpandaContainer? _container;
 
-    public string BootstrapServers => _container.GetBootstrapAddress();
+    public string BootstrapServers => Container.GetBootstrapAddress();
 
-    public CachedSchemaRegistryClient Registry() => new(new SchemaRegistryConfig { Url = _container.GetSchemaRegistryAddress() });
+    private RedpandaContainer Container => _container ?? throw new InvalidOperationException("The Redpanda tests are not enabled.");
 
-    // TUnit can initialize a shared data source even when every test that uses it is skipped (a Windows runner without
-    // Docker failed so), so the container starts only when the tests run.
-    public Task InitializeAsync() => RequiresIntegrationAttribute.Enabled ? _container.StartAsync() : Task.CompletedTask;
+    public CachedSchemaRegistryClient Registry() => new(new SchemaRegistryConfig { Url = Container.GetSchemaRegistryAddress() });
 
-    public ValueTask DisposeAsync() => _container.DisposeAsync();
+    // TUnit initializes a shared data source even when every test that uses it is skipped, and building a container
+    // already looks for Docker (CI's Windows Arm64 runner has none). So the container is built and started only when
+    // the tests run. The image's default (v22) predates the registry API that Confluent.SchemaRegistry 2.15 uses.
+    public Task InitializeAsync()
+    {
+        if (!RequiresIntegrationAttribute.Enabled)
+        {
+            return Task.CompletedTask;
+        }
+
+        _container = new RedpandaBuilder("docker.redpanda.com/redpandadata/redpanda:v25.2.1").Build();
+        return _container.StartAsync();
+    }
+
+    public ValueTask DisposeAsync() => _container?.DisposeAsync() ?? default;
 }
 
 /// <summary>Skips a test unless AVROSHARP_CONFLUENT_INTEGRATION is 1: it needs Docker with Linux containers.</summary>

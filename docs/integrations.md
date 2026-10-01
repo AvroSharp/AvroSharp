@@ -25,6 +25,6 @@ With Confluent.Kafka, use `AvroSharp.Confluent` below. Without it, an applicatio
 
 Frameworks that wrap Confluent's serializers, such as Streamiz, Silverback and MassTransit, will be covered by `AvroSharp.Confluent` and documentation rather than packages of their own. Apache Iceberg manifests are planned after 1.0. Pulsar, AWS Lambda Powertools and CloudEvents are candidates that haven't been evaluated yet.
 
-The add-on packages live in this repository and are released with AvroSharp, all at the same version ([#77](https://github.com/AvroSharp/AvroSharp/issues/77)). Each depends on a tested range of its third-party library ([#83](https://github.com/AvroSharp/AvroSharp/issues/83)). For example, Confluent changed its serializer base classes in a minor release (2.14.0), so `AvroSharp.Confluent` depends on `[2.14.0, 3.0.0)`, and CI tests both ends.
+The add-on packages live in this repository and are released with AvroSharp, all at the same version ([#77](https://github.com/AvroSharp/AvroSharp/issues/77)). Each depends on a tested range of its third-party library ([#83](https://github.com/AvroSharp/AvroSharp/issues/83)). For example, Confluent changed its serializer base classes in a minor release (2.14.0), so `AvroSharp.Confluent` depends on `[2.14.0, 3.0.0)`, and its tests run against both ends.
 
 [The ecosystem spike](reviews/2026-09-30-ecosystem.md) has the measurements, the findings for each candidate, and why the others were left out.

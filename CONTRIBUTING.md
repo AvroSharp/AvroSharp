@@ -23,7 +23,9 @@ Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on 
 
 AvroSharp.Confluent's tests need two more things:
 - **Redpanda:** the tests against a real broker and registry run in Docker with Linux containers, only when `AVROSHARP_CONFLUENT_INTEGRATION=1` is set. Otherwise they are skipped.
-- **Confluent's lowest supported version:** the package depends on Confluent.SchemaRegistry [2.14.0, 3.0.0). The build uses the newest by default; to test against 2.14.0, build and test with `-p:ConfluentVersion=2.14.0`. CI does both, in the `confluent` job.
+- **Confluent's lowest supported version:** the package depends on Confluent.SchemaRegistry [2.14.0, 3.0.0). The build uses the newest by default; to test against 2.14.0, build and test with `-p:ConfluentVersion=2.14.0`.
+
+CI runs them with the rest of the solution, and the Redpanda tests on the x64 Linux runner.
 
 Formatting is not checked in CI. To check or fix it locally:
 

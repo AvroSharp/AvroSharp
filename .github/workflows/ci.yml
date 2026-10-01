@@ -63,9 +63,11 @@ jobs:
 
       # On Windows this includes net481, which runs the netstandard2.0 build on .NET Framework.
       # A failing random-schema batch (#141) is saved with the test results, which are uploaded below.
+      # AvroSharp.Confluent's Redpanda tests need Docker with Linux containers, which only the x64 Linux runner has.
       - name: Test
         env:
           AVROSHARP_RANDOM_SCHEMA_FAILURES: ${{ github.workspace }}/TestResults/random-schema-failure
+          AVROSHARP_CONFLUENT_INTEGRATION: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
       # Line and branch coverage of the shipped assemblies, merged across the test projects and target frameworks, in
@@ -132,41 +134,3 @@ jobs:
           name: packages
           path: artifacts/package/release/*
 
-  # AvroSharp.Confluent against a real broker and registry (Redpanda in Docker, which only the x64 Linux runner has),
-  # and against the lowest Confluent version the package supports. The build job runs its in-memory tests with the
-  # newest version everywhere.
-  confluent:
-    name: confluent (${{ matrix.confluent }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        confluent: [2.14.0, 2.15.1]
-
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # MinVer needs tags and history
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
-            10.0.x
-
-      - name: Build
-        run: dotnet build tests/AvroSharp.Confluent.Tests -c Release -p:ConfluentVersion=${{ matrix.confluent }}
-
-      - name: Test
-        env:
-          AVROSHARP_CONFLUENT_INTEGRATION: 1
-        run: dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build
-
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: results-confluent-${{ matrix.confluent }}
-          path: artifacts/bin/AvroSharp.Confluent.Tests/**/TestResults/**
-          if-no-files-found: ignore
