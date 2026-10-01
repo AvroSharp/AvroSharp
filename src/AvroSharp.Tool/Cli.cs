@@ -23,7 +23,10 @@ internal static class Cli
     /// <param name="input">Where a schema given as - (standard input) is read from.</param>
     /// <param name="output">Where results and help go.</param>
     /// <param name="error">Where errors go.</param>
-    /// <returns>The exit code: <see cref="Success"/>, <see cref="Failure"/> or <see cref="UsageError"/>.</returns>
+    /// <returns>
+    /// The exit code: <see cref="Success"/>, <see cref="Failure"/> or <see cref="UsageError"/>, and for <c>schema compat</c>
+    /// <see cref="CompatCommand.Partial"/> or <see cref="CompatCommand.Incompatible"/>.
+    /// </returns>
     public static int Run(string[] args, TextReader input, TextWriter output, TextWriter error)
     {
         var root = CreateRootCommand(input, output, error);
@@ -51,12 +54,13 @@ internal static class Cli
             "avrosharp",
             """
             AvroSharp's command-line tool for Apache Avro: generate C# from schema files, and print the canonical form
-            and fingerprint of a schema.
+            and fingerprint of a schema, and check schema compatibility.
 
             Examples:
               avrosharp gen schemas/ --output Generated/ --namespace Acme.Events
               avrosharp schema canonical user.avsc
               avrosharp schema fingerprint user.avsc --algorithm sha256
+              avrosharp schema compat v1.avsc v2.avsc
             """);
         root.Options.Add(new HelpOption());
         root.Options.Add(new VersionOption());

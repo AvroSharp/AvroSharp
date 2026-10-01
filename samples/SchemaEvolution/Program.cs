@@ -166,5 +166,15 @@ catch (AvroDataException ex)
     ok &= ex.Message.Contains("'PLATINUM' is not in the reader's enum", StringComparison.Ordinal);
 }
 
+// Every reason at once, with where it is: AvroSchemaCompatibility, which also calls the deferred mismatches partial.
+AvroCompatibilityResult check = AvroSchemaCompatibility.Check(writerSchema: newerTiers, readerSchema: noDefaultTiers);
+Console.WriteLine($"Check: {check.Verdict}, {check.Issues[0]}");
+ok &= check.Verdict == AvroCompatibilityVerdict.Partial && !check.IsCompatible && string.Equals(check.Issues[0].Path, "$.tier", StringComparison.Ordinal);
+
+// A new version against the earlier ones, at a schema registry's level.
+AvroCompatibilityReport report = AvroSchemaCompatibility.Check(withPoints, [v1, reordered], AvroCompatibilityLevel.BackwardTransitive);
+Console.WriteLine($"Backward transitive: {report.Verdict}");
+ok &= report.IsCompatible;
+
 Console.WriteLine(ok ? "OK" : "FAILED");
 return ok ? 0 : 1;

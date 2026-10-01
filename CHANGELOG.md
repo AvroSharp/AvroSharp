@@ -36,6 +36,15 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 - **The public API is frozen for 1.0 (#73).** Every package declares its API as shipped, and package validation compares each with its 0.2.0 on nuget.org. The breaks listed above are the only ones allowed; any other fails the pack.
 - **`AvroMessageReader<T>.ReadAsync`**, which fetches an unknown fingerprint through the resolver and keeps its reader, and **`AvroSchemaStore.GetSchemaAsync`** (#134).
+- **Schema compatibility checks (#165):** `AvroSchemaCompatibility.Check(writerSchema, readerSchema)` says whether data written with one schema can be read with another.
+  - **The verdict** is `Compatible`, `Partial` or `Incompatible`. `Partial` means some values can't be read: an enum symbol, or a writer union branch, that the reader lacks. The readers leave these until such a value is read. `IsCompatible` is true only for `Compatible`, as in Java's `SchemaCompatibility` and schema registries; `AllowPartial` accepts `Partial`.
+  - **Every issue is reported, not just the first.** Each has a kind, a message, and a path into the data (`$.items[].sku`, `$.payment[1:Card].number`). A named type used in several places lists its other paths.
+  - **The kinds** are Java's six, plus `InvalidDefault`.
+  - **The check uses the resolving readers' own rules,** and the tests check every row against `GenericDatumReader.Create` and the generated-code plans.
+  - **Warnings** cover differences that the specification allows but that can change the values read: decimal scale or precision, other logical type changes, lossy promotions, names matched without their namespace, enum defaults used for unknown symbols, and ambiguous field aliases. `Strict` makes them fail.
+  - **Schema registry levels:** `Check(schema, previousVersions, level)` checks a new version at Confluent Schema Registry's levels (Backward, Forward, Full and their transitive versions), with a result for each pair.
+  - **The CLI:** `avrosharp schema compat <writer> <reader>`, or `--level backward-transitive v1 v2 v3`. It has text or `--json` output, `--strict` and `--allow-partial`. Exit code 3 means partially compatible, and 4 incompatible.
+  - **Documentation:** a section in [Schema evolution](docs/getting-started/schema-evolution.md#every-reason-with-where-it-is), and "Replacing `Schema.CanRead`" in the migration guide, with a table of where Apache.Avro's verdicts differ.
 - **`AvroSchema.HasSameCanonicalForm`:** whether two schemas have the same encoding. `Equals` stays reference equality, as `AvroSchema`'s docs now say (#134).
 - **`DeflateCodec`:** the built-in codec is public, with `Default` and `Level`, as the Codecs package's codecs have (#134). It rejects a level the runtime doesn't have when it is made, rather than when a writer compresses its first block.
 - **New overloads:**

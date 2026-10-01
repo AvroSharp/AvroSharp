@@ -11,7 +11,8 @@ using AvroSharp.Schemas;
 namespace AvroSharp.Tool;
 
 /// <summary>
-/// <c>avrosharp schema canonical|fingerprint</c>: the Parsing Canonical Form and fingerprints of one or more schemas.
+/// <c>avrosharp schema canonical|fingerprint</c>: the Parsing Canonical Form and fingerprints of one or more schemas;
+/// <c>avrosharp schema compat</c> is in <see cref="CompatCommand"/>.
 /// </summary>
 internal static class SchemaCommands
 {
@@ -26,9 +27,10 @@ internal static class SchemaCommands
 
     public static Command Create(TextReader input, TextWriter output, TextWriter error)
     {
-        var command = new Command("schema", "Print the Parsing Canonical Form or a fingerprint of schemas.");
+        var command = new Command("schema", "Print the Parsing Canonical Form or a fingerprint of schemas, or check whether one schema can read another's data.");
         command.Subcommands.Add(CreateCanonical(input, output, error));
         command.Subcommands.Add(CreateFingerprint(input, output, error));
+        command.Subcommands.Add(CompatCommand.Create(output, error));
         return command;
     }
 

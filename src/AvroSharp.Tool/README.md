@@ -1,6 +1,6 @@
 # AvroSharp.Tool
 
-`avrosharp`, the command-line tool of [AvroSharp](https://github.com/AvroSharp/AvroSharp): C# types and serializers from Apache Avro™ schema files (`.avsc`), and the canonical form and fingerprints of schemas. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
+`avrosharp`, the command-line tool of [AvroSharp](https://github.com/AvroSharp/AvroSharp): C# types and serializers from Apache Avro™ schema files (`.avsc`), the canonical form and fingerprints of schemas, and schema compatibility checks. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
 
 > **Status:** a release candidate for 1.0.0. From 1.0, it follows [semantic versioning](https://semver.org/).
 
@@ -51,6 +51,19 @@ cat user.avsc | avrosharp schema canonical -
 
 The results are those of [`AvroSchema.CanonicalForm`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.CanonicalForm.html) and [`SchemaFingerprint`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.SchemaFingerprint.html) in the library. Several files or folders give one `path: result` line each. Schemas that use types from other files name them with `--reference` (`-r`).
 
+## schema compat: can one schema read another's data
+
+```shell
+avrosharp schema compat v1.avsc v2.avsc                              # the writer's schema, then the reader's
+avrosharp schema compat --level backward-transitive v1.avsc v2.avsc v3.avsc   # the last against the earlier ones
+avrosharp schema compat v1.avsc v2.avsc --json --strict
+```
+
+It prints the verdict and every issue, each with its path into the data. The check is [`AvroSchemaCompatibility`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html) in the library.
+- `--level` takes Confluent Schema Registry's levels: `backward`, `forward` and `full`, each with a `-transitive` version.
+- `--strict` fails on warnings, such as a changed decimal scale.
+- `--allow-partial` passes when only some values can't be read.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -58,5 +71,7 @@ The results are those of [`AvroSchema.CanonicalForm`](https://avrosharp.github.i
 | 0 | Success. |
 | 1 | The command failed: an invalid schema, a missing file, or output that could not be written. |
 | 2 | The command line is not valid: an unknown command or option, a missing or invalid argument. |
+| 3 | `schema compat`: partially compatible; some values can't be read. |
+| 4 | `schema compat`: incompatible. |
 
 Errors go to standard error, results and informational messages to standard output.

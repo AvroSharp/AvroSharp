@@ -65,6 +65,25 @@ public sealed partial class GenericDatumReader
         return byWriter.GetValue(writerSchema, writer => new GenericDatumReader(writer, readerSchema, GenericDatumReaderOptions.Default));
     }
 
+    /// <summary>
+    /// The resolving reader's rules, for <see cref="AvroSchemaCompatibility"/>, so the check decides each pair as the
+    /// reader does. One instance per check: field matching caches each reader record's aliases.
+    /// </summary>
+    internal sealed class ResolutionRules
+    {
+        private readonly ResolvingBuilder _builder = new();
+
+        public static bool NamesMatch(NamedSchema writer, NamedSchema reader) => ResolvingBuilder.NamesMatch(writer, reader);
+
+        public static bool FullNamesMatch(NamedSchema writer, NamedSchema reader) => ResolvingBuilder.FullNamesMatch(writer, reader);
+
+        public static AvroSchema? BestBranch(AvroSchema writer, UnionSchema reader) => ResolvingBuilder.BestBranch(writer, reader);
+
+        public static bool CanPromote(AvroSchemaType writer, AvroSchemaType reader) => ResolvingBuilder.Promote(writer, reader) is not null;
+
+        public RecordField? FindField(RecordSchema reader, string writerName) => _builder.FindField(reader, writerName);
+    }
+
     /// <summary>Builds reader nodes that read the writer's encoding and produce values of the reader schema.</summary>
     private sealed class ResolvingBuilder
     {
@@ -273,7 +292,7 @@ public sealed partial class GenericDatumReader
         public static bool NamesMatch(NamedSchema writer, NamedSchema reader) =>
             FullNamesMatch(writer, reader) || string.Equals(writer.Name.Name, reader.Name.Name, StringComparison.Ordinal);
 
-        private static bool FullNamesMatch(NamedSchema writer, NamedSchema reader) =>
+        public static bool FullNamesMatch(NamedSchema writer, NamedSchema reader) =>
             string.Equals(writer.FullName, reader.FullName, StringComparison.Ordinal)
             || reader.Aliases.Any(alias => string.Equals(alias.FullName, writer.FullName, StringComparison.Ordinal));
 

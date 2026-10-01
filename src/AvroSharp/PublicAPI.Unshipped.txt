@@ -1,2 +1,70 @@
 #nullable enable
 AvroSharp.Serialization.Generated.AvroRecordPlan.DefaultReader(int index) -> AvroSharp.IO.AvroReader
+AvroSharp.Schemas.AvroCompatibilityCheck
+AvroSharp.Schemas.AvroCompatibilityCheck.Direction.get -> AvroSharp.Schemas.AvroCompatibilityDirection
+AvroSharp.Schemas.AvroCompatibilityCheck.Result.get -> AvroSharp.Schemas.AvroCompatibilityResult!
+AvroSharp.Schemas.AvroCompatibilityCheck.Version.get -> int
+AvroSharp.Schemas.AvroCompatibilityDirection
+AvroSharp.Schemas.AvroCompatibilityDirection.Backward = 0 -> AvroSharp.Schemas.AvroCompatibilityDirection
+AvroSharp.Schemas.AvroCompatibilityDirection.Forward = 1 -> AvroSharp.Schemas.AvroCompatibilityDirection
+AvroSharp.Schemas.AvroCompatibilityIssue
+AvroSharp.Schemas.AvroCompatibilityIssue.IsWarning.get -> bool
+AvroSharp.Schemas.AvroCompatibilityIssue.Kind.get -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityIssue.Message.get -> string!
+AvroSharp.Schemas.AvroCompatibilityIssue.OtherPaths.get -> System.Collections.Generic.IReadOnlyList<string!>!
+AvroSharp.Schemas.AvroCompatibilityIssue.Path.get -> string!
+AvroSharp.Schemas.AvroCompatibilityIssue.ReaderSchema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.AvroCompatibilityIssue.WriterSchema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.AmbiguousFieldAlias = 12 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.DecimalChanged = 9 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.EnumDefaultUsed = 11 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.FixedSizeMismatch = 2 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.InvalidDefault = 6 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.LogicalTypeChanged = 8 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.LossyPromotion = 7 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.MissingDefault = 3 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.MissingEnumSymbols = 4 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.MissingUnionBranch = 5 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.NameMismatch = 1 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.TypeMismatch = 0 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityKind.UnqualifiedNameMatch = 10 -> AvroSharp.Schemas.AvroCompatibilityKind
+AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityLevel.Backward = 1 -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityLevel.BackwardTransitive = 2 -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityLevel.Forward = 3 -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityLevel.ForwardTransitive = 4 -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityLevel.Full = 5 -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityLevel.FullTransitive = 6 -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityLevel.None = 0 -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityOptions
+AvroSharp.Schemas.AvroCompatibilityOptions.AllowPartial.get -> bool
+AvroSharp.Schemas.AvroCompatibilityOptions.AllowPartial.init -> void
+AvroSharp.Schemas.AvroCompatibilityOptions.AvroCompatibilityOptions() -> void
+AvroSharp.Schemas.AvroCompatibilityOptions.Strict.get -> bool
+AvroSharp.Schemas.AvroCompatibilityOptions.Strict.init -> void
+AvroSharp.Schemas.AvroCompatibilityReport
+AvroSharp.Schemas.AvroCompatibilityReport.Checks.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroCompatibilityCheck!>!
+AvroSharp.Schemas.AvroCompatibilityReport.IsCompatible.get -> bool
+AvroSharp.Schemas.AvroCompatibilityReport.Level.get -> AvroSharp.Schemas.AvroCompatibilityLevel
+AvroSharp.Schemas.AvroCompatibilityReport.ThrowIfIncompatible() -> void
+AvroSharp.Schemas.AvroCompatibilityReport.Verdict.get -> AvroSharp.Schemas.AvroCompatibilityVerdict
+AvroSharp.Schemas.AvroCompatibilityResult
+AvroSharp.Schemas.AvroCompatibilityResult.IsCompatible.get -> bool
+AvroSharp.Schemas.AvroCompatibilityResult.Issues.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroCompatibilityIssue!>!
+AvroSharp.Schemas.AvroCompatibilityResult.ReaderSchema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.AvroCompatibilityResult.ThrowIfIncompatible() -> void
+AvroSharp.Schemas.AvroCompatibilityResult.Verdict.get -> AvroSharp.Schemas.AvroCompatibilityVerdict
+AvroSharp.Schemas.AvroCompatibilityResult.Warnings.get -> System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroCompatibilityIssue!>!
+AvroSharp.Schemas.AvroCompatibilityResult.WriterSchema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Schemas.AvroCompatibilityVerdict
+AvroSharp.Schemas.AvroCompatibilityVerdict.Compatible = 0 -> AvroSharp.Schemas.AvroCompatibilityVerdict
+AvroSharp.Schemas.AvroCompatibilityVerdict.Incompatible = 2 -> AvroSharp.Schemas.AvroCompatibilityVerdict
+AvroSharp.Schemas.AvroCompatibilityVerdict.Partial = 1 -> AvroSharp.Schemas.AvroCompatibilityVerdict
+AvroSharp.Schemas.AvroSchemaCompatibility
+override AvroSharp.Schemas.AvroCompatibilityIssue.ToString() -> string!
+override AvroSharp.Schemas.AvroCompatibilityReport.ToString() -> string!
+override AvroSharp.Schemas.AvroCompatibilityResult.ToString() -> string!
+static AvroSharp.Schemas.AvroCompatibilityOptions.Default.get -> AvroSharp.Schemas.AvroCompatibilityOptions!
+static AvroSharp.Schemas.AvroSchemaCompatibility.Check(AvroSharp.Schemas.AvroSchema! schema, System.Collections.Generic.IReadOnlyList<AvroSharp.Schemas.AvroSchema!>! previousVersions, AvroSharp.Schemas.AvroCompatibilityLevel level, AvroSharp.Schemas.AvroCompatibilityOptions? options = null) -> AvroSharp.Schemas.AvroCompatibilityReport!
+static AvroSharp.Schemas.AvroSchemaCompatibility.Check(AvroSharp.Schemas.AvroSchema! writerSchema, AvroSharp.Schemas.AvroSchema! readerSchema, AvroSharp.Schemas.AvroCompatibilityOptions? options = null) -> AvroSharp.Schemas.AvroCompatibilityResult!
