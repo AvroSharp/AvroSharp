@@ -15,7 +15,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > **Status:** a release candidate for 1.0.0. The public API is frozen, and from 1.0 it follows [semantic versioning](https://semver.org/): no breaking changes before 2.0. It has:
 > - schemas (parsing, writing, canonical form, fingerprints, compatibility checks);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
-> - C# code generation from `.avsc` files, with a source generator and the `avrosharp` command-line tool, and schema resolution for the generated types;
+> - C# code generation from `.avsc` files, with a source generator and the `avrosharp` command-line tool, and schema resolution for the generated types; and schemas and serializers for your own C# types with `[AvroSerializable]`;
 > - object container files (synchronous and asynchronous) with every codec in the specification;
 > - single-object encoding, schema-registry framing (Confluent, Apicurio, AWS Glue), and streams of objects.
 >
@@ -219,6 +219,23 @@ using var file = AvroFileWriter.Create<shop.Order>(stream);
     - it reads `local-timestamp` values as UTC instants in local time.
 - **Requirements:** the generator needs the .NET 10 SDK or Visual Studio 2026, because it runs AvroSharp inside the compiler. The generated code works on every target AvroSharp supports.
 
+The same package works from C# types too. Mark a `partial` class `[AvroSerializable]`, and its schema and serializers are generated from its members, with the same API as the types above:
+
+```csharp
+[AvroSerializable(FieldNames = AvroNaming.CamelCase)]
+public partial class Reading
+{
+    public string Sensor { get; set; } = "";
+    public double Value { get; set; }
+    public DateTimeOffset TakenAt { get; set; }   // long, timestamp-micros
+    public string? Note { get; set; }             // ["null","string"]
+}
+
+byte[] bytes = new Reading { Sensor = "t1", Value = 21.5 }.ToAvroBytes();
+```
+
+[Code generation](docs/code-generation.md#from-c-types-avroserializable) has the type mapping and the attributes.
+
 ## Command-line tool
 
 `avrosharp` is a `dotnet tool`, like Apache.Avro's `avrogen`. It writes the same code as the source generator, for code that is checked in or built outside MSBuild, prints schemas' canonical forms and fingerprints, and checks whether one schema can read another's data:
@@ -244,6 +261,8 @@ Measured against Apache.Avro 1.12.2 with BenchmarkDotNet (i7-12800H, .NET 10, 20
 | Schema evolution, generated code | 2.72× |
 | Container reads | 2.90–7.36× (null, deflate, snappy, zstandard), up to 22.39× (xz) |
 | Container writes | 3.46–10.35× (all codecs but bzip2) |
+
+Types written in C# with `[AvroSerializable]` run the same serializers as generated code. On an EPYC 7543 (2026-10-01), their records read 4.7× and write 7.2× faster than Apache.Avro's.
 
 [The benchmarks page](docs/benchmarks.md) has every area, what is measured, and how to run the suite yourself. [AvroSharp and Apache.Avro](docs/apache-avro.md) covers the other differences, and how to migrate.
 

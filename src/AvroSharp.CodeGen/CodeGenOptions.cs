@@ -64,4 +64,10 @@ public sealed class CodeGenOptions
     /// <c>IAvroSerializable&lt;T&gt;</c>. It must be 7 or later. Defaults to 14.
     /// </summary>
     public int LanguageVersion { get; init; } = 14;
+
+    /// <summary>
+    /// Gets the full names of the <c>fixed</c> types that are <c>byte[]</c> members of C# types the user declared (the
+    /// attribute-driven generator's <c>[AvroFixed]</c>), rather than generated wrapper types.
+    /// </summary>
+    internal IReadOnlyCollection<string>? ByteArrayFixed { get; init; }
 }

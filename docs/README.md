@@ -41,3 +41,4 @@ Dated notes from reviews and benchmark runs. Each one records what was measured,
 | 2026-09-28 | [perf/varints-parse on CPUs with fast PDEP](reviews/2026-09-28-varints-parse-fast-pdep.md): the i7-12800H and an EPYC 7543 at 8164630, and the bulk Mixed1-10 fix |
 | 2026-09-28 | [perf/varints-parse on CPUs without fast PDEP](reviews/2026-09-28-varints-parse-slow-pdep.md): the i5-3570K and the nas at 8164630, the full suite |
 | 2026-09-30 | [Ecosystem integrations spike](reviews/2026-09-30-ecosystem.md): an `AvroSharp.Confluent` prototype on Confluent's serde classes, and which add-on packages to build (#78) |
+| 2026-10-01 | [`[AvroSerializable]` types](reviews/2026-10-01-attribute-generator.md): the attribute-driven generator's serializers against generated code, the generic model and Apache.Avro on an EPYC 7543 (#31) |

@@ -135,6 +135,19 @@ namespace app.events
             return ReadCore(ref reader, null, 0);
         }
 
+        private static global::AvroSharp.Serialization.AvroTypeInfo<Event>? s_typeInfo;
+
+        /// <summary>Gets this type's schema and serializers, as <c>AvroTypes</c> finds them by type.</summary>
+        public static global::AvroSharp.Serialization.AvroTypeInfo<Event> AvroTypeInfo => s_typeInfo ?? (s_typeInfo = new global::AvroSharp.Serialization.AvroTypeInfo<Event>(() => Schema, Write, Read, writerSchema => writerSchema.HasSameCanonicalForm(Schema) ? new global::AvroSharp.Serialization.AvroReadFunc<Event>(Read) : (ref global::AvroSharp.IO.AvroReader reader) => Read(ref reader, writerSchema)));
+
+#if NET5_0_OR_GREATER
+        // CA2255: generated code registers its types; that's the attribute's purpose here.
+#pragma warning disable CA2255
+        [global::System.Runtime.CompilerServices.ModuleInitializer]
+        internal static void RegisterAvroType() => global::AvroSharp.Serialization.AvroTypes.Register(AvroTypeInfo);
+#pragma warning restore CA2255
+#endif
+
         private static global::AvroSharp.Serialization.Generated.AvroPlanCache? s_plan;
 
         /// <summary>

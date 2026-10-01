@@ -326,8 +326,8 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
 
     /// <summary>Gets whether values of <paramref name="schema"/> are C# value types.</summary>
     public bool IsValueType(AvroSchema schema) =>
-        Logical(schema) is not null
-        || schema is EnumSchema
+        Logical(schema) is { } logical ? logical.IsValueType
+        : schema is EnumSchema
         || schema.Type is AvroSchemaType.Boolean or AvroSchemaType.Int or AvroSchemaType.Long or AvroSchemaType.Float or AvroSchemaType.Double;
 
     /// <summary>

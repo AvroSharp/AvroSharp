@@ -582,6 +582,22 @@ public static partial class AvroGeneratedCode
             : throw new AvroDataException($"The date {days} days from 1970-01-01 is outside the range of DateOnly." + AvroLogicalValues.OutOfRangeHint);
     }
 
+    /// <summary>Writes a <c>fixed</c> value held as a <c>byte[]</c> (the attribute-driven generator's <c>[AvroFixed]</c>), checking its length.</summary>
+    /// <param name="writer">The destination.</param>
+    /// <param name="value">The bytes.</param>
+    /// <param name="size">The fixed type's size.</param>
+    /// <param name="field">The field's full name, for the error message.</param>
+    /// <exception cref="AvroException">The value is <see langword="null"/> or not <paramref name="size"/> bytes long.</exception>
+    public static void WriteFixedBytes(ref AvroWriter writer, byte[]? value, int size, string field)
+    {
+        if (value is null || value.Length != size)
+        {
+            throw new AvroException($"Field '{field}': a fixed value of {size} bytes cannot be {(value is null ? "null" : $"{value.Length} bytes")}.");
+        }
+
+        writer.WriteFixed(value);
+    }
+
     /// <summary>Reads the bytes of a <c>fixed</c> value into a new array.</summary>
     /// <param name="reader">The source.</param>
     /// <param name="size">The fixed type's size.</param>

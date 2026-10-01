@@ -284,7 +284,7 @@ Front-ends:
      - **Exit codes:** 0 success; 1 the command failed (an invalid schema, a missing file, output that could not be written); 2 the command line is not valid (an unknown command or option, a missing or invalid argument), with the error and a pointer to the command's `--help`.
    - **Not yet** (#33): `schema from-type`, `file dump|info|convert`, `.avpr` protocols, and packaging as a RID-specific hybrid tool (NativeAOT for `win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` plus a framework-dependent `any` fallback, which the .NET 10 SDK selects automatically), which would shorten `dnx` start-up.
 2. **Build-time source generator** (`AvroSharp.Generators.SchemaFiles`): `<AdditionalFiles Include="Schemas/**/*.avsc" AvroNamespace="Acme.Events" AvroRecords="true" AvroNullable="true" AvroTypeOverride="..." />` plus `<CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AvroNamespace" />` in the package `.props`. Incremental pipeline: `AdditionalTextsProvider` → parse (cached by content hash) → model → emit. Diagnostics for parse errors map to the `.avsc` file/line via `Utf8JsonReader` positions. No generated code checked in; `EmitCompilerGeneratedFiles` for debugging.
-3. **Attribute-driven generator** (`AvroSharp.Generators.Types`): `[AvroSerializable]` on a `partial` type (records/classes/structs) → emits `Schema`, `IAvroSerializable<T>` implementation, writer/reader, and a `ReaderPlan` switch for resolution; honors `[AvroName]`, `[AvroIgnore]`, `[AvroLogicalType]`, `[AvroUnion(typeof(A), typeof(B))]`, `[AvroFixed(16)]`, `[AvroDefault]`. Uses `ForAttributeWithMetadataName`, equatable model records, no `ISymbol` in the cache. Emits `[RequiresDynamicCode]`-free code, so consumers stay AOT-clean.
+3. **Attribute-driven generator** (#31; designed in §6.5): `[AvroSerializable]` on a `partial` type (records/classes/structs) → emits `Schema`, `IAvroSerializable<T>` implementation, writer/reader, and a `ReaderPlan` switch for resolution; honors `[AvroName]`, `[AvroIgnore]`, `[AvroLogicalType]`, `[AvroUnion(typeof(A), typeof(B))]`, `[AvroFixed(16)]`, `[AvroDefault]`. Uses `ForAttributeWithMetadataName`, equatable model records, no `ISymbol` in the cache. Emits `[RequiresDynamicCode]`-free code, so consumers stay AOT-clean.
 
 ### 6.2 .NET 10 / C# 14 features — use or skip
 - **`dnx` one-shot tool**: use (primary CLI UX). **RID-specific/AOT tool packages**: use.
@@ -332,6 +332,203 @@ Rules: `[null, T]` → `T?`; `[null, T1, T2]` → `Union2<T1,T2>?`-style generat
 - **Compile-and-roundtrip**: generated source is compiled in-test with Roslyn (`CSharpCompilation` + `Basic.Reference.Assemblies`) for net10 and netstandard2.0 reference sets, loaded via `AssemblyLoadContext`, then round-tripped through the real `AvroSerializer<T>`/`AvroFileWriter<T>` and cross-checked against Apache.Avro's `GenericDatumReader`.
 - **Generator tests**: `Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing` (xunit adapter) for diagnostics, incremental caching (`IncrementalStepRunReason.Cached` assertions), and AdditionalFiles metadata.
 - The generator itself is also dog-fooded: `samples/` and the benchmark project use it, so the product path is what's measured.
+
+### 6.5 The attribute-driven generator (#31)
+
+The `.avsc` generator starts from a schema and writes the C# types. This one starts from C# types the user wrote, and writes the schema and the serializers. Status: **implemented in the first version below (§6.5.5 lists where it is narrower than this design, for now).**
+
+#### 6.5.1 Shape
+
+```csharp
+[AvroSerializable(Namespace = "acme.orders")]
+public partial class Order
+{
+    public long Id { get; set; }
+    public string Customer { get; set; } = "";
+    public string? Note { get; set; }                      // ["null","string"], default null
+    public List<OrderLine> Lines { get; set; } = [];
+    public Status Status { get; set; }                     // a C# enum becomes an Avro enum
+    public DateTimeOffset PlacedAt { get; set; }           // long, timestamp-micros
+
+    [AvroDecimal(18, 2)] public decimal Total { get; set; }
+    [AvroName("legacy_ref"), AvroAlias("ref")] public string? Reference { get; set; }
+    [AvroIgnore] public decimal CachedTax { get; set; }
+}
+```
+
+**What the generator adds to the `partial` type** is the same set of members that a type generated from a `.avsc` file has, so everything that takes generated types takes these as well:
+- `Schema` and `SchemaJson`;
+- `Write`, `Read`, and `Read(ref reader, writerSchema)`, with the same resolution plans (§4.6);
+- `ToAvroBytes`, `FromAvroBytes`, `TryWriteAvroBytes` and `WriteAvroBytes`;
+- `IAvroSerializable<TSelf>` on .NET 8+ with C# 11+, and `IAvroWritable` and `IAvroReadable`.
+
+This covers `AvroSerializer`, `AvroFileReader.Open<T>`, `AvroMessageReader.Create<T>` and the registry readers.
+
+**Packaging:**
+- The attributes live in the `AvroSharp` package, in `AvroSharp.Serialization`, so that the types compile without the generator.
+- The generator ships in the `AvroSharp.Generators` package, beside `SchemaFileGenerator`, so there's one package to add.
+
+**One emitter:**
+- The generator builds an `AvroSchema`, plus a binding of each field to its member, from the Roslyn symbols.
+- `AvroSharp.CodeGen` then emits only the serializer part, using the user's member names and types.
+- The `.avsc` path keeps declaring the types, as it does today.
+- So both front-ends share the read and write code, the resolution plans and the benchmarks.
+
+**What emitting serializers for existing types needs from `CSharpCodeGenerator`:** an entry point that skips the type and property declarations, takes the property name for each field, and checks that each member's type is one that `TypeMapper` would have chosen for the field's schema (§6.5.3).
+
+**Incrementality** follows the analyzer cookbook:
+- `ForAttributeWithMetadataName("AvroSharp.Serialization.AvroSerializableAttribute")`;
+- an equatable model (names, types as strings, the JSON of the schema) with no `ISymbol` kept;
+- one generated file per type.
+
+#### 6.5.2 Attributes
+
+| Attribute | Targets | Meaning |
+|---|---|---|
+| `[AvroSerializable]` | `partial` class, `partial` record class | Generate the schema and serializers. Properties: `Name` and `Namespace` (default: the type's name, and its C# namespace), `Doc`, `FieldNames` (see naming below). |
+| `[AvroName("n")]` | property, field, enum member | The Avro name of the field or symbol, used as is (no naming policy). |
+| `[AvroAlias("a")]`, repeatable | type, property, field | Aliases, for renaming (§4.6 resolution). |
+| `[AvroDoc("…")]` | type, property, field, enum | The `doc` attribute. Without it, the XML `<summary>` is used when the compilation has documentation comments on. |
+| `[AvroIgnore]` | property, field | Not part of the schema. |
+| `[AvroDefault("json")]` | property, field | The field's default, as Avro JSON. Checked at compile time against the field's schema (AVROGEN106). A nullable member gets `"default": null` without it. |
+| `[AvroDecimal(precision, scale)]` | `decimal` member | Required for `decimal`: Avro has no default precision. On `bytes`, or on `fixed` with `[AvroFixed]`. |
+| `[AvroFixed(size)]` with `Name` | `byte[]` member | A `fixed` type instead of `bytes`. The `Name` defaults to the member's name; the size is checked when writing. |
+| `[AvroLogicalType("timestamp-millis")]` | `DateTimeOffset`, `DateTime`, `TimeOnly`, `TimeSpan`, `DateOnly` member | Another logical type than the default for the member's type (§6.5.3). Annotating a raw `long`, `int` or `string` comes with `"avrosharp.raw"` (#179). |
+| `[AvroUnion(typeof(A), typeof(B), …)]` | property of type `object`, or of an abstract base class of the listed types | A union of the listed record types (and `null` when the member is nullable). Written by the value's runtime type, as `object?` unions are today. |
+| `[AvroEnumDefault]` | an enum member | The enum's `default` symbol, for readers that meet an unknown symbol. |
+| `[AvroField(Order = n)]` | property, field | The field's position, needed only when the fields are declared in more than one part of a partial type (see "Field order" below). |
+
+The attributes leave out two things for now:
+- avro-rs's `flatten`;
+- its `with`, a schema for a type you don't own, which belongs to #119's converters.
+
+**Naming:**
+- Field names are the member's name as written by default, so what you write is what you get.
+- `[AvroSerializable(FieldNames = AvroNaming.CamelCase)]` converts them, `PascalCase` to `pascalCase`. This is the inverse of the `.avsc` generator's default `PascalCase` property names, so a schema's `id` field and an `Id` property round-trip.
+- An assembly-level `[assembly: AvroNamingPolicy(AvroNaming.CamelCase)]` sets the default for every type.
+- Enum symbols use the member names as written; `[AvroName]` renames them.
+- The names are checked against the Avro name rules (AVROGEN104).
+
+**Field order** is declaration order. Roslyn orders the members of a partial type across files by syntax tree, which the build doesn't fix. So when the serialized members span more than one `partial` declaration, every one needs `[AvroField(Order = n)]` (AVROGEN109). Inherited members come first, base class first.
+
+**Members:**
+- **Included:** public instance properties with a getter and a setter or `init`, and public fields.
+- **Not included:** static members, indexers, and read-only properties.
+- **`init`-only members:** a type with any of them gets no `IAvroReadable`, because `ReadFrom` would have to assign after construction.
+
+**Construction:**
+- **The constructor reading uses:** the generator adds a private constructor taking the existing reader marker (`AvroUninitialized`), which skips the property initializers, as generated records do.
+- **What that needs from the type:** the type must not declare a primary constructor (AVROGEN108).
+- **Positional records:** binding fields to constructor parameters is a later step (§6.5.5).
+
+#### 6.5.3 C# types to Avro
+
+| C# | Avro | Notes |
+|---|---|---|
+| `bool`, `int`, `long`, `float`, `double`, `string`, `byte[]` | `boolean`, `int`, `long`, `float`, `double`, `string`, `bytes` | |
+| `T?` (value type), or a reference type annotated `?` | `["null", T]`, default `null` | With nullable annotations off, a reference type is not nullable unless it is `[AvroUnion]` or `[AvroDefault("null")]`. |
+| a C# `enum` (any underlying type) | `enum` | Name and namespace from the enum type, or `[AvroName]` on the enum. Symbols in declaration order. Values are written by name, not by number. |
+| an `[AvroSerializable]` class | `record`, by name after its first use | A class without the attribute is an error (AVROGEN111). |
+| `List<T>` | `array` | `T[]`, `IList<T>` and `IReadOnlyList<T>` come later; they need the emitter's collection helpers widened. |
+| `Dictionary<string, T>` | `map` | Other key types are an error (Avro maps have string keys). |
+| `Guid` | `string`, `uuid` | `[AvroFixed(16)]` makes it `fixed(16)`, `uuid`. |
+| `decimal` | `bytes`, `decimal(p, s)` | Needs `[AvroDecimal]` (AVROGEN103). |
+| `DateOnly` | `int`, `date` | |
+| `TimeOnly` | `long`, `time-micros` | `[AvroLogicalType("time-millis")]` for `int`, `time-millis`. |
+| `DateTimeOffset` | `long`, `timestamp-micros` | Micros keep .NET's precision best among the logical types that most readers support. `timestamp-millis` by attribute. |
+| `DateTime` | **error unless annotated** (AVROGEN114) | A `DateTime`'s `Kind` makes UTC versus local ambiguous. `[AvroLogicalType("local-timestamp-micros")]` (or `-millis`) for local time; a UTC timestamp is a `DateTimeOffset`. On targets without `DateOnly`, `("date")` too. |
+| `TimeSpan` | only with `[AvroLogicalType("time-micros")]`, and only on targets without `TimeOnly` | It means a time of day there, as the `.avsc` generator's fallback. Elsewhere use `TimeOnly`. |
+| `short`, `byte`, `char`, unsigned types, `Half`, `Int128`, `BigInteger` | error (AVROGEN102) | Avro has no such types. Widening them silently would make the read value's range a surprise. A later step may allow them with an explicit `[AvroType("int")]`. |
+
+Generic types, and types nested in other types, are errors (AVROGEN107); enums may be nested. A C# enum's values must be 0, 1, 2 and so on, in declaration order, since Avro writes enums by position (AVROGEN116). A schema name defined by two types, or an Avro type reached through two different C# types, is an error (AVROGEN113).
+
+#### 6.5.4 Lookup by type, and primitives (from #31's comments)
+
+**Who needs this:** integrations (#79 and the others) need a type's schema and its read and write functions without reflection, on every target.
+- `static abstract` interface members cover generic code on .NET 8+.
+- They don't cover netstandard2.0, or a lookup by `Type` (Lambda Powertools' `Deserialize(byte[], Type)`).
+
+**The API (additive):**
+- `AvroTypeInfo<T>`, which holds:
+  - `Schema`;
+  - `Write`, an `AvroWriteAction<T>`;
+  - `Read`, an `AvroReadFunc<T>`;
+  - `ReadFor(AvroSchema writerSchema)`, an `AvroReadFunc<T>`.
+- `AvroTypes.Get<T>()` and `AvroTypes.TryGet<T>(out AvroTypeInfo<T>)`.
+- `AvroTypes.TryGet(Type, out AvroTypeInfo)`, a non-generic view with boxed delegates.
+
+**How types get in:**
+- Every generated type, from either generator, has a static `AvroTypeInfo` property.
+- On .NET 5 and later with C# 9 or later, a `[ModuleInitializer]` in each generated type registers it when its assembly loads.
+- Elsewhere (netstandard2.0, .NET Framework), code calls `AvroTypes.Register(Order.AvroTypeInfo)` once. Emitting a polyfill of the attribute would collide with other generators' polyfills, such as PolySharp's.
+- The library registers the primitives that Confluent's serializers support: `int`, `long`, `float`, `double`, `bool`, `string` and `byte[]`. Another primitive writer schema is read with the resolving reader's promotions.
+- Nothing uses reflection, so lookup is AOT- and trim-safe.
+
+#31 asked for an `AvroSerializer<T>` API. `AvroSerializer.Serialize<T>` and `Deserialize<T>` already exist for `IAvroSerializable<T>`, but only on .NET 8+. With `AvroTypes`, they can also have overloads for netstandard2.0 and for the primitives.
+
+#### 6.5.5 Scope of the first version, and what comes later
+
+**First version:**
+- classes and record classes;
+- the attributes above;
+- the type mapping above;
+- `[AvroUnion]` of records;
+- `AvroTypes`;
+- diagnostics AVROGEN101 to AVROGEN118.
+
+**Where the first version is narrower than the design above:**
+- **`init`-only members** are an error (AVROGEN115). The readers assign properties after construction, and `IAvroReadable` refills an instance.
+- **Types nested in other types** are an error (AVROGEN107). Enums may be nested.
+- **Enum values** must be 0, 1, 2 and so on (AVROGEN116).
+- **`[AvroUnion]`** goes on `object` members only, not on a base class.
+- **`[AvroLogicalType]` on a raw number** waits for `"avrosharp.raw"` (#179).
+- **Constructors:** a type that declares no constructors gets the public parameterless one back. Declaring the readers' private constructor would otherwise remove the implicit one.
+- **Member names** that the generator adds (`Schema`, `Write`, `Read` and the others) are an error on the type (AVROGEN117).
+
+**Later, each additive:**
+- positional records, `init`-only members and constructor binding;
+- nested types;
+- enums with any values, mapped by name;
+- `[AvroUnion]` on a base class;
+- `T[]` and collection interfaces;
+- structs;
+- narrower integer types with `[AvroType]`;
+- class hierarchies as unions in avro-rs's other representations (overlaps with #14);
+- `with`/converters (#119);
+- `avrosharp schema from-type` (#33).
+
+**Diagnostics:**
+- AVROGEN101: not `partial`.
+- AVROGEN102: a member type that isn't supported (the message lists what is).
+- AVROGEN103: `decimal` without `[AvroDecimal]`.
+- AVROGEN104: an invalid Avro name.
+- AVROGEN105: two members with the same Avro name.
+- AVROGEN106: an invalid `[AvroDefault]`.
+- AVROGEN107: a generic type, or one nested in another type.
+- AVROGEN108: a primary constructor.
+- AVROGEN109: field order is ambiguous across partial declarations.
+- AVROGEN110: `[AvroUnion]` doesn't fit the member's type.
+- AVROGEN111: a referenced class is not `[AvroSerializable]`.
+- AVROGEN112: an attribute on a member type it doesn't apply to.
+- AVROGEN113: a schema name collision.
+- AVROGEN114: `DateTime` without a logical type.
+- AVROGEN115: an `init`-only member.
+- AVROGEN116: enum values other than 0, 1, 2 and so on.
+- AVROGEN117: a member with the name of a member the generator adds.
+- AVROGEN118: code generation failed (an internal error, with the message).
+
+All are errors except AVROGEN112, which is a warning.
+
+**Exit criteria** (from #31):
+- Typed benchmarks beat Apache's specific and reflect paths. They share the `.avsc` path's emitter, so this is checked by adding attribute-driven twins of `GenericRecordBenchmarks`' generated types.
+- No trim or AOT warnings; the AOT smoke test gets an attribute-driven type.
+- Snapshot tests of the generated code and of every diagnostic.
+- A round trip of every mapped type against the same schema written as `.avsc`: the same canonical form, and byte-identical data.
+
+**Decided (2026-10-01):**
+1. **Field names are as written by default.** This is Apache's rule, as Java's `ReflectData` and Apache C#'s `[AvroField]` matching use member names unchanged. camelCase is opt-in, per type or per assembly. The docs say that a project whose schemas are read by Java or other languages should set camelCase for the assembly, since their fields are camelCase by convention.
+2. **`DateTime` is an error unless annotated** (AVROGEN114).
+3. **`AvroTypes` ships with #31.**
 
 ---
 
@@ -577,7 +774,7 @@ AvroSharp/
 - **M3 — Resolution (1.5 weeks)**: `ResolvedSchema`, generic reader consumption, aliases, defaults, promotions. *Exit*: spec resolution table tests + Apache oracle property tests pass; E benchmark (generic) beats Apache.
 
   *Status*: part 1 is done (`GenericDatumReader.Create(writer, reader)`). The resolved plan is a tree of reader nodes built once per schema pair and cached, rather than a public `ResolvedSchema` type; it covers every rule in the specification's table, with union and enum mismatches deferred to read time as in Java. Part 2 added property tests against Apache.Avro's resolving reader on random schema evolutions (#51). Part 3 added resolution for generated types (`Read(ref reader, writerSchema)`): same-schema data is read directly, other data is transcoded into the type's own encoding (no generic values) and then read by the generated code. The evolution benchmark (#53) passes the gate for both the generic and generated paths. Generated types now read by a resolution plan built once per writer schema (#69): fields are read into the type directly, promoted or remapped in place, and only other differences are transcoded field by field; the generated path (387 ns) is faster than the generic resolving reader (506 ns) on that benchmark.
-- **M4 — Attribute-driven generator and `AvroSerializer<T>` API (2 weeks)**: `[AvroSerializable]` on user types generates the schema and the serializer/deserializer; the `AvroSerializer<T>` API over generated code. (The reflection and expression-tree tiers were dropped: no reflection on serialization paths.) *Exit*: typed P/S/N/L/E benchmarks beat Apache Specific and Reflect; zero trim/AOT warnings.
+- **M4 — Attribute-driven generator and `AvroSerializer<T>` API (2 weeks)**: `[AvroSerializable]` on user types generates the schema and the serializer/deserializer; the `AvroSerializer<T>` API over generated code. (The reflection and expression-tree tiers were dropped: no reflection on serialization paths.) *Exit*: typed P/S/N/L/E benchmarks beat Apache Specific and Reflect; zero trim/AOT warnings. **Status:** built in #181 (§6.5), measured in docs/reviews/2026-10-01-attribute-generator.md: 4.7× faster reads and 7.2× faster writes than Apache.Avro, the same as generated code.
 - **M5 — Container files + codecs + single-object (2 weeks)**: sync/async writer/reader, `PooledBufferWriter`, null/deflate, Snappy/Zstd packages, `Sync/Seek`, single-object encoding. *Exit*: `weather*.avro`, `syncInMeta.avro`, `messageV1` pass; files written are readable by Apache.Avro C# (which Apache's own CI checks against the other languages); container read/write benchmarks beat Apache for all four codecs; AOT smoke runs.
 
   *Status*: part 1 is done: synchronous `AvroFileWriter`/`AvroFileReader` (for generic values and, through delegates, generated types) with the null and deflate codecs and pluggable `AvroCodec`s; Apache's `weather.avro`, `weather-sorted.avro` (deflate) and `syncInMeta.avro` are read like Apache.Avro reads them, and files go both ways with Apache.Avro for random schemas. The reader bounds block sizes, including decompressed size, and object counts. Container benchmarks existed then for null and deflate, but had not been run. Part 2 added single-object encoding (`AvroMessage`, `AvroMessageReader`, and the interface now named `IAvroSchemaResolver`), which reads and writes Java's `messageV1` byte for byte. Part 3 added asynchronous reading and writing (`OpenAsync`, `ReadAllAsync`, `WriteAsync`, `FlushAsync`, `DisposeAsync`), with no synchronous I/O on those paths. Part 4 added sync/seek for splittable reads (`PreviousSync`, `Seek`, `Sync`, `PastSync`). Later parts added the rest: pipelined reading through channels ([`ReadAllPipelinedAsync`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.ReadAllPipelinedAsync.html)), the snappy, zstandard, bzip2 and xz codecs ([`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html)), streams of datums without a container ([`AvroStreamReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.AvroStreamReader.html)/[`AvroStreamWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.AvroStreamWriter.html)) and the container fuzz target. The container benchmarks cover every codec; [benchmarks.md](benchmarks.md) has the results.
