@@ -75,15 +75,16 @@ public static class CSharpCodeGenerator
     /// Generates the schema and serializers of records whose C# types the user declared (the attribute-driven
     /// generator's): one source per record, a <see langword="partial"/> declaration of its type.
     /// </summary>
-    /// <param name="records">The records. Records and enums that they use must be in <paramref name="records"/> and <paramref name="enums"/>.</param>
+    /// <param name="generate">The records to generate.</param>
+    /// <param name="records">Every record that they use, themselves included, for the C# names of their types.</param>
     /// <param name="enums">The C# enums the records use.</param>
     /// <param name="options">Options; <see cref="CodeGenOptions.ByteArrayFixed"/> names the fixed types held as <c>byte[]</c>.</param>
-    internal static IReadOnlyList<GeneratedSource> GenerateDeclared(IReadOnlyList<DeclaredRecord> records, IReadOnlyList<DeclaredEnum> enums, CodeGenOptions options)
+    internal static IReadOnlyList<GeneratedSource> GenerateDeclared(IReadOnlyList<DeclaredRecord> generate, IReadOnlyList<DeclaredRecord> records, IReadOnlyList<DeclaredEnum> enums, CodeGenOptions options)
     {
         ValidateLanguage(options);
         var (names, types) = DeclaredMapping(records, enums, options);
         var version = Version();
-        return [.. records.Select(record => new GeneratedSource(
+        return [.. generate.Select(record => new GeneratedSource(
             record.Schema.FullName + ".g.cs",
             Emit(record.Schema, names, types, version, apache: false, [], record),
             []) { Namespace = record.Namespace })];
@@ -117,6 +118,9 @@ public static class CSharpCodeGenerator
 
     // The members the generator adds to each kind of type besides the fields' properties: a type may not have one
     // of these names (CS0542, #131).
+    /// <summary>The members the generator adds to a record, which a declared type may not have itself.</summary>
+    internal static IReadOnlyList<string> RecordMembers => s_recordMembers;
+
     private static readonly string[] s_recordMembers =
     [
         "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema", "s_apacheSchema", "s_plan",
@@ -246,7 +250,8 @@ public static class CSharpCodeGenerator
         "Avro.AvroDecimal", "Avro.Schema", "Avro.Specific.ISpecificRecord", "Avro.Specific.SpecificFixed",
         "AvroSharp.AvroDataException", "AvroSharp.AvroException", "AvroSharp.Generated.ApacheDecimals",
         "AvroSharp.IO.AvroReader", "AvroSharp.IO.AvroWriter", "AvroSharp.Schemas.AvroSchema", "AvroSharp.Schemas.RecordSchema",
-        "AvroSharp.Serialization.AvroLogicalValues", "AvroSharp.Serialization.IAvroSpecificRecord",
+        "AvroSharp.Serialization.AvroLogicalValues", "AvroSharp.Serialization.AvroReadFunc", "AvroSharp.Serialization.AvroTypeInfo",
+        "AvroSharp.Serialization.AvroTypes", "AvroSharp.Serialization.AvroTypes.Register", "AvroSharp.Serialization.IAvroSpecificRecord",
         "AvroSharp.Serialization.IAvroSerializable", "AvroSharp.Serialization.IAvroWritable", "AvroSharp.Serialization.IAvroReadable",
 
         // Every public type of the support namespace, as its API lists them: the value serializers are chosen by field type.
@@ -263,7 +268,7 @@ public static class CSharpCodeGenerator
         "System.ComponentModel.EditorBrowsable", "System.ComponentModel.EditorBrowsableState",
         "System.DateOnly", "System.DateTime", "System.DateTimeOffset", "System.Diagnostics.DebuggerDisplay",
         "System.Diagnostics.DebuggerNonUserCode", "System.Guid", "System.IEquatable", "System.MemoryExtensions",
-        "System.Numerics.BigInteger", "System.ReadOnlySpan", "System.Runtime.CompilerServices.MethodImpl",
+        "System.Numerics.BigInteger", "System.ReadOnlySpan", "System.Runtime.CompilerServices.MethodImpl", "System.Runtime.CompilerServices.ModuleInitializer",
         "System.Runtime.CompilerServices.MethodImplOptions", "System.Runtime.InteropServices.CollectionsMarshal",
         "System.Span", "System.StringComparer", "System.TimeOnly", "System.TimeSpan",
     ];
@@ -457,7 +462,7 @@ public static class CSharpCodeGenerator
             EmitProperties(w, record, properties, types);
         }
 
-        EmitConstructors(w, record, name, properties, types, declared is not null);
+        EmitConstructors(w, record, name, properties, types, declared);
         EmitRecordApi(w, name);
         EmitTypeInfo(w, name, schemaProperty, types);
         EmitResolvingApi(w, name, schemaProperty, types);
@@ -557,12 +562,11 @@ public static class CSharpCodeGenerator
     /// The public constructor gives each field its schema default, or a valid empty value when it has none; the
     /// readers' constructor skips all of it, since a reader sets every field (so collections are not allocated twice).
     /// </summary>
-    private static void EmitConstructors(CodeWriter w, RecordSchema record, string name, string[] properties, TypeMapper types, bool declared)
+    private static void EmitConstructors(CodeWriter w, RecordSchema record, string name, string[] properties, TypeMapper types, DeclaredRecord? declared)
     {
-        if (declared)
+        if (declared is not null)
         {
-            // The user's type has its own constructors and initializers; readers need only theirs.
-            EmitUninitializedConstructor(w, name, types);
+            EmitDeclaredConstructors(w, name, types, declared);
             return;
         }
 
@@ -608,6 +612,21 @@ public static class CSharpCodeGenerator
             w.Line();
             w.Line($"// The Avro encoding of {CSharpNames.Literal(record.Fields[index].Name)}'s default.");
             w.Line($"private static global::System.ReadOnlySpan<byte> s_default{Int(index)} => new byte[] {{ {string.Join(", ", bytes.Select(b => "0x" + b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture)))} }};");
+        }
+
+        EmitUninitializedConstructor(w, name, types);
+    }
+
+    // The user's type has its own constructors and initializers. Declaring the readers' constructor takes away the
+    // implicit parameterless one, so a type that declares none gets it back.
+    private static void EmitDeclaredConstructors(CodeWriter w, string name, TypeMapper types, DeclaredRecord declared)
+    {
+        if (!declared.DeclaresConstructors)
+        {
+            w.Line();
+            w.Line("/// <summary>Creates a value.</summary>");
+            w.Open($"public {name}()");
+            w.Close();
         }
 
         EmitUninitializedConstructor(w, name, types);

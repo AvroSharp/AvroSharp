@@ -335,7 +335,7 @@ Rules: `[null, T]` → `T?`; `[null, T1, T2]` → `Union2<T1,T2>?`-style generat
 
 ### 6.5 The attribute-driven generator (#31)
 
-The `.avsc` generator starts from a schema and writes the C# types. This one starts from C# types the user wrote, and writes the schema and the serializers. Status: **designed; implementation in progress.**
+The `.avsc` generator starts from a schema and writes the C# types. This one starts from C# types the user wrote, and writes the schema and the serializers. Status: **implemented in the first version below (§6.5.5 lists where it is narrower than this design, for now).**
 
 #### 6.5.1 Shape
 
@@ -393,7 +393,7 @@ This covers `AvroSerializer`, `AvroFileReader.Open<T>`, `AvroMessageReader.Creat
 | `[AvroDefault("json")]` | property, field | The field's default, as Avro JSON. Checked at compile time against the field's schema (AVROGEN106). A nullable member gets `"default": null` without it. |
 | `[AvroDecimal(precision, scale)]` | `decimal` member | Required for `decimal`: Avro has no default precision. On `bytes`, or on `fixed` with `[AvroFixed]`. |
 | `[AvroFixed(size)]` with `Name` | `byte[]` member | A `fixed` type instead of `bytes`. The `Name` defaults to the member's name; the size is checked when writing. |
-| `[AvroLogicalType("timestamp-millis")]` | `DateTimeOffset`, `DateTime`, `TimeOnly`, `TimeSpan`, `long`, `int`, `string` member | Another logical type than the default for the member's type (§6.5.3). On `long`/`int`/`string` it annotates the raw value, like `"avrosharp.raw"`. |
+| `[AvroLogicalType("timestamp-millis")]` | `DateTimeOffset`, `DateTime`, `TimeOnly`, `TimeSpan`, `DateOnly` member | Another logical type than the default for the member's type (§6.5.3). Annotating a raw `long`, `int` or `string` comes with `"avrosharp.raw"` (#179). |
 | `[AvroUnion(typeof(A), typeof(B), …)]` | property of type `object`, or of an abstract base class of the listed types | A union of the listed record types (and `null` when the member is nullable). Written by the value's runtime type, as `object?` unions are today. |
 | `[AvroEnumDefault]` | an enum member | The enum's `default` symbol, for readers that meet an unknown symbol. |
 | `[AvroField(Order = n)]` | property, field | The field's position, needed only when the fields are declared in more than one part of a partial type (see "Field order" below). |
@@ -436,11 +436,11 @@ The attributes leave out two things for now:
 | `DateOnly` | `int`, `date` | |
 | `TimeOnly` | `long`, `time-micros` | `[AvroLogicalType("time-millis")]` for `int`, `time-millis`. |
 | `DateTimeOffset` | `long`, `timestamp-micros` | Micros keep .NET's precision best among the logical types that most readers support. `timestamp-millis` by attribute. |
-| `DateTime` | **error unless annotated** (AVROGEN114) | A `DateTime`'s `Kind` makes UTC versus local ambiguous. `[AvroLogicalType("timestamp-micros")]` or `("local-timestamp-micros")` chooses. |
-| `TimeSpan` | only with `[AvroLogicalType("time-micros")]` | It means a time of day there, as the `.avsc` generator's fallback without `TimeOnly`. |
+| `DateTime` | **error unless annotated** (AVROGEN114) | A `DateTime`'s `Kind` makes UTC versus local ambiguous. `[AvroLogicalType("local-timestamp-micros")]` (or `-millis`) for local time; a UTC timestamp is a `DateTimeOffset`. On targets without `DateOnly`, `("date")` too. |
+| `TimeSpan` | only with `[AvroLogicalType("time-micros")]`, and only on targets without `TimeOnly` | It means a time of day there, as the `.avsc` generator's fallback. Elsewhere use `TimeOnly`. |
 | `short`, `byte`, `char`, unsigned types, `Half`, `Int128`, `BigInteger` | error (AVROGEN102) | Avro has no such types. Widening them silently would make the read value's range a surprise. A later step may allow them with an explicit `[AvroType("int")]`. |
 
-Generic types, and types nested in generic types, are errors (AVROGEN107). A schema name defined by two types, or an Avro type reached through two different C# types, is an error (AVROGEN113).
+Generic types, and types nested in other types, are errors (AVROGEN107); enums may be nested. A C# enum's values must be 0, 1, 2 and so on, in declaration order, since Avro writes enums by position (AVROGEN116). A schema name defined by two types, or an Avro type reached through two different C# types, is an error (AVROGEN113).
 
 #### 6.5.4 Lookup by type, and primitives (from #31's comments)
 
@@ -448,7 +448,7 @@ Generic types, and types nested in generic types, are errors (AVROGEN107). A sch
 - `static abstract` interface members cover generic code on .NET 8+.
 - They don't cover netstandard2.0, or a lookup by `Type` (Lambda Powertools' `Deserialize(byte[], Type)`).
 
-**The proposed API (additive):**
+**The API (additive):**
 - `AvroTypeInfo<T>`, which holds:
   - `Schema`;
   - `Write`, an `AvroWriteAction<T>`;
@@ -458,8 +458,10 @@ Generic types, and types nested in generic types, are errors (AVROGEN107). A sch
 - `AvroTypes.TryGet(Type, out AvroTypeInfo)`, a non-generic view with boxed delegates.
 
 **How types get in:**
-- Both generators emit a `[ModuleInitializer]` per assembly that registers every generated type. That's a compiler feature, so it runs on .NET Framework too; the attribute is emitted internally where the target lacks it.
-- The primitives that Confluent's serializers support (`int`, `long`, `float`, `double`, `bool`, `string`, `byte[]`, and `null`) are registered by the library.
+- Every generated type, from either generator, has a static `AvroTypeInfo` property.
+- On .NET 5 and later with C# 9 or later, a `[ModuleInitializer]` in each generated type registers it when its assembly loads.
+- Elsewhere (netstandard2.0, .NET Framework), code calls `AvroTypes.Register(Order.AvroTypeInfo)` once. Emitting a polyfill of the attribute would collide with other generators' polyfills, such as PolySharp's.
+- The library registers the primitives that Confluent's serializers support: `int`, `long`, `float`, `double`, `bool`, `string` and `byte[]`. Another primitive writer schema is read with the resolving reader's promotions.
 - Nothing uses reflection, so lookup is AOT- and trim-safe.
 
 #31 asked for an `AvroSerializer<T>` API. `AvroSerializer.Serialize<T>` and `Deserialize<T>` already exist for `IAvroSerializable<T>`, but only on .NET 8+. With `AvroTypes`, they can also have overloads for netstandard2.0 and for the primitives.
@@ -472,10 +474,22 @@ Generic types, and types nested in generic types, are errors (AVROGEN107). A sch
 - the type mapping above;
 - `[AvroUnion]` of records;
 - `AvroTypes`;
-- diagnostics AVROGEN101 to AVROGEN114.
+- diagnostics AVROGEN101 to AVROGEN118.
+
+**Where the first version is narrower than the design above:**
+- **`init`-only members** are an error (AVROGEN115). The readers assign properties after construction, and `IAvroReadable` refills an instance.
+- **Types nested in other types** are an error (AVROGEN107). Enums may be nested.
+- **Enum values** must be 0, 1, 2 and so on (AVROGEN116).
+- **`[AvroUnion]`** goes on `object` members only, not on a base class.
+- **`[AvroLogicalType]` on a raw number** waits for `"avrosharp.raw"` (#179).
+- **Constructors:** a type that declares no constructors gets the public parameterless one back. Declaring the readers' private constructor would otherwise remove the implicit one.
+- **Member names** that the generator adds (`Schema`, `Write`, `Read` and the others) are an error on the type (AVROGEN117).
 
 **Later, each additive:**
-- positional records and constructor binding;
+- positional records, `init`-only members and constructor binding;
+- nested types;
+- enums with any values, mapped by name;
+- `[AvroUnion]` on a base class;
 - `T[]` and collection interfaces;
 - structs;
 - narrower integer types with `[AvroType]`;
@@ -490,7 +504,7 @@ Generic types, and types nested in generic types, are errors (AVROGEN107). A sch
 - AVROGEN104: an invalid Avro name.
 - AVROGEN105: two members with the same Avro name.
 - AVROGEN106: an invalid `[AvroDefault]`.
-- AVROGEN107: a generic type.
+- AVROGEN107: a generic type, or one nested in another type.
 - AVROGEN108: a primary constructor.
 - AVROGEN109: field order is ambiguous across partial declarations.
 - AVROGEN110: `[AvroUnion]` doesn't fit the member's type.
@@ -498,6 +512,10 @@ Generic types, and types nested in generic types, are errors (AVROGEN107). A sch
 - AVROGEN112: an attribute on a member type it doesn't apply to.
 - AVROGEN113: a schema name collision.
 - AVROGEN114: `DateTime` without a logical type.
+- AVROGEN115: an `init`-only member.
+- AVROGEN116: enum values other than 0, 1, 2 and so on.
+- AVROGEN117: a member with the name of a member the generator adds.
+- AVROGEN118: code generation failed (an internal error, with the message).
 
 All are errors except AVROGEN112, which is a warning.
 

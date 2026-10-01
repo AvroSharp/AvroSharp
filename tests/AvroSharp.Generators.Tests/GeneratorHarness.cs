@@ -99,6 +99,41 @@ internal static class GeneratorHarness
 
     public static AdditionalText Text(string path, string text) => new InMemoryText(path, text);
 
+    /// <summary>Runs <see cref="SerializableTypeGenerator"/> on C# sources; returns the generated sources, its diagnostics and the compiler's.</summary>
+    public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
+        RunTypes(LanguageVersion languageVersion, params string[] sources)
+    {
+        var compilation = CreateCompilation(true, false, languageVersion, ["NET8_0_OR_GREATER", "NET5_0_OR_GREATER"], sources);
+        var driver = CSharpGeneratorDriver.Create(
+                [new SerializableTypeGenerator().AsSourceGenerator()],
+                parseOptions: new CSharpParseOptions(languageVersion, preprocessorSymbols: ["NET8_0_OR_GREATER", "NET5_0_OR_GREATER"]),
+                driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true))
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
+        return (driver.GetRunResult().Results.Single().GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
+    }
+
+    /// <inheritdoc cref="RunTypes(LanguageVersion, string[])"/>
+    public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
+        RunTypes(params string[] sources) => RunTypes(LanguageVersion.Latest, sources);
+
+    /// <summary>Runs <see cref="SerializableTypeGenerator"/> on C# sources, compiles the result and loads it.</summary>
+    public static System.Reflection.Assembly LoadTypes(params string[] sources)
+    {
+        var compilation = CreateCompilation(true, false, LanguageVersion.Latest, ["NET8_0_OR_GREATER", "NET5_0_OR_GREATER"], sources);
+        CSharpGeneratorDriver.Create(
+                [new SerializableTypeGenerator().AsSourceGenerator()],
+                parseOptions: new CSharpParseOptions(LanguageVersion.Latest, preprocessorSymbols: ["NET8_0_OR_GREATER", "NET5_0_OR_GREATER"]))
+            .RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
+        using var image = new MemoryStream();
+        var emitted = output.Emit(image);
+        if (!emitted.Success)
+        {
+            throw new InvalidOperationException(string.Join(Environment.NewLine, emitted.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
+        }
+
+        return System.Reflection.Assembly.Load(image.ToArray());
+    }
+
     /// <summary>The MSBuild properties the generator reads, as the compiler exposes them (build_property.*).</summary>
     private static Dictionary<string, string> Properties(string? avroSharpNamespace, string? logicalTypes, bool apacheCompatible, string? propertyNames)
     {

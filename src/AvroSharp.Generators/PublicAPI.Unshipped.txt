@@ -1,1 +1,4 @@
 #nullable enable
+AvroSharp.Generators.SerializableTypeGenerator
+AvroSharp.Generators.SerializableTypeGenerator.Initialize(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context) -> void
+AvroSharp.Generators.SerializableTypeGenerator.SerializableTypeGenerator() -> void

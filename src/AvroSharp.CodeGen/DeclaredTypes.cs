@@ -12,7 +12,11 @@ namespace AvroSharp.CodeGen;
 /// <param name="Name">The C# type's name.</param>
 /// <param name="IsRecordClass">Whether the type is a <c>record class</c>, which its partial declaration must say.</param>
 /// <param name="Members">The C# member of each field, in field order, as identifiers.</param>
-internal sealed record DeclaredRecord(RecordSchema Schema, string? Namespace, string Name, bool IsRecordClass, IReadOnlyList<string> Members);
+/// <param name="DeclaresConstructors">
+/// Whether the type declares constructors. When it doesn't, the generator declares the public parameterless one the
+/// compiler would have added, which the readers' own constructor would otherwise take away.
+/// </param>
+internal sealed record DeclaredRecord(RecordSchema Schema, string? Namespace, string Name, bool IsRecordClass, IReadOnlyList<string> Members, bool DeclaresConstructors);
 
 /// <summary>A C# enum the user declared, which a <see cref="DeclaredRecord"/> uses for an Avro enum.</summary>
 /// <param name="AvroFullName">The Avro enum's full name.</param>
