@@ -30,8 +30,9 @@ public static class AvroLogicalValues
 
     private static readonly DateTime s_epoch = new(UnixEpochTicks, DateTimeKind.Unspecified);
 
-    // Java reads values .NET's date types can't hold, such as Long.MaxValue as an "end of time" sentinel.
-    internal const string OutOfRangeHint = " Generated code can read such values as the underlying number: add \"avrosharp.raw\": true to the schema, or set AvroSharpLogicalTypes=raw.";
+    // Java reads values .NET's date types can't hold, such as Long.MaxValue as an "end of time" sentinel. These methods
+    // serve generic and user code too, so the advice names the case it is for.
+    internal const string OutOfRangeHint = " Read such values as the underlying number instead; for a generated type, add \"avrosharp.logicalType\": \"raw\" to the schema, or set AvroSharpLogicalTypes=raw.";
 
     // --- date: days since 1970-01-01 ---
 

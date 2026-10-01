@@ -91,7 +91,7 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
 | `AvroSharpNamespace` | a C# namespace | The namespace of types that have no Avro namespace (`--namespace`). |
 | `AvroSharpNamespaceMap` | `avro.ns:CSharp.Ns` entries, separated by `;` or `,`, or written one per line | Puts types of an Avro namespace, or of a namespace under it, into another C# namespace, as avrogen's `--namespace` does (`--namespace-map`). The longest matching entry wins. An entry that is not two namespaces around a colon is a warning (AVROGEN006) and is ignored; an Avro namespace mapped twice keeps its first entry. Not with `AvroSharpApacheCompatible`. |
 | `AvroSharpPropertyNames` | `pascal`, `avro` | `pascal` (the default) converts field names to PascalCase: `customer_name` becomes `CustomerName`, `USER_ID` becomes `UserId`. `avro` keeps the field names as written, as Apache's `avrogen` does, escaping C# keywords (`@class`). |
-| `AvroSharpLogicalTypes` | `native`, `raw` | `native` (the default) maps logical types to .NET types. `raw` keeps logical types as their underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others. For one schema, add `"avrosharp.raw": true` to it instead (see below). |
+| `AvroSharpLogicalTypes` | `native`, `raw` | `native` (the default) maps logical types to .NET types. `raw` keeps logical types as their underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others. For one schema, set `"avrosharp.logicalType"` on it instead (see below). |
 | `AvroSharpApacheCompatible` | `true`, `false` | `true` turns on the [Apache.Avro compatibility mode](#migrating-from-avrogen-the-apacheavro-compatibility-mode). |
 
 ```xml
@@ -124,7 +124,7 @@ The C# version and the target framework come from the project: with C# 7.3 (nets
 
 The generator reports a union whose branches map to the same C# type (for example a `uuid` string and a `uuid` fixed, both `Guid`) as an error, and suggests `AvroSharpLogicalTypes=raw`.
 
-To keep one logical type's underlying type, add `"avrosharp.raw": true` to its schema, as in `{"type":"long","logicalType":"timestamp-millis","avrosharp.raw":true}`. That property becomes a `long`, and the other fields keep their .NET types. This is for values that .NET's types can't hold but Java reads, such as a `timestamp-millis` of `Long.MaxValue` used as a "never" sentinel. A generated type with a `DateTimeOffset` property fails on such a value, and the error says how to read it. Custom properties are not part of the canonical form, so the schema's fingerprint doesn't change. The setting is not available with `AvroSharpApacheCompatible`.
+To keep one logical type's underlying type, add `"avrosharp.logicalType": "raw"` to its schema, as in `{"type":"long","logicalType":"timestamp-millis","avrosharp.logicalType":"raw"}`. That property becomes a `long`, and the other fields keep their .NET types. `"native"` does the opposite under `AvroSharpLogicalTypes=raw`: that one schema keeps its .NET type. Any other value is an error (AVROGEN003). This is for values that .NET's types can't hold but Java reads, such as a `timestamp-millis` of `Long.MaxValue` used as a "never" sentinel. A generated type with a `DateTimeOffset` property fails on such a value, and the error says how to read it. Custom properties are not part of the canonical form, so the schema's fingerprint doesn't change. The setting is not available with `AvroSharpApacheCompatible`.
 
 ## Schema evolution
 

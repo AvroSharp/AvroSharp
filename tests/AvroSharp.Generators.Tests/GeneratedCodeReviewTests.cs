@@ -328,14 +328,14 @@ public class GeneratedCodeReviewTests
 
     private const string SentinelSchema = """
         {"type":"record","name":"Lease","namespace":"raw","fields":[
-          {"name":"expires","type":{"type":"long","logicalType":"timestamp-millis","avrosharp.raw":true}},
+          {"name":"expires","type":{"type":"long","logicalType":"timestamp-millis","avrosharp.logicalType":"raw"}},
           {"name":"starts","type":{"type":"long","logicalType":"timestamp-millis"}}
         ]}
         """;
 
     /// <summary>
     /// Java reads a timestamp of Long.MaxValue, a common "never" sentinel, but DateTimeOffset can't hold it, so a
-    /// generated type failed every file that had one. "avrosharp.raw": true keeps one schema's underlying type, so the
+    /// generated type failed every file that had one. "avrosharp.logicalType": "raw" keeps one schema's underlying type, so the
     /// field is a long and reads it, while the others keep their .NET types.
     /// </summary>
     [Test]
@@ -360,13 +360,13 @@ public class GeneratedCodeReviewTests
         await Assert.That(type.GetProperty("Starts")!.GetValue(lease)).IsEqualTo(DateTimeOffset.UnixEpoch);
     }
 
-    /// <summary>Without "avrosharp.raw", such a value fails with a message that says how to read it.</summary>
+    /// <summary>Without "avrosharp.logicalType": "raw", such a value fails with a message that says how to read it.</summary>
     [Test]
     public async Task AnOutOfRangeTimestamp_FailsWithTheWayToReadIt()
     {
         var ex = Assert.Throws<AvroDataException>(() => AvroSharp.Serialization.AvroLogicalValues.TimestampFromMilliseconds(long.MaxValue));
 
-        await Assert.That(ex.Message).Contains("outside the range of DateTime").And.Contains("\"avrosharp.raw\": true");
+        await Assert.That(ex.Message).Contains("outside the range of DateTime").And.Contains("\"avrosharp.logicalType\": \"raw\"");
     }
 
     [Test]
@@ -376,7 +376,41 @@ public class GeneratedCodeReviewTests
 
         var diagnostic = generatorDiagnostics.Single();
         await Assert.That(diagnostic.Id).IsEqualTo("AVROGEN003");
-        await Assert.That(diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).Contains("\"avrosharp.raw\" is not available with AvroSharpApacheCompatible");
+        await Assert.That(diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).Contains("\"avrosharp.logicalType\": \"raw\" is not available with AvroSharpApacheCompatible");
+        await Assert.That(sources).IsEmpty();
+    }
+
+    /// <summary>"native" maps one schema's logical type to its .NET type under AvroSharpLogicalTypes=raw.</summary>
+    [Test]
+    public async Task ANativeLogicalType_IsItsDotNetType_UnderARawDefault()
+    {
+        const string Schema = """
+            {"type":"record","name":"Mixed","namespace":"raw","fields":[
+              {"name":"at","type":{"type":"long","logicalType":"timestamp-millis","avrosharp.logicalType":"native"}},
+              {"name":"day","type":{"type":"int","logicalType":"date"}}
+            ]}
+            """;
+
+        var (sources, generatorDiagnostics, compileDiagnostics) = GeneratorHarness.Run([("mixed.avsc", Schema)], logicalTypes: "raw");
+        var text = sources.Single().SourceText.ToString();
+
+        await Assert.That(generatorDiagnostics).IsEmpty();
+        await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
+        await Assert.That(text).Contains("public global::System.DateTimeOffset At { get; set; }").And.Contains("public int Day { get; set; }");
+    }
+
+    [Test]
+    [Arguments("true")]
+    [Arguments("\"Raw\"")]
+    [Arguments("\"none\"")]
+    public async Task AnUnknownLogicalTypeMapping_IsReported(string value)
+    {
+        var schema = $$$"""{"type":"record","name":"Bad","namespace":"raw","fields":[{"name":"at","type":{"type":"long","logicalType":"timestamp-millis","avrosharp.logicalType":{{{value}}}}}]}""";
+
+        var (sources, generatorDiagnostics, _) = GeneratorHarness.Run([("bad.avsc", schema)]);
+
+        await Assert.That(generatorDiagnostics.Single().Id).IsEqualTo("AVROGEN003");
+        await Assert.That(generatorDiagnostics.Single().GetMessage(System.Globalization.CultureInfo.InvariantCulture)).Contains("must be \"raw\" or \"native\"");
         await Assert.That(sources).IsEmpty();
     }
 }

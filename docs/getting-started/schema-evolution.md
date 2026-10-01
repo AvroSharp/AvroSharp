@@ -154,7 +154,7 @@ The mismatches that `Create` defers come back as [`Partial`](https://avrosharp.g
 
 ```csharp
 AvroCompatibilityResult check = AvroSchemaCompatibility.Check(writerSchema: newerTiers, readerSchema: noDefaultTiers);
-Console.WriteLine($"Check: {check.Verdict}, {check.Issues[0]}");
+Console.WriteLine($"Check: {check.Verdict}, {check.Incompatibilities[0]}");
 ```
 
 The result also has [warnings](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityKind.html) for differences that the specification allows but that can change the values read:
@@ -165,13 +165,13 @@ The result also has [warnings](https://avrosharp.github.io/AvroSharp/docs/api/Av
 - symbols read as the enum's default.
 
 [`AvroCompatibilityOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityOptions.html) has two settings:
-- `Strict` makes warnings fail;
+- `WarningsAsErrors` makes warnings fail the check (the verdict stays what it is);
 - `AllowPartial` lets `Partial` pass.
 
 A new version can be checked against the earlier ones, oldest first, at a schema registry's [level](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityLevel.html). The levels are Backward, Forward and Full, each with a transitive version, as Confluent Schema Registry defines them:
 
 ```csharp
-AvroCompatibilityReport report = AvroSchemaCompatibility.Check(withPoints, [v1, reordered], AvroCompatibilityLevel.BackwardTransitive);
+AvroCompatibilityReport report = AvroSchemaCompatibility.CheckVersions(withPoints, [v1, reordered], AvroCompatibilityLevel.BackwardTransitive);
 Console.WriteLine($"Backward transitive: {report.Verdict}");
 ```
 

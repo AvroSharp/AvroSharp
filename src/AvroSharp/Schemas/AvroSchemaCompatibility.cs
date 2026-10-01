@@ -60,7 +60,7 @@ public static class AvroSchemaCompatibility
     /// <param name="level">The compatibility level.</param>
     /// <param name="options">The options for each pair, or <see langword="null"/> for <see cref="AvroCompatibilityOptions.Default"/>.</param>
     /// <returns>Each pair checked and the worst verdict.</returns>
-    public static AvroCompatibilityReport Check(AvroSchema schema, IReadOnlyList<AvroSchema> previousVersions, AvroCompatibilityLevel level, AvroCompatibilityOptions? options = null)
+    public static AvroCompatibilityReport CheckVersions(AvroSchema schema, IReadOnlyList<AvroSchema> previousVersions, AvroCompatibilityLevel level, AvroCompatibilityOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentNullException.ThrowIfNull(previousVersions);

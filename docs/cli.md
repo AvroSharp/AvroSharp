@@ -143,12 +143,18 @@ avrosharp schema compat --level backward-transitive v1.avsc v2.avsc v3.avsc
 ```
 
 The options:
-- `--json` prints the verdict, issues and warnings as JSON;
-- `--strict` fails on warnings: differences that the specification allows but that can change the values read, such as a decimal's scale;
+- `--json` prints the result as JSON (below);
+- `--warnings-as-errors` (or `--strict`) fails on warnings: differences that the specification allows but that can change the values read, such as a decimal's scale. The verdict stays what it is;
 - `--allow-partial` passes when only some values can't be read: an enum symbol, or a union branch, that the reader lacks;
 - `-r` names files that define shared named types.
 
 The check is [`AvroSchemaCompatibility`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html), the same as in code ([Schema evolution](getting-started/schema-evolution.md#every-reason-with-where-it-is)).
+
+The JSON output, for scripts:
+- `formatVersion` is 1. A change that would break a script that parses it gets a new number; new properties may be added without one.
+- Two schemas give `writer`, `reader`, `verdict` (`compatible`, `partial` or `incompatible`), `compatible` (whether the check passes, after the options), `incompatibilities` and `warnings`.
+- Each issue has `kind` (camelCase, such as `missingDefault` or `decimalChanged`), `path`, `message`, and `otherPaths` when the same issue is at other paths too.
+- With `--level`, there are `level`, `schema` (the new version), `verdict`, `compatible`, and `checks`. Each check has `previous` (the earlier version's file), `index` (its position, from 0), `direction` (`backward` or `forward`) and that pair's result.
 
 ## Errors and exit codes
 
@@ -160,7 +166,7 @@ Errors are reported in the compiler's format, `path(line,column): error AVROGEN0
 | 1 | The command failed: an invalid schema, a missing file, or output that could not be written. |
 | 2 | The command line is not valid: an unknown command or option, or a missing or invalid argument. |
 | 3 | `schema compat`: partially compatible. The reader can be created, but some values can't be read. |
-| 4 | `schema compat`: incompatible. |
+| 4 | `schema compat`: incompatible, or warnings with `--warnings-as-errors`. |
 
 Errors go to standard error; results and informational messages go to standard output.
 
