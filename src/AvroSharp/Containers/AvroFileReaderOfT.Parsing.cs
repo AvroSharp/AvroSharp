@@ -155,7 +155,8 @@ public sealed partial class AvroFileReader<T>
 
         try
         {
-            WriterSchema = AvroSchema.Parse(schemaJson.Span);
+            // Read as Java reads it: files whose names or defaults the specification rejects are common, and their data is readable.
+            WriterSchema = AvroSchema.Parse(schemaJson.Span, AvroSchemaParseOptions.Embedded);
             _zeroSizeCost = ZeroSizeValues.Count(WriterSchema);
         }
         catch (AvroSchemaException ex)

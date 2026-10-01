@@ -579,7 +579,7 @@ public static partial class AvroGeneratedCode
         var dayNumber = (long)days + EpochDayNumber;
         return dayNumber is >= 0 and <= MaxDayNumber
             ? (int)dayNumber
-            : throw new AvroDataException($"The date {days} days from 1970-01-01 is outside the range of DateOnly.");
+            : throw new AvroDataException($"The date {days} days from 1970-01-01 is outside the range of DateOnly." + AvroLogicalValues.OutOfRangeHint);
     }
 
     /// <summary>Reads the bytes of a <c>fixed</c> value into a new array.</summary>

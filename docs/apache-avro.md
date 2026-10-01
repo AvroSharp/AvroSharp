@@ -75,6 +75,8 @@ Also checked against Java:
 - **[`ToJson()`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.ToJson.html)** writes a schema as Java's `Schema.toString()` does, byte for byte (attribute order, and numbers as Java prints them), so registering AvroSharp's text finds the version a Java client registered.
 - **Schema resolution** picks union branches by full name, then by unqualified name, then by promotion, as Java does, and applies reader aliases before names.
 - **Container files** from Java, in every codec, are read, and Java reads the ones AvroSharp writes.
+- **A container file's schema** is read as Java reads it, without validating names or defaults: a field named `user-id`, or a `"default": null` on a `string` field, is common in files that Java and older tools wrote, and the data is readable. Java's other leniencies there are accepted too: a `"doc"` or an enum's `"default"` of `null`, and a `namespace` that is not a string. Schemas given to `AvroSchema.Parse` are still validated.
+- **Logical types don't take part in schema resolution,** as in Java. A decimal of another scale or precision is read with the reader's, so `1.23` written with scale 2 reads as `0.123` with scale 3. The specification says such decimals don't match, but Java reads them, so AvroSharp does too, and files Java reads stay readable. [`AvroSchemaCompatibility`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html) warns about it (`DecimalChanged`), and fails it with `Strict`.
 
 ## Hostile input
 

@@ -30,6 +30,9 @@ public static class AvroLogicalValues
 
     private static readonly DateTime s_epoch = new(UnixEpochTicks, DateTimeKind.Unspecified);
 
+    // Java reads values .NET's date types can't hold, such as Long.MaxValue as an "end of time" sentinel.
+    internal const string OutOfRangeHint = " Generated code can read such values as the underlying number: add \"avrosharp.raw\": true to the schema, or set AvroSharpLogicalTypes=raw.";
+
     // --- date: days since 1970-01-01 ---
 
     /// <summary>Converts a <c>date</c> (days since the Unix epoch) to a <see cref="DateTime"/> at midnight.</summary>
@@ -37,7 +40,7 @@ public static class AvroLogicalValues
     public static DateTime DateFromDays(int days) =>
         days >= (DateTime.MinValue - s_epoch).Days && days <= (DateTime.MaxValue - s_epoch).Days
             ? s_epoch.AddDays(days)
-            : throw new AvroDataException($"The date {days} days from 1970-01-01 is outside the range of DateTime.");
+            : throw new AvroDataException($"The date {days} days from 1970-01-01 is outside the range of DateTime." + OutOfRangeHint);
 
     /// <summary>Converts a date to a <c>date</c> (days since the Unix epoch); the time of day is ignored.</summary>
     /// <param name="date">The date.</param>
@@ -235,7 +238,7 @@ public static class AvroLogicalValues
         var maxUnitsTicks = DateTime.MaxValue.Ticks - UnixEpochTicks;
         if (units < MinUnitsTicks / ticksPerUnit || units > maxUnitsTicks / ticksPerUnit)
         {
-            throw new AvroDataException($"The {type} value {units} is outside the range of DateTime.");
+            throw new AvroDataException($"The {type} value {units} is outside the range of DateTime." + OutOfRangeHint);
         }
 
         return UnixEpochTicks + (units * ticksPerUnit);

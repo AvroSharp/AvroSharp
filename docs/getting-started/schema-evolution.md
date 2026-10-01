@@ -72,6 +72,8 @@ Console.WriteLine($"Promoted: id {promoted["id"].Kind}, balance {promoted["balan
 
 It prints `id Long, balance Double, notes Bytes`. No narrowing is allowed: `long` data can't be read as `int`, as the last section shows.
 
+Logical types don't take part, as in Java: a `date` reads as an `int` of any logical type, and a decimal as the reader's precision and scale, so a changed scale reads every value as another number. [Every reason, with where it is](#every-reason-with-where-it-is) shows the check that warns about it.
+
 ## Renaming through aliases
 
 A field is renamed by giving the reader's field the old name in its [`aliases`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.RecordField.Aliases.html). A record, enum or fixed type is renamed the same way, with the old full name in the named type's [`aliases`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.NamedSchema.Aliases.html). Here `shop.Customer` becomes `crm.Client`, and `name` becomes `full_name`:
