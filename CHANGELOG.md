@@ -59,6 +59,11 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 ### Fixed
 
+- **Message readers (#159, #160):**
+  - Concurrent `ReadAsync` calls that met the same new fingerprint or registry ID each asked the resolver. Now one fetches and the others wait for it. A fetch that fails or is cancelled caches nothing.
+  - Bad data made `ReadAsync` and `ReadPayloadAsync` throw from the call itself. It now faults the returned task, so reads started together, then awaited, all complete.
+- **Code generation (#161):** a type whose C# name would hide a namespace or type the generated code uses is an error. For example, a namespace map onto `AvroSharp` with a record `Serialization` used to generate code that didn't compile.
+- **Generated types (#162):** a stored default of more than 65,536 zero-size items (an array of nulls, say) failed every read of older data. Defaults now decode without that limit, through the new `AvroRecordPlan.DefaultReader`.
 - **Enum and fixed values written as another schema:** the generic binary and JSON writers wrote an enum value's ordinal in its own schema, so a symbol at another position in the target schema became another symbol, silently, and one the target lacks was written anyway; and a fixed value of another size wrote all its bytes, shifting every later field. The symbol is now found in the target schema, and the size is checked. Values of the target schema itself, or of a copy parsed separately, write faster than before.
 - **Escaped unpaired surrogates** (`\ud800`) in a schema or in JSON data threw `InvalidOperationException`. A schema with one, anywhere, is now an `AvroSchemaException` (container file headers included), and JSON data an `AvroDataException`.
 - **.NET Framework:** the JSON reader read `-0.0` as `+0.0` and rejected a number beyond `double`'s range; it reads `-0.0` and an infinity, as on the other targets and in Java.
