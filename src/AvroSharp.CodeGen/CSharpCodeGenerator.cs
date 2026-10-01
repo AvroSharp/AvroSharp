@@ -180,8 +180,48 @@ public static class CSharpCodeGenerator
                     $"The type '{pair.Value.FullName}' is the C# type {pair.Key["global::".Length..]}, which is also the namespace of '{inside.FullName}'. " +
                     "C# does not allow a type and a namespace of the same name: rename the type, or map one of the namespaces.");
             }
+
+            // A type named like a namespace or type the generated code refers to, or a prefix of one, hides it there (#161):
+            // AvroSharp.Serialization, System.Collections, System.DateOnly.
+            var name = pair.Key["global::".Length..];
+            if (ExternalNames.FirstOrDefault(external => string.Equals(external, name, StringComparison.Ordinal) || external.StartsWith(name + ".", StringComparison.Ordinal)) is { } hidden)
+            {
+                throw new InvalidOperationException(
+                    $"The type '{pair.Value.FullName}' is the C# type {name}, which would hide {hidden}, which the generated code uses. Map its namespace to another C# namespace.");
+            }
         }
     }
+
+    /// <summary>
+    /// The namespaces and types outside the generated code that it refers to, by their full names. A test generates
+    /// every construct and checks that the code refers to no other.
+    /// </summary>
+    internal static readonly string[] ExternalNames =
+    [
+        "Avro.AvroDecimal", "Avro.Schema", "Avro.Specific.ISpecificRecord", "Avro.Specific.SpecificFixed",
+        "AvroSharp.AvroDataException", "AvroSharp.AvroException", "AvroSharp.Generated.ApacheDecimals",
+        "AvroSharp.IO.AvroReader", "AvroSharp.IO.AvroWriter", "AvroSharp.Schemas.AvroSchema", "AvroSharp.Schemas.RecordSchema",
+        "AvroSharp.Serialization.AvroLogicalValues", "AvroSharp.Serialization.IAvroSpecificRecord",
+        "AvroSharp.Serialization.IAvroSerializable", "AvroSharp.Serialization.IAvroWritable", "AvroSharp.Serialization.IAvroReadable",
+
+        // Every public type of the support namespace, as its API lists them: the value serializers are chosen by field type.
+        "AvroSharp.Serialization.Generated.AvroBooleanSerializer", "AvroSharp.Serialization.Generated.AvroBytesSerializer",
+        "AvroSharp.Serialization.Generated.AvroConversion", "AvroSharp.Serialization.Generated.AvroDoubleSerializer",
+        "AvroSharp.Serialization.Generated.AvroFloatSerializer", "AvroSharp.Serialization.Generated.AvroGeneratedCode",
+        "AvroSharp.Serialization.Generated.AvroIntSerializer", "AvroSharp.Serialization.Generated.AvroLongSerializer",
+        "AvroSharp.Serialization.Generated.AvroPlanCache", "AvroSharp.Serialization.Generated.AvroRecordPlan",
+        "AvroSharp.Serialization.Generated.AvroStringSerializer", "AvroSharp.Serialization.Generated.AvroUninitialized",
+        "AvroSharp.Serialization.Generated.IAvroValueSerializer",
+        "System.ArgumentNullException", "System.Array", "System.Buffers.IBufferWriter", "System.Buffers.ReadOnlySequence",
+        "System.CodeDom.Compiler.GeneratedCode", "System.CodeDom.Compiler.GeneratedCodeAttribute",
+        "System.Collections.Generic.Dictionary", "System.Collections.Generic.List",
+        "System.ComponentModel.EditorBrowsable", "System.ComponentModel.EditorBrowsableState",
+        "System.DateOnly", "System.DateTime", "System.DateTimeOffset", "System.Diagnostics.DebuggerDisplay",
+        "System.Diagnostics.DebuggerNonUserCode", "System.Guid", "System.IEquatable", "System.MemoryExtensions",
+        "System.Numerics.BigInteger", "System.ReadOnlySpan", "System.Runtime.CompilerServices.MethodImpl",
+        "System.Runtime.CompilerServices.MethodImplOptions", "System.Runtime.InteropServices.CollectionsMarshal",
+        "System.Span", "System.StringComparer", "System.TimeOnly", "System.TimeSpan",
+    ];
 
     // Nullable annotations need C# 8: a contradiction is an error rather than code that does not compile.
     private static void ValidateLanguage(CodeGenOptions options)
@@ -920,7 +960,7 @@ public static class CSharpCodeGenerator
         w.Close();
         w.Line();
         w.Open("for (var index = 0; index < plan.DefaultCount; index++)");
-        w.Line($"var field = new {Reader}(plan.DefaultValue(index));");
+        w.Line("var field = plan.DefaultReader(index);");
         w.Line("ReadField(ref field, value, plan.DefaultTarget(index), depth);");
         w.Close();
         w.Line();
