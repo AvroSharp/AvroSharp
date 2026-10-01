@@ -22,6 +22,12 @@ All notable changes to this project are documented here. The format follows [Kee
   - **Builder extensions** for Confluent.Kafka's producer and consumer builders.
   - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Confluent.SchemaRegistry [2.14.0, 3.0.0). The tests run against both ends of that range (`-p:ConfluentVersion=2.14.0` for the lowest) and against Redpanda.
   - **Not supported yet:** field rules (field-level encryption, `CEL_FIELD`), migration rules, and CEL on generic values. These and the other follow-ups are #186 to #203.
+- **AvroSharp.KafkaFlow**, a new package: KafkaFlow serializer middleware for Confluent Schema Registry on AvroSharp.Confluent, in place of KafkaFlow's `KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro`, without Apache.Avro (#154). It is released with AvroSharp at the same version.
+  - **Setup:** `AddSchemaRegistryAvroSharpSerializer` and `AddSchemaRegistryAvroSharpDeserializer` on producers and consumers. The registry comes from KafkaFlow's `WithSchemaRegistry` on the cluster.
+  - **Matches KafkaFlow's Confluent Avro serializer:** the same subjects and message bytes, and each reads what the other writes.
+  - **Several record types on one topic:** `AvroSharpMessageTypeResolver` picks each message's type from its writer's schema. It matches a list of types by their schemas' record names, without reflection, or, like KafkaFlow's, finds the type by its .NET full name in the loaded assemblies.
+  - **Not supported:** schema IDs in headers, because KafkaFlow's middleware gives serializers no headers.
+  - **Dependencies and targets:** net10.0, net9.0 and net8.0, on KafkaFlow [4.0.0, 5.0.0). There's no netstandard2.0 build: every KafkaFlow 4.x needs a newer System.Threading.Tasks.Extensions assembly than AvroSharp's netstandard2.0 dependencies bring. Not strong-named, because KafkaFlow isn't.
 
 ## [1.0.0-rc.1] - 2026-10-01
 

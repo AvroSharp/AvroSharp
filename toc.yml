@@ -9,6 +9,8 @@
   href: docs/cli.md
 - name: Kafka
   href: docs/confluent.md
+- name: KafkaFlow
+  href: docs/kafkaflow.md
 - name: Integrations
   href: docs/integrations.md
 - name: API reference

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- An application references the packages instead:
+       <PackageReference Include="AvroSharp.KafkaFlow" Version="..." />
+       <PackageReference Include="AvroSharp.Generators" Version="..." /> -->
+  <PropertyGroup>
+    <RootNamespace>KafkaFlowSample</RootNamespace>
+    <!-- KafkaFlow and AvroSharp.KafkaFlow are not strong-named; the samples are. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp.KafkaFlow\AvroSharp.KafkaFlow.csproj" />
+    <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>

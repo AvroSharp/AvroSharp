@@ -38,7 +38,7 @@ All of them are built from this repository and released together, at the same ve
 | Package | For | Status |
 |---|---|---|
 | [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) | Kafka with Confluent Schema Registry: serializers for Confluent.Kafka, the same bytes and settings as Confluent's Avro serializer, without Apache.Avro ([guide](docs/confluent.md), [sample](samples/Confluent/Program.cs)) | New in the release candidates |
-| [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on AvroSharp.Confluent | Planned: [#154](https://github.com/AvroSharp/AvroSharp/issues/154) |
+| [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on AvroSharp.Confluent: the same bytes as KafkaFlow's Confluent Avro serializer, and several record types per topic ([guide](docs/kafkaflow.md), [sample](samples/KafkaFlowEvents/Program.cs)) | New in the release candidates |
 | [AvroSharp.Azure.SchemaRegistry](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Azure.SchemaRegistry) | Azure Schema Registry with Event Hubs and Service Bus | Planned: [#155](https://github.com/AvroSharp/AvroSharp/issues/155) |
 | [AvroSharp.Aws.Glue](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue) | AWS Glue Schema Registry, fully managed, on every platform | Planned: [#156](https://github.com/AvroSharp/AvroSharp/issues/156) |
 
@@ -159,7 +159,7 @@ AvroValue value = await reader.ReadAsync(message);   // fetches schema 42 throug
 
 **References.** A schema that refers to named types registered under other subjects parses against them with [`AvroSchemaParser.AddNamedSchemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaParser.AddNamedSchemas.html) (or by parsing the referenced schemas first with the same [`AvroSchemaParser`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaParser.html)). [`schema.ToJson(referencedSchemas)`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchema.ToJson.html) writes it with those types by name, as Java's `Schema.toString(referencedSchemas, false)` does, and `ToJson()` is Java's `Schema.toString()` byte for byte (attribute order, and numbers as Java prints them), so registering AvroSharp's text finds the version a Java client registered.
 
-**Kafka and registry clients.** [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) plugs this into Confluent.Kafka, with Confluent's own serializer base classes. Add-on packages for KafkaFlow, Azure Schema Registry and AWS Glue are planned: see [integrations](docs/integrations.md).
+**Kafka and registry clients.** [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) plugs this into Confluent.Kafka, with Confluent's own serializer base classes, and [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) into KafkaFlow. Add-on packages for Azure Schema Registry and AWS Glue are planned: see [integrations](docs/integrations.md).
 
 ## Streams of objects
 

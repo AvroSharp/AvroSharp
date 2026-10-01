@@ -45,6 +45,11 @@
     <PackageVersion Include="Confluent.SchemaRegistry" Version="$(ConfluentVersion)" />
   </ItemGroup>
 
+  <!-- AvroSharp.KafkaFlow. The package itself references [4.0.0, 5.0.0) through VersionOverride. -->
+  <ItemGroup>
+    <PackageVersion Include="KafkaFlow.SchemaRegistry" Version="4.2.0" />
+  </ItemGroup>
+
   <!-- Command-line tool -->
   <ItemGroup>
     <PackageVersion Include="System.CommandLine" Version="2.0.12" />
@@ -63,6 +68,9 @@
     <PackageVersion Include="Confluent.SchemaRegistry.Encryption" Version="$(ConfluentVersion)" />
     <PackageVersion Include="Confluent.Kafka" Version="$(ConfluentVersion)" />
     <PackageVersion Include="Testcontainers.Redpanda" Version="4.15.0" />
+    <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="4.2.0" />
+    <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <!-- Brought in by Confluent.SchemaRegistry.Encryption's dependencies at 4.7.0, which has a critical advisory. -->
     <PackageVersion Include="System.Drawing.Common" Version="4.7.2" />
     <PackageVersion Include="Apache.Avro.File.Snappy" Version="1.12.2" />

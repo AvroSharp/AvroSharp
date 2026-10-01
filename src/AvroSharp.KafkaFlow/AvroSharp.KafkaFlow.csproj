@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- KafkaFlow serializer middleware on AvroSharp.Confluent: a replacement for KafkaFlow's
+       KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro, without Apache.Avro. -->
+  <PropertyGroup>
+    <!-- No netstandard2.0: every KafkaFlow 4.x is built against System.Threading.Tasks.Extensions' assembly 4.2.2.0,
+         and the 4.6.3 package that AvroSharp's netstandard2.0 dependencies require has assembly 4.2.1.0, so a
+         netstandard2.0 build fails (CS1705). On .NET 8 and later the assembly is part of the runtime. -->
+    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
+    <RootNamespace>AvroSharp.KafkaFlow</RootNamespace>
+    <PackageId>AvroSharp.KafkaFlow</PackageId>
+    <Description>KafkaFlow serializers and deserializers for Confluent Schema Registry on AvroSharp: generated and [AvroSerializable] types, several types per topic, the same bytes as KafkaFlow's Confluent Avro serializer. No Apache.Avro.</Description>
+    <PackageTags>$(PackageTags);kafka;kafkaflow;confluent;schema-registry</PackageTags>
+    <!-- A new package: there is no earlier version to validate against. -->
+    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
+    <!-- Not strong-named, unlike the other packages: KafkaFlow's assemblies aren't, and a strong-named assembly can't
+         reference them (CS8002), nor load them on .NET Framework. Referencing the strong-named AvroSharp packages from
+         here is fine. -->
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AvroSharp.Confluent\AvroSharp.Confluent.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- [4.0.0, 5.0.0), built against the lowest. KafkaFlow.SchemaRegistry brings KafkaFlow and its WithSchemaRegistry
+         cluster setting, which registers the ISchemaRegistryClient this package resolves. -->
+    <PackageReference Include="KafkaFlow.SchemaRegistry" VersionOverride="[4.0.0, 5.0.0)" />
+  </ItemGroup>
+
+</Project>

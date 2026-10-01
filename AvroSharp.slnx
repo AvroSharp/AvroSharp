@@ -21,6 +21,7 @@
     <Project Path="src/AvroSharp.CodeGen/AvroSharp.CodeGen.csproj" />
     <Project Path="src/AvroSharp.Generators/AvroSharp.Generators.csproj" />
     <Project Path="src/AvroSharp.Confluent/AvroSharp.Confluent.csproj" />
+    <Project Path="src/AvroSharp.KafkaFlow/AvroSharp.KafkaFlow.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/GettingStarted/GettingStarted.csproj" />
@@ -34,6 +35,7 @@
     <Project Path="samples/Messaging/Messaging.csproj" />
     <Project Path="samples/Migration/Migration.csproj" />
     <Project Path="samples/Confluent/Confluent.csproj" />
+    <Project Path="samples/KafkaFlowEvents/KafkaFlowEvents.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AvroSharp.Tests/AvroSharp.Tests.csproj" />
@@ -45,6 +47,7 @@
     <Project Path="tests/AvroSharp.AotSmoke/AvroSharp.AotSmoke.csproj" />
     <Project Path="tests/AvroSharp.Tool.Tests/AvroSharp.Tool.Tests.csproj" />
     <Project Path="tests/AvroSharp.Confluent.Tests/AvroSharp.Confluent.Tests.csproj" />
+    <Project Path="tests/AvroSharp.KafkaFlow.Tests/AvroSharp.KafkaFlow.Tests.csproj" />
   </Folder>
   <Folder Name="/fuzz/">
     <Project Path="fuzz/AvroSharp.Fuzz/AvroSharp.Fuzz.csproj" />

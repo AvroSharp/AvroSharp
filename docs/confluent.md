@@ -7,6 +7,8 @@
 - references;
 - rules.
 
+For KafkaFlow, [AvroSharp.KafkaFlow](kafkaflow.md) puts these serializers in KafkaFlow's middleware.
+
 On this page:
 - [Use](#use)
 - [Settings](#settings)

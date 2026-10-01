@@ -49,13 +49,16 @@ if (reader.Codec.Name != "zstandard" || !read.ToAvroBytes().AsSpan().SequenceEqu
     failures.Add("zstandard container file");
 }
 
-// AvroSharp.Confluent finds the generated type through AvroTypes (registered when the assembly loads), and its
-// Confluent dependency resolves. Building the serde calls no registry, so no server is needed.
+// AvroSharp.Confluent and AvroSharp.KafkaFlow find the generated type through AvroTypes (registered when the
+// assembly loads), and their Confluent and KafkaFlow dependencies resolve. Building them calls no registry, so no
+// server is needed.
 using (var registry = new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = "http://localhost:8081" }))
 {
     _ = new AvroSharpSerializer<Order>(registry);
     _ = new AvroSharpDeserializer<Order>(registry);
     _ = new ProducerBuilder<string, Order>(new ProducerConfig()).SetAvroSharpKeySerializer(registry).SetAvroSharpValueSerializer(registry);
+    _ = new AvroSharp.KafkaFlow.AvroSharpKafkaFlowSerializer(registry);
+    _ = new AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver(registry, [typeof(Order)]);
 }
 
 Console.WriteLine(failures.Count == 0 ? "App: ok" : "App failed: " + string.Join(", ", failures));
