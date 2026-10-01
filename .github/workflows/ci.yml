@@ -63,11 +63,9 @@ jobs:
 
       # On Windows this includes net481, which runs the netstandard2.0 build on .NET Framework.
       # A failing random-schema batch (#141) is saved with the test results, which are uploaded below.
-      # AvroSharp.Confluent's Redpanda tests need Docker with Linux containers, which only the x64 Linux runner has.
       - name: Test
         env:
           AVROSHARP_RANDOM_SCHEMA_FAILURES: ${{ github.workspace }}/TestResults/random-schema-failure
-          AVROSHARP_CONFLUENT_INTEGRATION: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
       # Line and branch coverage of the shipped assemblies, merged across the test projects and target frameworks, in
@@ -86,6 +84,12 @@ jobs:
           path: artifacts/coverage/coverage.json
           if-no-files-found: error
 
+      # AvroSharp.Confluent against a real broker and registry: Redpanda in Docker, which needs Linux containers, so
+      # only the x64 Linux runner. The tests are [Explicit], so the solution run above leaves them out.
+      - name: Test against Redpanda
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build --treenode-filter "/*/*/RedpandaTests/*"
+
       # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit
       # tests that way too so the fallbacks are exercised on every build.
       - name: Test without hardware intrinsics
@@ -94,14 +98,17 @@ jobs:
           DOTNET_EnableHWIntrinsic: 0
         run: dotnet test --project tests/AvroSharp.Tests -c Release --no-build -f net10.0
 
-      # Each sample checks its own results and exits with 1 when one is wrong.
+      # Each sample checks its own results and exits with 1 when one is wrong. The Confluent sample needs a broker and a
+      # registry: its compose file starts Redpanda.
       - name: Samples
         if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
+          docker compose -f samples/Confluent/compose.yaml up -d --wait
           for sample in samples/*/; do
             dotnet run --project "$sample" -c Release --no-build
           done
+          docker compose -f samples/Confluent/compose.yaml down
 
       - name: Native AOT smoke test
         shell: bash

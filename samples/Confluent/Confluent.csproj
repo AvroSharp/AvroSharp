@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- An application references the packages instead:
+       <PackageReference Include="AvroSharp.Confluent" Version="..." />
+       <PackageReference Include="AvroSharp.Generators" Version="..." /> -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp.Confluent\AvroSharp.Confluent.csproj" />
+    <PackageReference Include="Confluent.Kafka" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>

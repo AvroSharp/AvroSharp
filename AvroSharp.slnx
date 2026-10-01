@@ -33,6 +33,7 @@
     <Project Path="samples/SerializableTypes/SerializableTypes.csproj" />
     <Project Path="samples/Messaging/Messaging.csproj" />
     <Project Path="samples/Migration/Migration.csproj" />
+    <Project Path="samples/Confluent/Confluent.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AvroSharp.Tests/AvroSharp.Tests.csproj" />

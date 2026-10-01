@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- AvroSharp.Confluent against Confluent's own Avro serde, an in-memory registry, and Redpanda in Docker
-       (AVROSHARP_CONFLUENT_INTEGRATION=1). -->
+       (RedpandaTests: [Explicit], run with a filter that names them). -->
   <PropertyGroup>
     <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>

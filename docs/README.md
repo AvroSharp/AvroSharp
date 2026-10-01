@@ -9,6 +9,7 @@ The documentation site is at **[avrosharp.github.io/AvroSharp](https://avrosharp
 - [Code generation](code-generation.md): the `AvroSharp.Generators` source generator: setup, MSBuild properties, type mapping, schema evolution, diagnostics, and moving from avrogen.
 - [Command-line tool](cli.md): `avrosharp gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.
 - [Integrations](integrations.md): schema registries and message brokers, AvroSharp.Confluent for Confluent.Kafka, and the planned add-on packages for KafkaFlow, Azure Schema Registry and AWS Glue.
+- [Confluent Schema Registry and Kafka](confluent.md): AvroSharp.Confluent's serializers for Confluent.Kafka, their settings, and moving from Confluent's Avro serializer and from Chr.Avro.
 - [Samples](../samples/README.md): runnable programs for the main APIs, run by CI.
 
 ## Reference

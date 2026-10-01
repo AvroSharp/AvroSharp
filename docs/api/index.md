@@ -15,6 +15,7 @@ The public API of the AvroSharp packages, generated from the XML documentation i
 | [`AvroSharp.Serialization`](xref:AvroSharp.Serialization) | `AvroSerializer`, the interfaces generated types implement, the logical-value conversions, and the read and write delegates |
 | `AvroSharp.Serialization.Generated` | The support that generated code calls; not for direct use (see the compatibility policy in the design notes). It has no page in this reference |
 | [`AvroSharp.CodeGen`](xref:AvroSharp.CodeGen) | The C# code generation engine (the `AvroSharp.CodeGen` package) |
+| [`AvroSharp.Confluent`](xref:AvroSharp.Confluent) | Confluent Schema Registry serializers and deserializers for Confluent.Kafka (the `AvroSharp.Confluent` package; see [its guide](../confluent.md)) |
 
 ## Where to start
 
@@ -27,6 +28,7 @@ The public API of the AvroSharp packages, generated from the XML documentation i
 - **Messages:** [`AvroMessage`](xref:AvroSharp.Messages.AvroMessage) and [`AvroMessageReader.Create`](xref:AvroSharp.Messages.AvroMessageReader.Create%2A) for single-object encoding, which finds schemas by fingerprint through an [`IAvroSchemaResolver`](xref:AvroSharp.Messages.IAvroSchemaResolver) such as [`AvroSchemaStore`](xref:AvroSharp.Messages.AvroSchemaStore). [`AvroRegistryMessage`](xref:AvroSharp.Messages.AvroRegistryMessage) and [`AvroRegistryMessageReader.Create`](xref:AvroSharp.Messages.AvroRegistryMessageReader.Create%2A) for schema-registry framing, chosen with an [`AvroRegistryFraming`](xref:AvroSharp.Messages.AvroRegistryFraming), which find schemas by ID through an [`IAvroSchemaIdResolver`](xref:AvroSharp.Messages.IAvroSchemaIdResolver) such as [`AvroSchemaIdStore`](xref:AvroSharp.Messages.AvroSchemaIdStore).
 - **Streams:** [`AvroStreamWriter.Create`](xref:AvroSharp.Streams.AvroStreamWriter.Create%2A) and [`AvroStreamReader.Open`](xref:AvroSharp.Streams.AvroStreamReader.Open%2A), with [`AvroStreamOptions`](xref:AvroSharp.Streams.AvroStreamOptions), for objects one after another with no container.
 - **JSON:** [`GenericDatumJsonWriter.Create`](xref:AvroSharp.Generic.GenericDatumJsonWriter.Create%2A) and [`GenericDatumJsonReader.Create`](xref:AvroSharp.Generic.GenericDatumJsonReader.Create%2A), for the Avro JSON encoding; [`AvroSchema.ToJson`](xref:AvroSharp.Schemas.AvroSchema.ToJson%2A) for the schema itself.
+- **Kafka with Confluent Schema Registry:** [`AvroSharpSerializer<T>`](xref:AvroSharp.Confluent.AvroSharpSerializer%601) and [`AvroSharpDeserializer<T>`](xref:AvroSharp.Confluent.AvroSharpDeserializer%601), set on Confluent.Kafka's builders with [`AvroSharpSerdeExtensions`](xref:AvroSharp.Confluent.AvroSharpSerdeExtensions), from the `AvroSharp.Confluent` package.
 - **Low-level binary encoding:** [`AvroWriter`](xref:AvroSharp.IO.AvroWriter) and [`AvroReader`](xref:AvroSharp.IO.AvroReader).
 - **Code generation:** [`CSharpCodeGenerator.Generate`](xref:AvroSharp.CodeGen.CSharpCodeGenerator.Generate%2A) with [`CodeGenOptions`](xref:AvroSharp.CodeGen.CodeGenOptions), and [`SchemaFileSet`](xref:AvroSharp.CodeGen.SchemaFileSet) to parse a set of schema files together.
 

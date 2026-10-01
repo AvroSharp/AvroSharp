@@ -14,10 +14,11 @@ namespace AvroSharp.Confluent.Tests;
 
 /// <summary>
 /// Against a real broker and schema registry (Redpanda in Docker): registration, the subject name strategy's fallback,
-/// and a produce and consume through Confluent.Kafka. Run with AVROSHARP_CONFLUENT_INTEGRATION=1 and Docker with Linux
-/// containers.
+/// and a produce and consume through Confluent.Kafka. They need Docker with Linux containers, so they run only when
+/// a filter names them: dotnet test --project tests/AvroSharp.Confluent.Tests --treenode-filter "/*/*/RedpandaTests/*".
+/// Otherwise they aren't run or listed.
 /// </summary>
-[RequiresIntegration]
+[Explicit]
 // One at a time: the registry can give one schema two IDs when tests register it at the same moment in different
 // subjects, and the tests compare IDs.
 [NotInParallel]
@@ -104,20 +105,14 @@ public sealed class RedpandaFixture : IAsyncInitializer, IAsyncDisposable
 
     public string BootstrapServers => Container.GetBootstrapAddress();
 
-    private RedpandaContainer Container => _container ?? throw new InvalidOperationException("The Redpanda tests are not enabled.");
+    private RedpandaContainer Container => _container ?? throw new InvalidOperationException("The container hasn't started.");
 
     public CachedSchemaRegistryClient Registry() => new(new SchemaRegistryConfig { Url = Container.GetSchemaRegistryAddress() });
 
-    // TUnit initializes a shared data source even when every test that uses it is skipped, and building a container
-    // already looks for Docker (CI's Windows Arm64 runner has none). So the container is built and started only when
-    // the tests run. The image's default (v22) predates the registry API that Confluent.SchemaRegistry 2.15 uses.
+    // Building a container already looks for Docker, so it's built here, when the tests run, not when the class loads.
+    // The image's default (v22) predates the registry API that Confluent.SchemaRegistry 2.15 uses.
     public Task InitializeAsync()
     {
-        if (!RequiresIntegrationAttribute.Enabled)
-        {
-            return Task.CompletedTask;
-        }
-
         _container = new RedpandaBuilder("docker.redpanda.com/redpandadata/redpanda:v25.2.1").Build();
         return _container.StartAsync();
     }
@@ -125,11 +120,3 @@ public sealed class RedpandaFixture : IAsyncInitializer, IAsyncDisposable
     public ValueTask DisposeAsync() => _container?.DisposeAsync() ?? default;
 }
 
-/// <summary>Skips a test unless AVROSHARP_CONFLUENT_INTEGRATION is 1: it needs Docker with Linux containers.</summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
-public sealed class RequiresIntegrationAttribute() : SkipAttribute("Set AVROSHARP_CONFLUENT_INTEGRATION=1 to run the tests against Redpanda in Docker.")
-{
-    public static bool Enabled => string.Equals(Environment.GetEnvironmentVariable("AVROSHARP_CONFLUENT_INTEGRATION"), "1", StringComparison.Ordinal);
-
-    public override Task<bool> ShouldSkip(TestRegisteredContext context) => Task.FromResult(!Enabled);
-}
