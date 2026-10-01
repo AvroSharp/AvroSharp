@@ -1,6 +1,7 @@
 # AvroSharp
 
 [![CI](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Favrosharp.github.io%2FAvroSharp%2Fcoverage.json)](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml?query=branch%3Amain)
 [![NuGet](https://img.shields.io/nuget/v/AvroSharp?logo=nuget&label=NuGet)](https://www.nuget.org/packages/AvroSharp)
 [![Downloads](https://img.shields.io/nuget/dt/AvroSharp?logo=nuget&label=Downloads)](https://www.nuget.org/packages/AvroSharp)
 [![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0%20%7C%20netstandard2.0%20%7C%20netstandard2.1-512BD4?logo=dotnet)](#goals)
