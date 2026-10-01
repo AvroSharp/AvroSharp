@@ -29,6 +29,7 @@
     <Project Path="samples/SchemaEvolution/SchemaEvolution.csproj" />
     <Project Path="samples/GeneratedTypes/GeneratedTypes.csproj" />
     <Project Path="samples/GeneratorPackage/GeneratorPackage.csproj" />
+    <Project Path="samples/SerializableTypes/SerializableTypes.csproj" />
     <Project Path="samples/Messaging/Messaging.csproj" />
     <Project Path="samples/Migration/Migration.csproj" />
   </Folder>

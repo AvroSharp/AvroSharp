@@ -128,6 +128,19 @@ using (var readingFile = new MemoryStream())
     Check(reader.ReadAll().Single().ToAvroBytes().AsSpan().SequenceEqual(readingBytes), "container file of a generated type");
 }
 
+// [AvroSerializable] types (#31): the same API, and lookup by Type through AvroTypes, without reflection.
+var measurement = new smoke.attributed.Measurement
+{
+    Sensor = "t1", Value = 21.5, TakenAt = DateTimeOffset.UnixEpoch.AddDays(20_000), Calibration = 1.125m,
+    Id = Guid.Parse("6f1c1d2e-0a3b-4c5d-8e9f-001122334455"), Samples = [1, 2, 3], Limit = new smoke.attributed.Range { Low = 1, High = 2 },
+};
+var measurementBytes = AvroSharp.Serialization.AvroSerializer.Serialize(measurement);
+var measurementRead = AvroSharp.Serialization.AvroSerializer.Deserialize<smoke.attributed.Measurement>(measurementBytes);
+Check(measurementRead.ToAvroBytes().AsSpan().SequenceEqual(measurementBytes) && measurementRead.Limit is smoke.attributed.Range { High: 2 }, "[AvroSerializable] round trip");
+Check(AvroSharp.Serialization.AvroTypes.TryGet(typeof(smoke.attributed.Measurement), out var measurementInfo) && measurementInfo.Schema is RecordSchema { FullName: "smoke.attributed.Measurement" }, "AvroTypes finds an [AvroSerializable] type");
+Check(AvroSharp.Serialization.AvroTypes.TryGet(typeof(smoke.Reading), out var readingInfo) && readingInfo.Schema is RecordSchema { FullName: "smoke.Reading" }, "AvroTypes finds a type generated from .avsc");
+Check(AvroSharp.Serialization.AvroTypes.TryGet(typeof(long), out var longInfo) && Same(longInfo.Schema.CanonicalForm, "\"long\""), "AvroTypes finds a primitive");
+
 static bool Same(string? a, string? b) => string.Equals(a, b, StringComparison.Ordinal);
 
 Console.WriteLine(failures == 0 ? "AOT smoke test passed" : $"AOT smoke test failed ({failures})");

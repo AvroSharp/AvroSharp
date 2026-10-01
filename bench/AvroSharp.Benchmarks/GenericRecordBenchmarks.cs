@@ -43,6 +43,7 @@ public class GenericRecordBenchmarks
     private Avro.Generic.GenericDatumReader<ApacheGenericRecord> _apacheReader = null!;
     private ApacheGenericRecord _apacheRecord = null!;
     private bench.generated.Order _generated = null!;
+    private bench.attributed.AttributedOrder _attributed = null!;
     private byte[] _encoded = [];
     private readonly System.Buffers.ArrayBufferWriter<byte> _output = new();
     private readonly MemoryStream _stream = new();
@@ -81,6 +82,12 @@ public class GenericRecordBenchmarks
         if (!_generated.ToAvroBytes().AsSpan().SequenceEqual(_encoded))
         {
             throw new InvalidOperationException("The generated serializer does not reproduce the generic encoding.");
+        }
+
+        _attributed = bench.attributed.AttributedOrder.FromAvroBytes(_encoded);
+        if (!_attributed.ToAvroBytes().AsSpan().SequenceEqual(_encoded))
+        {
+            throw new InvalidOperationException("The [AvroSerializable] serializer does not reproduce the generic encoding.");
         }
     }
 
@@ -134,5 +141,25 @@ public class GenericRecordBenchmarks
     {
         var reader = new AvroReader(_encoded);
         return bench.generated.Order.Read(ref reader);
+    }
+
+    // The same type written in C# with [AvroSerializable] (AttributedTypes.cs): the attribute-driven generator's path.
+    [Benchmark]
+    [BenchmarkCategory("Write")]
+    public long AvroSharp_Attributed_Write()
+    {
+        _output.ResetWrittenCount();
+        var writer = new AvroWriter(_output);
+        bench.attributed.AttributedOrder.Write(ref writer, _attributed);
+        writer.Flush();
+        return _output.WrittenCount;
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Read")]
+    public bench.attributed.AttributedOrder AvroSharp_Attributed_Read()
+    {
+        var reader = new AvroReader(_encoded);
+        return bench.attributed.AttributedOrder.Read(ref reader);
     }
 }

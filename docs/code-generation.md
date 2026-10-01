@@ -1,6 +1,6 @@
 # Code generation: the AvroSharp.Generators source generator
 
-[AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) turns Avro schema files (`.avsc`) into C# types with serializers, while your project builds. The generated code has no reflection or runtime schema lookups, and works with Native AOT and trimming. The [`avrosharp` command-line tool](cli.md) produces the same code outside the build.
+[AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) turns Avro schema files (`.avsc`) into C# types with serializers, while your project builds. The generated code has no reflection or runtime schema lookups, and works with Native AOT and trimming. The [`avrosharp` command-line tool](cli.md) produces the same code outside the build. The generator also writes schemas and serializers for your own C# types marked `[AvroSerializable]` ([below](#from-c-types-avroserializable)); the tool doesn't.
 
 On this page:
 - [Set up a project](#set-up-a-project)
@@ -10,6 +10,7 @@ On this page:
 - [Type mapping](#type-mapping)
 - [Schema evolution](#schema-evolution)
 - [Migrating from avrogen: the Apache.Avro compatibility mode](#migrating-from-avrogen-the-apacheavro-compatibility-mode)
+- [From C# types: `[AvroSerializable]`](#from-c-types-avroserializable)
 - [Diagnostics](#diagnostics)
 - [Requirements](#requirements)
 - [Using the generator from source](#using-the-generator-from-source)
@@ -143,6 +144,74 @@ With `<AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>`, in a project
 
 Apache.Avro 1.12.2 has limits in this mode, which the tests pin: its specific writer cannot write a `decimal` on `fixed`, it rejects `uuid` on `fixed`, and it reads `local-timestamp` values as UTC instants in local time.
 
+## From C# types: `[AvroSerializable]`
+
+The same package also works the other way round: mark a `partial` class or record class with [`[AvroSerializable]`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.AvroSerializableAttribute.html), and the generator writes its schema and serializers from its members.
+
+```csharp
+[AvroSerializable(Namespace = "acme.orders")]
+public partial class Order
+{
+    public long Id { get; set; }
+    public string Customer { get; set; } = "";
+    public string? Note { get; set; }                  // ["null","string"], default null
+    public List<OrderLine> Lines { get; set; } = [];  // OrderLine is [AvroSerializable] too
+    public Status Status { get; set; }                 // a C# enum
+    public DateTimeOffset PlacedAt { get; set; }       // long, timestamp-micros
+
+    [AvroDecimal(18, 2)] public decimal Total { get; set; }
+    [AvroName("legacy_ref"), AvroAlias("ref")] public string? Reference { get; set; }
+    [AvroIgnore] public decimal CachedTax { get; set; }
+}
+```
+
+**What the type gets:** the members a type generated from a `.avsc` file has:
+- `Schema` and `SchemaJson`;
+- `ToAvroBytes`, `FromAvroBytes` (also from another version of the schema), `Write` and `Read`;
+- `IAvroWritable`, `IAvroReadable`, and `IAvroSerializable<T>` on .NET 8 and later.
+
+So [`AvroSerializer`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.AvroSerializer.html), container files, single-object messages and the registry readers take it as they take generated types. The serializers are the same code as the `.avsc` path's, so they're as fast, with no reflection.
+
+**The fields** are the type's public settable properties and public fields, in declaration order, inherited ones first. `[AvroIgnore]` leaves one out.
+
+**Field names** are the member names as written, as Apache Avro's Java reflection and Apache.Avro's `[AvroField]` matching use them.
+- `[AvroSerializable(FieldNames = AvroNaming.CamelCase)]` writes `OrderId` as `orderId`.
+- `[assembly: AvroNamingPolicy(AvroNaming.CamelCase)]` does that for the whole assembly.
+- If the schemas are read by Java or other languages, set camelCase for the assembly, since their field names are camelCase by convention.
+- `[AvroName]` renames one field or enum symbol.
+
+**Types:**
+
+| C# | Avro |
+|---|---|
+| `bool`, `int`, `long`, `float`, `double`, `string`, `byte[]` | `boolean`, `int`, `long`, `float`, `double`, `string`, `bytes` |
+| `T?`, or a reference type annotated `?` | `["null", T]`, with a default of `null` |
+| a C# enum, with values 0, 1, 2 and so on | `enum`. `[AvroEnumDefault]` on a member sets the enum's default. |
+| an `[AvroSerializable]` class | `record` |
+| `List<T>`, `Dictionary<string, T>` | `array`, `map` |
+| `Guid` | `string` with `uuid`, or `fixed(16)` with `uuid` under `[AvroFixed(16)]` |
+| `decimal` with `[AvroDecimal(precision, scale)]` | `bytes` with `decimal`, or `fixed` with `[AvroFixed(size)]` |
+| `DateOnly`, `TimeOnly`, `DateTimeOffset` | `date`, `time-micros`, `timestamp-micros`. `[AvroLogicalType("timestamp-millis")]` and others change it. |
+| `DateTime` | Needs `[AvroLogicalType("local-timestamp-micros")]` (or `-millis`): a `DateTime`'s `Kind` leaves UTC and local time ambiguous, so a UTC timestamp is a `DateTimeOffset`. |
+| `byte[]` with `[AvroFixed(size)]` | `fixed` |
+| `object` with `[AvroUnion(typeof(A), typeof(B))]` | a union of those records (`null` first when the member is `object?`) |
+
+**Other attributes:**
+- `[AvroDefault("json")]`: a field's default, as Avro JSON, which readers of older data use.
+- `[AvroAlias]`: names from earlier versions.
+- `[AvroDoc]`: a `doc`. The XML `<summary>` is used when the project builds documentation.
+- `[AvroField(Order = n)]`: a field's position, needed only when the fields are declared in more than one file of a partial type.
+
+**Not yet supported** (each is an error that says so): `init`-only members, primary constructors, types nested in other types, generic types, and narrow integer types such as `short`. [The design](design.md#65-the-attribute-driven-generator-31) lists what comes later.
+
+### Finding a type's serializers: `AvroTypes`
+
+[`AvroTypes`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.AvroTypes.html) gives a type's schema and its read and write functions, by type argument (`AvroTypes.Get<Order>()`) or by `Type` (`AvroTypes.TryGet(type, out var info)`), without reflection. It's for integrations and generic code, and for code that has only a `Type`.
+
+**What's registered:**
+- Every generated type, from `.avsc` files or `[AvroSerializable]`. On .NET 5 and later with C# 9 or later, a type registers itself when its assembly loads. Elsewhere, call `AvroTypes.Register(Order.AvroTypeInfo)` once.
+- The primitives: `bool`, `int`, `long`, `float`, `double`, `string` and `byte[]`.
+
 ## Diagnostics
 
 | ID | Severity | Meaning |
@@ -153,6 +222,29 @@ Apache.Avro 1.12.2 has limits in this mode, which the tests pin: its specific wr
 | AVROGEN004 | Error | `AvroSharpApacheCompatible` is set, but the project does not reference Apache.Avro. |
 | AVROGEN005 | Info | A property or type was renamed to avoid a clash with another member or a C# rule (for example `user_id` and `userId` in one record). |
 | AVROGEN006 | Warning | An `AvroSharp…` MSBuild property has a value the generator doesn't recognize, for example `AvroSharpLogicalTypes` set to `rwa`. The message names the property and the value used instead. Also reported for an `AvroSharpNamespaceMap` entry that is not valid or maps a namespace a second time. |
+
+The `[AvroSerializable]` generator reports these at the code. On an error, the type gets no generated code:
+
+| ID | Severity | Meaning |
+|---|---|---|
+| AVROGEN101 | Error | The type is not a `partial`, non-abstract class or record class. |
+| AVROGEN102 | Error | A member's type has no Avro mapping, or is not the type its field is read as. The message names the type to use. |
+| AVROGEN103 | Error | A `decimal` member has no `[AvroDecimal]`. |
+| AVROGEN104 | Error | A name is not a valid Avro name. |
+| AVROGEN105 | Error | Two members have the same Avro field name. |
+| AVROGEN106 | Error | An `[AvroDefault]` is not JSON, or not a value of the field's schema. |
+| AVROGEN107 | Error | The type is generic, or nested in another type. |
+| AVROGEN108 | Error | The type has a primary constructor. |
+| AVROGEN109 | Error | The fields are declared in more than one file without `[AvroField(Order = n)]` on each. |
+| AVROGEN110 | Error | `[AvroUnion]` is not on an `object` member, or lists a type that is not a class. |
+| AVROGEN111 | Error | A member uses a class that is not `[AvroSerializable]`, or whose attribute has errors. |
+| AVROGEN112 | Warning | An Avro attribute doesn't apply to the member it's on, and is ignored. |
+| AVROGEN113 | Error | Two C# types define the same Avro name. |
+| AVROGEN114 | Error | A `DateTime` member has no logical type. |
+| AVROGEN115 | Error | A member is `init`-only. |
+| AVROGEN116 | Error | An enum's values are not 0, 1, 2 and so on, in declaration order. |
+| AVROGEN117 | Error | A member has the name of one the generator adds, such as `Schema` or `Write`. |
+| AVROGEN118 | Error | Code generation failed; the message says why. |
 
 ## Requirements
 
