@@ -1,8 +1,11 @@
 // Writes and reads generated types with the packed packages: a zstandard container file, IAvroSerializable<T>, and
 // the constructor's schema defaults. Exits with 1 on any difference.
 using AvroSharp.Codecs;
+using AvroSharp.Confluent;
 using AvroSharp.Containers;
 using AvroSharp.Serialization;
+using Confluent.Kafka;
+using Confluent.SchemaRegistry;
 using consumer;
 
 var order = new Order
@@ -44,6 +47,15 @@ var read = reader.ReadAll().Single();
 if (reader.Codec.Name != "zstandard" || !read.ToAvroBytes().AsSpan().SequenceEqual(bytes))
 {
     failures.Add("zstandard container file");
+}
+
+// AvroSharp.Confluent finds the generated type through AvroTypes (registered when the assembly loads), and its
+// Confluent dependency resolves. Building the serde calls no registry, so no server is needed.
+using (var registry = new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = "http://localhost:8081" }))
+{
+    _ = new AvroSharpSerializer<Order>(registry);
+    _ = new AvroSharpDeserializer<Order>(registry);
+    _ = new ProducerBuilder<string, Order>(new ProducerConfig()).SetAvroSharpKeySerializer(registry).SetAvroSharpValueSerializer(registry);
 }
 
 Console.WriteLine(failures.Count == 0 ? "App: ok" : "App failed: " + string.Join(", ", failures));

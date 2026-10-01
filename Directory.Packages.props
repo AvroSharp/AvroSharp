@@ -3,6 +3,10 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled Condition="'$(CentralPackageTransitivePinningEnabled)' == ''">true</CentralPackageTransitivePinningEnabled>
+    <!-- The Confluent version the build uses. AvroSharp.Confluent depends on [2.14.0, 3.0.0): 2.14.0 changed the serde
+         base classes' protected members in a minor release (GetSubjectName became async), so older versions can't load
+         it. CI also builds and tests against the lowest (ConfluentVersion=2.14.0). -->
+    <ConfluentVersion Condition="'$(ConfluentVersion)' == ''">2.15.1</ConfluentVersion>
   </PropertyGroup>
 
   <!-- Build tooling and analyzers -->
@@ -36,6 +40,11 @@
     <PackageVersion Include="Lzma.Net" Version="5.8.4.3" />
   </ItemGroup>
 
+  <!-- AvroSharp.Confluent. The package itself references [2.14.0, 3.0.0) through VersionOverride. -->
+  <ItemGroup>
+    <PackageVersion Include="Confluent.SchemaRegistry" Version="$(ConfluentVersion)" />
+  </ItemGroup>
+
   <!-- Command-line tool -->
   <ItemGroup>
     <PackageVersion Include="System.CommandLine" Version="2.0.12" />
@@ -49,7 +58,13 @@
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Apache.Avro" Version="1.12.2" />
-    <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.15.1" />
+    <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="$(ConfluentVersion)" />
+    <PackageVersion Include="Confluent.SchemaRegistry.Rules" Version="$(ConfluentVersion)" />
+    <PackageVersion Include="Confluent.SchemaRegistry.Encryption" Version="$(ConfluentVersion)" />
+    <PackageVersion Include="Confluent.Kafka" Version="$(ConfluentVersion)" />
+    <PackageVersion Include="Testcontainers.Redpanda" Version="4.15.0" />
+    <!-- Brought in by Confluent.SchemaRegistry.Encryption's dependencies at 4.7.0, which has a critical advisory. -->
+    <PackageVersion Include="System.Drawing.Common" Version="4.7.2" />
     <PackageVersion Include="Apache.Avro.File.Snappy" Version="1.12.2" />
     <PackageVersion Include="Apache.Avro.File.BZip2" Version="1.12.2" />
     <PackageVersion Include="Apache.Avro.File.XZ" Version="1.12.2" />

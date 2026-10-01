@@ -21,6 +21,10 @@ dotnet test --solution AvroSharp.slnx -c Release -f net10.0
 
 Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on Linux and Windows, x64 and Arm64, and on Windows also net481, which tests the `netstandard2.0` build on .NET Framework. Run `-f net481` locally too when a change touches the netstandard code paths.
 
+AvroSharp.Confluent's tests need two more things:
+- **Redpanda:** the tests against a real broker and registry run in Docker with Linux containers, only when `AVROSHARP_CONFLUENT_INTEGRATION=1` is set. Otherwise they are skipped.
+- **Confluent's lowest supported version:** the package depends on Confluent.SchemaRegistry [2.14.0, 3.0.0). The build uses the newest by default; to test against 2.14.0, build and test with `-p:ConfluentVersion=2.14.0`. CI does both, in the `confluent` job.
+
 Formatting is not checked in CI. To check or fix it locally:
 
 ```shell

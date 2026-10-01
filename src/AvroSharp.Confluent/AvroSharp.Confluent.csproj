@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Confluent Schema Registry serializers for Confluent.Kafka. Only the Avro encoding is AvroSharp's: the registry
+       protocol, subjects, references and rules are Confluent's own code, through its serializer base classes. -->
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net9.0;net8.0;netstandard2.0</TargetFrameworks>
+    <RootNamespace>AvroSharp.Confluent</RootNamespace>
+    <PackageId>AvroSharp.Confluent</PackageId>
+    <Description>Confluent Schema Registry serializers and deserializers for Confluent.Kafka on AvroSharp: generated types, your own [AvroSerializable] types, generic records and primitives, with the registry's framing, subject name strategies, references and rules. No Apache.Avro.</Description>
+    <PackageTags>$(PackageTags);kafka;confluent;schema-registry</PackageTags>
+    <!-- A new package: there is no earlier version to validate against. -->
+    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AvroSharp\AvroSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- [2.14.0, 3.0.0), built against the lowest: 2.14.0 changed the serde base classes' protected members, a binary
+         break for a subclass. The tests run against the lowest and the newest (ConfluentVersion in Directory.Packages.props). -->
+    <PackageReference Include="Confluent.SchemaRegistry" VersionOverride="[2.14.0, 3.0.0)" />
+  </ItemGroup>
+
+</Project>

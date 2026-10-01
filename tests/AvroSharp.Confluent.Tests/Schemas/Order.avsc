@@ -1,0 +1,11 @@
+{"type":"record","name":"Order","namespace":"test.shop","fields":[
+  {"name":"id","type":{"type":"string","logicalType":"uuid"}},
+  {"name":"customer","type":"string"},
+  {"name":"placed_at","type":{"type":"long","logicalType":"timestamp-millis"}},
+  {"name":"total","type":{"type":"bytes","logicalType":"decimal","precision":12,"scale":2}},
+  {"name":"status","type":{"type":"enum","name":"Status","symbols":["NEW","PAID","SHIPPED"]},"default":"NEW"},
+  {"name":"items","type":{"type":"array","items":{"type":"record","name":"Item","fields":[
+    {"name":"sku","type":"string"},{"name":"quantity","type":"int"}]}}},
+  {"name":"tags","type":{"type":"map","values":"string"},"default":{}},
+  {"name":"note","type":["null","string"],"default":null}
+]}

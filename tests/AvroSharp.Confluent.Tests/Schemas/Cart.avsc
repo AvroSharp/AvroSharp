@@ -1,0 +1,5 @@
+{"type":"record","name":"Cart","namespace":"test.shop","fields":[
+  {"name":"owner","type":"string"},
+  {"name":"lines","type":{"type":"array","items":{"type":"record","name":"CartLine","fields":[
+    {"name":"sku","type":"string"},{"name":"quantity","type":"int"}]}}}
+]}

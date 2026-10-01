@@ -131,3 +131,42 @@ jobs:
         with:
           name: packages
           path: artifacts/package/release/*
+
+  # AvroSharp.Confluent against a real broker and registry (Redpanda in Docker, which only the x64 Linux runner has),
+  # and against the lowest Confluent version the package supports. The build job runs its in-memory tests with the
+  # newest version everywhere.
+  confluent:
+    name: confluent (${{ matrix.confluent }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        confluent: [2.14.0, 2.15.1]
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # MinVer needs tags and history
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Build
+        run: dotnet build tests/AvroSharp.Confluent.Tests -c Release -p:ConfluentVersion=${{ matrix.confluent }}
+
+      - name: Test
+        env:
+          AVROSHARP_CONFLUENT_INTEGRATION: 1
+        run: dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: results-confluent-${{ matrix.confluent }}
+          path: artifacts/bin/AvroSharp.Confluent.Tests/**/TestResults/**
+          if-no-files-found: ignore

@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- **AvroSharp.Confluent**, a new package: Confluent Schema Registry serializers and deserializers for Confluent.Kafka, without Apache.Avro. It is released with AvroSharp at the same version, and joins the release candidates so its API is reviewed before 1.0.0.
+  - **Serializers:** `AvroSharpSerializer<T>` and `AvroSharpDeserializer<T>` work with:
+    - generated and `[AvroSerializable]` types, found through `AvroTypes`, or given as an `AvroTypeInfo<T>`;
+    - the primitives `string`, `int`, `long`, `float`, `double`, `bool` and `byte[]`;
+    - generic values through `AvroSharpGeneric`.
+  - **Confluent's own code** handles the registry: the serializers derive from Confluent's `AsyncSerializer`/`AsyncDeserializer`, so subject name strategies, registration, `use.latest.version`, schema ID strategies (prefix or header), references and domain and encoding rules are Confluent's code.
+  - **Matches Confluent's Avro serializer:**
+    - the same message bytes, and a top-level `bytes` value is the message body alone;
+    - the same default subject name strategy (`Associated`, falling back to `Topic`);
+    - the same configuration keys (`avro.serializer.*`, `avro.deserializer.*`). Unknown keys are rejected.
+  - **Schema evolution:** the deserializer reads each message in its writer's schema and resolves it to the type's.
+  - **Checks:**
+    - With `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, the serializer checks that the type's schema encodes like the schema whose ID the message carries.
+    - Tombstones follow Confluent: a null value is written with no body, and reading one into a value type throws.
+  - **Builder extensions** for Confluent.Kafka's producer and consumer builders.
+  - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Confluent.SchemaRegistry [2.14.0, 3.0.0). CI tests the lowest and the newest version, and against Redpanda.
+  - **Not supported yet:** field rules (field-level encryption, `CEL_FIELD`), migration rules, and CEL on generic values. These and the other follow-ups are #186 to #203.
+
 ## [1.0.0-rc.1] - 2026-10-01
 
 The release candidate for 1.0: the public API is frozen, and 1.0.0 follows when .NET 11 is released. New since 0.2.0:

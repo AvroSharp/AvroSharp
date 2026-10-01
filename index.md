@@ -31,7 +31,7 @@ A high-performance, Native AOT-friendly .NET implementation of the [Apache Avroâ
 - [Object container files](README.md#object-container-files): writing and reading `.avro` files, synchronously and asynchronously, with any codec ([`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html), [`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html)).
 - [Single-object encoding](README.md#single-object-encoding) and [schema registries](README.md#schema-registries): messages that carry their schema's fingerprint or ID, with Confluent, Apicurio and AWS Glue framing ([`AvroSharp.Messages`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.html)).
 - [Streams of objects](README.md#streams-of-objects): objects one after another, for sockets and pipes ([`AvroSharp.Streams`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.html)).
-- [Integrations](docs/integrations.md): message brokers and schema registries, and the planned add-on packages for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue.
+- [Integrations](docs/integrations.md): message brokers and schema registries, AvroSharp.Confluent for Confluent.Kafka, and the planned add-on packages for KafkaFlow, Azure Schema Registry and AWS Glue.
 - [Code generation](docs/code-generation.md): the source generator, its MSBuild properties, type mapping, schema evolution, and moving from avrogen.
 - [The avrosharp tool](docs/cli.md): `gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.
 - [Samples](samples/README.md): runnable programs for the main APIs.
