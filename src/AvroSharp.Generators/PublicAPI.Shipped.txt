@@ -2,3 +2,6 @@
 AvroSharp.Generators.SchemaFileGenerator
 AvroSharp.Generators.SchemaFileGenerator.Initialize(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context) -> void
 AvroSharp.Generators.SchemaFileGenerator.SchemaFileGenerator() -> void
+AvroSharp.Generators.SerializableTypeGenerator
+AvroSharp.Generators.SerializableTypeGenerator.Initialize(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context) -> void
+AvroSharp.Generators.SerializableTypeGenerator.SerializableTypeGenerator() -> void
