@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- AvroSharp.KafkaFlow against KafkaFlow's Confluent Avro serializer on an in-memory registry, and a KafkaFlow
+       producer and consumer against Redpanda in Docker (KafkaFlowRedpandaTests: [Explicit], run with a filter that
+       names them). -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <!-- The generated test types are also Apache.Avro ISpecificRecords, so the same value goes through KafkaFlow's
+         Confluent Avro serializer and AvroSharp's. -->
+    <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
+    <!-- Apache.Avro, KafkaFlow and AvroSharp.KafkaFlow are not strong-named. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp.KafkaFlow\AvroSharp.KafkaFlow.csproj" />
+    <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" />
+    <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="Testcontainers.Redpanda" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+  </ItemGroup>
+
+  <!-- The in-memory registry, the Redpanda fixture, the test data and its schemas, from AvroSharp.Confluent.Tests. -->
+  <ItemGroup>
+    <Compile Include="..\AvroSharp.Confluent.Tests\InMemorySchemaRegistry.cs" Link="Shared\InMemorySchemaRegistry.cs" />
+    <Compile Include="..\AvroSharp.Confluent.Tests\RedpandaFixture.cs" Link="Shared\RedpandaFixture.cs" />
+    <Compile Include="..\AvroSharp.Confluent.Tests\TestData.cs" Link="Shared\TestData.cs" />
+    <AdditionalFiles Include="..\AvroSharp.Confluent.Tests\Schemas\*.avsc" Link="Schemas\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>

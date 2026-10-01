@@ -2,12 +2,9 @@ using System;
 using System.Threading.Tasks;
 using Avro.Generic;
 using Confluent.Kafka;
-using Confluent.SchemaRegistry;
 using Confluent.SchemaRegistry.Serdes;
 using test.shop;
 using TUnit.Assertions.Enums;
-using Testcontainers.Redpanda;
-using TUnit.Core.Interfaces;
 using static AvroSharp.Confluent.Tests.TestData;
 
 namespace AvroSharp.Confluent.Tests;
@@ -97,26 +94,3 @@ public class RedpandaTests(RedpandaFixture redpanda)
         await ConfluentInteropTests.AssertIsNewOrder(result.Message.Value);
     }
 }
-
-/// <summary>One Redpanda container for the class.</summary>
-public sealed class RedpandaFixture : IAsyncInitializer, IAsyncDisposable
-{
-    private RedpandaContainer? _container;
-
-    public string BootstrapServers => Container.GetBootstrapAddress();
-
-    private RedpandaContainer Container => _container ?? throw new InvalidOperationException("The container hasn't started.");
-
-    public CachedSchemaRegistryClient Registry() => new(new SchemaRegistryConfig { Url = Container.GetSchemaRegistryAddress() });
-
-    // Building a container already looks for Docker, so it's built here, when the tests run, not when the class loads.
-    // The image's default (v22) predates the registry API that Confluent.SchemaRegistry 2.15 uses.
-    public Task InitializeAsync()
-    {
-        _container = new RedpandaBuilder("docker.redpanda.com/redpandadata/redpanda:v25.2.1").Build();
-        return _container.StartAsync();
-    }
-
-    public ValueTask DisposeAsync() => _container?.DisposeAsync() ?? default;
-}
-

@@ -84,11 +84,13 @@ jobs:
           path: artifacts/coverage/coverage.json
           if-no-files-found: error
 
-      # AvroSharp.Confluent against a real broker and registry: Redpanda in Docker, which needs Linux containers, so
-      # only the x64 Linux runner. The tests are [Explicit], so the solution run above leaves them out.
+      # AvroSharp.Confluent and AvroSharp.KafkaFlow against a real broker and registry: Redpanda in Docker, which needs
+      # Linux containers, so only the x64 Linux runner. The tests are [Explicit], so the solution run above leaves them out.
       - name: Test against Redpanda
         if: matrix.os == 'ubuntu-latest'
-        run: dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build --treenode-filter "/*/*/RedpandaTests/*"
+        run: |
+          dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build --treenode-filter "/*/*/RedpandaTests/*"
+          dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release --no-build --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"
 
       # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit
       # tests that way too so the fallbacks are exercised on every build.

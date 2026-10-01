@@ -1,0 +1,17 @@
+#nullable enable
+AvroSharp.KafkaFlow.AvroSharpKafkaFlowDeserializer
+AvroSharp.KafkaFlow.AvroSharpKafkaFlowDeserializer.AvroSharpKafkaFlowDeserializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null) -> void
+AvroSharp.KafkaFlow.AvroSharpKafkaFlowDeserializer.DeserializeAsync(System.IO.Stream! input, System.Type! type, KafkaFlow.ISerializerContext! context) -> System.Threading.Tasks.Task<object!>!
+AvroSharp.KafkaFlow.AvroSharpKafkaFlowExtensions
+AvroSharp.KafkaFlow.AvroSharpKafkaFlowSerializer
+AvroSharp.KafkaFlow.AvroSharpKafkaFlowSerializer.AvroSharpKafkaFlowSerializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null) -> void
+AvroSharp.KafkaFlow.AvroSharpKafkaFlowSerializer.SerializeAsync(object! message, System.IO.Stream! output, KafkaFlow.ISerializerContext! context) -> System.Threading.Tasks.Task!
+AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver
+AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver.AvroSharpMessageTypeResolver(Confluent.SchemaRegistry.ISchemaRegistryClient! client, System.Collections.Generic.IEnumerable<System.Type!>! messageTypes) -> void
+AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver.AvroSharpMessageTypeResolver(Confluent.SchemaRegistry.ISchemaRegistryClient! client) -> void
+AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver.OnConsumeAsync(KafkaFlow.IMessageContext! context) -> System.Threading.Tasks.ValueTask<System.Type!>
+AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver.OnProduceAsync(KafkaFlow.IMessageContext! context) -> System.Threading.Tasks.ValueTask
+static AvroSharp.KafkaFlow.AvroSharpKafkaFlowExtensions.AddSchemaRegistryAvroSharpDeserializer(this KafkaFlow.Configuration.IConsumerMiddlewareConfigurationBuilder! middlewares, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null) -> KafkaFlow.Configuration.IConsumerMiddlewareConfigurationBuilder!
+static AvroSharp.KafkaFlow.AvroSharpKafkaFlowExtensions.AddSchemaRegistryAvroSharpDeserializer(this KafkaFlow.Configuration.IConsumerMiddlewareConfigurationBuilder! middlewares, System.Collections.Generic.IEnumerable<System.Type!>! messageTypes, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null) -> KafkaFlow.Configuration.IConsumerMiddlewareConfigurationBuilder!
+static AvroSharp.KafkaFlow.AvroSharpKafkaFlowExtensions.AddSchemaRegistryAvroSharpDeserializer<TMessage>(this KafkaFlow.Configuration.IConsumerMiddlewareConfigurationBuilder! middlewares, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null) -> KafkaFlow.Configuration.IConsumerMiddlewareConfigurationBuilder!
+static AvroSharp.KafkaFlow.AvroSharpKafkaFlowExtensions.AddSchemaRegistryAvroSharpSerializer(this KafkaFlow.Configuration.IProducerMiddlewareConfigurationBuilder! middlewares, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null) -> KafkaFlow.Configuration.IProducerMiddlewareConfigurationBuilder!
