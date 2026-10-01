@@ -13,6 +13,19 @@ public sealed class AvroSchemaParseOptions
     public static AvroSchemaParseOptions Default { get; } = new();
 
     /// <summary>
+    /// The options for a schema that came with its data, such as a container file's header: the data is already
+    /// written, so the schema is read as Java reads it (JsonSchemaParser.parseInternal), without validating names or
+    /// defaults, and with Java's other leniencies (<see cref="Lenient"/>).
+    /// </summary>
+    internal static AvroSchemaParseOptions Embedded { get; } = new() { ValidateNames = false, ValidateDefaults = false, Lenient = true };
+
+    /// <summary>
+    /// Gets a value indicating whether the attributes Java's parser tolerates are accepted: a <c>doc</c> or an enum's
+    /// <c>default</c> of <c>null</c> (read as absent), and a <c>namespace</c> that is not a string (ignored).
+    /// </summary>
+    internal bool Lenient { get; init; }
+
+    /// <summary>
     /// Gets a value indicating whether names, namespaces, field names and enum symbols must follow the
     /// specification's <c>[A-Za-z_][A-Za-z0-9_]*</c> rule. Defaults to <see langword="true"/>.
     /// Disable only to read legacy schemas produced by non-conforming tools.

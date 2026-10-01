@@ -238,7 +238,7 @@ internal sealed class SchemaJsonReader
 
             if (property.NameEquals("doc"u8))
             {
-                doc = ReadString(property);
+                doc = ReadOptionalString(property);
             }
             else if (property.NameEquals("aliases"u8))
             {
@@ -362,7 +362,7 @@ internal sealed class SchemaJsonReader
             }
             else if (property.NameEquals("doc"u8))
             {
-                attributes.Doc = ReadString(property);
+                attributes.Doc = ReadOptionalString(property);
             }
             else if (property.NameEquals("order"u8))
             {
@@ -399,7 +399,7 @@ internal sealed class SchemaJsonReader
 
             if (property.NameEquals("doc"u8))
             {
-                doc = ReadString(property);
+                doc = ReadOptionalString(property);
             }
             else if (property.NameEquals("aliases"u8))
             {
@@ -411,7 +411,7 @@ internal sealed class SchemaJsonReader
             }
             else if (property.NameEquals("default"u8))
             {
-                defaultSymbol = ReadString(property);
+                defaultSymbol = ReadOptionalString(property);
             }
             else
             {
@@ -455,7 +455,7 @@ internal sealed class SchemaJsonReader
 
             if (property.NameEquals("doc"u8))
             {
-                doc = ReadString(property);
+                doc = ReadOptionalString(property);
             }
             else if (property.NameEquals("aliases"u8))
             {
@@ -595,6 +595,9 @@ internal sealed class SchemaJsonReader
                     break;
                 case JsonValueKind.Null:
                     break;
+                case var _ when _options.Lenient:
+                    // As Java's parser: a namespace that is not a string is ignored, and the enclosing one applies.
+                    break;
                 default:
                     Pop();
                     Push("namespace");
@@ -661,6 +664,10 @@ internal sealed class SchemaJsonReader
 
         return property.Value.GetString()!;
     }
+
+    // A string attribute that Java's parser also accepts as null (doc, an enum's default): null when lenient.
+    private string? ReadOptionalString(JsonProperty property) =>
+        _options.Lenient && property.Value.ValueKind == JsonValueKind.Null ? null : ReadString(property);
 
     private string[] ReadStringArray(JsonProperty property)
     {

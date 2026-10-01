@@ -325,4 +325,58 @@ public class GeneratedCodeReviewTests
         await Assert.That(sources.Length).IsEqualTo(2);
         await Assert.That(compileDiagnostics.Where(d => d.Severity >= DiagnosticSeverity.Warning).Select(d => d.ToString())).IsEmpty();
     }
+
+    private const string SentinelSchema = """
+        {"type":"record","name":"Lease","namespace":"raw","fields":[
+          {"name":"expires","type":{"type":"long","logicalType":"timestamp-millis","avrosharp.raw":true}},
+          {"name":"starts","type":{"type":"long","logicalType":"timestamp-millis"}}
+        ]}
+        """;
+
+    /// <summary>
+    /// Java reads a timestamp of Long.MaxValue, a common "never" sentinel, but DateTimeOffset can't hold it, so a
+    /// generated type failed every file that had one. "avrosharp.raw": true keeps one schema's underlying type, so the
+    /// field is a long and reads it, while the others keep their .NET types.
+    /// </summary>
+    [Test]
+    public async Task ARawLogicalType_IsItsUnderlyingType_AndReadsValuesDotNetCannotHold()
+    {
+        const string Reader = """
+            public static class SentinelReader
+            {
+                public static object Read(byte[] data) => raw.Lease.FromAvroBytes(data);
+            }
+            """;
+        var assembly = GeneratorHarness.GenerateAndLoad([("lease.avsc", SentinelSchema)], extraSource: Reader);
+        var type = assembly.GetType("raw.Lease")!;
+        var schema = (RecordSchema)AvroSchema.Parse(SentinelSchema);
+        var data = GenericDatumWriter.Create(schema).WriteToArray(new GenericRecord(schema) { ["expires"] = long.MaxValue, ["starts"] = 0L });
+
+        var lease = assembly.GetType("SentinelReader")!.GetMethod("Read")!.Invoke(null, [data])!;
+
+        await Assert.That(type.GetProperty("Expires")!.PropertyType).IsEqualTo(typeof(long));
+        await Assert.That(type.GetProperty("Starts")!.PropertyType).IsEqualTo(typeof(DateTimeOffset));
+        await Assert.That(type.GetProperty("Expires")!.GetValue(lease)).IsEqualTo(long.MaxValue);
+        await Assert.That(type.GetProperty("Starts")!.GetValue(lease)).IsEqualTo(DateTimeOffset.UnixEpoch);
+    }
+
+    /// <summary>Without "avrosharp.raw", such a value fails with a message that says how to read it.</summary>
+    [Test]
+    public async Task AnOutOfRangeTimestamp_FailsWithTheWayToReadIt()
+    {
+        var ex = Assert.Throws<AvroDataException>(() => AvroSharp.Serialization.AvroLogicalValues.TimestampFromMilliseconds(long.MaxValue));
+
+        await Assert.That(ex.Message).Contains("outside the range of DateTime").And.Contains("\"avrosharp.raw\": true");
+    }
+
+    [Test]
+    public async Task ARawLogicalType_IsReported_InApacheCompatibleMode()
+    {
+        var (sources, generatorDiagnostics, _) = GeneratorHarness.Run([("lease.avsc", SentinelSchema)], apacheCompatible: true, referenceApache: true);
+
+        var diagnostic = generatorDiagnostics.Single();
+        await Assert.That(diagnostic.Id).IsEqualTo("AVROGEN003");
+        await Assert.That(diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture)).Contains("\"avrosharp.raw\" is not available with AvroSharpApacheCompatible");
+        await Assert.That(sources).IsEmpty();
+    }
 }

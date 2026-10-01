@@ -68,6 +68,12 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 ### Fixed
 
+- **Container files whose schema Java reads are read.** A file's schema is parsed as Java parses it, without validating names or defaults, and with Java's leniencies: a `"doc"` or an enum's `"default"` of `null`, and a `namespace` that is not a string. Before, a field named `user-id` or `größe`, or a `"default": null` on a `string` field, made the file unreadable (`The file's schema is invalid`). These are common in files written by Java before 1.9, and by other tools. `AvroSchema.Parse` still validates.
+- **Out-of-range logical values in generated types:** a `timestamp-millis` of `Long.MaxValue`, a common "never" sentinel that Java reads, can't be a `DateTimeOffset`.
+  - `"avrosharp.raw": true` on a schema now keeps that one logical type's underlying type, so the property is a `long` and reads it. The other fields keep their .NET types.
+  - The range errors say how to read such values.
+  - Not available with `AvroSharpApacheCompatible`, which reports it.
+- **Documented:** logical types don't take part in schema resolution, as in Java, so a decimal of another scale reads as another number, although the specification says such decimals don't match. `AvroSchemaCompatibility` warns about it.
 - **Message readers (#159, #160):**
   - Concurrent `ReadAsync` calls that met the same new fingerprint or registry ID each asked the resolver. Now one fetches and the others wait for it. A fetch that fails or is cancelled caches nothing.
   - Bad data made `ReadAsync` and `ReadPayloadAsync` throw from the call itself. It now faults the returned task, so reads started together, then awaited, all complete.

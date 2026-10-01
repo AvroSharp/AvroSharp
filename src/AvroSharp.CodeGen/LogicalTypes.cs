@@ -18,12 +18,31 @@ internal static class LogicalTypes
     // System.Decimal holds 28-29 significant digits; larger precisions keep their bytes.
     private const int MaxDecimalPrecision = 28;
 
+    /// <summary>
+    /// The schema property that keeps one logical type's underlying type, as <see cref="LogicalTypeMapping.Raw"/> keeps
+    /// every one: for values that .NET's types can't hold, such as a <c>timestamp-millis</c> of <c>Long.MaxValue</c>,
+    /// which Java reads. Custom properties are not part of the canonical form, so the schema's fingerprint is unchanged.
+    /// </summary>
+    public const string RawProperty = "avrosharp.raw";
+
+    /// <summary>Gets whether <paramref name="schema"/> has <c>"avrosharp.raw": true</c>.</summary>
+    public static bool IsRaw(AvroSchema schema) =>
+        schema.Properties.TryGetValue(RawProperty, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.True;
+
     /// <summary>Gets the mapping for <paramref name="schema"/>, or <see langword="null"/> when it keeps its underlying type.</summary>
     public static LogicalValue? For(AvroSchema schema, CodeGenOptions options)
     {
         if (schema.LogicalType is not { } logical)
         {
             return null;
+        }
+
+        if (IsRaw(schema))
+        {
+            // Apache's reader puts its own .NET type into the field, so the property can't be the underlying type there.
+            return options.ApacheCompatible
+                ? throw new AvroException($"\"{RawProperty}\" is not available with AvroSharpApacheCompatible: Apache.Avro's reader sets {logical.Name} fields to its own .NET type.")
+                : null;
         }
 
         // Apache.Avro's specific reader calls Put with its own .NET types, so the compatibility mode always uses them.

@@ -39,6 +39,9 @@ public sealed partial class GenericDatumReader
     /// </list>
     /// </summary>
     /// <remarks>
+    /// Logical types don't take part, as in Java: values are read as the reader's logical type, so a decimal of another
+    /// scale reads as another number (the specification says such decimals don't match).
+    /// <see cref="AvroSchemaCompatibility.Check(AvroSchema, AvroSchema, AvroCompatibilityOptions?)"/> warns about it.
     /// Readers with the default options are cached per pair of schemas. A mismatch that the data may never contain (a
     /// union branch with no counterpart, an enum symbol without a default) is reported with
     /// <see cref="AvroDataException"/> only when such a value is read, as in the Java implementation.

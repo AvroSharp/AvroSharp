@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AvroSharp.Buffers;
 using AvroSharp.Containers;
 using AvroSharp.IO;
+using AvroSharp.Schemas;
 using TUnit.Assertions.Enums;
 
 namespace AvroSharp.Tests.Containers;
@@ -375,6 +376,37 @@ public class ContainerHostileInputTests
         var ex = Assert.Throws<AvroException>(() => AvroFileReader.OpenGeneric(new MemoryStream(bytes)));
 
         await Assert.That(ex.Message).IsEqualTo("The file is compressed with the '' codec, which is not available; add it to AvroFileReaderOptions.Codecs.");
+    }
+
+    /// <summary>
+    /// A file's schema is read as Java reads it (JsonSchemaParser.parseInternal): without validating names or defaults,
+    /// and with its other leniencies. Java's avro-tools reads each of these files; the data is a record of one string "x".
+    /// </summary>
+    [Test]
+    [Arguments("""{"type":"record","name":"R","fields":[{"name":"s","type":"string","default":null}]}""", "s")]
+    [Arguments("""{"type":"record","name":"R","fields":[{"name":"user-id","type":"string"}]}""", "user-id")]
+    [Arguments("""{"type":"record","name":"R","fields":[{"name":"größe","type":"string"}]}""", "größe")]
+    [Arguments("""{"type":"record","name":"R","doc":null,"namespace":5,"fields":[{"name":"s","type":"string","doc":null}]}""", "s")]
+    public async Task AFileSchemaThatJavaReads_IsRead(string schema, string field)
+    {
+        var bytes = WithBlock(1, [0x02, (byte)'x'], schema: schema);
+
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(bytes));
+        var records = reader.ReadAll().ToList();
+
+        await Assert.That(records.Single().AsRecord()[field].AsString()).IsEqualTo("x");
+        Assert.Throws<AvroSchemaException>(() => AvroSchema.Parse(schema));
+    }
+
+    [Test]
+    public async Task AFileEnumWithANullDefault_IsRead()
+    {
+        var bytes = WithBlock(1, [0x02], schema: """{"type":"enum","name":"E","symbols":["A","B"],"default":null}""");
+
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(bytes));
+
+        await Assert.That(reader.ReadAll().Single().AsEnumSymbol()).IsEqualTo("B");
+        await Assert.That(((EnumSchema)reader.WriterSchema).DefaultSymbol).IsNull();
     }
 
     /// <summary>A header for the schema <c>long</c> (or <paramref name="schema"/>) whose sync marker is all zeros.</summary>

@@ -110,7 +110,7 @@ It prints `timestamp-millis: 12:05:12.3450000, timestamp-micros: 12:05:12.345678
 
 ## Keeping the underlying types
 
-To generate the underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others, set `<AvroSharpLogicalTypes>raw</AvroSharpLogicalTypes>`; see [the MSBuild properties](../code-generation.md#msbuild-properties).
+To generate the underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others, set `<AvroSharpLogicalTypes>raw</AvroSharpLogicalTypes>`; see [the MSBuild properties](../code-generation.md#msbuild-properties). For one field, such as a timestamp that holds `Long.MaxValue` as a sentinel, which `DateTimeOffset` can't hold, add `"avrosharp.raw": true` to its schema.
 
 The whole program is the [LogicalTypes sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/LogicalTypes).
 
