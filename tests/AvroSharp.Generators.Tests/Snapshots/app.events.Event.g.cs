@@ -333,7 +333,7 @@ namespace app.events
 
             for (var index = 0; index < plan.DefaultCount; index++)
             {
-                var field = new global::AvroSharp.IO.AvroReader(plan.DefaultValue(index));
+                var field = plan.DefaultReader(index);
                 ReadField(ref field, value, plan.DefaultTarget(index), depth);
             }
 

@@ -73,6 +73,7 @@ public sealed class AvroRegistryMessageReader<T>
     private readonly int _maxPayloadLength;
     private readonly ConcurrentDictionary<AvroSchemaId, Entry> _entries = new();
     private readonly System.Threading.Lock _createLock = new();
+    private readonly ConcurrentDictionary<AvroSchemaId, SemaphoreSlim> _fetchGates = new();
     private Entry? _last;
 
     internal AvroRegistryMessageReader(AvroRegistryFraming framing, IAvroSchemaIdResolver resolver, Func<AvroSchema, AvroReadFunc<T>> createReader, AvroRegistryReaderOptions options)
@@ -103,14 +104,25 @@ public sealed class AvroRegistryMessageReader<T>
 
     /// <summary>Reads one framed message, fetching its schema through the resolver when its ID is new.</summary>
     /// <param name="message">The whole message.</param>
-    /// <param name="cancellationToken">Cancels a fetch.</param>
-    /// <exception cref="AvroDataException">The header is malformed, no schema has the ID, or the data is malformed.</exception>
+    /// <param name="cancellationToken">Cancels a fetch. Concurrent reads of the same new ID fetch it once: the others wait for it.</param>
+    /// <exception cref="AvroDataException">
+    /// The header is malformed, no schema has the ID, or the data is malformed. Reported through the returned task, as
+    /// every other failure is.
+    /// </exception>
     public ValueTask<T> ReadAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken = default)
     {
-        var (id, compressed) = ReadHeader(message.Span);
-        return Lookup(id) is { } entry
-            ? new(Decode(entry, message.Span[Framing.HeaderLength..], compressed))
-            : FetchAndDecodeAsync(id, message[Framing.HeaderLength..], compressed, cancellationToken);
+        // Bad data fails the task rather than the call (#160), so reads started together, then awaited, all complete.
+        try
+        {
+            var (id, compressed) = ReadHeader(message.Span);
+            return Lookup(id) is { } entry
+                ? new(Decode(entry, message.Span[Framing.HeaderLength..], compressed))
+                : FetchAndDecodeAsync(id, message[Framing.HeaderLength..], compressed, cancellationToken);
+        }
+        catch (AvroException ex)
+        {
+            return new(Task.FromException<T>(ex));
+        }
     }
 
     /// <summary>
@@ -126,11 +138,20 @@ public sealed class AvroRegistryMessageReader<T>
     /// <summary>Reads the Avro data of a message whose schema ID travels outside it, fetching the schema when the ID is new.</summary>
     /// <param name="id">The schema ID.</param>
     /// <param name="payload">The Avro data alone, uncompressed.</param>
-    /// <param name="cancellationToken">Cancels a fetch.</param>
-    public ValueTask<T> ReadPayloadAsync(AvroSchemaId id, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default) =>
-        Lookup(id) is { } entry
-            ? new(Decode(entry, payload.Span, compressed: false))
-            : FetchAndDecodeAsync(id, payload, compressed: false, cancellationToken);
+    /// <param name="cancellationToken">Cancels a fetch. Concurrent reads of the same new ID fetch it once: the others wait for it.</param>
+    public ValueTask<T> ReadPayloadAsync(AvroSchemaId id, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return Lookup(id) is { } entry
+                ? new(Decode(entry, payload.Span, compressed: false))
+                : FetchAndDecodeAsync(id, payload, compressed: false, cancellationToken);
+        }
+        catch (AvroException ex)
+        {
+            return new(Task.FromException<T>(ex));
+        }
+    }
 
     private (AvroSchemaId Id, bool Compressed) ReadHeader(ReadOnlySpan<byte> message) =>
         Framing.TryReadHeader(message, out var id, out var compressed)
@@ -175,10 +196,23 @@ public sealed class AvroRegistryMessageReader<T>
         return entry;
     }
 
+    // One fetch per new ID (#159): concurrent reads of it wait here, then find the entry the first one cached. A fetch
+    // that fails or is cancelled caches nothing, so the next waiter fetches with its own token.
     private async ValueTask<T> FetchAndDecodeAsync(AvroSchemaId id, ReadOnlyMemory<byte> payload, bool compressed, CancellationToken cancellationToken)
     {
-        var schema = await _resolver.GetSchemaAsync(id, cancellationToken).ConfigureAwait(false);
-        return Decode(Create(id, schema), payload.Span, compressed);
+        var gate = _fetchGates.GetOrAdd(id, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        Entry entry;
+        try
+        {
+            entry = Lookup(id) ?? Create(id, await _resolver.GetSchemaAsync(id, cancellationToken).ConfigureAwait(false));
+        }
+        finally
+        {
+            gate.Release();
+        }
+
+        return Decode(entry, payload.Span, compressed);
     }
 
     private T Decode(Entry entry, ReadOnlySpan<byte> payload, bool compressed)

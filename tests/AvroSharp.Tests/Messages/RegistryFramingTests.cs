@@ -167,6 +167,41 @@ public class RegistryFramingTests
         await Assert.That(resolver.AsyncCalls).IsEqualTo(1);
     }
 
+    /// <summary>Concurrent reads of one new ID each asked the resolver (#159); they now wait for one fetch.</summary>
+    [Test]
+    public async Task ConcurrentReadAsync_OfANewId_FetchItOnce()
+    {
+        var resolver = new SlowResolver();
+        var reader = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.Confluent, resolver);
+        var messages = Enumerable.Range(0, 8)
+            .Select(i => AvroRegistryMessage.ToArray(AvroRegistryFraming.Confluent, AvroSchemaId.FromNumber(5), User(i, "x"), GenericDatumWriter.Create(s_schema)))
+            .ToList();
+
+        var read = await Task.WhenAll(messages.Select(m => reader.ReadAsync(m).AsTask()));
+        var payloads = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => reader.ReadPayloadAsync(AvroSchemaId.FromNumber(5), messages[0].AsMemory(5)).AsTask()));
+
+        await Assert.That(resolver.AsyncCalls).IsEqualTo(1);
+        await Assert.That(read.Select(v => v.AsRecord()["id"].AsInt64())).IsEquivalentTo(Enumerable.Range(0, 8).Select(i => (long)i), TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(payloads.All(v => v.AsRecord()["id"].AsInt64() == 0)).IsTrue();
+    }
+
+    /// <summary>Bad data threw from the call itself (#160); it now faults the returned task.</summary>
+    [Test]
+    public async Task ReadAsync_WithBadData_ReturnsAFaultedTask()
+    {
+        var ids = new AvroSchemaIdStore();
+        ids.Add(AvroSchemaId.FromNumber(5), s_schema);
+        var reader = AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.Confluent, ids);
+        byte[] notAMessage = [9, 9];
+
+        var task = reader.ReadAsync(notAMessage);
+        var payload = reader.ReadPayloadAsync(AvroSchemaId.FromNumber(5), new byte[] { 0xFF });
+
+        await Assert.That(task.IsFaulted).IsTrue();
+        await Assert.That(payload.IsFaulted).IsTrue();
+        await Assert.ThrowsAsync<AvroDataException>(async () => await task);
+    }
+
     [Test]
     public async Task ReadAsync_WhenTheResolverFindsNoSchema_IsRejected_AndNotCached()
     {
@@ -379,6 +414,23 @@ public class RegistryFramingTests
             AsyncCalls++;
             await Task.Yield();
             _fetched.Add(id, s_schema);
+            return s_schema;
+        }
+    }
+
+    /// <summary>Knows nothing synchronously; each asynchronous fetch takes 100 ms, long enough for concurrent reads to overlap.</summary>
+    private sealed class SlowResolver : IAvroSchemaIdResolver
+    {
+        private int _asyncCalls;
+
+        public int AsyncCalls => Volatile.Read(ref _asyncCalls);
+
+        public AvroSchema? GetSchema(AvroSchemaId id) => null;
+
+        public async ValueTask<AvroSchema?> GetSchemaAsync(AvroSchemaId id, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _asyncCalls);
+            await Task.Delay(100, cancellationToken);
             return s_schema;
         }
     }

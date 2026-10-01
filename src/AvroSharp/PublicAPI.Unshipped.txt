@@ -1,1 +1,2 @@
 #nullable enable
+AvroSharp.Serialization.Generated.AvroRecordPlan.DefaultReader(int index) -> AvroSharp.IO.AvroReader

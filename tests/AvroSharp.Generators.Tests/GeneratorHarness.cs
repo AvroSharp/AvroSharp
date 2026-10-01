@@ -79,10 +79,13 @@ internal static class GeneratorHarness
         return (driver.GetRunResult().Results.Single().GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
     }
 
-    /// <summary>Runs the generator, compiles its output and loads the assembly, so tests can call the generated code.</summary>
-    public static System.Reflection.Assembly GenerateAndLoad(IEnumerable<(string Path, string Text)> files, string? propertyNames = null)
+    /// <summary>
+    /// Runs the generator, compiles its output and loads the assembly, so tests can call the generated code. Code in
+    /// <paramref name="extraSource"/> is compiled with it, for calls that reflection can't make (span or ref parameters).
+    /// </summary>
+    public static System.Reflection.Assembly GenerateAndLoad(IEnumerable<(string Path, string Text)> files, string? propertyNames = null, string? extraSource = null)
     {
-        var compilation = CreateCompilation(true, "internal static class Placeholder { }");
+        var compilation = CreateCompilation(true, extraSource ?? "internal static class Placeholder { }");
         CreateDriver(files, propertyNames: propertyNames).RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
         using var image = new MemoryStream();
         var emitted = output.Emit(image);
