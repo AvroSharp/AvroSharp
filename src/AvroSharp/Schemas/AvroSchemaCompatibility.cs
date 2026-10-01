@@ -205,12 +205,9 @@ public static class AvroSchemaCompatibility
                 outcome = Worst(outcome, Check(writerField.Schema, readerField.Schema, fieldPath));
             }
 
-            foreach (var readerField in reader.Fields)
+            foreach (var readerField in reader.Fields.Where(field => assignedFrom[field.Position] is null))
             {
-                if (assignedFrom[readerField.Position] is null)
-                {
-                    outcome = Worst(outcome, CheckDefault(writer, reader, readerField, path + "." + readerField.Name));
-                }
+                outcome = Worst(outcome, CheckDefault(writer, reader, readerField, path + "." + readerField.Name));
             }
 
             visit.Complete(outcome, Issues.Count, Warnings.Count);
