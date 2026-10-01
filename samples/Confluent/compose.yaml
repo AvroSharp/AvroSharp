@@ -1,0 +1,24 @@
+# A Kafka broker and a Confluent-compatible schema registry for the sample: Redpanda, one container.
+#   docker compose up -d --wait     start it, and wait until it is healthy
+#   docker compose down             stop and remove it
+# Kafka is at 127.0.0.1:19092 and the schema registry at http://127.0.0.1:18081 (IPv4: Docker on Windows doesn't
+# forward the ports on IPv6, where "localhost" resolves first).
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v25.2.1
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://127.0.0.1:19092
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:18081
+    ports:
+      - 19092:19092
+      - 18081:18081
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- AvroSharp.Confluent against Confluent's own Avro serde, an in-memory registry, and Redpanda in Docker
+       (RedpandaTests: [Explicit], run with a filter that names them). -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <!-- The generated test types are also Apache.Avro ISpecificRecords, so the same value goes through Confluent's
+         Avro serde and AvroSharp's, and the bytes are compared. -->
+    <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
+    <!-- Apache.Avro is not strong-named. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp.Confluent\AvroSharp.Confluent.csproj" />
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Confluent.SchemaRegistry.Rules" />
+    <PackageReference Include="Confluent.SchemaRegistry.Encryption" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="Testcontainers.Redpanda" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>
