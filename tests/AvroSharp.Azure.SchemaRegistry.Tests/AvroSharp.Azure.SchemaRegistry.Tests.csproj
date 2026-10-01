@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- AvroSharp.Azure.SchemaRegistry against Microsoft's Avro serializer (Microsoft.Azure.Data.SchemaRegistry.ApacheAvro),
+       on a schema registry client in memory. -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <!-- The generated test types are also Apache.Avro ISpecificRecords, so the same value goes through Microsoft's
+         serializer and AvroSharp's. -->
+    <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
+    <!-- Apache.Avro is not strong-named. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp.Azure.SchemaRegistry\AvroSharp.Azure.SchemaRegistry.csproj" />
+    <PackageReference Include="Azure.Data.SchemaRegistry" />
+    <PackageReference Include="Microsoft.Azure.Data.SchemaRegistry.ApacheAvro" />
+    <PackageReference Include="Azure.Messaging.EventHubs" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>

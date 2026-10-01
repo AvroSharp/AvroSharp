@@ -50,6 +50,11 @@
     <PackageVersion Include="KafkaFlow.SchemaRegistry" Version="4.2.0" />
   </ItemGroup>
 
+  <!-- AvroSharp.Azure.SchemaRegistry. The package itself references [1.2.0, 2.0.0) through VersionOverride. -->
+  <ItemGroup>
+    <PackageVersion Include="Azure.Data.SchemaRegistry" Version="1.4.0" />
+  </ItemGroup>
+
   <!-- Command-line tool -->
   <ItemGroup>
     <PackageVersion Include="System.CommandLine" Version="2.0.12" />
@@ -71,6 +76,8 @@
     <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="4.2.0" />
     <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Azure.Data.SchemaRegistry.ApacheAvro" Version="1.0.1" />
+    <PackageVersion Include="Azure.Messaging.EventHubs" Version="5.12.2" />
     <!-- Brought in by Confluent.SchemaRegistry.Encryption's dependencies at 4.7.0, which has a critical advisory. -->
     <PackageVersion Include="System.Drawing.Common" Version="4.7.2" />
     <PackageVersion Include="Apache.Avro.File.Snappy" Version="1.12.2" />

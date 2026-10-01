@@ -22,6 +22,7 @@
     <Project Path="src/AvroSharp.Generators/AvroSharp.Generators.csproj" />
     <Project Path="src/AvroSharp.Confluent/AvroSharp.Confluent.csproj" />
     <Project Path="src/AvroSharp.KafkaFlow/AvroSharp.KafkaFlow.csproj" />
+    <Project Path="src/AvroSharp.Azure.SchemaRegistry/AvroSharp.Azure.SchemaRegistry.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/GettingStarted/GettingStarted.csproj" />
@@ -48,6 +49,7 @@
     <Project Path="tests/AvroSharp.Tool.Tests/AvroSharp.Tool.Tests.csproj" />
     <Project Path="tests/AvroSharp.Confluent.Tests/AvroSharp.Confluent.Tests.csproj" />
     <Project Path="tests/AvroSharp.KafkaFlow.Tests/AvroSharp.KafkaFlow.Tests.csproj" />
+    <Project Path="tests/AvroSharp.Azure.SchemaRegistry.Tests/AvroSharp.Azure.SchemaRegistry.Tests.csproj" />
   </Folder>
   <Folder Name="/fuzz/">
     <Project Path="fuzz/AvroSharp.Fuzz/AvroSharp.Fuzz.csproj" />

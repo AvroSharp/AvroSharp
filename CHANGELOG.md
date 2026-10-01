@@ -28,6 +28,12 @@ All notable changes to this project are documented here. The format follows [Kee
   - **Several record types on one topic:** `AvroSharpMessageTypeResolver` picks each message's type from its writer's schema. It matches a list of types by their schemas' record names, without reflection, or, like KafkaFlow's, finds the type by its .NET full name in the loaded assemblies.
   - **Not supported:** schema IDs in headers, because KafkaFlow's middleware gives serializers no headers.
   - **Dependencies and targets:** net10.0, net9.0 and net8.0, on KafkaFlow [4.0.0, 5.0.0). There's no netstandard2.0 build: every KafkaFlow 4.x needs a newer System.Threading.Tasks.Extensions assembly than AvroSharp's netstandard2.0 dependencies bring. Not strong-named, because KafkaFlow isn't.
+- **AvroSharp.Azure.SchemaRegistry**, a new package: an Azure Schema Registry serializer for Event Hubs and Service Bus messages, in place of Microsoft's `Microsoft.Azure.Data.SchemaRegistry.ApacheAvro`, without Apache.Avro (#155). It is released with AvroSharp at the same version.
+  - **`AvroSharpSchemaRegistrySerializer`:** `Serialize` and `Deserialize`, sync and async, to and from `MessageContent` and the types derived from it (`EventData`, `ServiceBusMessage`).
+  - **Matches Microsoft's serializer:** the body is the Avro encoding, and the content type is `avro/binary+<schema ID>`. The tests compare the body byte for byte, and each reads what the other writes.
+  - **Types:** generated and `[AvroSerializable]` types, resolved from the writer's schema, and generic records (`GenericRecord`, `AvroValue`), read in the writer's schema.
+  - **Registry:** schemas are registered or looked up once, by full name in the serializer's group (`AutoRegisterSchemas`, off by default as in Microsoft's), and writer schemas are fetched once per ID.
+  - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Azure.Data.SchemaRegistry [1.2.0, 2.0.0).
 
 ## [1.0.0-rc.1] - 2026-10-01
 
