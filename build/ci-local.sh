@@ -32,8 +32,8 @@ dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverag
 step Coverage summary
 build/coverage-summary.sh
 
-# AvroSharp.Confluent's and AvroSharp.KafkaFlow's Redpanda tests, and the Confluent sample, need Docker with Linux
-# containers; without it they are left out, as on CI's other runners.
+# AvroSharp.Confluent's and AvroSharp.KafkaFlow's Redpanda tests, and the Confluent and KafkaFlowEvents samples, need
+# Docker with Linux containers; without it they are left out, as on CI's other runners.
 docker=no
 if docker info > /dev/null 2>&1; then
   docker=yes
@@ -48,7 +48,7 @@ DOTNET_EnableHWIntrinsic=0 dotnet test --project tests/AvroSharp.Tests -c Releas
 
 step Samples
 for sample in samples/*/; do
-  if [ "$sample" = samples/Confluent/ ] && [ "$docker" = no ]; then
+  if { [ "$sample" = samples/Confluent/ ] || [ "$sample" = samples/KafkaFlowEvents/ ]; } && [ "$docker" = no ]; then
     echo "Skipping $sample: it needs Docker"
     continue
   fi

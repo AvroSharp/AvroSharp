@@ -38,7 +38,7 @@ All of them are built from this repository and released together, at the same ve
 | Package | For | Status |
 |---|---|---|
 | [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) | Kafka with Confluent Schema Registry: serializers for Confluent.Kafka, the same bytes and settings as Confluent's Avro serializer, without Apache.Avro ([guide](docs/confluent.md), [sample](samples/Confluent/Program.cs)) | New in the release candidates |
-| [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on AvroSharp.Confluent: the same bytes as KafkaFlow's Confluent Avro serializer, and several record types per topic ([guide](docs/kafkaflow.md)) | New in the release candidates |
+| [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on AvroSharp.Confluent: the same bytes as KafkaFlow's Confluent Avro serializer, and several record types per topic ([guide](docs/kafkaflow.md), [sample](samples/KafkaFlowEvents/Program.cs)) | New in the release candidates |
 | [AvroSharp.Azure.SchemaRegistry](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Azure.SchemaRegistry) | Azure Schema Registry with Event Hubs and Service Bus | Planned: [#155](https://github.com/AvroSharp/AvroSharp/issues/155) |
 | [AvroSharp.Aws.Glue](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue) | AWS Glue Schema Registry, fully managed, on every platform | Planned: [#156](https://github.com/AvroSharp/AvroSharp/issues/156) |
 

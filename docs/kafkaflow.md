@@ -7,6 +7,8 @@
 
 It's built on [AvroSharp.Confluent](confluent.md), whose settings, rules and behavior apply.
 
+The [KafkaFlowEvents sample](../samples/KafkaFlowEvents/Program.cs) runs two event types on one topic through a KafkaFlow producer and typed handlers. It uses the Redpanda that the Confluent sample's [compose file](https://github.com/AvroSharp/AvroSharp/blob/main/samples/Confluent/compose.yaml) starts: run `docker compose up -d --wait` in `samples/Confluent`, then `dotnet run` in `samples/KafkaFlowEvents`.
+
 ```
 dotnet add package AvroSharp.KafkaFlow --prerelease
 dotnet add package AvroSharp.Generators --prerelease

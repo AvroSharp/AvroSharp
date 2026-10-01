@@ -100,8 +100,8 @@ jobs:
           DOTNET_EnableHWIntrinsic: 0
         run: dotnet test --project tests/AvroSharp.Tests -c Release --no-build -f net10.0
 
-      # Each sample checks its own results and exits with 1 when one is wrong. The Confluent sample needs a broker and a
-      # registry: its compose file starts Redpanda.
+      # Each sample checks its own results and exits with 1 when one is wrong. The Confluent and KafkaFlowEvents samples
+      # need a broker and a registry: the Confluent sample's compose file starts Redpanda.
       - name: Samples
         if: matrix.os == 'ubuntu-latest'
         shell: bash
