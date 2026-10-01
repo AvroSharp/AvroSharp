@@ -19,9 +19,28 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 > - object container files (synchronous and asynchronous) with every codec in the specification;
 > - single-object encoding, schema-registry framing (Confluent, Apicurio, AWS Glue), and streams of objects.
 >
-> For Confluent.Kafka and Confluent Schema Registry, use [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) (new in the release candidates). Add-on packages for KafkaFlow, Azure Schema Registry and AWS Glue are planned: see [integrations](docs/integrations.md).
->
 > See [the samples](samples/README.md) for runnable examples, [the roadmap](docs/roadmap.md) for what is next, and [the documentation](https://avrosharp.github.io/AvroSharp/) for guides, the API reference, benchmarks and the design.
+
+## Packages
+
+All of them are built from this repository and released together, at the same version.
+
+| Package | What it is |
+|---|---|
+| [AvroSharp](https://www.nuget.org/packages/AvroSharp) | The runtime: schemas, binary and JSON encoding, the generic model, schema resolution, container files, single-object and schema-registry messages, streams |
+| [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) | The source generator: C# types and serializers from `.avsc` files, and from your own types marked `[AvroSerializable]`, as the project builds ([code generation](docs/code-generation.md)) |
+| [AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool) | `avrosharp`, the `dotnet tool`: code generation, canonical forms, fingerprints and compatibility checks ([command-line tool](docs/cli.md)) |
+| [AvroSharp.Codecs](https://www.nuget.org/packages/AvroSharp.Codecs) | The snappy, zstandard, bzip2 and xz codecs, fully managed ([container files](#object-container-files)) |
+| [AvroSharp.CodeGen](https://www.nuget.org/packages/AvroSharp.CodeGen) | The code generation engine, for your own tools |
+
+**Integrations:** add-on packages that plug AvroSharp into the clients and frameworks applications already use ([integrations](docs/integrations.md)).
+
+| Package | For | Status |
+|---|---|---|
+| [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) | Kafka with Confluent Schema Registry: serializers for Confluent.Kafka, the same bytes and settings as Confluent's Avro serializer, without Apache.Avro ([guide](docs/confluent.md), [sample](samples/Confluent/Program.cs)) | New in the release candidates |
+| [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on AvroSharp.Confluent | Planned: [#154](https://github.com/AvroSharp/AvroSharp/issues/154) |
+| [AvroSharp.Azure.SchemaRegistry](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Azure.SchemaRegistry) | Azure Schema Registry with Event Hubs and Service Bus | Planned: [#155](https://github.com/AvroSharp/AvroSharp/issues/155) |
+| [AvroSharp.Aws.Glue](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue) | AWS Glue Schema Registry, fully managed, on every platform | Planned: [#156](https://github.com/AvroSharp/AvroSharp/issues/156) |
 
 ## Goals
 
