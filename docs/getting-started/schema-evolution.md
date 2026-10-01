@@ -144,6 +144,37 @@ catch (AvroDataException ex)
 }
 ```
 
+## Every reason, with where it is
+
+[`AvroSchemaCompatibility.Check`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html) applies the same rules, but collects every problem instead of stopping at the first. Each [issue](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityIssue.html) has a kind, a message, and a path into the data, such as `$.items[].sku`, or `$.payment[1:Card].number` for a writer union's branch.
+
+The mismatches that `Create` defers come back as [`Partial`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityVerdict.html), naming the symbols or branches that can't be read. `IsCompatible` is true only for `Compatible`, as Java's `SchemaCompatibility` and schema registries decide:
+
+```csharp
+AvroCompatibilityResult check = AvroSchemaCompatibility.Check(writerSchema: newerTiers, readerSchema: noDefaultTiers);
+Console.WriteLine($"Check: {check.Verdict}, {check.Issues[0]}");
+```
+
+The result also has [warnings](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityKind.html) for differences that the specification allows but that can change the values read:
+- a decimal whose scale changes;
+- a `date` read as `time-millis`;
+- `long` to `double`, which rounds large values;
+- a name matched without its namespace;
+- symbols read as the enum's default.
+
+[`AvroCompatibilityOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityOptions.html) has two settings:
+- `Strict` makes warnings fail;
+- `AllowPartial` lets `Partial` pass.
+
+A new version can be checked against the earlier ones, oldest first, at a schema registry's [level](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityLevel.html). The levels are Backward, Forward and Full, each with a transitive version, as Confluent Schema Registry defines them:
+
+```csharp
+AvroCompatibilityReport report = AvroSchemaCompatibility.Check(withPoints, [v1, reordered], AvroCompatibilityLevel.BackwardTransitive);
+Console.WriteLine($"Backward transitive: {report.Verdict}");
+```
+
+`result.ThrowIfIncompatible()` makes either check a one-line test in CI. From the command line, the same check is [`avrosharp schema compat`](../cli.md#schema-compat).
+
 ## Where the writer's schema comes from
 
 - **Generated types** resolve the same way: `FromAvroBytes(bytes, writerSchema)` reads data of another version of the type's schema. See the [GeneratedTypes sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratedTypes).

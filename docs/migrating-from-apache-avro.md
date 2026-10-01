@@ -123,6 +123,29 @@ The rules are the specification's:
 
 AvroSharp checks that the schemas can be resolved when the reader is created, not when data first fails. Where Apache.Avro 1.12 departs from the specification, the interop tests record it.
 
+### Replacing `Schema.CanRead`
+
+Apache's `readerSchema.CanRead(writerSchema)` is a yes or no. [`AvroSchemaCompatibility.Check`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html) takes the writer's schema first, and also gives every reason, with its path into the data:
+
+```csharp
+bool canRead = AvroSchemaCompatibility.Check(writerSchema: schema, readerSchema: newer).IsCompatible;
+```
+
+The verdicts follow the specification, and agree with what AvroSharp's readers do. So they differ from `CanRead` in these cases:
+
+| Pair | Apache's `CanRead` | `Check` |
+|---|---|---|
+| `string` and `bytes`, either way | false | Compatible (the specification's promotion) |
+| A named type whose namespace changed | false | Compatible, with an `UnqualifiedNameMatch` warning |
+| A logical type read as its base type, or the reverse | false | Compatible, with a `LogicalTypeChanged` warning |
+| A writer union `["null", R]` read as `R` | false | Partial: a null can't be read |
+| Enum symbols the reader lacks, with no enum default | true | Partial, naming the symbols |
+| A writer union read as a type that only some branches match | true | Partial, naming the branches |
+| A field renamed through a reader field alias | true, but Apache's readers lose the field's data | Compatible, and the field is read |
+| A decimal whose scale changed | true, and values are read as other numbers | Compatible, with a `DecimalChanged` warning; `Strict` fails it |
+
+A `Partial` verdict is not `IsCompatible`, as in Java's `SchemaCompatibility` and schema registries; [`AvroCompatibilityOptions.AllowPartial`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityOptions.html) accepts it.
+
 ## Container files
 
 Apache's `DataFileWriter<T>` and `DataFileReader<T>` map to [`AvroFileWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.html) and [`AvroFileReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader.html), and the files are the same format. With Apache.Avro:

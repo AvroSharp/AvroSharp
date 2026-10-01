@@ -75,6 +75,10 @@ int tier = resolved["tier"].AsInt32();
 ok &= tier == 1;
 Console.WriteLine($"Resolution: read as the newer version, tier {tier} from its default");
 
+// Apache's newer.CanRead(schema): a yes or no. The check gives every reason, with its path.
+bool canRead = AvroSchemaCompatibility.Check(writerSchema: schema, readerSchema: newer).IsCompatible;
+ok &= canRead;
+
 // --- Container files ---
 var apacheFile = new MemoryStream();
 using (var apacheWriter = Avro.File.DataFileWriter<Avro.Generic.GenericRecord>.OpenWriter(

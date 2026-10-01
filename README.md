@@ -13,7 +13,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 **[Documentation](https://avrosharp.github.io/AvroSharp/)** · [Getting started](docs/getting-started/index.md) · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [Migrating from Apache.Avro](docs/migrating-from-apache-avro.md) · [Integrations](docs/integrations.md) · [Samples](samples/README.md)
 
 > **Status:** a release candidate for 1.0.0. The public API is frozen, and from 1.0 it follows [semantic versioning](https://semver.org/): no breaking changes before 2.0. It has:
-> - schemas (parsing, writing, canonical form, fingerprints);
+> - schemas (parsing, writing, canonical form, fingerprints, compatibility checks);
 > - binary and JSON encoding of the generic data model, and schema resolution when reading it;
 > - C# code generation from `.avsc` files, with a source generator and the `avrosharp` command-line tool, and schema resolution for the generated types;
 > - object container files (synchronous and asynchronous) with every codec in the specification;
@@ -221,16 +221,17 @@ using var file = AvroFileWriter.Create<shop.Order>(stream);
 
 ## Command-line tool
 
-`avrosharp` is a `dotnet tool`, like Apache.Avro's `avrogen`. It writes the same code as the source generator, for code that is checked in or built outside MSBuild, and prints schemas' canonical forms and fingerprints:
+`avrosharp` is a `dotnet tool`, like Apache.Avro's `avrogen`. It writes the same code as the source generator, for code that is checked in or built outside MSBuild, prints schemas' canonical forms and fingerprints, and checks whether one schema can read another's data:
 
 ```shell
 dotnet tool install --global AvroSharp.Tool
 avrosharp gen schemas/ --output Generated/ --namespace Acme.Events
 avrosharp schema canonical user.avsc
 avrosharp schema fingerprint user.avsc --algorithm sha256
+avrosharp schema compat v1.avsc v2.avsc
 ```
 
-`gen` takes the generator's options (`--logical-types`, `--property-names`, `--apache-compatible` and others), and writes nothing if a schema is invalid. Errors are in the compiler's format, and the exit code is 0 on success, 1 on failure and 2 for an invalid command line. [The tool's documentation](docs/cli.md) has every command and option, examples, and use in CI.
+`gen` takes the generator's options (`--logical-types`, `--property-names`, `--apache-compatible` and others), and writes nothing if a schema is invalid. Errors are in the compiler's format, and the exit code is 0 on success, 1 on failure and 2 for an invalid command line; `schema compat` adds 3 for partially compatible schemas and 4 for incompatible ones. [The tool's documentation](docs/cli.md) has every command and option, examples, and use in CI.
 
 ## Benchmarks
 

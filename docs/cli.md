@@ -1,12 +1,13 @@
 # The avrosharp command-line tool
 
-`avrosharp` ([AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool)) generates C# from Avro schema files, and prints schemas' canonical forms and fingerprints. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
+`avrosharp` ([AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool)) generates C# from Avro schema files, prints schemas' canonical forms and fingerprints, and checks schema compatibility. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
 
 On this page:
 - [Install](#install)
 - [gen: C# from schema files](#gen-c-from-schema-files)
 - [schema canonical](#schema-canonical)
 - [schema fingerprint](#schema-fingerprint)
+- [schema compat](#schema-compat)
 - [Errors and exit codes](#errors-and-exit-codes)
 - [In a build or CI](#in-a-build-or-ci)
 - [Coming from avrogen](#coming-from-avrogen)
@@ -118,15 +119,48 @@ avrosharp schema fingerprint user.avsc --algorithm sha256 --format base64
 avrosharp schema fingerprint orders/ -r common.avsc
 ```
 
+## schema compat
+
+Checks whether data written with one schema can be read with another, and prints every reason it can't, one line each with its path into the data. The writer's schema comes first:
+
+```shell
+avrosharp schema compat v1.avsc v2.avsc
+```
+
+```text
+Incompatible.
+  $.note: The reader's field 'shop.Order.note' is not in the writer's record shop.Order and has no default value.
+```
+
+With `--level`, the last schema is a new version, and the others are earlier versions, oldest first. The levels are Confluent Schema Registry's:
+- `backward`: the new schema reads the latest earlier version's data;
+- `forward`: the latest earlier version reads the new schema's data;
+- `full`: both;
+- each with a `-transitive` version, which checks every earlier version.
+
+```shell
+avrosharp schema compat --level backward-transitive v1.avsc v2.avsc v3.avsc
+```
+
+The options:
+- `--json` prints the verdict, issues and warnings as JSON;
+- `--strict` fails on warnings: differences that the specification allows but that can change the values read, such as a decimal's scale;
+- `--allow-partial` passes when only some values can't be read: an enum symbol, or a union branch, that the reader lacks;
+- `-r` names files that define shared named types.
+
+The check is [`AvroSchemaCompatibility`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html), the same as in code ([Schema evolution](getting-started/schema-evolution.md#every-reason-with-where-it-is)).
+
 ## Errors and exit codes
 
 Errors are reported in the compiler's format, `path(line,column): error AVROGEN001: message`, so editors and CI logs link them to the schema.
 
 | Exit code | Meaning |
 |---|---|
-| 0 | Success. |
+| 0 | Success; for `schema compat`, compatible. |
 | 1 | The command failed: an invalid schema, a missing file, or output that could not be written. |
 | 2 | The command line is not valid: an unknown command or option, or a missing or invalid argument. |
+| 3 | `schema compat`: partially compatible. The reader can be created, but some values can't be read. |
+| 4 | `schema compat`: incompatible. |
 
 Errors go to standard error; results and informational messages go to standard output.
 
