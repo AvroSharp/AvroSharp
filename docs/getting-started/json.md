@@ -72,7 +72,7 @@ Console.WriteLine(bytesJson);
 "Hi\u0000\u00FF"
 ```
 
-Records are objects and arrays are arrays, as in plain JSON. `float` and `double` NaN and infinities, which JSON numbers can't express, are the strings `"NaN"`, `"Infinity"` and `"-Infinity"`.
+Records are objects and arrays are arrays, as in plain JSON. `float` and `double` NaN and infinities, which JSON numbers can't express, are the strings `"NaN"`, `"Infinity"` and `"-Infinity"`. Reading also accepts `"INF"` and `"-INF"`, and a whole number written as `1.0` or `1e2` for an `int` or `long`, as Java's `JsonDecoder` does.
 
 ## Convert binary Avro to JSON and back
 

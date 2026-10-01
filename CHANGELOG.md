@@ -59,6 +59,10 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 ### Fixed
 
+- **Enum and fixed values written as another schema:** the generic binary and JSON writers wrote an enum value's ordinal in its own schema, so a symbol at another position in the target schema became another symbol, silently, and one the target lacks was written anyway; and a fixed value of another size wrote all its bytes, shifting every later field. The symbol is now found in the target schema, and the size is checked. Values of the target schema itself, or of a copy parsed separately, write faster than before.
+- **Escaped unpaired surrogates** (`\ud800`) in a schema or in JSON data threw `InvalidOperationException`. A schema with one, anywhere, is now an `AvroSchemaException` (container file headers included), and JSON data an `AvroDataException`.
+- **.NET Framework:** the JSON reader read `-0.0` as `+0.0` and rejected a number beyond `double`'s range; it reads `-0.0` and an infinity, as on the other targets and in Java.
+- A bad namespace is reported at `$.namespace`, not `$.name`.
 - A fixed type named `Equals` or `GetHashCode` generated code that did not compile (CS0542); it is renamed, with a note, like the other generated member names (#141).
 - A decimal default that the generated C# `decimal` cannot hold (beyond 96 bits, or with more digits than the precision) generated code whose constructor threw; it is now a generation error (#141).
 - **Union defaults in generated code** are for the first branch they are a value of, as Avro 1.12 says and the readers do, not always the first branch. `["int","string"]` with a string default failed to generate, a `[enum,"string"]` default that isn't a symbol generated code that didn't compile, and a decimal default in a later branch escaped the check above.
@@ -67,6 +71,7 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 ### Changed
 
+- **JSON numbers as Java reads them:** the JSON reader accepts a whole number written as `1.0` or `1e2` for an `int` or `long`, and `"INF"` and `"-INF"` for a `float` or `double`, as Java's `JsonDecoder` does. The writer is unchanged.
 - **Faster logical values, parsing, resolution and strings (#135).** Measured on the EPYC 7543 with main and the branch in parallel lanes on neighbouring CCDs, on both sockets:
   - **Decimal writes:** 2.9× faster on bytes (178–188 to 62 µs per 1,024 `decimal(18,4)` values; Apache.Avro takes 94 µs), and 2.6× on fixed. `Pow10`'s multiplication loop became a table, `decimal.GetBits` writes into the stack on .NET 5+, and the rounding check runs only for a value with more fractional digits than the scale (.NET 7+).
   - **`uuid` strings:** writes −40%, reads −50%. They're parsed from and formatted to UTF-8 (`Utf8Parser`/`Utf8Formatter`), without a string, and are faster than Apache.Avro both ways.
