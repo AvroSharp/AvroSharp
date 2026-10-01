@@ -36,6 +36,22 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
 
 - **The public API is frozen for 1.0 (#73).** Every package declares its API as shipped, and package validation compares each with its 0.2.0 on nuget.org. The breaks listed above are the only ones allowed; any other fails the pack.
 - **`AvroMessageReader<T>.ReadAsync`**, which fetches an unknown fingerprint through the resolver and keeps its reader, and **`AvroSchemaStore.GetSchemaAsync`** (#134).
+- **Schemas and serializers from C# types (#31):** mark a `partial` class or record class `[AvroSerializable]`, and the `AvroSharp.Generators` package writes its schema and serializers from its members.
+  - **What the type gets:** the same members as a type generated from a `.avsc` file, so `AvroSerializer`, container files, messages and the registry readers take it alike. The serializers are the same code, with no reflection, and they're AOT-clean.
+  - **The mapping:**
+    - primitives;
+    - nullable types, as unions with `null` and a default of `null`;
+    - C# enums, `List<T>` and `Dictionary<string, T>`;
+    - other `[AvroSerializable]` classes, as records;
+    - `Guid`, `DateOnly`, `TimeOnly` and `DateTimeOffset`;
+    - `decimal` with `[AvroDecimal]`, and `byte[]` or `Guid` as `fixed` with `[AvroFixed]`;
+    - `object` with `[AvroUnion]`, as a union of records.
+  - **Field names** are the member names as written, as Apache Avro's do. `AvroNaming.CamelCase` converts them, per type or with `[assembly: AvroNamingPolicy]`. `[AvroName]`, `[AvroAlias]`, `[AvroDoc]` (or the XML summary), `[AvroDefault]`, `[AvroIgnore]` and `[AvroField(Order)]` cover the rest.
+  - **Diagnostics** AVROGEN101–118 report what the first version doesn't support, at the code: `init`-only members, primary constructors, nested or generic types, a `DateTime` without a logical type, and enums whose values aren't 0, 1, 2 and so on.
+  - The design is in docs/design.md §6.5, the guide in [Code generation](docs/code-generation.md#from-c-types-avroserializable), and the code in the SerializableTypes sample.
+- **`AvroTypes` (#31):** a type's schema and read and write functions, by type argument or by `Type`, without reflection, for integrations and generic code on every target.
+  - Every generated type has `AvroTypeInfo`. It registers itself on .NET 5 and later (with a module initializer); elsewhere, call `AvroTypes.Register` once.
+  - The primitives that Confluent's serializers support are registered, and read promoted writer schemas.
 - **Schema compatibility checks (#165):** `AvroSchemaCompatibility.Check(writerSchema, readerSchema)` says whether data written with one schema can be read with another.
   - **The verdict** is `Compatible`, `Partial` or `Incompatible`. `Partial` means some values can't be read: an enum symbol, or a writer union branch, that the reader lacks. The readers leave these until such a value is read. `IsCompatible` is true only for `Compatible`, as in Java's `SchemaCompatibility` and schema registries; `AllowPartial` accepts `Partial`.
   - **Every issue is reported, not just the first.** Each has a kind, a message, and a path into the data (`$.items[].sku`, `$.payment[1:Card].number`). A named type used in several places lists its other paths.
