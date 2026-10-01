@@ -164,14 +164,15 @@ public sealed class GenericDatumJsonReader
 #if NETSTANDARD
     // .NET Framework's System.Text.Json reads -0.0 as +0.0, and fails for a number beyond the type's range, where .NET
     // (Core) gives -0.0 and an infinity, as IEEE 754 and Java do. The JSON syntax is already validated, so a number
-    // that doesn't fit is too large. On .NET 8 and later, and on .NET Core running this build, this is TryGetDouble.
+    // that doesn't fit is too large. A zero is corrected only when its bits are positive zero's. On .NET 8 and later,
+    // and on .NET Core running this build, this is TryGetDouble.
     private static bool TryGetDouble(JsonElement json, out double value)
     {
         if (!json.TryGetDouble(out value))
         {
             value = json.GetRawText()[0] == '-' ? double.NegativeInfinity : double.PositiveInfinity;
         }
-        else if (value == 0 && json.GetRawText()[0] == '-')
+        else if (BitConverter.DoubleToInt64Bits(value) == 0 && json.GetRawText()[0] == '-')
         {
             value = -0.0;
         }
@@ -185,7 +186,7 @@ public sealed class GenericDatumJsonReader
         {
             value = json.GetRawText()[0] == '-' ? float.NegativeInfinity : float.PositiveInfinity;
         }
-        else if (value == 0 && json.GetRawText()[0] == '-')
+        else if (BitConverter.DoubleToInt64Bits(value) == 0 && json.GetRawText()[0] == '-')
         {
             value = -0.0f;
         }
