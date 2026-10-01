@@ -8,6 +8,7 @@ namespace AvroSharp.Generators;
 /// <summary>The diagnostics of <see cref="SerializableTypeGenerator"/> (AnalyzerReleases.Unshipped.md).</summary>
 internal static class SerializableTypeDiagnostics
 {
+    // Not AVROGEN003, the .avsc generator's: each analyzer needs IDs of its own (RS1019).
     public const string GenerationFailed = "AVROGEN118";
     public const string NotPartial = "AVROGEN101";
     public const string UnsupportedType = "AVROGEN102";
@@ -35,7 +36,7 @@ internal static class SerializableTypeDiagnostics
 
     private static readonly DiagnosticDescriptor s_unsupportedType = new("AVROGEN102", "Member type has no Avro mapping", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor s_decimalWithoutPrecision = new("AVROGEN103", "decimal member without [AvroDecimal]", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
+    private static readonly DiagnosticDescriptor s_decimalWithoutPrecision = new("AVROGEN103", "Decimal member without [AvroDecimal]", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor s_invalidName = new("AVROGEN104", "Invalid Avro name", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
@@ -53,13 +54,13 @@ internal static class SerializableTypeDiagnostics
 
     private static readonly DiagnosticDescriptor s_notSerializable = new("AVROGEN111", "Member uses a class without [AvroSerializable]", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor s_misappliedAttribute = new("AVROGEN112", "Avro attribute does not apply", "{0}", Category, DiagnosticSeverity.Warning, isEnabledByDefault: true);
+    private static readonly DiagnosticDescriptor s_misappliedAttribute = new("AVROGEN112", "Avro attribute does not apply", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor s_nameCollision = new("AVROGEN113", "Avro name defined by two types", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor s_dateTimeWithoutLogicalType = new("AVROGEN114", "DateTime member without a logical type", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor s_initOnly = new("AVROGEN115", "init-only member", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
+    private static readonly DiagnosticDescriptor s_initOnly = new("AVROGEN115", "Init-only member", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor s_enumValues = new("AVROGEN116", "Enum values are not 0, 1, 2 and so on", "{0}", Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
@@ -87,7 +88,8 @@ internal static class SerializableTypeDiagnostics
         s_reservedName,
     }.ToDictionary(d => d.Id, StringComparer.Ordinal);
 
-    public static bool IsWarning(string id) => string.Equals(id, MisappliedAttribute, StringComparison.Ordinal);
+    // None for now: a misapplied attribute (AVROGEN112) would change the schema silently, so it is an error too.
+    public static bool IsWarning(string id) => false;
 
     public static Diagnostic Create(DiagnosticInfo info) => Diagnostic.Create(s_descriptors[info.Id], info.ToLocation(), info.Message);
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using AvroSharp.Serialization;
 
 // Field names in camelCase for every type here, as schemas read by Java and other languages usually have them.
-[assembly: AvroNamingPolicy(AvroNaming.CamelCase)]
+[assembly: AvroSerializableDefaults(FieldNames = AvroNaming.CamelCase)]
 
 namespace Shop;
 

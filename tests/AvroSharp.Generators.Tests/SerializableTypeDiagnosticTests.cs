@@ -23,10 +23,11 @@ public class SerializableTypeDiagnosticTests
     [Arguments("[AvroSerializable] public partial class T<X> { public int A { get; set; } }", "AVROGEN107")]
     [Arguments("public partial class Outer { [AvroSerializable] public partial class T { public int A { get; set; } } }", "AVROGEN107")]
     [Arguments("[AvroSerializable] public partial record T(int A);", "AVROGEN108")]
-    [Arguments("[AvroSerializable] public partial class T { [AvroField(Order = 1)] public int A { get; set; } public int B { get; set; } }", "AVROGEN109")]
+    [Arguments("[AvroSerializable] public partial class T { [AvroFieldPosition(1)] public int A { get; set; } public int B { get; set; } }", "AVROGEN109")]
     [Arguments("[AvroSerializable] public partial class T { [AvroUnion(typeof(U))] public string A { get; set; } = \"\"; } [AvroSerializable] public partial class U { public int X { get; set; } }", "AVROGEN110")]
     [Arguments("[AvroSerializable] public partial class T { public U A { get; set; } = new(); } public class U { public int X { get; set; } }", "AVROGEN111")]
     [Arguments("[AvroSerializable] public partial class T { [AvroDecimal(10, 2)] public int A { get; set; } }", "AVROGEN112")]
+    [Arguments("[AvroSerializable] public partial class T { [AvroLogicalType(\"date\")] public long A { get; set; } }", "AVROGEN112")]
     [Arguments("[AvroSerializable] public partial class T { public U A { get; set; } = new(); } [AvroSerializable(Name = \"T\")] public partial class U { public int X { get; set; } }", "AVROGEN113")]
     [Arguments("[AvroSerializable] public partial class T { public DateTime A { get; set; } }", "AVROGEN114")]
     [Arguments("[AvroSerializable] public partial class T { public int A { get; init; } }", "AVROGEN115")]
@@ -41,14 +42,16 @@ public class SerializableTypeDiagnosticTests
         await Assert.That(generatorDiagnostics.Where(d => string.Equals(d.Id, id, System.StringComparison.Ordinal)).All(d => d.Location.Kind != Microsoft.CodeAnalysis.LocationKind.None && d.Location.GetLineSpan().IsValid)).IsTrue();
     }
 
+    /// <summary>A misapplied attribute is an error too (AVROGEN112): it would change the schema silently.</summary>
     [Test]
-    public async Task AnError_GeneratesNothing_ButAWarningDoes()
+    public async Task AnError_GeneratesNothing_AMisappliedAttributeIncluded()
     {
         var (errorSources, _, _) = GeneratorHarness.RunTypes(Usings + "[AvroSerializable] public partial class T { public decimal A { get; set; } }");
-        var (warningSources, warnings, _) = GeneratorHarness.RunTypes(Usings + "[AvroSerializable] public partial class T { [AvroDecimal(10, 2)] public int A { get; set; } }");
+        var (misappliedSources, misapplied, _) = GeneratorHarness.RunTypes(Usings + "[AvroSerializable] public partial class T { [AvroDecimal(10, 2)] public int A { get; set; } }");
 
         await Assert.That(errorSources).IsEmpty();
-        await Assert.That(warnings.Single().Id).IsEqualTo("AVROGEN112");
-        await Assert.That(warningSources.Length).IsEqualTo(1);
+        await Assert.That(misapplied.Single().Id).IsEqualTo("AVROGEN112");
+        await Assert.That(misapplied.Single().Severity).IsEqualTo(Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+        await Assert.That(misappliedSources).IsEmpty();
     }
 }

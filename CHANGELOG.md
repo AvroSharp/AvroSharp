@@ -46,7 +46,7 @@ The public API review before 1.0 (#134) renames and moves members, so the API ca
     - `Guid`, `DateOnly`, `TimeOnly` and `DateTimeOffset`;
     - `decimal` with `[AvroDecimal]`, and `byte[]` or `Guid` as `fixed` with `[AvroFixed]`;
     - `object` with `[AvroUnion]`, as a union of records.
-  - **Field names** are the member names as written, as Apache Avro's do. `AvroNaming.CamelCase` converts them, per type or with `[assembly: AvroNamingPolicy]`. `[AvroName]`, `[AvroAlias]`, `[AvroDoc]` (or the XML summary), `[AvroDefault]`, `[AvroIgnore]` and `[AvroField(Order)]` cover the rest.
+  - **Field names** are the member names as written, as Apache Avro's do. `AvroNaming.CamelCase` converts them, per type or with `[assembly: AvroSerializableDefaults(FieldNames = ...)]`. `[AvroName]`, `[AvroAlias]`, `[AvroDoc]` (or the XML summary), `[AvroDefault]`, `[AvroIgnore]` and `[AvroFieldPosition]` cover the rest. `[AvroLogicalType]` on a raw `long`, `int` or `string` keeps the value raw.
   - **Diagnostics** AVROGEN101–118 report what the first version doesn't support, at the code: `init`-only members, primary constructors, nested or generic types, a `DateTime` without a logical type, and enums whose values aren't 0, 1, 2 and so on.
   - The design is in docs/design.md §6.5, the guide in [Code generation](docs/code-generation.md#from-c-types-avroserializable), and the code in the SerializableTypes sample.
 - **`AvroTypes` (#31):** a type's schema and read and write functions, by type argument or by `Type`, without reflection, for integrations and generic code on every target.

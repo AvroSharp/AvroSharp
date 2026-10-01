@@ -34,8 +34,8 @@ internal sealed class SerializableTypeAnalyzer
     private const string LogicalTypeAttribute = Attributes + "AvroLogicalTypeAttribute";
     private const string UnionAttribute = Attributes + "AvroUnionAttribute";
     private const string EnumDefaultAttribute = Attributes + "AvroEnumDefaultAttribute";
-    private const string FieldAttribute = Attributes + "AvroFieldAttribute";
-    private const string NamingPolicyAttribute = Attributes + "AvroNamingPolicyAttribute";
+    private const string FieldPositionAttribute = Attributes + "AvroFieldPositionAttribute";
+    private const string DefaultsAttribute = Attributes + "AvroSerializableDefaultsAttribute";
 
     private const int CamelCase = 1;
 
@@ -60,8 +60,8 @@ internal sealed class SerializableTypeAnalyzer
         _diagnostics = diagnostics;
         _cancellationToken = cancellationToken;
         _assemblyNaming = compilation.Assembly.GetAttributes()
-            .Where(a => Is(a, NamingPolicyAttribute) && a.ConstructorArguments.Length == 1)
-            .Select(a => a.ConstructorArguments[0].Value is int value ? value : 0)
+            .Where(a => Is(a, DefaultsAttribute))
+            .Select(a => Named<int?>(a, "FieldNames") ?? 0)
             .FirstOrDefault();
     }
 
@@ -228,7 +228,7 @@ internal sealed class SerializableTypeAnalyzer
             sink.Add(At(SerializableTypeDiagnostics.PrimaryConstructor, $"{type.Name} has a primary constructor; [AvroSerializable] types need settable properties instead, for now.", type));
         }
 
-        foreach (var member in type.GetMembers().Where(m => !m.IsImplicitlyDeclared && CSharpCodeGenerator.RecordMembers.Contains(m.Name, StringComparer.Ordinal)))
+        foreach (var member in type.GetMembers().Where(m => !m.IsImplicitlyDeclared && CSharpCodeGenerator.DeclaredRecordMembers.Contains(m.Name, StringComparer.Ordinal)))
         {
             sink.Add(At(SerializableTypeDiagnostics.ReservedName, $"{type.Name}.{member.Name} has the name of a member that [AvroSerializable] adds; rename it.", member));
         }
@@ -290,7 +290,7 @@ internal sealed class SerializableTypeAnalyzer
             members.AddRange(declared);
         }
 
-        var orders = members.Select(m => Named<int?>(Attribute(m, FieldAttribute), "Order") ?? -1).ToList();
+        var orders = members.Select(m => Constructor<int?>(Attribute(m, FieldPositionAttribute)) ?? -1).ToList();
         if (!ambiguous && orders.All(o => o < 0))
         {
             return members;
@@ -300,7 +300,7 @@ internal sealed class SerializableTypeAnalyzer
         {
             Report(
                 SerializableTypeDiagnostics.AmbiguousOrder,
-                $"The fields of {type.Name} are declared in more than one file, or some have [AvroField(Order = n)]: give every field a distinct [AvroField(Order = n)], since the compiler doesn't fix the order across files.",
+                $"The fields of {type.Name} are declared in more than one file, or some have [AvroFieldPosition(n)]: give every field a distinct [AvroFieldPosition(n)], since the compiler doesn't fix the order across files.",
                 type);
             return members;
         }
@@ -476,6 +476,13 @@ internal sealed class SerializableTypeAnalyzer
         };
         if (primitive is not null)
         {
+            if (attributes?.LogicalType is { } logicalType && primitive is "int" or "long" or "string")
+            {
+                attributes.LogicalTypeUsed = true;
+                WriteRawLogical(member, primitive, Constructor<string>(logicalType));
+                return;
+            }
+
             Json.WriteStringValue(primitive);
             return;
         }
@@ -749,6 +756,30 @@ internal sealed class SerializableTypeAnalyzer
         WriteLogicalSchema(underlying, logical);
     }
 
+    // A logical type on a raw number or string: the member keeps the underlying value ("avrosharp.logicalType": "raw"),
+    // for values .NET's types can't hold, such as a timestamp of Long.MaxValue.
+    private void WriteRawLogical(ISymbol member, string primitive, string? logical)
+    {
+        var allowed = primitive switch
+        {
+            "int" => new[] { "date", "time-millis" },
+            "long" => ["time-micros", "timestamp-millis", "timestamp-micros", "timestamp-nanos", "local-timestamp-millis", "local-timestamp-micros", "local-timestamp-nanos"],
+            _ => ["uuid"],
+        };
+        if (logical is null || !allowed.Contains(logical, StringComparer.Ordinal))
+        {
+            Report(SerializableTypeDiagnostics.MisappliedAttribute, $"The logical type '{logical}' does not apply to {member.Name}, a {primitive}; it takes {string.Join(", ", allowed)}.", member);
+            Json.WriteStringValue(primitive);
+            return;
+        }
+
+        Json.WriteStartObject();
+        Json.WriteString("type", primitive);
+        Json.WriteString("logicalType", logical);
+        Json.WriteString("avrosharp.logicalType", "raw");
+        Json.WriteEndObject();
+    }
+
     private void WriteLogicalSchema(string type, string logicalType)
     {
         Json.WriteStartObject();
@@ -999,7 +1030,7 @@ internal sealed class SerializableTypeAnalyzer
             {
                 if (attribute is not null && !used)
                 {
-                    analyzer.Report(SerializableTypeDiagnostics.MisappliedAttribute, $"[{name}] does not apply to {Member.Name}, a {MemberType(Member).ToDisplayString()}; it is ignored.", Member);
+                    analyzer.Report(SerializableTypeDiagnostics.MisappliedAttribute, $"[{name}] does not apply to {Member.Name}, a {MemberType(Member).ToDisplayString()}: remove it, or change the member's type.", Member);
                 }
             }
         }

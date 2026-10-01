@@ -178,7 +178,7 @@ So [`AvroSerializer`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.S
 
 **Field names** are the member names as written, as Apache Avro's Java reflection and Apache.Avro's `[AvroField]` matching use them.
 - `[AvroSerializable(FieldNames = AvroNaming.CamelCase)]` writes `OrderId` as `orderId`.
-- `[assembly: AvroNamingPolicy(AvroNaming.CamelCase)]` does that for the whole assembly.
+- `[assembly: AvroSerializableDefaults(FieldNames = AvroNaming.CamelCase)]` does that for the whole assembly.
 - If the schemas are read by Java or other languages, set camelCase for the assembly, since their field names are camelCase by convention.
 - `[AvroName]` renames one field or enum symbol.
 
@@ -196,15 +196,18 @@ So [`AvroSerializer`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.S
 | `DateOnly`, `TimeOnly`, `DateTimeOffset` | `date`, `time-micros`, `timestamp-micros`. `[AvroLogicalType("timestamp-millis")]` and others change it. |
 | `DateTime` | Needs `[AvroLogicalType("local-timestamp-micros")]` (or `-millis`): a `DateTime`'s `Kind` leaves UTC and local time ambiguous, so a UTC timestamp is a `DateTimeOffset`. |
 | `byte[]` with `[AvroFixed(size)]` | `fixed` |
+| `long`, `int` or `string` with `[AvroLogicalType("timestamp-millis")]` (and the others) | that logical type, with the raw value kept (`"avrosharp.logicalType": "raw"`), for values .NET's types can't hold |
 | `object` with `[AvroUnion(typeof(A), typeof(B))]` | a union of those records (`null` first when the member is `object?`) |
 
 **Other attributes:**
 - `[AvroDefault("json")]`: a field's default, as Avro JSON, which readers of older data use.
 - `[AvroAlias]`: names from earlier versions.
 - `[AvroDoc]`: a `doc`. The XML `<summary>` is used when the project builds documentation.
-- `[AvroField(Order = n)]`: a field's position, needed only when the fields are declared in more than one file of a partial type.
+- `[AvroFieldPosition(n)]`: a field's position, needed only when the fields are declared in more than one file of a partial type. (Avro's own `"order"` is a field's sort order, something else.)
 
 **Not yet supported** (each is an error that says so): `init`-only members, primary constructors, types nested in other types, generic types, and narrow integer types such as `short`. [The design](design.md#65-the-attribute-driven-generator-31) lists what comes later.
+
+Inside the type, `AvroTypeInfo` now names the generated static property, so the non-generic `AvroSharp.Serialization.AvroTypeInfo` class needs its full name there.
 
 ### Finding a type's serializers: `AvroTypes`
 
@@ -237,10 +240,10 @@ The `[AvroSerializable]` generator reports these at the code. On an error, the t
 | AVROGEN106 | Error | An `[AvroDefault]` is not JSON, or not a value of the field's schema. |
 | AVROGEN107 | Error | The type is generic, or nested in another type. |
 | AVROGEN108 | Error | The type has a primary constructor. |
-| AVROGEN109 | Error | The fields are declared in more than one file without `[AvroField(Order = n)]` on each. |
+| AVROGEN109 | Error | The fields are declared in more than one file without `[AvroFieldPosition(n)]` on each. |
 | AVROGEN110 | Error | `[AvroUnion]` is not on an `object` member, or lists a type that is not a class. |
 | AVROGEN111 | Error | A member uses a class that is not `[AvroSerializable]`, or whose attribute has errors. |
-| AVROGEN112 | Warning | An Avro attribute doesn't apply to the member it's on, and is ignored. |
+| AVROGEN112 | Error | An Avro attribute doesn't apply to the member it's on, so the schema would not be the one it asks for. |
 | AVROGEN113 | Error | Two C# types define the same Avro name. |
 | AVROGEN114 | Error | A `DateTime` member has no logical type. |
 | AVROGEN115 | Error | A member is `init`-only. |
