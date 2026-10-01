@@ -7,6 +7,10 @@
   href: docs/code-generation.md
 - name: CLI tool
   href: docs/cli.md
+- name: Kafka
+  href: docs/confluent.md
+- name: Integrations
+  href: docs/integrations.md
 - name: API reference
   href: docs/api/index.md
 - name: Samples
@@ -17,8 +21,6 @@
   href: docs/apache-avro.md
 - name: Migrating from Apache.Avro
   href: docs/migrating-from-apache-avro.md
-- name: Integrations
-  href: docs/integrations.md
 - name: Docs
   href: docs/README.md
 - name: Changelog

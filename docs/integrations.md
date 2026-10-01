@@ -16,10 +16,10 @@ With Confluent.Kafka, use `AvroSharp.Confluent` below. Without it, an applicatio
 
 | Package | For | Status |
 |---|---|---|
-| `AvroSharp.Confluent` | Confluent.Kafka with Confluent Schema Registry, and registries with its API (Redpanda, Karapace, Apicurio) | In the 1.0.0 release candidates: [its README](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent), [#185](https://github.com/AvroSharp/AvroSharp/issues/185) |
-| `AvroSharp.KafkaFlow` | KafkaFlow producers and consumers, on `AvroSharp.Confluent` | Planned: [#154](https://github.com/AvroSharp/AvroSharp/issues/154) |
-| `AvroSharp.Azure.SchemaRegistry` | Azure Schema Registry with Event Hubs and Service Bus (`MessageContent`) | Planned: [#155](https://github.com/AvroSharp/AvroSharp/issues/155) |
-| `AvroSharp.Aws.Glue` | AWS Glue Schema Registry, fully managed, on every platform | Planned: [#156](https://github.com/AvroSharp/AvroSharp/issues/156) |
+| [`AvroSharp.Confluent`](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) | Confluent.Kafka with Confluent Schema Registry, and registries with its API (Redpanda, Karapace, Apicurio) | In the 1.0.0 release candidates: [its README](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent), [#185](https://github.com/AvroSharp/AvroSharp/issues/185) |
+| [`AvroSharp.KafkaFlow`](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on `AvroSharp.Confluent` | Planned: [#154](https://github.com/AvroSharp/AvroSharp/issues/154) |
+| [`AvroSharp.Azure.SchemaRegistry`](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Azure.SchemaRegistry) | Azure Schema Registry with Event Hubs and Service Bus (`MessageContent`) | Planned: [#155](https://github.com/AvroSharp/AvroSharp/issues/155) |
+| [`AvroSharp.Aws.Glue`](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue) | AWS Glue Schema Registry, fully managed, on every platform | Planned: [#156](https://github.com/AvroSharp/AvroSharp/issues/156) |
 
 **`AvroSharp.Confluent`** has [a guide of its own](confluent.md), and [a sample](../samples/Confluent/Program.cs). It is built on Confluent's own serializer base classes, so subject name strategies, auto-registration, `use.latest.version`, schema ID strategies and rules behave as they do with Confluent's serializer. It depends on `Confluent.SchemaRegistry` only, not on Apache.Avro. Its messages are byte-identical to Confluent's Avro serializer's, and both read each other's. The prototype serialized 8.7× and deserialized 6.5× faster, allocating 39% and 23% as much; the package's benchmarks are [#197](https://github.com/AvroSharp/AvroSharp/issues/197).
 
