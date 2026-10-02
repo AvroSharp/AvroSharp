@@ -281,7 +281,7 @@ public ref struct AvroWriter
             if (room == 0)
             {
                 // Grows the buffer, or near the end of a fixed span writes only the bytes the value needs.
-                WriteInt(values[i++]);
+                WriteIntOutOfLine(values[i++]);
                 continue;
             }
 
@@ -313,7 +313,7 @@ public ref struct AvroWriter
             var room = (_buffer.Length - _buffered) / MaxVarint64Length;
             if (room == 0)
             {
-                WriteLong(values[i++]);
+                WriteLongOutOfLine(values[i++]);
                 continue;
             }
 
@@ -413,6 +413,15 @@ public ref struct AvroWriter
 
         WriteRawSlow(value);
     }
+
+    // The bulk writers' fallback, for a value when the buffer has no room for a whole varint: rare, so out of line.
+    // Inlined, WriteVarint64 changed how .NET 8 and 9 compile the bulk loops around it: on the EPYC 7543, a smaller
+    // single-value path made 1-byte WriteLongs up to 48% slower (#168).
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void WriteIntOutOfLine(int value) => WriteInt(value);
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void WriteLongOutOfLine(long value) => WriteLong(value);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint32(uint value) => WriteVarint64(value);
