@@ -30,8 +30,8 @@
     "globalMetadata": {
       "_appName": "AvroSharp",
       "_appTitle": "AvroSharp",
-      "_appLogoPath": "docs/images/icon.svg",
-      "_appFaviconPath": "docs/images/favicon.svg",
+      "_appLogoPath": "docs/images/navbar.png",
+      "_appFaviconPath": "docs/images/favicon.png",
       "_appFooter": "AvroSharp is MIT licensed. Apache Avro, Avro and Apache are trademarks of The Apache Software Foundation.",
       "_enableSearch": true,
       "_gitContribute": { "repo": "https://github.com/AvroSharp/AvroSharp", "branch": "main" }
