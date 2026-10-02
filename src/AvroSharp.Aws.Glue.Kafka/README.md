@@ -1,5 +1,3 @@
-![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/logo.png)
-
 # AvroSharp.Aws.Glue.Kafka
 
 [Confluent.Kafka](https://github.com/confluentinc/confluent-kafka-dotnet) serializers and deserializers for [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html), on [AvroSharp.Aws.Glue](https://www.nuget.org/packages/AvroSharp.Aws.Glue), for Amazon MSK or any Kafka broker. They stand in for AWS's `GlueSchemaRegistryKafkaSerializer` and `GlueSchemaRegistryKafkaDeserializer`, in AWS's wire format, fully managed, without Apache.Avro or a native library. Each is both asynchronous and synchronous.

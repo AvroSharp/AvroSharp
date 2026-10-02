@@ -1,5 +1,3 @@
-![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/logo.png)
-
 # AvroSharp.Aws.Glue
 
 A managed [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html) serializer on [AvroSharp](https://github.com/AvroSharp/AvroSharp), for Kafka (Amazon MSK, or any broker) and Kinesis. It's an alternative to AWS's `AWS.Glue.SchemaRegistry`, which is a native build for Linux only, about 119 MB, with Apache.Avro. This package:
