@@ -14,7 +14,7 @@ Confluent Schema Registry serializers and deserializers for [Confluent.Kafka](ht
   - registration and `use.latest.version`;
   - schema ID strategies (prefix or header);
   - schema references;
-  - data contract rules: domain rules (such as CEL, which names the Avro fields, as Java's serializer does) and encoding rules. Field rules, such as field-level encryption (CSFLE), aren't supported yet and fail rather than being skipped.
+  - data contract rules: domain rules (such as CEL, which names the Avro fields, as Java's serializer does) and encoding rules. Field rules, such as field-level encryption (CSFLE), and migration rules aren't supported yet, and fail rather than being skipped.
 
   Only the Avro encoding is AvroSharp's. With `use.latest.version` or `use.schema.id`, the serializer also checks that the target schema encodes as your type's, logical types included, which Confluent's doesn't.
 - **Interchangeable with Confluent's serializer:**
@@ -23,7 +23,7 @@ Confluent Schema Registry serializers and deserializers for [Confluent.Kafka](ht
   - each reads what the other writes. The tests compare them byte for byte.
 - **Schema evolution:** a message is read in its writer's schema, from the registry by its schema ID, and resolved to your type's schema, so older and newer versions both read.
 
-> **Status:** new in the 1.0.0 release candidates, and released with AvroSharp at the same version. Its API may still change until 1.0.0; from then it follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
+> **Status:** new in 1.0.0, and released with AvroSharp at the same version. It follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
 
 **[Guide](https://avrosharp.github.io/AvroSharp/docs/confluent.html)** · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Confluent.html) · [Sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/Confluent) · [AvroSharp documentation](https://avrosharp.github.io/AvroSharp/)
 

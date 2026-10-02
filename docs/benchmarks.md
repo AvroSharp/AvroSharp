@@ -12,7 +12,7 @@ On this page:
 
 ## Results
 
-The latest full run of the suite: an Intel Core i7-12800H, Windows 11, .NET 10, on the 0.1.1 library code (2026-09-28). **Faster** is Apache.Avro's mean time divided by AvroSharp's: 2.00× means AvroSharp takes half the time. The [full report](reviews/2026-09-28-benchmarks.md) has every case, with times and allocations.
+The last full run of the suite written up: an Intel Core i7-12800H, Windows 11, .NET 10, on the 0.1.1 library code (2026-09-28). **Faster** is Apache.Avro's mean time divided by AvroSharp's: 2.00× means AvroSharp takes half the time. The [full report](reviews/2026-09-28-benchmarks.md) has every case, with times and allocations.
 
 | Area | Faster than Apache.Avro |
 |---|---|
@@ -30,7 +30,7 @@ The latest full run of the suite: an Intel Core i7-12800H, Windows 11, .NET 10, 
 | Bulk long reads | 2.02–3.27× |
 | Schema parsing | 1.08–1.58× |
 
-- **Every one of the 94 AvroSharp rows is faster than Apache.Avro, and none allocates more.** Writes allocate close to nothing: under 6 KB for a whole container file, against 5.7 MB for Apache.Avro.
+- **Every one of the 94 AvroSharp rows is faster than Apache.Avro, and none allocates more.** Writes allocate close to nothing: under 6 KB for a whole container file, against 5.7 MB for Apache.Avro, except xz at 777 KB.
 - **Generated code is about twice as fast as the generic model** for records, resolution and container reads.
 
 Changes since that run, measured on the same machine and recorded in the [changelog](../CHANGELOG.md):
@@ -41,6 +41,8 @@ Changes since that run, measured on the same machine and recorded in the [change
 - **Types with `[AvroSerializable]`** (#31) run the same serializers as generated code. On an EPYC 7543 a record reads 4.7–4.8× and writes 7.2–7.4× faster than Apache.Avro, as fast as the type generated from `.avsc` ([the run](reviews/2026-10-01-attribute-generator.md)).
 
 The performance review ([#135](https://github.com/AvroSharp/AvroSharp/issues/135)), measured on an EPYC 7543, made decimal writes 2.9× faster (62 µs per 1,024 `decimal(18,4)` values on bytes, against 94 µs for Apache.Avro), made `uuid` strings faster than Apache.Avro both ways, and made schema parsing 9–13% faster and the resolving generic reader 9–10% faster. The [changelog](../CHANGELOG.md) has the details.
+
+For 1.0.0-rc.1 the gate passed on an EPYC 7543 with .NET 8, 9 and 10: 330 of 330 comparisons were faster than Apache.Avro and allocated no more.
 
 ## What is measured
 
@@ -93,11 +95,11 @@ A benchmark the gate can't check fails it too, so a benchmark can't drop out of 
 - an `ApacheAvro_*` benchmark that isn't its group's baseline;
 - a benchmark named neither way.
 
-Two categories mark the exceptions. `Ungated` is for AvroSharp features that Apache.Avro has no equivalent for: single-object and registry messages, and `uuid` on `fixed`. `ReferenceOnly` is for other libraries, such as Chr.Avro, reported next to the baseline. The gate runs on real hardware, not in CI, where shared runners make timings meaningless.
+Two categories mark the exceptions. `Ungated` is for AvroSharp features that Apache.Avro has no equivalent for: single-object and registry messages, and `uuid` on `fixed`. `ReferenceOnly` is for other libraries, such as Chr.Avro, reported next to the baseline; `AvroSharpScalar_*` benchmarks, AvroSharp's own one-at-a-time loop in `BulkReadBenchmarks`, are reported the same way. The gate runs on real hardware, not in CI, where shared runners make timings meaningless.
 
 ## Rules for fast paths
 
-A SIMD or bulk path stays only if it beats Apache.Avro on every tested CPU, and AvroSharp's plain scalar loop on current CPUs, on uniform and on mixed data ([#29](https://github.com/AvroSharp/AvroSharp/issues/29), revised in [#135](https://github.com/AvroSharp/AvroSharp/issues/135)). A result within 3% of the scalar loop counts as noise; anything slower by more than 3% removes the path. A CPU more than 10 years old may be slower than the loop, but a change never makes a current CPU slower. The paths are measured on x64; there is no Arm64 machine to benchmark on, and CI tests the same paths on Arm64. No path is picked by CPU vendor at startup. The [design notes](design.md) record the decisions and the machines they were measured on: an i7-12800H, an EPYC 7543, an i5-3570K and a Ryzen 5 3500U.
+A SIMD or bulk path stays only if it beats Apache.Avro on every tested CPU, and AvroSharp's plain scalar loop on current CPUs, on uniform and on mixed data ([#29](https://github.com/AvroSharp/AvroSharp/issues/29), revised in [#135](https://github.com/AvroSharp/AvroSharp/issues/135)). The one exception is Zen+ CPUs, such as the Ryzen 5 3500U: there, single-value writes may tie with Apache.Avro or lose to it in some processes ([#168](https://github.com/AvroSharp/AvroSharp/issues/168), still open); bulk writes and every other path must still be faster. A result within 3% of the scalar loop counts as noise; anything slower by more than 3% removes the path. A CPU more than 10 years old may be slower than the loop, but a change never makes a current CPU slower. The paths are measured on x64; there is no Arm64 machine to benchmark on, and CI tests the same paths on Arm64. No path is picked by CPU vendor at startup. The [design notes](design.md) record the decisions and the machines they were measured on: an i7-12800H, an EPYC 7543, an i5-3570K and a Ryzen 5 3500U.
 
 ## Recorded runs
 

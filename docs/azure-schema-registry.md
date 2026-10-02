@@ -52,14 +52,14 @@ Order received = await serializer.DeserializeAsync<Order>(eventData);
    - `SchemaRegistryAvroSerializerOptions` → `AvroSharpSchemaRegistrySerializerOptions`.
 
    The method calls stay the same.
-4. **What differs:**
-   - **Exceptions:** a type the serializer can't write throws `InvalidOperationException`, where Microsoft's throws `ArgumentException`. Avro errors aren't wrapped: they're AvroSharp's own `AvroException` types.
-   - **Generic records:** AvroSharp's `GenericRecord` and `AvroValue`, not Apache.Avro's `GenericRecord`.
-   - **Without auto-registration,** a schema registered only by Microsoft's serializer may not be found, because its text differs (see the schema text, below). The serializer says so, and how to fix it: register the schema from AvroSharp, or turn auto-registration on.
 3. **The messages don't change:**
    - the same body, which the tests compare with Microsoft's serializer byte for byte;
    - the same content type format;
    - each reads what the other writes.
+4. **What differs:**
+   - **Exceptions:** a type the serializer can't write throws `InvalidOperationException`, where Microsoft's throws `ArgumentException`. Avro errors aren't wrapped: they're AvroSharp's own `AvroException` types.
+   - **Generic records:** AvroSharp's `GenericRecord` and `AvroValue`, not Apache.Avro's `GenericRecord`.
+   - **Without auto-registration,** a schema registered only by Microsoft's serializer may not be found, because its text differs (see the schema text, below). The serializer says so, and how to fix it: register the schema from AvroSharp, or turn auto-registration on.
 
 ## Behavior to know
 

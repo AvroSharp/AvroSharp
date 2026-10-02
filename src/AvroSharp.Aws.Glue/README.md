@@ -9,7 +9,7 @@ A managed [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/
 - **reads generated and `[AvroSerializable]` types, and generic records,** each message in its writer's schema, resolved to your type's;
 - **has Confluent.Kafka serializers** in a package of their own, [AvroSharp.Aws.Glue.Kafka](https://www.nuget.org/packages/AvroSharp.Aws.Glue.Kafka), so Kinesis and other users don't take Confluent.Kafka.
 
-> **Status:** new in the 1.0.0 release candidates, and released with AvroSharp at the same version. Its API may still change until 1.0.0; from then it follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
+> **Status:** new in 1.0.0, and released with AvroSharp at the same version. It follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
 
 **[Guide](https://avrosharp.github.io/AvroSharp/docs/aws-glue.html)** · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Aws.Glue.html) · [AvroSharp documentation](https://avrosharp.github.io/AvroSharp/)
 

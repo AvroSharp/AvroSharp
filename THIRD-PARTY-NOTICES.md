@@ -4,7 +4,7 @@ AvroSharp is licensed under the MIT license (see `LICENSE`). Its shipped package
 
 ## Polyfill
 
-The `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen`, `AvroSharp.Generators` and `AvroSharp.Tool` assemblies include source from [Polyfill](https://github.com/SimonCropp/Polyfill) (a source-only package), compiled in as internal types. It provides newer .NET APIs and language support types on older target frameworks.
+The `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen`, `AvroSharp.Generators` and `AvroSharp.Tool` assemblies, and those of the add-on packages (`AvroSharp.Confluent`, `AvroSharp.KafkaFlow`, `AvroSharp.Azure.SchemaRegistry`, `AvroSharp.Aws.Glue` and `AvroSharp.Aws.Glue.Kafka`), include source from [Polyfill](https://github.com/SimonCropp/Polyfill) (a source-only package), compiled in as internal types. It provides newer .NET APIs and language support types on older target frameworks.
 
 ```text
 MIT License

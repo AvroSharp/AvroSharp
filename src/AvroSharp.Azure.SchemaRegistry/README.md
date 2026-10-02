@@ -8,7 +8,7 @@ An [Azure Schema Registry](https://learn.microsoft.com/azure/event-hubs/schema-r
 - **Types:** generated from `.avsc` files, or your own C# types marked `[AvroSerializable]`, and generic records.
 - **Schema evolution:** each message is read in its writer's schema and resolved to your type's.
 
-> **Status:** new in the 1.0.0 release candidates, and released with AvroSharp at the same version. Its API may still change until 1.0.0; from then it follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
+> **Status:** new in 1.0.0, and released with AvroSharp at the same version. It follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
 
 **[Guide](https://avrosharp.github.io/AvroSharp/docs/azure-schema-registry.html)** · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Azure.SchemaRegistry.html) · [AvroSharp documentation](https://avrosharp.github.io/AvroSharp/)
 

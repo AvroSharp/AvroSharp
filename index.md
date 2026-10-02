@@ -20,8 +20,8 @@ A high-performance, Native AOT-friendly .NET implementation of the [Apache Avroâ
 | Package | What it is | Docs |
 |---|---|---|
 | [AvroSharp](https://www.nuget.org/packages/AvroSharp) | The runtime: schemas ([`AvroSharp.Schemas`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.html)), readers and writers ([`AvroSharp.IO`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.html), [`AvroSharp.Serialization`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.html)), the generic model ([`AvroSharp.Generic`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.html)), container files ([`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html)), messages ([`AvroSharp.Messages`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.html)) and streams ([`AvroSharp.Streams`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Streams.html)) | [Guide](README.md), [API](docs/api/index.md) |
-| [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) | The source generator: C# types from `.avsc` files as the project builds | [Code generation](docs/code-generation.md) |
-| [AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool) | `avrosharp`, the `dotnet tool`: code generation, canonical forms and fingerprints from the command line | [Command-line tool](docs/cli.md) |
+| [AvroSharp.Generators](https://www.nuget.org/packages/AvroSharp.Generators) | The source generator: C# types and serializers from `.avsc` files, and from your own types marked `[AvroSerializable]`, as the project builds | [Code generation](docs/code-generation.md) |
+| [AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool) | `avrosharp`, the `dotnet tool`: code generation, canonical forms, fingerprints and compatibility checks from the command line | [Command-line tool](docs/cli.md) |
 | [AvroSharp.Codecs](https://www.nuget.org/packages/AvroSharp.Codecs) | The snappy, zstandard, bzip2 and xz codecs, fully managed | [Codecs](README.md#object-container-files), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html) |
 | [AvroSharp.CodeGen](https://www.nuget.org/packages/AvroSharp.CodeGen) | The code generation engine, for your own tools: [`CSharpCodeGenerator`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.CSharpCodeGenerator.html) | [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.html) |
 
@@ -31,11 +31,11 @@ Add-on packages, built from the same repository and released with AvroSharp at t
 
 | Package | For | Docs |
 |---|---|---|
-| [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) | Kafka with Confluent Schema Registry: serializers for Confluent.Kafka, the same bytes and settings as Confluent's Avro serializer, without Apache.Avro. New in the release candidates. | [Guide](docs/confluent.md), [sample](samples/Confluent/Program.cs), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Confluent.html) |
-| [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on AvroSharp.Confluent: the same bytes as KafkaFlow's Confluent Avro serializer, and several record types per topic. New in the release candidates. | [Guide](docs/kafkaflow.md), [sample](samples/KafkaFlowEvents/Program.cs), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.KafkaFlow.html) |
-| [AvroSharp.Azure.SchemaRegistry](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Azure.SchemaRegistry) | Azure Schema Registry with Event Hubs and Service Bus: the message format of Microsoft's Avro serializer, without Apache.Avro. New in the release candidates. | [Guide](docs/azure-schema-registry.md), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Azure.SchemaRegistry.html) |
-| [AvroSharp.Aws.Glue](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue) | AWS Glue Schema Registry, fully managed, on every platform. New in the release candidates. | [Guide](docs/aws-glue.md), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Aws.Glue.html) |
-| [AvroSharp.Aws.Glue.Kafka](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue.Kafka) | Confluent.Kafka serializers for AWS Glue Schema Registry, on AvroSharp.Aws.Glue. New in the release candidates. | [Guide](docs/aws-glue.md), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Aws.Glue.Kafka.html) |
+| [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent) | Kafka with Confluent Schema Registry: serializers for Confluent.Kafka, the same bytes and settings as Confluent's Avro serializer, without Apache.Avro. | [Guide](docs/confluent.md), [sample](samples/Confluent/Program.cs), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Confluent.html) |
+| [AvroSharp.KafkaFlow](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.KafkaFlow) | KafkaFlow producers and consumers, on AvroSharp.Confluent: the same bytes as KafkaFlow's Confluent Avro serializer, and several record types per topic. | [Guide](docs/kafkaflow.md), [sample](samples/KafkaFlowEvents/Program.cs), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.KafkaFlow.html) |
+| [AvroSharp.Azure.SchemaRegistry](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Azure.SchemaRegistry) | Azure Schema Registry with Event Hubs and Service Bus: the message format of Microsoft's Avro serializer, without Apache.Avro. | [Guide](docs/azure-schema-registry.md), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Azure.SchemaRegistry.html) |
+| [AvroSharp.Aws.Glue](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue) | AWS Glue Schema Registry, fully managed, on every platform. | [Guide](docs/aws-glue.md), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Aws.Glue.html) |
+| [AvroSharp.Aws.Glue.Kafka](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Aws.Glue.Kafka) | Confluent.Kafka serializers for AWS Glue Schema Registry, on AvroSharp.Aws.Glue. | [Guide](docs/aws-glue.md), [API](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Aws.Glue.Kafka.html) |
 
 ## Guides
 
@@ -50,7 +50,7 @@ Add-on packages, built from the same repository and released with AvroSharp at t
 - [Azure Schema Registry](docs/azure-schema-registry.md): AvroSharp.Azure.SchemaRegistry's serializer for Event Hubs and Service Bus, and moving from Microsoft's Avro serializer.
 - [AWS Glue Schema Registry](docs/aws-glue.md): AvroSharp.Aws.Glue's managed serializer for Kafka and Kinesis, and moving from AWS's native serializer.
 - [Code generation](docs/code-generation.md): the source generator, its MSBuild properties, type mapping, schema evolution, and moving from avrogen.
-- [The avrosharp tool](docs/cli.md): `gen`, `schema canonical` and `schema fingerprint`, exit codes, and use in CI.
+- [The avrosharp tool](docs/cli.md): `gen`, `schema canonical`, `schema fingerprint` and `schema compat`, exit codes, and use in CI.
 - [Samples](samples/README.md): runnable programs for the main APIs.
 
 ## Reference

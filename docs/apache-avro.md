@@ -19,11 +19,11 @@ On this page:
 | | AvroSharp | Apache.Avro 1.12.2 |
 |---|---|---|
 | Speed | faster on every benchmark: records 1.95–6.18×, container reads up to 22×, schema parsing up to 2.07× ([benchmarks](benchmarks.md)) | the baseline |
-| Allocations | no more than Apache.Avro on any benchmark; a container file written with under 6 KB | 5.7 MB for the same container file |
+| Allocations | no more than Apache.Avro on any benchmark; a container file written with under 6 KB (except with xz) | 5.7 MB for the same container file |
 | Code generation | a source generator: types are generated while the project builds ([guide](code-generation.md)); or the `avrosharp` tool ([CLI](cli.md)) | the `avrogen` tool |
 | Serializers | generated, with no reflection; Native AOT and trimming compatible, checked by a Native AOT build in CI | specific reader and writer driven by the schema and reflection at run time |
 | Codecs | null, deflate, snappy, zstandard, bzip2, xz: two packages, fully managed | null and deflate, and a satellite package per codec |
-| Schema registries | Confluent, Confluent GUID, Apicurio and AWS Glue framing, with no client dependency | not included |
+| Schema registries | Confluent, Confluent GUID, Apicurio and AWS Glue framing, with no client dependency; serializers for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue in add-on packages, new in 1.0.0 ([integrations](integrations.md)) | not included; Confluent's and Microsoft's Avro serializers are built on it |
 | Specification | follows it where Apache.Avro 1.12.2 deviates ([details](#following-the-specification)) | five deviations pinned by AvroSharp's tests |
 | Hostile input | bounded memory and nesting for malformed or hostile data and schemas; fuzzed nightly | — |
 | Targets | .NET 8, 9 and 10, .NET Standard 2.0 and 2.1 (so .NET Framework) | .NET Standard 2.0 and 2.1 |
@@ -32,18 +32,18 @@ On this page:
 
 ## Speed and allocations
 
-A release requires every AvroSharp benchmark to be faster than its Apache.Avro counterpart and to allocate no more ([the performance gate](benchmarks.md#the-performance-gate)). On the latest full run (i7-12800H, .NET 10):
+A release requires every AvroSharp benchmark to be faster than its Apache.Avro counterpart and to allocate no more ([the performance gate](benchmarks.md#the-performance-gate)). On the last full run written up (i7-12800H, .NET 10):
 
 - **Generated records** read 3.95× and write 6.18× faster; the generic model reads 1.95× and writes 3.93× faster.
 - **Container files** read 2.9–7.4× faster with the fast codecs, and up to 22× with xz; writes are 3.5–10× faster.
 - **Reading an older schema version** is 2.72× faster with generated code.
-- **Writes allocate close to nothing**: under 6 KB for a whole container file, against 5.7 MB.
+- **Writes allocate close to nothing**: under 6 KB for a whole container file, against 5.7 MB (xz takes 777 KB).
 
 Where the gain comes from:
 - **Generated serializers** call the writer and reader directly, in schema order, with no schema walk, boxing or virtual calls per value.
 - **Spans and buffer writers**: [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html) and [`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) work over `Span<byte>`, `IBufferWriter<byte>` and `ReadOnlySequence<byte>`, with pooled buffers and no per-value streams.
 - **A value type for generic data**: [`AvroValue`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroValue.html) holds any Avro value without boxing, and arrays of primitives are stored as the primitives.
-- **Fast primitives**: varints decoded and encoded without a loop per byte where the CPU allows, and bulk array reads, each kept only if it wins on every tested CPU ([rules](benchmarks.md#rules-for-fast-paths)).
+- **Fast primitives**: varints decoded and encoded without a loop per byte where the CPU allows, and bulk array reads, each kept only if it beats Apache.Avro on every tested CPU, with one exception for single-value writes on Zen+ CPUs ([rules](benchmarks.md#rules-for-fast-paths)).
 
 The [benchmarks page](benchmarks.md) has the full table and how to run it yourself.
 
@@ -78,7 +78,7 @@ Also checked against Java:
 - **Schema resolution** picks union branches by full name, then by unqualified name, then by promotion, as Java does, and applies reader aliases before names.
 - **Container files** from Java, in every codec, are read, and Java reads the ones AvroSharp writes.
 - **A container file's schema** is read as Java reads it, without validating names or defaults: a field named `user-id`, or a `"default": null` on a `string` field, is common in files that Java and older tools wrote, and the data is readable. Java's other leniencies there are accepted too: a `"doc"` or an enum's `"default"` of `null`, and a `namespace` that is not a string. Schemas given to `AvroSchema.Parse` are still validated.
-- **Logical types don't take part in schema resolution,** as in Java. A decimal of another scale or precision is read with the reader's, so `1.23` written with scale 2 reads as `0.123` with scale 3. The specification says such decimals don't match, but Java reads them, so AvroSharp does too, and files Java reads stay readable. [`AvroSchemaCompatibility`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html) warns about it (`DecimalChanged`), and fails it with `Strict`.
+- **Logical types don't take part in schema resolution,** as in Java. A decimal of another scale or precision is read with the reader's, so `1.23` written with scale 2 reads as `0.123` with scale 3. The specification says such decimals don't match, but Java reads them, so AvroSharp does too, and files Java reads stay readable. [`AvroSchemaCompatibility`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html) warns about it (`DecimalChanged`), and fails it with `WarningsAsErrors`.
 
 ## Hostile input
 
@@ -93,7 +93,7 @@ The limits are options ([`GenericDatumReaderOptions`](https://avrosharp.github.i
 ## More of the Avro ecosystem in one library
 
 - **Every codec in the specification**: `null` and `deflate` in AvroSharp, and snappy, zstandard, bzip2 and xz in [AvroSharp.Codecs](https://www.nuget.org/packages/AvroSharp.Codecs), on fully managed libraries with no native binaries.
-- **Schema registries**: Confluent (4-byte ID and GUID), Apicurio and AWS Glue wire framing ([`AvroRegistryMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroRegistryMessage.html)), with an ID resolver you supply ([`IAvroSchemaIdResolver`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.IAvroSchemaIdResolver.html)), and no registry client dependency ([guide](../README.md#schema-registries)).
+- **Schema registries**: Confluent (4-byte ID and GUID), Apicurio and AWS Glue wire framing ([`AvroRegistryMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroRegistryMessage.html)), with an ID resolver you supply ([`IAvroSchemaIdResolver`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.IAvroSchemaIdResolver.html)), and no registry client dependency ([guide](../README.md#schema-registries)). Serializers for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue, without Apache.Avro, are add-on packages, new in 1.0.0 ([integrations](integrations.md)).
 - **Single-object encoding** ([`AvroMessage`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroMessage.html)) with a schema store ([`AvroSchemaStore`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Messages.AvroSchemaStore.html)) selecting the writer schema by fingerprint ([guide](../README.md#single-object-encoding)).
 - **Streams of objects** without a container, for sockets and pipes ([guide](../README.md#streams-of-objects)).
 - **Asynchronous container files**, with no synchronous I/O, and pipelined reading that decompresses the next block while the current one is decoded.
