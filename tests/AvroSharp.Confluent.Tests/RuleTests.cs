@@ -187,6 +187,26 @@ public class RuleTests
         await Assert.That(back.Level).IsEqualTo(3);
     }
 
+    // An encoding rule may return the bytes as a ReadOnlyMemory<byte> rather than a byte[], on writes as on reads.
+    [Test]
+    public async Task EncodingRule_ReturningReadOnlyMemory_RoundTrips()
+    {
+        using var xor = new XorPayload();
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var rule = new Rule("xor", RuleKind.Transform, RuleMode.WriteRead, XorPayload.RuleType, null, null);
+        await Register(registry, topic, AvroTypes.Get<Customer>().Schema.ToJson(), new RuleSet([], [], [rule]));
+        var rules = Rules(xor);
+        var customer = new Customer { Name = "Ada", Level = 3 };
+
+        var bytes = await new AvroSharpSerializer<Customer>(registry, LatestVersion(), rules).SerializeAsync(customer, Value(topic));
+        var back = await new AvroSharpDeserializer<Customer>(registry, null, rules).DeserializeAsync(bytes, isNull: false, Value(topic));
+
+        await Assert.That(bytes.AsSpan(5).IndexOf("Ada"u8)).IsEqualTo(-1);
+        await Assert.That(back.Name).IsEqualTo("Ada");
+        await Assert.That(back.Level).IsEqualTo(3);
+    }
+
     [Test]
     public async Task CelCondition_OnRead()
     {
@@ -314,6 +334,34 @@ internal sealed class UpperCaseName : IRuleExecutor
         var record = (Avro.Generic.GenericRecord)message;
         record.Add("name", ((string)record["name"]).ToUpperInvariant());
         return Task.FromResult(message);
+    }
+
+    public void Dispose()
+    {
+    }
+}
+
+/// <summary>An encoding rule that XORs the payload, and returns it as a <see cref="ReadOnlyMemory{T}"/>.</summary>
+internal sealed class XorPayload : IRuleExecutor
+{
+    public const string RuleType = "XOR_PAYLOAD";
+
+    public void Configure(IEnumerable<KeyValuePair<string, string>> config, ISchemaRegistryClient? client = null)
+    {
+    }
+
+    public string Type() => RuleType;
+
+    public Task<object> Transform(RuleContext ctx, object message)
+    {
+        var bytes = message is byte[] array ? array : ((ReadOnlyMemory<byte>)message).ToArray();
+        var result = new byte[bytes.Length];
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            result[i] = (byte)(bytes[i] ^ 0x5A);
+        }
+
+        return Task.FromResult<object>(new ReadOnlyMemory<byte>(result));
     }
 
     public void Dispose()

@@ -22,8 +22,10 @@ trap 'rm -rf "$work"' EXIT
 export NUGET_PACKAGES="$work/packages"
 properties="-p:AvroSharpVersion=$version"
 
-# A .NET 10 app with the generator and codecs: generated types, a zstandard container file, schema defaults.
-dotnet run --project "$consumers/App" -c Release "$properties"
+# An app with the generator, the codecs and every add-on: generated types, a zstandard container file, schema
+# defaults, and each add-on's serializers built. On .NET 10 and on .NET 8, so both of the packages' builds are used.
+dotnet run --project "$consumers/App" -c Release -f net10.0 "$properties"
+dotnet run --project "$consumers/App" -c Release -f net8.0 "$properties"
 
 # A netstandard2.0 library on C# 7.3 with the generator: the generated code compiles there.
 dotnet build "$consumers/NetStandardLib" -c Release "$properties"
