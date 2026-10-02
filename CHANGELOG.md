@@ -27,7 +27,8 @@ All notable changes to this project are documented here. The format follows [Kee
   - **Generic records of several schemas:** `AvroSharpGeneric.CreateSerializer(registry)` writes each record with its own schema, as Confluent's generic serializer does (#193).
   - **Configuration:** the config classes copy any key-value pairs, as Confluent's do, such as a configuration section's (#195). A cached schema ID is read without a lock (#197).
   - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Confluent.SchemaRegistry [2.14.0, 3.0.0). The tests run against both ends of that range (`-p:ConfluentVersion=2.14.0` for the lowest) and against Redpanda.
-  - **Not supported yet:** field rules (field-level encryption, `CEL_FIELD`), migration rules, and CEL on generic values. These and the other follow-ups are #186 to #203.
+  - **CEL rules name the Avro fields,** as with Java's and Confluent's serializers, on every type: generated and `[AvroSerializable]` types, and generic values (#191). The rules get the value as Apache.Avro's generic model, which comes with Confluent's CEL executor.
+  - **Not supported yet:** field rules (field-level encryption, `CEL_FIELD`) and migration rules. These and the other follow-ups are #186 to #203.
 - **AvroSharp.KafkaFlow**, a new package: KafkaFlow serializer middleware for Confluent Schema Registry on AvroSharp.Confluent, in place of KafkaFlow's `KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro`, without Apache.Avro (#154). It is released with AvroSharp at the same version.
   - **Setup:** `AddSchemaRegistryAvroSharpSerializer` and `AddSchemaRegistryAvroSharpDeserializer` on producers and consumers. The registry comes from KafkaFlow's `WithSchemaRegistry` on the cluster.
   - **Matches KafkaFlow's Confluent Avro serializer:** the same subjects and message bytes, and each reads what the other writes.

@@ -133,20 +133,43 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         }
 
         await CheckWritesAsAsync(latest).ConfigureAwait(false);
-
-        // Domain rules (such as CEL) see the value. Field rules, such as field-level encryption, aren't supported yet.
-        value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!;
         var id = new SchemaId(SchemaType.Avro, latest.Id, latest.Guid);
+        var header = schemaIdEncoder.CalculateSize(ref id);
+
+        // The message body, when the domain rules ran on the encoded value rather than on the value.
+        byte[]? body = null;
+        if (latest.RuleSet?.DomainRules is { Count: > 0 })
+        {
+            (value, body) = await DomainRulesAsync(value, isKey, subject, context, latest, header).ConfigureAwait(false);
+        }
+
         if (latest.RuleSet?.EncodingRules is not { Count: > 0 })
         {
-            return Encode(value, ref context, id);
+            return body is null ? Encode(value, ref context, id) : Frame(header, body, ref context, ref id);
         }
 
         // Encoding rules (such as payload encryption) take and return the encoded bytes.
-        var header = schemaIdEncoder.CalculateSize(ref id);
-        var body = Body(Write(value, header).WrittenSpan[header..]).ToArray();
+        body ??= Body(Write(value, header).WrittenSpan[header..]).ToArray();
         var encoded = (byte[])(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RulePhase.Encoding, RuleMode.Write, null, latest, body, null).ConfigureAwait(false))!;
         return Frame(header, encoded, ref context, ref id);
+    }
+
+    // Runs the domain rules on a value. Field rules, such as field-level encryption, aren't supported yet.
+    private async Task<(T Value, byte[]? Body)> DomainRulesAsync(T value, bool isKey, string subject, SerializationContext context, RegisteredSchema latest, int header)
+    {
+        if (!ApacheAvroGeneric.HasCelRules(latest.RuleSet) || _rawBytes || !ApacheAvroGeneric.IsAvailable)
+        {
+            return ((T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!, null);
+        }
+
+        // CEL reads a value by its Avro field names only as Apache.Avro's generic model, which Java's and Confluent's
+        // serializers give it: so the rules see the value decoded that way. A rule that returns another value (a
+        // transform) changes what is written.
+        var body = Body(Write(value, header).WrittenSpan[header..]).ToArray();
+        var schema = await GetParsedSchema(latest).ConfigureAwait(false);
+        var generic = ApacheAvroGeneric.Decode(schema, schema, body);
+        var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, generic, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false);
+        return (value, ReferenceEquals(result, generic) && !ApacheAvroGeneric.HasTransforms(latest.RuleSet) ? body : ApacheAvroGeneric.Encode(schema, result).ToArray());
     }
 
     /// <summary>

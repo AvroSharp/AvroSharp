@@ -14,7 +14,7 @@ Confluent Schema Registry serializers and deserializers for [Confluent.Kafka](ht
   - registration and `use.latest.version`;
   - schema ID strategies (prefix or header);
   - schema references;
-  - data contract rules: domain rules (such as CEL) and encoding rules. Field rules, such as field-level encryption (CSFLE), aren't supported yet and fail rather than being skipped.
+  - data contract rules: domain rules (such as CEL, which names the Avro fields, as Java's serializer does) and encoding rules. Field rules, such as field-level encryption (CSFLE), aren't supported yet and fail rather than being skipped.
 
   Only the Avro encoding is AvroSharp's. With `use.latest.version` or `use.schema.id`, the serializer also checks that the target schema encodes as your type's, logical types included, which Confluent's doesn't.
 - **Interchangeable with Confluent's serializer:**

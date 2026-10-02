@@ -36,6 +36,8 @@ docker=no
 if docker info > /dev/null 2>&1; then
   docker=yes
   docker compose -f samples/Confluent/compose.yaml up -d --wait
+  # Stopped after the samples, or on the way out when a step fails before then.
+  trap 'docker compose -f samples/Confluent/compose.yaml down' EXIT
   step Test against Redpanda and moto
   dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build --treenode-filter "/*/*/RedpandaTests/*"
   dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release --no-build --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"
@@ -64,6 +66,7 @@ for sample in samples/*/; do
 done
 if [ "$docker" = yes ]; then
   docker compose -f samples/Confluent/compose.yaml down
+  trap - EXIT
 fi
 
 step Native AOT smoke test

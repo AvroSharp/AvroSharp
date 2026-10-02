@@ -121,7 +121,22 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
         var target = (ConfluentSchema?)latest ?? writerJson;
         if (target.RuleSet?.DomainRules is { Count: > 0 })
         {
-            value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!;
+            if (ApacheAvroGeneric.HasCelRules(target.RuleSet) && !RegistrySchemas.IsRawBytes(writerSchema) && ApacheAvroGeneric.IsAvailable)
+            {
+                // CEL reads a value by its Avro field names only as Apache.Avro's generic model: the rules see the data
+                // decoded that way, in the rules' schema. A rule that returns another value (a transform) is read back.
+                var targetSchema = latest is null ? writerSchema : await GetParsedSchema(latest).ConfigureAwait(false);
+                var generic = ApacheAvroGeneric.Decode(writerSchema, targetSchema, payload);
+                var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, generic, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false);
+                if (!ReferenceEquals(result, generic) || ApacheAvroGeneric.HasTransforms(target.RuleSet))
+                {
+                    value = Read(_readers.GetValue(targetSchema, _createReader), targetSchema, ApacheAvroGeneric.Encode(targetSchema, result));
+                }
+            }
+            else
+            {
+                value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!;
+            }
         }
         else if (latest is null && !useLatestVersion && useLatestWithMetadata is null && writerJson.RuleSet?.EncodingRules is not { Count: > 0 })
         {
