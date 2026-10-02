@@ -1,33 +1,41 @@
-# The DocFX site's top navigation (docfx.json builds from the repository root).
+# The DocFX site's top navigation (docfx.json builds from the repository root). An entry with items is a drop-down.
 - name: Getting started
   href: docs/getting-started/
 - name: Guide
   href: README.md
 - name: Code generation
-  href: docs/code-generation.md
-- name: CLI tool
-  href: docs/cli.md
-- name: Kafka
-  href: docs/confluent.md
-- name: KafkaFlow
-  href: docs/kafkaflow.md
-- name: Azure Schema Registry
-  href: docs/azure-schema-registry.md
-- name: AWS Glue
-  href: docs/aws-glue.md
+  items:
+  - name: Code generation
+    href: docs/code-generation.md
+  - name: CLI tool
+    href: docs/cli.md
 - name: Integrations
-  href: docs/integrations.md
+  items:
+  - name: Overview
+    href: docs/integrations.md
+  - name: Kafka (Confluent)
+    href: docs/confluent.md
+  - name: KafkaFlow
+    href: docs/kafkaflow.md
+  - name: Azure Schema Registry
+    href: docs/azure-schema-registry.md
+  - name: AWS Glue
+    href: docs/aws-glue.md
 - name: API reference
   href: docs/api/index.md
 - name: Samples
   href: samples/README.md
-- name: Benchmarks
-  href: docs/benchmarks.md
-- name: vs Apache.Avro
-  href: docs/apache-avro.md
-- name: Migrating from Apache.Avro
-  href: docs/migrating-from-apache-avro.md
-- name: Docs
-  href: docs/README.md
-- name: Changelog
-  href: CHANGELOG.md
+- name: Apache.Avro
+  items:
+  - name: Compared with Apache.Avro
+    href: docs/apache-avro.md
+  - name: Migrating from Apache.Avro
+    href: docs/migrating-from-apache-avro.md
+- name: More
+  items:
+  - name: Benchmarks
+    href: docs/benchmarks.md
+  - name: All docs
+    href: docs/README.md
+  - name: Changelog
+    href: CHANGELOG.md
