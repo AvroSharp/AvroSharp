@@ -25,4 +25,8 @@ function followSiteTheme() {
 new MutationObserver(followSiteTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-bs-theme'] })
 followSiteTheme()
 
-export default {}
+export default {
+  iconLinks: [
+    { icon: 'github', href: 'https://github.com/AvroSharp/AvroSharp', title: 'GitHub' },
+  ],
+}
