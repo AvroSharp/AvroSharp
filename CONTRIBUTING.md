@@ -64,8 +64,10 @@ build/ci-local.sh
 
 It runs, in CI's order:
 - restore and build;
-- the tests on net8.0, net9.0 and net10.0 with coverage, and the coverage check (the summary is in `artifacts/coverage/SummaryGithub.md`);
+- the tests on net8.0, net9.0 and net10.0 with coverage;
+- the Redpanda tests, when Docker is available;
 - the tests without hardware intrinsics;
+- the coverage check (the summary is in `artifacts/coverage/SummaryGithub.md`);
 - the samples;
 - the Native AOT smoke test;
 - pack, and the package consumers.

@@ -68,22 +68,6 @@ jobs:
           AVROSHARP_RANDOM_SCHEMA_FAILURES: ${{ github.workspace }}/TestResults/random-schema-failure
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
-      # Line and branch coverage of the shipped assemblies, merged across the test projects and target frameworks, in
-      # the run's summary (linked from the pull request's checks). The script checks that no report is empty.
-      - name: Coverage summary
-        if: matrix.os == 'ubuntu-latest'
-        shell: bash
-        run: build/coverage-summary.sh
-
-      # The coverage badge's data, which the docs workflow publishes with the site after a successful run on main.
-      - name: Upload the coverage badge
-        if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-badge
-          path: artifacts/coverage/coverage.json
-          if-no-files-found: error
-
       # AvroSharp.Confluent and AvroSharp.KafkaFlow against a real broker and registry: Redpanda in Docker, which needs
       # Linux containers, so only the x64 Linux runner. The tests are [Explicit], so the solution run above leaves them out.
       - name: Test against Redpanda
@@ -99,6 +83,22 @@ jobs:
         env:
           DOTNET_EnableHWIntrinsic: 0
         run: dotnet test --project tests/AvroSharp.Tests -c Release --no-build -f net10.0
+
+      # Line and branch coverage of the shipped assemblies, merged across the test projects and target frameworks, in
+      # the run's summary (linked from the pull request's checks). The script checks that no report is empty.
+      - name: Coverage summary
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: build/coverage-summary.sh
+
+      # The coverage badge's data, which the docs workflow publishes with the site after a successful run on main.
+      - name: Upload the coverage badge
+        if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-badge
+          path: artifacts/coverage/coverage.json
+          if-no-files-found: error
 
       # Each sample checks its own results and exits with 1 when one is wrong. The Confluent and KafkaFlowEvents samples
       # need a broker and a registry: the Confluent sample's compose file starts Redpanda.
