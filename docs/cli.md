@@ -50,7 +50,7 @@ avrosharp gen schemas/ -o Generated/
 avrosharp gen common.avsc orders/order.avsc orders/refund.avsc -o Generated/
 ```
 
-**Output** is one `.g.cs` file per named type, in folders for its Avro namespace:
+**Output** is one `.g.cs` file per named type, in folders for its C# namespace (the Avro namespace, unless `-m` maps it):
 
 ```text
 Generated/com/example/events/Order.g.cs
@@ -132,7 +132,7 @@ Incompatible.
   $.note: The reader's field 'shop.Order.note' is not in the writer's record shop.Order and has no default value.
 ```
 
-With `--level`, the last schema is a new version, and the others are earlier versions, oldest first. The levels are Confluent Schema Registry's:
+With `--level` (`-l`), the last schema is a new version, and the others are earlier versions, oldest first. The levels are Confluent Schema Registry's:
 - `backward`: the new schema reads the latest earlier version's data;
 - `forward`: the latest earlier version reads the new schema's data;
 - `full`: both;

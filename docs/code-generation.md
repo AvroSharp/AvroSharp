@@ -205,9 +205,9 @@ So [`AvroSerializer`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.S
 - `[AvroDoc]`: a `doc`. The XML `<summary>` is used when the project builds documentation.
 - `[AvroFieldPosition(n)]`: a field's position, needed only when the fields are declared in more than one file of a partial type. (Avro's own `"order"` is a field's sort order, something else.)
 
-**Not yet supported** (each is an error that says so): `init`-only members, primary constructors, types nested in other types, generic types, and narrow integer types such as `short`. [The design](design.md#65-the-attribute-driven-generator-31) lists what comes later.
+**Not yet supported** (each is an error that says so): `init`-only members, primary constructors, types nested in other types, generic types, and narrow integer types such as `short`. [The design](design.md#655-scope-of-the-first-version-and-what-comes-later) lists what comes later.
 
-Inside the type, `AvroTypeInfo` now names the generated static property, so the non-generic `AvroSharp.Serialization.AvroTypeInfo` class needs its full name there.
+Inside the type, `AvroTypeInfo` names the generated static property, so the non-generic `AvroSharp.Serialization.AvroTypeInfo` class needs its full name there.
 
 ### Finding a type's serializers: `AvroTypes`
 

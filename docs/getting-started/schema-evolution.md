@@ -160,9 +160,10 @@ Console.WriteLine($"Check: {check.Verdict}, {check.Incompatibilities[0]}");
 The result also has [warnings](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityKind.html) for differences that the specification allows but that can change the values read:
 - a decimal whose scale changes;
 - a `date` read as `time-millis`;
-- `long` to `double`, which rounds large values;
+- a promotion that can change values, such as `long` to `double`, which rounds large values;
 - a name matched without its namespace;
-- symbols read as the enum's default.
+- symbols read as the enum's default;
+- two writer fields that match one reader field, by name or alias.
 
 [`AvroCompatibilityOptions`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroCompatibilityOptions.html) has two settings:
 - `WarningsAsErrors` makes warnings fail the check (the verdict stays what it is);

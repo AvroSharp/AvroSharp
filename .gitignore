@@ -488,3 +488,6 @@ $RECYCLE.BIN/
 docs/api/*
 !docs/api/index.md
 .tools/
+
+# Tool state some CLIs write under a HOME set to the repository, such as gh.
+.local/

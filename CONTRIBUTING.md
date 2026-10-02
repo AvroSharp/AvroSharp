@@ -4,7 +4,7 @@
 
 - **Implement from the specification.** AvroSharp is a clean-room implementation of the Apache Avro™ specification under the MIT license. Apache.Avro (Apache-2.0) may be read for design ideas and used as a test oracle, but its code must not be copied or ported into `src/`. Code derived from Chr.Avro (MIT) must keep its copyright notice in [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 - **No reflection on serialization paths.** Typed serialization is produced by source generators and must stay Native AOT and trimming compatible.
-- **Performance is a feature.** AvroSharp must be faster than Apache.Avro, with fewer allocations, on every scenario in the [benchmark suite](docs/benchmarks.md). Benchmarks run locally only, on request, on an idle machine (never in CI):
+- **Performance is a feature.** AvroSharp must be faster than Apache.Avro, and allocate no more, on every scenario in the [benchmark suite](docs/benchmarks.md). The one exception, single-value writes on Zen+ CPUs, is in [design.md §11](docs/design.md#11-phased-roadmap-each-milestone-ends-with-a-tagged-pre-release). Benchmarks run locally only, on request, on an idle machine (never in CI):
 
   ```shell
   dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory --gate
@@ -88,7 +88,7 @@ It doesn't cover:
 
 ## Public API
 
-The core packages' public API is frozen for 1.0, and from 1.0 follows [semantic versioning](https://semver.org/): a breaking change waits for the next major version. The add-on packages (AvroSharp.Confluent, AvroSharp.KafkaFlow, AvroSharp.Azure.SchemaRegistry, AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka) are new in the release candidates, and their APIs may still change until 1.0.0. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
+The core packages' public API is frozen for 1.0, and from 1.0 follows [semantic versioning](https://semver.org/): a breaking change waits for the next major version. The add-on packages (AvroSharp.Confluent, AvroSharp.KafkaFlow, AvroSharp.Azure.SchemaRegistry, AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka) are new in 1.0.0: they have never been published, and their APIs may still change until 1.0.0 is released. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
 
 Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its baseline release (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), and a break that isn't listed in the project's `CompatibilitySuppressions.xml` fails the pack. The add-on packages have no baseline yet (an empty `PackageValidationBaselineVersion`); they get one with 1.0.0.
 

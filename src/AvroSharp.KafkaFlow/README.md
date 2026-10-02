@@ -8,7 +8,7 @@
 - **Types:** generated from `.avsc` files, or your own C# types marked `[AvroSerializable]`. Several record types can share one topic, each read as its own type.
 - **Schema evolution:** each message is read in its writer's schema and resolved to your type's.
 
-> **Status:** new in the 1.0.0 release candidates, and released with AvroSharp at the same version. Its API may still change until 1.0.0; from then it follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
+> **Status:** new in 1.0.0, and released with AvroSharp at the same version. It follows [semantic versioning](https://semver.org/) with the rest of AvroSharp.
 
 **[Guide](https://avrosharp.github.io/AvroSharp/docs/kafkaflow.html)** · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.KafkaFlow.html) · [AvroSharp.Confluent's guide](https://avrosharp.github.io/AvroSharp/docs/confluent.html) · [AvroSharp documentation](https://avrosharp.github.io/AvroSharp/)
 
