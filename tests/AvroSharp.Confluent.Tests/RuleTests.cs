@@ -33,25 +33,40 @@ public class RuleTests
         await Assert.That(async () => await serializer.SerializeAsync(other, Value(topic))).Throws<SerializationException>();
     }
 
+    // CEL names the Avro fields, as rules written for Java's and Confluent's serializers do, not the C# properties (#191).
     [Test]
-    public async Task CelCondition_OnAnAvroSerializableType()
+    public async Task CelCondition_OnAnAvroSerializableType_NamesTheAvroFields()
     {
         using var cel = new CelExecutor();
         using var registry = new InMemorySchemaRegistry();
         var topic = Topic();
-        await Register(registry, topic, AvroTypes.Get<Customer>().Schema.ToJson(), Cel("message.Name == 'Ada'"));
-        var serializer = new AvroSharpSerializer<Customer>(registry, LatestVersion(), Rules(cel));
+        await Register(registry, topic, AvroTypes.Get<Member>().Schema.ToJson(), Cel("message.name == 'Ada' && message.tier_level > 2 && message.home.city == 'London'"));
+        var serializer = new AvroSharpSerializer<Member>(registry, LatestVersion(), Rules(cel));
 
-        var bytes = await serializer.SerializeAsync(new Customer { Name = "Ada", Level = 3 }, Value(topic));
+        var bytes = await serializer.SerializeAsync(NewMember("Ada", 3), Value(topic));
 
-        await Assert.That((await new AvroSharpDeserializer<Customer>(registry).DeserializeAsync(bytes, isNull: false, Value(topic))).Level).IsEqualTo(3);
-        await Assert.That(async () => await serializer.SerializeAsync(new Customer { Name = "Bob" }, Value(topic))).Throws<SerializationException>();
+        await Assert.That((await new AvroSharpDeserializer<Member>(registry).DeserializeAsync(bytes, isNull: false, Value(topic))).Level).IsEqualTo(3);
+        await Assert.That(async () => await serializer.SerializeAsync(NewMember("Bob", 3), Value(topic))).Throws<SerializationException>();
+        await Assert.That(async () => await serializer.SerializeAsync(NewMember("Ada", 1), Value(topic))).Throws<SerializationException>();
     }
 
-    // Confluent's CEL executor knows Apache.Avro records and plain .NET objects, not AvroValue: the rule fails, so the
-    // message isn't written rather than written unchecked (#191).
+    // A passing condition writes the value's own encoding: the body is the one written without rules.
     [Test]
-    public async Task CelCondition_OnAGenericValue_FailsTheRule()
+    public async Task CelCondition_WritesTheSameBytes()
+    {
+        using var cel = new CelExecutor();
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        await Register(registry, topic, AvroTypes.Get<Member>().Schema.ToJson(), Cel("message.name == 'Ada'"));
+
+        var withRule = await new AvroSharpSerializer<Member>(registry, LatestVersion(), Rules(cel)).SerializeAsync(NewMember("Ada", 3), Value(topic));
+        var without = await new AvroSharpSerializer<Member>(registry).SerializeAsync(NewMember("Ada", 3), Value(Topic()));
+
+        await Assert.That(withRule.AsSpan(5).SequenceEqual(without.AsSpan(5))).IsTrue();
+    }
+
+    [Test]
+    public async Task CelCondition_OnAGenericValue()
     {
         using var cel = new CelExecutor();
         using var registry = new InMemorySchemaRegistry();
@@ -60,8 +75,88 @@ public class RuleTests
         await Register(registry, topic, schema.ToJson(), Cel("message.Name == 'Ada'"));
         var serializer = AvroSharpGeneric.CreateSerializer(registry, schema, LatestVersion(), Rules(cel));
         var ada = new GenericRecord((AvroSharp.Schemas.RecordSchema)schema) { ["Name"] = "Ada", ["Level"] = 3 };
+        var bob = new GenericRecord((AvroSharp.Schemas.RecordSchema)schema) { ["Name"] = "Bob", ["Level"] = 3 };
 
-        await Assert.That(async () => await serializer.SerializeAsync(ada, Value(topic))).Throws<SerializationException>();
+        var bytes = await serializer.SerializeAsync(ada, Value(topic));
+
+        await Assert.That((await new AvroSharpDeserializer<Customer>(registry).DeserializeAsync(bytes, isNull: false, Value(topic))).Name).IsEqualTo("Ada");
+        await Assert.That(async () => await serializer.SerializeAsync(bob, Value(topic))).Throws<SerializationException>();
+    }
+
+    // A transform that changes the record (here in place, as a custom executor may) changes what is written.
+    [Test]
+    public async Task Transform_ChangesTheRecord_OnWrite()
+    {
+        using var cel = new CelExecutor();
+        using var upper = new UpperCaseName();
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        await Register(registry, topic, AvroTypes.Get<Member>().Schema.ToJson(), new RuleSet([], [
+            new Rule("check", RuleKind.Condition, RuleMode.Write, "CEL", null, null, "message.name != ''", null, null, false),
+            new Rule("upper", RuleKind.Transform, RuleMode.Write, UpperCaseName.RuleType, null, null, null, null, null, false),
+        ], []));
+        var rules = Rules(cel);
+        rules.RegisterExecutor(upper);
+
+        var bytes = await new AvroSharpSerializer<Member>(registry, LatestVersion(), rules).SerializeAsync(NewMember("ada", 3), Value(topic));
+        var written = await new AvroSharpDeserializer<Member>(registry, null, new RuleRegistry()).DeserializeAsync(bytes, isNull: false, Value(topic));
+
+        await Assert.That(written.Name).IsEqualTo("ADA");
+        await Assert.That(written.Level).IsEqualTo(3);
+        await Assert.That(written.Home.City).IsEqualTo("London");
+    }
+
+    // And what is read.
+    [Test]
+    public async Task Transform_ChangesTheRecord_OnRead()
+    {
+        using var cel = new CelExecutor();
+        using var upper = new UpperCaseName();
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        await Register(registry, topic, AvroTypes.Get<Member>().Schema.ToJson(), new RuleSet([], [
+            new Rule("check", RuleKind.Condition, RuleMode.Read, "CEL", null, null, "message.name != ''", null, null, false),
+            new Rule("upper", RuleKind.Transform, RuleMode.Read, UpperCaseName.RuleType, null, null, null, null, null, false),
+        ], []));
+        var rules = Rules(cel);
+        rules.RegisterExecutor(upper);
+
+        var bytes = await new AvroSharpSerializer<Member>(registry, LatestVersion(), new RuleRegistry()).SerializeAsync(NewMember("bob", 3), Value(topic));
+        var read = await new AvroSharpDeserializer<Member>(registry, null, rules).DeserializeAsync(bytes, isNull: false, Value(topic));
+
+        await Assert.That(read.Name).IsEqualTo("BOB");
+        await Assert.That(read.Level).IsEqualTo(3);
+        await Assert.That(read.Home.City).IsEqualTo("London");
+    }
+
+    // A CEL transform can return a value that isn't a record of the schema, such as a map: it isn't written.
+    [Test]
+    public async Task Transform_ReturningAnotherShape_IsAnError()
+    {
+        using var cel = new CelExecutor();
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var rules = new RuleSet([], [new Rule("t", RuleKind.Transform, RuleMode.Write, "CEL", null, null, "{'name': 'Bob'}", null, null, false)], []);
+        await Register(registry, topic, AvroTypes.Get<Member>().Schema.ToJson(), rules);
+        var serializer = new AvroSharpSerializer<Member>(registry, LatestVersion(), Rules(cel));
+
+        await Assert.That(async () => await serializer.SerializeAsync(NewMember("Ada", 3), Value(topic)))
+            .Throws<InvalidOperationException>().WithMessageContaining("isn't one of the schema", StringComparison.Ordinal);
+    }
+
+    // Without CEL rules, domain rules see the value itself.
+    [Test]
+    public async Task OtherDomainRules_SeeTheValue()
+    {
+        using var recorder = new RecordMessageType();
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var rules = new RuleSet([], [new Rule("r", RuleKind.Condition, RuleMode.Write, RecordMessageType.RuleType, null, null, null, null, null, false)], []);
+        await Register(registry, topic, AvroTypes.Get<Member>().Schema.ToJson(), rules);
+
+        await new AvroSharpSerializer<Member>(registry, LatestVersion(), Rules(recorder)).SerializeAsync(NewMember("Ada", 3), Value(topic));
+
+        await Assert.That(recorder.Seen).IsEqualTo(typeof(Member));
     }
 
     [Test]
@@ -98,12 +193,12 @@ public class RuleTests
         using var cel = new CelExecutor();
         using var registry = new InMemorySchemaRegistry();
         var topic = Topic();
-        var schema = AvroTypes.Get<Customer>().Schema.ToJson();
-        await Register(registry, topic, schema, Cel("message.Name == 'Ada'", RuleMode.Read));
-        var serializer = new AvroSharpSerializer<Customer>(registry, LatestVersion());
-        var deserializer = new AvroSharpDeserializer<Customer>(registry, null, Rules(cel));
-        var ada = await serializer.SerializeAsync(new Customer { Name = "Ada" }, Value(topic));
-        var bob = await serializer.SerializeAsync(new Customer { Name = "Bob" }, Value(topic));
+        var schema = AvroTypes.Get<Member>().Schema.ToJson();
+        await Register(registry, topic, schema, Cel("message.name == 'Ada'", RuleMode.Read));
+        var serializer = new AvroSharpSerializer<Member>(registry, LatestVersion());
+        var deserializer = new AvroSharpDeserializer<Member>(registry, null, Rules(cel));
+        var ada = await serializer.SerializeAsync(NewMember("Ada", 0), Value(topic));
+        var bob = await serializer.SerializeAsync(NewMember("Bob", 0), Value(topic));
 
         await Assert.That((await deserializer.DeserializeAsync(ada, isNull: false, Value(topic))).Name).IsEqualTo("Ada");
         await Assert.That(async () => await deserializer.DeserializeAsync(bob, isNull: false, Value(topic))).Throws<SerializationException>();
@@ -158,6 +253,8 @@ public class RuleTests
     private static RuleSet Cel(string expression, RuleMode mode = RuleMode.Write) =>
         new([], [new Rule("check", RuleKind.Condition, mode, "CEL", null, null, expression, null, null, false)], []);
 
+    private static Member NewMember(string name, int level) => new() { Name = name, Level = level, Home = new Address { City = "London" } };
+
     private static AvroSharpSerializerConfig LatestVersion() => new() { UseLatestVersion = true, AutoRegisterSchemas = false };
 
     private static RuleRegistry Rules(IRuleExecutor executor)
@@ -178,6 +275,74 @@ public partial class Customer
     public string Name { get; set; } = "";
 
     public int Level { get; set; }
+}
+
+/// <summary>A type whose Avro field names differ from its C# property names.</summary>
+[AvroSerializable(Namespace = "test.native")]
+public partial class Member
+{
+    [AvroName("name")]
+    public string Name { get; set; } = "";
+
+    [AvroName("tier_level")]
+    public int Level { get; set; }
+
+    [AvroName("home")]
+    public Address Home { get; set; } = new();
+}
+
+[AvroSerializable(Namespace = "test.native")]
+public partial class Address
+{
+    [AvroName("city")]
+    public string City { get; set; } = "";
+}
+
+/// <summary>A transform that upper-cases a record's <c>name</c> in place, in Apache.Avro's generic model.</summary>
+internal sealed class UpperCaseName : IRuleExecutor
+{
+    public const string RuleType = "UPPER_NAME";
+
+    public void Configure(IEnumerable<KeyValuePair<string, string>> config, ISchemaRegistryClient? client = null)
+    {
+    }
+
+    public string Type() => RuleType;
+
+    public Task<object> Transform(RuleContext ctx, object message)
+    {
+        var record = (Avro.Generic.GenericRecord)message;
+        record.Add("name", ((string)record["name"]).ToUpperInvariant());
+        return Task.FromResult(message);
+    }
+
+    public void Dispose()
+    {
+    }
+}
+
+/// <summary>A condition that records the type of the message it is given.</summary>
+internal sealed class RecordMessageType : IRuleExecutor
+{
+    public const string RuleType = "RECORD_TYPE";
+
+    public System.Type? Seen { get; private set; }
+
+    public void Configure(IEnumerable<KeyValuePair<string, string>> config, ISchemaRegistryClient? client = null)
+    {
+    }
+
+    public string Type() => RuleType;
+
+    public Task<object> Transform(RuleContext ctx, object message)
+    {
+        Seen = message.GetType();
+        return Task.FromResult<object>(true);
+    }
+
+    public void Dispose()
+    {
+    }
 }
 
 internal sealed class TestClock : IClock

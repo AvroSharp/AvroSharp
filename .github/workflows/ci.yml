@@ -68,9 +68,10 @@ jobs:
           AVROSHARP_RANDOM_SCHEMA_FAILURES: ${{ github.workspace }}/TestResults/random-schema-failure
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
-      # Against services in Docker, which need Linux containers, so only the x64 Linux runner: AvroSharp.Confluent and
-      # AvroSharp.KafkaFlow against Redpanda, and AvroSharp.Aws.Glue against moto (an AWS emulator). The tests are
-      # [Explicit], so the solution run above leaves them out.
+      # Against services in Docker: AvroSharp.Confluent and AvroSharp.KafkaFlow against Redpanda, and AvroSharp.Aws.Glue
+      # against moto (an AWS emulator). Only on the x64 Linux runner, for run time: the Arm64 Linux runner has Linux
+      # containers too, and the code under test is the same. The tests are [Explicit], so the solution run above leaves
+      # them out.
       - name: Test against Redpanda and moto
         if: matrix.os == 'ubuntu-latest'
         run: |

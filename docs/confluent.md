@@ -113,7 +113,7 @@ Confluent.SchemaRegistry.Serdes.Avro uses Apache.Avro and its `avrogen` classes.
    - the same message bytes, schema ID included. The schema's JSON may be formatted differently, but registries treat equivalent schemas as one;
    - a top-level `bytes` value is still the message body itself, as Confluent's serializers (.NET and Java) write it. Bytes with a logical type, such as a decimal, keep Avro's length prefix, as Java's serializer writes a `BigDecimal`.
 4. **What differs:**
-   - **Rules:** field rules (field-level encryption, `CEL_FIELD`) and migration rules aren't supported yet, and fail rather than being skipped ([#186](https://github.com/AvroSharp/AvroSharp/issues/186), [#187](https://github.com/AvroSharp/AvroSharp/issues/187)). CEL on generic values fails, and on AvroSharp's own types it sees the C# property names ([#191](https://github.com/AvroSharp/AvroSharp/issues/191)).
+   - **Rules:** field rules (field-level encryption, `CEL_FIELD`) and migration rules aren't supported yet, and fail rather than being skipped ([#186](https://github.com/AvroSharp/AvroSharp/issues/186), [#187](https://github.com/AvroSharp/AvroSharp/issues/187)).
    - **Generic records:** `AvroSharpGeneric.CreateSerializer(registry)` writes each record with its own schema, as Confluent's generic serializer does; it writes records only. With a schema, it writes values of that schema, primitives included.
    - **Synchronous too:** both serializers also implement Confluent.Kafka's synchronous interfaces, which Confluent's don't. So passing one straight to `SetValueSerializer` needs a cast; the `SetAvroSharp…` extensions don't.
 
@@ -145,7 +145,14 @@ Rules run in Confluent's executors (Confluent.SchemaRegistry.Rules and Confluent
 
 | Rule | Generated or `[AvroSerializable]` types | Generic values (`AvroValue`) |
 |---|---|---|
-| CEL conditions (`CEL`) | Run. With the Apache.Avro compatibility mode, expressions name the Avro fields. Otherwise they name the C# properties, such as `message.Name`: the Avro field names, unless `[AvroName]` or a naming setting changes them. CEL transforms are untested. | The rule fails, so the message isn't written. |
+| CEL conditions and transforms (`CEL`) | Run, by the Avro field names | Run, by the Avro field names |
 | Payload encryption (`ENCRYPT_PAYLOAD`) | Runs | Runs |
 | Field rules: field-level encryption (`ENCRYPT`, CSFLE) and `CEL_FIELD` | Not supported yet: they fail with `NotSupportedException` instead of leaving the fields unchanged. | Not supported yet |
 | Migration rules | Not supported yet: a deserializer that would have to run them fails with `NotSupportedException`. | Not supported yet |
+
+**CEL names the Avro fields,** as rules written for Java's and Confluent's serializers do: `message.customer_name`, not the C# property `message.CustomerName`. Confluent's CEL executor reads a value by its Avro field names only as one of Apache.Avro's records. So when a subject's domain rules include CEL rules, the rules get the value decoded from its encoding as Apache.Avro's generic model: a `GenericRecord`, with `GenericEnum`, lists and dictionaries inside, as Confluent's generic serializer gives them.
+- **Apache.Avro comes with Confluent.SchemaRegistry.Rules,** which has the CEL executor. AvroSharp.Confluent doesn't reference it; it finds it at run time.
+- **A condition that passes** writes the value's own encoding, so the bytes are the same as without the rule.
+- **A transform** returns the value to write (or, on reads, to read): a record of the subject's schema in Apache.Avro's generic model. A rule that returns anything else, such as a CEL map literal, fails with `InvalidOperationException`.
+- **Other domain rules,** with no CEL rule among them, get your value itself.
+- **Trimming and Native AOT:** Confluent.SchemaRegistry.Rules and Apache.Avro use reflection and aren't marked trim-compatible, and CEL rules aren't tested under Native AOT. Without CEL rules, none of this is used.
