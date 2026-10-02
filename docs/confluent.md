@@ -1,6 +1,6 @@
 # Confluent Schema Registry and Kafka
 
-[AvroSharp.Confluent](https://www.nuget.org/packages/AvroSharp.Confluent) gives Confluent.Kafka producers and consumers Avro serializers on AvroSharp, with Confluent Schema Registry. The same serializers work with registries that have its API, such as Redpanda, Karapace and Apicurio. It's a drop-in replacement for Confluent's own Avro serializer: no Apache.Avro, the same configuration keys and the same message bytes. For the registry, it uses Confluent's own code, through Confluent's serializer base classes:
+[AvroSharp.Confluent](https://www.nuget.org/packages/AvroSharp.Confluent) gives Confluent.Kafka producers and consumers Avro serializers on AvroSharp, with Confluent Schema Registry. The same serializers work with registries that have its API, such as Redpanda, Karapace and Apicurio. It replaces Confluent's own Avro serializer with no Apache.Avro, the same configuration keys and the same message bytes; the differences are listed under [Moving from Confluent's Avro serializer](#moving-from-confluents-avro-serializer). For the registry, it uses Confluent's own code, through Confluent's serializer base classes:
 - subject name strategies;
 - registration;
 - schema ID strategies;
@@ -103,6 +103,11 @@ Confluent.SchemaRegistry.Serdes.Avro uses Apache.Avro and its `avrogen` classes.
    - the same subjects;
    - the same message bytes, schema ID included. The schema's JSON may be formatted differently, but registries treat equivalent schemas as one;
    - a top-level `bytes` value is still the message body itself, as Confluent's serializers (.NET and Java) write it.
+4. **What differs:**
+   - **Rules:** field rules (field-level encryption, `CEL_FIELD`) and migration rules aren't supported yet, and fail rather than being skipped ([#186](https://github.com/AvroSharp/AvroSharp/issues/186), [#187](https://github.com/AvroSharp/AvroSharp/issues/187)). CEL on generic values fails, and on AvroSharp's own types it sees the C# property names ([#191](https://github.com/AvroSharp/AvroSharp/issues/191)).
+   - **The generic serializer** writes one schema, given when it's created, where Confluent's takes each record's own ([#193](https://github.com/AvroSharp/AvroSharp/issues/193)).
+   - **The configuration constructors** take a dictionary, which the setters write into, where Confluent's take any list of key-value pairs and copy it ([#195](https://github.com/AvroSharp/AvroSharp/issues/195)).
+   - **Synchronous use:** the serializer is asynchronous only, so use `ProduceAsync`, not `Produce` ([#189](https://github.com/AvroSharp/AvroSharp/issues/189)).
 
 ## Moving from Chr.Avro
 
