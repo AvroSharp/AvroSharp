@@ -20,6 +20,7 @@
     <PackageReference Include="Confluent.SchemaRegistry.Rules" />
     <PackageReference Include="Confluent.SchemaRegistry.Encryption" />
     <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
     <PackageReference Include="Apache.Avro" />
     <PackageReference Include="Testcontainers.Redpanda" />
     <PackageReference Include="TUnit" />

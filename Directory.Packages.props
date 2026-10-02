@@ -84,6 +84,7 @@
     <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="4.2.0" />
     <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Azure.Data.SchemaRegistry.ApacheAvro" Version="1.0.1" />
     <PackageVersion Include="Azure.Messaging.EventHubs" Version="5.12.2" />
     <!-- Brought in by Confluent.SchemaRegistry.Encryption's dependencies at 4.7.0, which has a critical advisory. -->

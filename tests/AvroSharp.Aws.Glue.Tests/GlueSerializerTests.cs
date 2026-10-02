@@ -246,11 +246,30 @@ public class GlueSerializerTests
 
         var a = await new AvroSharpGlueSerializer(glue).SerializeAsync(NewOrder(), "orders-topic");
         var b = await new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { SchemaName = "fixed" }).SerializeAsync(NewOrder(), "orders-topic");
-        var c = await new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { SchemaNameStrategy = (_, schema) => ((Schemas.NamedSchema)schema).FullName }).SerializeAsync(NewOrder(), "orders-topic");
+        var c = await new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { SchemaNameStrategy = naming => ((Schemas.NamedSchema)naming.Schema).FullName }).SerializeAsync(NewOrder(), "orders-topic");
 
         await Assert.That(a.Take(18)).IsEquivalentTo(AwsMessage(byTopic, 0x00, []), CollectionOrdering.Matching);
         await Assert.That(b.Take(18)).IsEquivalentTo(AwsMessage(fixedName, 0x00, []), CollectionOrdering.Matching);
         await Assert.That(c.Take(18)).IsEquivalentTo(AwsMessage(byRecord, 0x00, []), CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task SchemaNameStrategy_TellsKeysFromValues()
+    {
+        using var glue = new InMemoryGlueClient();
+        var definition = AvroTypes.Get<Order>().Schema.ToJson();
+        var keyVersion = glue.Add("orders-key", definition);
+        var valueVersion = glue.Add("orders-value", definition);
+        var options = new AvroSharpGlueOptions { SchemaNameStrategy = naming => naming.TransportName + (naming.IsKey ? "-key" : "-value") };
+        var serializer = new AvroSharpGlueKafkaSerializer<Order>(glue, options);
+
+        var key = serializer.Serialize(NewOrder(), new SerializationContext(MessageComponentType.Key, "orders"));
+        var value = serializer.Serialize(NewOrder(), new SerializationContext(MessageComponentType.Value, "orders"));
+        var direct = await new AvroSharpGlueSerializer(glue, options).SerializeAsync(NewOrder(), "orders", isKey: true);
+
+        await Assert.That(key!.Take(18)).IsEquivalentTo(AwsMessage(keyVersion, 0x00, []), CollectionOrdering.Matching);
+        await Assert.That(value!.Take(18)).IsEquivalentTo(AwsMessage(valueVersion, 0x00, []), CollectionOrdering.Matching);
+        await Assert.That(direct.Take(18)).IsEquivalentTo(AwsMessage(keyVersion, 0x00, []), CollectionOrdering.Matching);
     }
 
     [Test]

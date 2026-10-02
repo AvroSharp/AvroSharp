@@ -183,6 +183,16 @@ public class SchemaRegistrySerializerTests
     }
 
     [Test]
+    public async Task CanBeMocked()
+    {
+        AvroSharpSchemaRegistrySerializer serializer = new FakeSerializer();
+
+        var message = await serializer.SerializeAsync<MessageContent, Order>(NewOrder());
+
+        await Assert.That(message.ContentType!.Value.ToString()).IsEqualTo("avro/binary+fake");
+    }
+
+    [Test]
     public async Task ReportsWhatItCantDo()
     {
         var registry = new InMemorySchemaRegistryClient();
@@ -235,4 +245,11 @@ public sealed class NoParameterlessConstructor(string tag) : MessageContent
 {
     /// <summary>Gets the tag.</summary>
     public string Tag { get; } = tag;
+}
+
+/// <summary>A mock, as a test of code that uses the serializer would write one.</summary>
+internal sealed class FakeSerializer : AvroSharpSchemaRegistrySerializer
+{
+    public override ValueTask<TMessage> SerializeAsync<TMessage, TData>(TData data, System.Threading.CancellationToken cancellationToken = default) =>
+        new(new TMessage { ContentType = "avro/binary+fake" });
 }

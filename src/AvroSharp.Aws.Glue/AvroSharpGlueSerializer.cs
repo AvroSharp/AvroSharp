@@ -63,7 +63,20 @@ public sealed class AvroSharpGlueSerializer
     /// The value isn't of a type the serializer can write, or the registry has no version of its schema and
     /// auto-registration is off, or a new version didn't become available.
     /// </exception>
-    public async ValueTask<byte[]> SerializeAsync<T>(T value, string transportName, CancellationToken cancellationToken = default)
+    public ValueTask<byte[]> SerializeAsync<T>(T value, string transportName, CancellationToken cancellationToken = default) =>
+        SerializeAsync(value, transportName, isKey: false, cancellationToken);
+
+    /// <summary>Writes a key or a value.</summary>
+    /// <typeparam name="T">The value's type: a type <see cref="AvroTypes"/> knows, <see cref="GenericRecord"/> or <see cref="AvroValue"/>.</typeparam>
+    /// <param name="value">The key or the value.</param>
+    /// <param name="transportName">The Kafka topic or Kinesis stream, which names the schema unless <see cref="AvroSharpGlueOptions.SchemaName"/> does.</param>
+    /// <param name="isKey">Whether it's a message key, which <see cref="AvroSharpGlueOptions.SchemaNameStrategy"/> can name apart from values.</param>
+    /// <param name="cancellationToken">Cancels the registry calls, if any are needed.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The value isn't of a type the serializer can write, or the registry has no version of its schema and
+    /// auto-registration is off, or a new version didn't become available.
+    /// </exception>
+    public async ValueTask<byte[]> SerializeAsync<T>(T value, string transportName, bool isKey, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(value);
         ArgumentNullException.ThrowIfNull(transportName);
@@ -73,19 +86,19 @@ public sealed class AvroSharpGlueSerializer
             var recordSchema = generic.Kind == AvroValueKind.Record
                 ? generic.AsRecord().Schema
                 : throw new ArgumentException("A generic value must be a record, which has its schema.", nameof(value));
-            var genericId = await VersionIdAsync(recordSchema, transportName, cancellationToken).ConfigureAwait(false);
+            var genericId = await VersionIdAsync(recordSchema, transportName, isKey, cancellationToken).ConfigureAwait(false);
             return AvroRegistryMessage.ToArray(_framing, genericId, generic, _genericWriters.GetValue(recordSchema, s => GenericDatumWriter.Create(s)));
         }
 
         if (AvroTypes.TryGet<T>(out var typed))
         {
-            var typedId = await VersionIdAsync(typed!.Schema, transportName, cancellationToken).ConfigureAwait(false);
+            var typedId = await VersionIdAsync(typed!.Schema, transportName, isKey, cancellationToken).ConfigureAwait(false);
             return AvroRegistryMessage.ToArray(_framing, typedId, value, typed.Write);
         }
 
         // Typed as a base type or an interface: the value's own type.
         var info = TypeInfo(value.GetType());
-        var id = await VersionIdAsync(info.Schema, transportName, cancellationToken).ConfigureAwait(false);
+        var id = await VersionIdAsync(info.Schema, transportName, isKey, cancellationToken).ConfigureAwait(false);
         return AvroRegistryMessage.ToArray<object>(_framing, id, value, (ref writer, v) => info.WriteObject(ref writer, v));
     }
 
@@ -119,9 +132,9 @@ public sealed class AvroSharpGlueSerializer
     private AvroRegistryMessageReader<AvroValue> GenericReader() =>
         (AvroRegistryMessageReader<AvroValue>)_readers.GetOrAdd(typeof(AvroValue), _ => AvroRegistryMessageReader.CreateGeneric(AvroRegistryFraming.AwsGlue, _registry));
 
-    private async ValueTask<AvroSchemaId> VersionIdAsync(AvroSchema schema, string transportName, CancellationToken cancellationToken)
+    private async ValueTask<AvroSchemaId> VersionIdAsync(AvroSchema schema, string transportName, bool isKey, CancellationToken cancellationToken)
     {
-        var name = _options.SchemaName ?? _options.SchemaNameStrategy?.Invoke(transportName, schema) ?? transportName;
+        var name = _options.SchemaName ?? _options.SchemaNameStrategy?.Invoke(new AvroSharpGlueSchemaNameContext(transportName, schema, isKey)) ?? transportName;
         return AvroSchemaId.FromGuid(await _registry.VersionIdAsync(name, schema, cancellationToken).ConfigureAwait(false));
     }
 

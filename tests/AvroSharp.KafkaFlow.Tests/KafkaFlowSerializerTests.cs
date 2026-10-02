@@ -83,6 +83,7 @@ public class KafkaFlowSerializerTests
         await Assert.That(async () => await onlyOrders.OnConsumeAsync(new ConsumedMessage([1, 2, 3]))).Throws<InvalidOperationException>().WithMessageContaining("framing", StringComparison.Ordinal);
         await Assert.That(() => new AvroSharpMessageTypeResolver(registry, [typeof(string)])).Throws<ArgumentException>();
         await Assert.That(() => new AvroSharpMessageTypeResolver(registry, [typeof(Order), typeof(Order)])).Throws<ArgumentException>();
+        await Assert.That(() => new AvroSharpMessageTypeResolver(registry, [])).Throws<ArgumentException>().WithMessageContaining("No message types", StringComparison.Ordinal);
     }
 
     [Test]

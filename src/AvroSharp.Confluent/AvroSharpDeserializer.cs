@@ -1,5 +1,7 @@
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
@@ -19,10 +21,19 @@ namespace AvroSharp.Confluent;
 /// It derives from Confluent's <see cref="AsyncDeserializer{T, TParsedSchema}"/>.
 /// </summary>
 /// <typeparam name="T">The type read.</typeparam>
-/// <remarks>Confluent.Kafka's consumer takes synchronous deserializers: use <c>.AsSyncOverAsync()</c>, or <see cref="AvroSharpSerdeExtensions"/>.</remarks>
-public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>
+/// <remarks>
+/// It is both asynchronous and synchronous (<see cref="IDeserializer{T}"/>), which Confluent.Kafka's consumer calls.
+/// Once a schema ID's reader is known, the synchronous path reads without a task. It waits for the registry the first
+/// time, and on every message with <c>use.latest.version</c> or <c>use.latest.with.metadata</c>, or whose schema has
+/// rules, which can run asynchronously.
+/// </remarks>
+public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>, IDeserializer<T>
 {
     private readonly AvroTypeInfo<T> _type;
+
+    // The writer schema and reader of each schema ID, once known, when reading it depends on nothing else (no latest
+    // schema, and no rules): the synchronous path reads with them.
+    private readonly ConcurrentDictionary<(int? Id, Guid? Guid), (AvroSchema Writer, AvroReadFunc<T> Read)> _known = new();
 
     // The reader of each writer schema. Confluent's client caches a parsed schema per ID, so the instance is the key.
     private readonly ConditionalWeakTable<AvroSchema, AvroReadFunc<T>> _readers = new();
@@ -81,11 +92,7 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>
     {
         if (isNull)
         {
-            // A tombstone. A value type can't be null (a generic value can: AvroValue's default is null), as in Confluent's
-            // deserializer.
-            return default(T) is null || typeof(T) == typeof(AvroValue)
-                ? default!
-                : throw new InvalidOperationException($"The message has no body (a tombstone), which can't be read as the value type {typeof(T).Name}.");
+            return Tombstone();
         }
 
         var isKey = context.Component == MessageComponentType.Key;
@@ -116,12 +123,46 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>
         {
             value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!;
         }
+        else if (latest is null && !useLatestVersion && useLatestWithMetadata is null && writerJson.RuleSet?.EncodingRules is not { Count: > 0 })
+        {
+            _known.TryAdd((id.Id, id.Guid), (writerSchema, read));
+        }
 
         return value;
     }
 
+    /// <summary>
+    /// Reads a value without a task once its schema ID's reader is known; until then, and with settings or rules that
+    /// can run asynchronously, it waits for <see cref="DeserializeAsync"/>.
+    /// </summary>
+    /// <param name="data">The message body.</param>
+    /// <param name="isNull">Whether the message has no body; the result is then the default of <typeparamref name="T"/>.</param>
+    /// <param name="context">The topic, the component (key or value) and the headers.</param>
+    [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's consumer calls deserializers synchronously: it waits only until the schema ID's reader is known, or with settings or rules that can run asynchronously.")]
+    public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
+    {
+        if (isNull)
+        {
+            return Tombstone();
+        }
+
+        var message = data.ToArray();
+        var id = new SchemaId(SchemaType.Avro);
+        var payload = schemaIdDecoder.Decode(message, context, ref id);
+        return _known.TryGetValue((id.Id, id.Guid), out var known)
+            ? Read(known.Read, known.Writer, payload)
+            : DeserializeAsync(message, isNull: false, context).GetAwaiter().GetResult();
+    }
+
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
+
+    // A tombstone. A value type can't be null (a generic value can: AvroValue's default is null), as in Confluent's
+    // deserializer.
+    private static T Tombstone() =>
+        default(T) is null || typeof(T) == typeof(AvroValue)
+            ? default!
+            : throw new InvalidOperationException($"The message has no body (a tombstone), which can't be read as the value type {typeof(T).Name}.");
 
     /// <summary>
     /// Gets or sets how values are read when the subject has a latest schema (<c>use.latest.version</c> or

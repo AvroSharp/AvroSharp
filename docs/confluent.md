@@ -48,16 +48,16 @@ using var consumer = new ConsumerBuilder<string, Order>(new ConsumerConfig { Boo
     .Build();
 ```
 
-The serializers can also be created directly:
-- [`new AvroSharpSerializer<Order>(registry, config)`](xref:AvroSharp.Confluent.AvroSharpSerializer`1) and [`new AvroSharpDeserializer<Order>(registry, config)`](xref:AvroSharp.Confluent.AvroSharpDeserializer`1);
-- the deserializer is asynchronous, as Confluent's is: wrap it with `.AsSyncOverAsync()` for a consumer.
-
-[`AvroSharpSerdeExtensions`](xref:AvroSharp.Confluent.AvroSharpSerdeExtensions) does that for you.
+The serializers can also be created directly: [`new AvroSharpSerializer<Order>(registry, config)`](xref:AvroSharp.Confluent.AvroSharpSerializer`1) and [`new AvroSharpDeserializer<Order>(registry, config)`](xref:AvroSharp.Confluent.AvroSharpDeserializer`1).
+- **Both synchronous and asynchronous.** Each implements Confluent.Kafka's synchronous interface (`ISerializer<T>`, `IDeserializer<T>`) as well as the asynchronous one, so `producer.Produce` works, and a consumer takes the deserializer as it is.
+- **The producer builder has a `SetValueSerializer` for each interface,** so pass the serializer as one of them, such as `(ISerializer<Order>)serializer`. [`AvroSharpSerdeExtensions`](xref:AvroSharp.Confluent.AvroSharpSerdeExtensions) sets the synchronous ones, which serve `ProduceAsync` too.
+- **No task once the schema is known.** The synchronous path waits for the registry the first time a topic's schema is written or a schema ID is read; after that it reads and writes without a task. Settings that can run rules asynchronously (`use.latest.version`, `use.latest.with.metadata`, `use.schema.id`, and schemas with rules) wait on every message.
 
 **Generic records.** For code that has schemas rather than types, [`AvroSharpGeneric`](xref:AvroSharp.Confluent.AvroSharpGeneric):
 
 ```csharp
 var serializer = AvroSharpGeneric.CreateSerializer(registry, schema);         // writes AvroValue values of the schema
+var records = AvroSharpGeneric.CreateSerializer(registry);                    // writes each record with its own schema
 var deserializer = AvroSharpGeneric.CreateDeserializer(registry);             // each message as its writer's schema
 var asV2 = AvroSharpGeneric.CreateDeserializer(registry, readerSchema: v2);   // or resolved to one schema
 ```
@@ -68,7 +68,14 @@ var asV2 = AvroSharpGeneric.CreateDeserializer(registry, readerSchema: v2);   //
 
 ## Settings
 
-[`AvroSharpSerializerConfig`](xref:AvroSharp.Confluent.AvroSharpSerializerConfig) and [`AvroSharpDeserializerConfig`](xref:AvroSharp.Confluent.AvroSharpDeserializerConfig) take the keys of Confluent's `AvroSerializerConfig` and `AvroDeserializerConfig`. They can be built from a configuration section of key-value pairs.
+[`AvroSharpSerializerConfig`](xref:AvroSharp.Confluent.AvroSharpSerializerConfig) and [`AvroSharpDeserializerConfig`](xref:AvroSharp.Confluent.AvroSharpDeserializerConfig) take the keys of Confluent's `AvroSerializerConfig` and `AvroDeserializerConfig`. They can be built from key-value pairs, which they copy, such as a dictionary or a configuration section:
+
+```csharp
+// appsettings.json: { "Kafka": { "Serializer": { "avro.serializer.auto.register.schemas": "false" } } }
+var config = new AvroSharpSerializerConfig(configuration.GetSection("Kafka:Serializer").AsEnumerable(makePathsRelative: true)!);
+```
+
+A section's own entry has no value, and is left out.
 
 | Serializer | Key | Default |
 |---|---|---|
@@ -105,9 +112,8 @@ Confluent.SchemaRegistry.Serdes.Avro uses Apache.Avro and its `avrogen` classes.
    - a top-level `bytes` value is still the message body itself, as Confluent's serializers (.NET and Java) write it.
 4. **What differs:**
    - **Rules:** field rules (field-level encryption, `CEL_FIELD`) and migration rules aren't supported yet, and fail rather than being skipped ([#186](https://github.com/AvroSharp/AvroSharp/issues/186), [#187](https://github.com/AvroSharp/AvroSharp/issues/187)). CEL on generic values fails, and on AvroSharp's own types it sees the C# property names ([#191](https://github.com/AvroSharp/AvroSharp/issues/191)).
-   - **The generic serializer** writes one schema, given when it's created, where Confluent's takes each record's own ([#193](https://github.com/AvroSharp/AvroSharp/issues/193)).
-   - **The configuration constructors** take a dictionary, which the setters write into, where Confluent's take any list of key-value pairs and copy it ([#195](https://github.com/AvroSharp/AvroSharp/issues/195)).
-   - **Synchronous use:** the serializer is asynchronous only, so use `ProduceAsync`, not `Produce` ([#189](https://github.com/AvroSharp/AvroSharp/issues/189)).
+   - **Generic records:** `AvroSharpGeneric.CreateSerializer(registry)` writes each record with its own schema, as Confluent's generic serializer does; it writes records only. With a schema, it writes values of that schema, primitives included.
+   - **Synchronous too:** both serializers also implement Confluent.Kafka's synchronous interfaces, which Confluent's don't. So passing one straight to `SetValueSerializer` needs a cast; the `SetAvroSharp…` extensions don't.
 
 ## Moving from Chr.Avro
 
@@ -125,7 +131,7 @@ Chr.Avro.Confluent maps your classes to schemas by reflection when the serialize
 ## Behavior to know
 
 - **Tombstones.** A `null` value, or a null `AvroValue`, is written as a message with no body, which Kafka calls a tombstone. Reading one gives `null`, or a null `AvroValue`. A value type such as `int` can't be null, so reading a tombstone into one throws, as in Confluent's deserializer.
-- **`use.latest.version`, `use.latest.with.metadata` and `use.schema.id`.** The message carries that schema's ID, but its bytes are written in your type's schema. So the serializer checks once that the two schemas encode alike (the same Parsing Canonical Form), and throws when they don't. Otherwise readers would decode the message wrongly.
+- **`use.latest.version`, `use.latest.with.metadata` and `use.schema.id`.** The message carries that schema's ID, but its bytes are written in your type's schema. So the serializer checks once that the two schemas encode alike (the same Parsing Canonical Form, and the same logical types), and throws when they don't. Otherwise readers would decode the message wrongly.
 - **Configuration keys.** A key the serializer doesn't know is an error, as in Confluent's serializers, so a misspelled key isn't ignored. Keys under `rules.` and `subject.name.strategy.` are passed through to Confluent's code.
 - **The `Record` and `TopicRecord` strategies** name the subject after a record schema, as Confluent's .NET and Java serializers do. Any other schema, such as a primitive, has no record name, and serializing it fails with an error that says so.
 

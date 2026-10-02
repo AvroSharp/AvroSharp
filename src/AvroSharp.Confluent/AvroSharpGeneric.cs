@@ -21,6 +21,17 @@ public static class AvroSharpGeneric
         new(client, TypeInfo(schema, readerSchema: schema), config, ruleRegistry);
 
     /// <summary>
+    /// Creates a serializer of generic records that writes each record with its own schema, as Confluent's generic Avro
+    /// serializer does, for a topic that carries records of several schemas.
+    /// </summary>
+    /// <param name="client">The schema registry.</param>
+    /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
+    /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
+    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the serializer doesn't know, or enables both <c>use.latest.version</c> and <c>auto.register.schemas</c> (the default).</exception>
+    public static AvroSharpGenericRecordSerializer CreateSerializer(ISchemaRegistryClient client, AvroSharpSerializerConfig? config = null, RuleRegistry? ruleRegistry = null) =>
+        new(client, config, ruleRegistry);
+
+    /// <summary>
     /// Creates a deserializer of generic values: each message as its writer's schema, or resolved to
     /// <paramref name="readerSchema"/> when one is given. Without one, and with <c>use.latest.version</c> or
     /// <c>use.latest.with.metadata</c>, each message is resolved to the subject's latest schema, as Confluent's generic

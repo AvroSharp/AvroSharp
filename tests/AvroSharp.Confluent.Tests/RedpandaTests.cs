@@ -79,6 +79,12 @@ public class RedpandaTests(RedpandaFixture redpanda)
             .Build())
         {
             await producer.ProduceAsync(topic, new Message<string, Order> { Key = "order-1", Value = NewOrder() });
+
+            // Produce, which needs synchronous serializers.
+            DeliveryReport<string, Order>? report = null;
+            producer.Produce(topic, new Message<string, Order> { Key = "order-2", Value = NewOrder() }, r => report = r);
+            producer.Flush(TimeSpan.FromSeconds(30));
+            await Assert.That(report?.Error.IsError).IsFalse();
         }
 
         using var consumer = new ConsumerBuilder<string, Order>(new ConsumerConfig { BootstrapServers = redpanda.BootstrapServers, GroupId = topic, AutoOffsetReset = AutoOffsetReset.Earliest })
@@ -87,10 +93,13 @@ public class RedpandaTests(RedpandaFixture redpanda)
             .Build();
         consumer.Subscribe(topic);
         var result = consumer.Consume(TimeSpan.FromSeconds(30));
+        var second = consumer.Consume(TimeSpan.FromSeconds(30));
         consumer.Close();
 
         await Assert.That(result).IsNotNull();
         await Assert.That(result!.Message.Key).IsEqualTo("order-1");
         await ConfluentInteropTests.AssertIsNewOrder(result.Message.Value);
+        await Assert.That(second?.Message.Key).IsEqualTo("order-2");
+        await ConfluentInteropTests.AssertIsNewOrder(second!.Message.Value);
     }
 }

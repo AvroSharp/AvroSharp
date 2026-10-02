@@ -41,15 +41,14 @@ public sealed class AvroSharpGlueKafkaSerializer<T> : IAsyncSerializer<T>, ISeri
     /// <summary>Writes a value. A <see langword="null"/> value, or a null <see cref="AvroValue"/>, is a tombstone: no message body.</summary>
     /// <param name="data">The value.</param>
     /// <param name="context">The topic.</param>
-    public async Task<byte[]> SerializeAsync(T data, SerializationContext context) =>
-        IsTombstone(data) ? null! : await _serializer.SerializeAsync(data, context.Topic).ConfigureAwait(false);
+    public async Task<byte[]?> SerializeAsync(T data, SerializationContext context) =>
+        IsTombstone(data) ? null : await _serializer.SerializeAsync(data, context.Topic, context.Component == MessageComponentType.Key).ConfigureAwait(false);
 
     /// <summary>Writes a value, waiting for Glue when the schema's version isn't known yet. A <see langword="null"/> value, or a null <see cref="AvroValue"/>, is a tombstone: no message body.</summary>
     /// <param name="data">The value.</param>
     /// <param name="context">The topic.</param>
-    [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's synchronous interface; the AWS SDK for .NET calls Glue asynchronously only, and once per schema.")]
-    public byte[] Serialize(T data, SerializationContext context) =>
-        IsTombstone(data) ? null! : _serializer.SerializeAsync(data, context.Topic).AsTask().GetAwaiter().GetResult();
+    public byte[]? Serialize(T data, SerializationContext context) =>
+        IsTombstone(data) ? null : SyncWait.Result(_serializer.SerializeAsync(data, context.Topic, context.Component == MessageComponentType.Key));
 
     private static bool IsTombstone(T data) => data is null || data is AvroValue { IsNull: true };
 }
@@ -96,9 +95,8 @@ public sealed class AvroSharpGlueKafkaDeserializer<T> : IAsyncDeserializer<T>, I
     /// <param name="isNull">Whether the message has no body.</param>
     /// <param name="context">The topic.</param>
     /// <exception cref="InvalidOperationException">The message is a tombstone and <typeparamref name="T"/> is a value type.</exception>
-    [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's consumer calls deserializers synchronously; the AWS SDK for .NET calls Glue asynchronously only, and once per schema version.")]
     public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context) =>
-        isNull ? Tombstone() : _serializer.DeserializeAsync<T>(data.ToArray()).AsTask().GetAwaiter().GetResult();
+        isNull ? Tombstone() : SyncWait.Result(_serializer.DeserializeAsync<T>(data.ToArray()));
 
     private static T Tombstone() =>
         default(T) is null || typeof(T) == typeof(AvroValue)
@@ -109,7 +107,7 @@ public sealed class AvroSharpGlueKafkaDeserializer<T> : IAsyncDeserializer<T>, I
 /// <summary>Sets AvroSharp's Glue Schema Registry serializers and deserializers on Confluent.Kafka's producer and consumer builders.</summary>
 public static class AvroSharpGlueKafkaExtensions
 {
-    /// <summary>Writes values with <see cref="AvroSharpGlueKafkaSerializer{T}"/>, asynchronously.</summary>
+    /// <summary>Writes values with <see cref="AvroSharpGlueKafkaSerializer{T}"/>, as its synchronous interface, so both <c>Produce</c> and <c>ProduceAsync</c> work. It waits for Glue the first time each schema is written.</summary>
     /// <typeparam name="TKey">The key type.</typeparam>
     /// <typeparam name="TValue">The value type.</typeparam>
     /// <param name="builder">The producer builder.</param>
@@ -118,7 +116,7 @@ public static class AvroSharpGlueKafkaExtensions
     public static ProducerBuilder<TKey, TValue> SetAvroSharpGlueValueSerializer<TKey, TValue>(this ProducerBuilder<TKey, TValue> builder, IAmazonGlue glue, AvroSharpGlueOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.SetValueSerializer((IAsyncSerializer<TValue>)new AvroSharpGlueKafkaSerializer<TValue>(glue, options));
+        return builder.SetValueSerializer((ISerializer<TValue>)new AvroSharpGlueKafkaSerializer<TValue>(glue, options));
     }
 
     /// <summary>
@@ -135,4 +133,12 @@ public static class AvroSharpGlueKafkaExtensions
         ArgumentNullException.ThrowIfNull(builder);
         return builder.SetValueDeserializer(new AvroSharpGlueKafkaDeserializer<TValue>(glue, options));
     }
+}
+
+/// <summary>Waits for a value task, without a task allocation when it has already completed, as a cached call does.</summary>
+internal static class SyncWait
+{
+    [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's synchronous interfaces; the AWS SDK for .NET calls Glue asynchronously only, and once per schema version.")]
+    public static TResult Result<TResult>(ValueTask<TResult> task) =>
+        task.IsCompletedSuccessfully ? task.Result : task.AsTask().GetAwaiter().GetResult();
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.IO;
@@ -21,14 +21,26 @@ namespace AvroSharp.Confluent;
 /// encoding is AvroSharp's. The bytes are those of Confluent's Avro serializer for the same schema and value.
 /// </summary>
 /// <typeparam name="T">The type written.</typeparam>
-public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
+/// <remarks>
+/// It is both asynchronous and synchronous (<see cref="ISerializer{T}"/>), so <c>producer.Produce</c> works too.
+/// Confluent.Kafka's producer builder has a <c>SetValueSerializer</c> for each, so pass it as one of them, such as
+/// <c>(ISerializer&lt;T&gt;)serializer</c>, or use <see cref="AvroSharpSerdeExtensions"/>, which set the synchronous one.
+/// Once a topic's schema ID is known, the synchronous path writes without a task. It waits for the registry the first
+/// time, and on every message with <c>use.latest.version</c>, <c>use.latest.with.metadata</c> or <c>use.schema.id</c>,
+/// whose rules can run asynchronously.
+/// </remarks>
+public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISerializer<T>
 {
     private readonly AvroTypeInfo<T> _type;
     private readonly string _schemaJson;
     private readonly string? _recordName;
     private readonly bool _rawBytes;
     private readonly ConcurrentDictionary<int, bool> _writesAs = new();
-    private readonly Dictionary<string, SchemaId> _registered = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SchemaId> _registered = new(StringComparer.Ordinal);
+
+    // The schema ID of each topic, for keys and for values, once known, when the ID depends on nothing else (without
+    // use.latest.version, use.latest.with.metadata and use.schema.id): the synchronous path writes with it.
+    private readonly ConcurrentDictionary<(string Topic, bool IsKey), SchemaId> _topicIds = new();
 
     /// <summary>
     /// Creates a serializer of a generated type or a primitive, which <see cref="AvroTypes"/> knows. Generated types
@@ -89,12 +101,12 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
     /// <summary>Writes a value: its schema ID (registered or looked up once per subject), then its Avro encoding.</summary>
     /// <param name="value">The value. A <see langword="null"/> reference is written as no message body.</param>
     /// <param name="context">The topic, the component (key or value) and the headers.</param>
-    public override async Task<byte[]> SerializeAsync(T value, SerializationContext context)
+    /// <returns>The message body, or <see langword="null"/> for a tombstone.</returns>
+    public override async Task<byte[]?> SerializeAsync(T value, SerializationContext context)
     {
-        // A null value is a tombstone: no message body. So is a null generic value, unless the schema is "null".
-        if (value is null || (value is AvroValue { IsNull: true } && _type.Schema.Type != AvroSchemaType.Null))
+        if (IsTombstone(value))
         {
-            return null!;
+            return null;
         }
 
         var isKey = context.Component == MessageComponentType.Key;
@@ -107,30 +119,66 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
         }
 
         var latest = await GetReaderSchema(subject).ConfigureAwait(false);
-        var id = latest is not null ? new SchemaId(SchemaType.Avro, latest.Id, latest.Guid) : await IdForAsync(subject!).ConfigureAwait(false);
-        if (latest is not null)
+        if (latest is null)
         {
-            await CheckWritesAsAsync(latest).ConfigureAwait(false);
+            var registered = await IdForAsync(subject!).ConfigureAwait(false);
+            if (useSchemaId < 0 && !useLatestVersion && useLatestWithMetadata is null)
+            {
+                _topicIds.TryAdd((context.Topic, isKey), registered);
+            }
 
-            // Domain rules (such as CEL) see the value. Field rules, such as field-level encryption, aren't supported yet.
-            value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!;
+            return Encode(value, ref context, registered);
         }
 
+        await CheckWritesAsAsync(latest).ConfigureAwait(false);
+
+        // Domain rules (such as CEL) see the value. Field rules, such as field-level encryption, aren't supported yet.
+        value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!;
+        var id = new SchemaId(SchemaType.Avro, latest.Id, latest.Guid);
+        if (latest.RuleSet?.EncodingRules is not { Count: > 0 })
+        {
+            return Encode(value, ref context, id);
+        }
+
+        // Encoding rules (such as payload encryption) take and return the encoded bytes.
         var header = schemaIdEncoder.CalculateSize(ref id);
-        var output = new ArrayBufferWriter<byte>(Math.Max(initialBufferSize, header + 16));
-        output.Advance(header);
-        var writer = new AvroWriter(output);
-        _type.Write(ref writer, value);
-        writer.Flush();
+        var body = Body(Write(value, header).WrittenSpan[header..]).ToArray();
+        var encoded = (byte[])(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RulePhase.Encoding, RuleMode.Write, null, latest, body, null).ConfigureAwait(false))!;
+        return Frame(header, encoded, ref context, ref id);
+    }
 
-        if (latest?.RuleSet?.EncodingRules is { Count: > 0 })
+    /// <summary>
+    /// Writes a value without a task once the topic's schema ID is known; until then, and with settings whose rules can
+    /// run asynchronously, it waits for <see cref="SerializeAsync"/>.
+    /// </summary>
+    /// <param name="data">The value. A <see langword="null"/> reference is written as no message body.</param>
+    /// <param name="context">The topic, the component (key or value) and the headers.</param>
+    /// <returns>The message body, or <see langword="null"/> for a tombstone.</returns>
+    [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's synchronous interface: it waits only until the topic's schema ID is known, or with settings whose rules can run asynchronously.")]
+    public byte[]? Serialize(T data, SerializationContext context)
+    {
+        if (IsTombstone(data))
         {
-            // Encoding rules (such as payload encryption) take and return the encoded bytes.
-            var body = Body(output.WrittenSpan[header..]).ToArray();
-            var encoded = (byte[])(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RulePhase.Encoding, RuleMode.Write, null, latest, body, null).ConfigureAwait(false))!;
-            return Frame(header, encoded, ref context, ref id);
+            return null;
         }
 
+        return _topicIds.TryGetValue((context.Topic, context.Component == MessageComponentType.Key), out var id)
+            ? Encode(data, ref context, id)
+            : SerializeAsync(data, context).GetAwaiter().GetResult();
+    }
+
+    /// <inheritdoc/>
+    protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
+
+    // A null value is a tombstone: no message body. So is a null generic value, unless the schema is "null".
+    private bool IsTombstone(T value) =>
+        value is null || (value is AvroValue { IsNull: true } && _type.Schema.Type != AvroSchemaType.Null);
+
+    // The message: the schema ID, then the value's encoding (or the bytes alone, for the schema "bytes").
+    private byte[] Encode(T value, ref SerializationContext context, SchemaId id)
+    {
+        var header = schemaIdEncoder.CalculateSize(ref id);
+        var output = Write(value, header);
         if (_rawBytes)
         {
             return Frame(header, Body(output.WrittenSpan[header..]), ref context, ref id);
@@ -141,8 +189,16 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
         return result;
     }
 
-    /// <inheritdoc/>
-    protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
+    // The value's encoding, after room for the header.
+    private ArrayBufferWriter<byte> Write(T value, int header)
+    {
+        var output = new ArrayBufferWriter<byte>(Math.Max(initialBufferSize, header + 16));
+        output.Advance(header);
+        var writer = new AvroWriter(output);
+        _type.Write(ref writer, value);
+        writer.Flush();
+        return output;
+    }
 
     // The message body of an encoded value. A value of the schema "bytes" is the bytes alone, without Avro's length
     // prefix, as Confluent's serdes (.NET and Java) write it.
@@ -190,9 +246,15 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
         _writesAs.TryAdd(target.Id, true);
     }
 
-    // The schema's ID in the subject: registered (or looked up, without auto-registration) once, then cached.
+    // The schema's ID in the subject: registered (or looked up, without auto-registration) once, then cached. A cached
+    // ID is read without the lock.
     private async Task<SchemaId> IdForAsync(string subject)
     {
+        if (_registered.TryGetValue(subject, out var known))
+        {
+            return known;
+        }
+
         await serdeMutex.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -206,7 +268,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
                 ? await schemaRegistryClient.RegisterSchemaWithResponseAsync(subject, schema, normalizeSchemas).ConfigureAwait(false)
                 : await schemaRegistryClient.LookupSchemaAsync(subject, schema, ignoreDeletedSchemas: true, normalizeSchemas).ConfigureAwait(false);
             var id = new SchemaId(SchemaType.Avro, registered.Id, registered.Guid);
-            _registered[subject] = id;
+            _registered.TryAdd(subject, id);
             return id;
         }
         finally

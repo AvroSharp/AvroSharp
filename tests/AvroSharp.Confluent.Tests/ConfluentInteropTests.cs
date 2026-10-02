@@ -28,7 +28,7 @@ public class ConfluentInteropTests
         var ours = await new AvroSharpSerializer<Order>(registry).SerializeAsync(order, Value(topic));
 
         await Assert.That(ours).IsEquivalentTo(theirs, CollectionOrdering.Matching);
-        await Assert.That(ours[0]).IsEqualTo((byte)0);
+        await Assert.That(ours![0]).IsEqualTo((byte)0);
         // The registry has one version: AvroSharp registered the schema Confluent did.
         await Assert.That(await registry.GetSubjectVersionsAsync(topic + "-value")).Count().IsEqualTo(1);
     }

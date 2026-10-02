@@ -15,10 +15,13 @@ public sealed class AvroSharpSerializerConfig : SerdeConfig
     {
     }
 
-    /// <summary>Creates settings from key-value pairs, such as a configuration section.</summary>
+    /// <summary>
+    /// Creates settings from key-value pairs, copied, as Confluent's config classes do: a dictionary, or a
+    /// configuration section's pairs (see the guide). Pairs without a value are left out.
+    /// </summary>
     /// <param name="config">The settings, by key.</param>
-    public AvroSharpSerializerConfig(IDictionary<string, string> config)
-        : base(config)
+    public AvroSharpSerializerConfig(IEnumerable<KeyValuePair<string, string>> config)
+        : base(ConfigKeys.Copy(config))
     {
     }
 
