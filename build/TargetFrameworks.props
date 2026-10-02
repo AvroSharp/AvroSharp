@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- Target framework sets, for the repository's projects (Directory.Build.props) and for the package consumers
+       (tests/PackageConsumers), which don't import the repository's Directory.Build.props. -->
+  <PropertyGroup>
+    <LibraryTargetFrameworks>net10.0;net9.0;net8.0;netstandard2.1;netstandard2.0</LibraryTargetFrameworks>
+    <TestTargetFrameworks>net10.0;net9.0;net8.0</TestTargetFrameworks>
+  </PropertyGroup>
+
+</Project>

@@ -2,7 +2,7 @@
 
   <!-- Multi-targeted so BenchmarkDotNet can run every scenario on each supported modern runtime (the runtimes option). -->
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <!-- BenchmarkDotNet generates and builds its own project; it cannot sign with our key. -->

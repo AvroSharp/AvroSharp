@@ -32,11 +32,7 @@
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
-  <!-- Target framework sets. -->
-  <PropertyGroup>
-    <LibraryTargetFrameworks>net10.0;net9.0;net8.0;netstandard2.1;netstandard2.0</LibraryTargetFrameworks>
-    <TestTargetFrameworks>net10.0;net9.0;net8.0</TestTargetFrameworks>
-  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)build/TargetFrameworks.props" />
 
   <!-- Package metadata. The trademark wording is deliberate: AvroSharp implements the
        Apache Avro specification and is not an Apache Software Foundation project. -->
