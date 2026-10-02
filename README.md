@@ -1,4 +1,4 @@
-<h1 align="center"><img src="docs/images/logo.png" alt="AvroSharp"></h1>
+<h1 align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.png"><img src="docs/images/logo.png" alt="AvroSharp"></picture></h1>
 
 [![CI](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Favrosharp.github.io%2FAvroSharp%2Fcoverage.json)](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml?query=branch%3Amain)

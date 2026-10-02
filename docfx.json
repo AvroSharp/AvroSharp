@@ -26,7 +26,7 @@
     "overwrite": [ { "files": [ "docs/namespaces/*.md" ] } ],
     "fileMetadata": { "title": { "README.md": "AvroSharp", "index.md": "AvroSharp" } },
     "output": "artifacts/docs",
-    "template": [ "default", "modern" ],
+    "template": [ "default", "modern", "docs/template" ],
     "globalMetadata": {
       "_appName": "AvroSharp",
       "_appTitle": "AvroSharp",

@@ -1,5 +1,3 @@
-![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/logo.png)
-
 # AvroSharp.Azure.SchemaRegistry
 
 An [Azure Schema Registry](https://learn.microsoft.com/azure/event-hubs/schema-registry-overview) serializer on [AvroSharp](https://github.com/AvroSharp/AvroSharp) for Event Hubs and Service Bus messages (`MessageContent`). It's a replacement for Microsoft's `Microsoft.Azure.Data.SchemaRegistry.ApacheAvro`, without Apache.Avro:

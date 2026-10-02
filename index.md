@@ -1,4 +1,4 @@
-<h1 align="center"><img src="docs/images/logo.png" alt="AvroSharp"></h1>
+<h1 align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.png"><img src="docs/images/logo.png" alt="AvroSharp"></picture></h1>
 
 A high-performance, Native AOT-friendly .NET implementation of the [Apache Avro™](https://avro.apache.org/) specification: schemas, binary and JSON encoding, schema evolution, source-generated serializers, container files with every codec, single-object encoding and schema-registry framing.
 

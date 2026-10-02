@@ -1,5 +1,3 @@
-![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/logo.png)
-
 # AvroSharp.Confluent
 
 Confluent Schema Registry serializers and deserializers for [Confluent.Kafka](https://github.com/confluentinc/confluent-kafka-dotnet), built on [AvroSharp](https://github.com/AvroSharp/AvroSharp), without Apache.Avro.
