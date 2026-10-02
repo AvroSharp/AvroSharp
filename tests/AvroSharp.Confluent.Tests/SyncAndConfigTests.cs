@@ -115,20 +115,37 @@ public class SyncAndConfigTests
     [Test]
     public async Task BuilderExtensions_SetTheSynchronousInterfaces()
     {
+        // The builders aren't built: that loads librdkafka, which has no Windows Arm64 build.
         using var registry = new InMemorySchemaRegistry();
         var rules = new RuleRegistry();
+        var producer = new InspectedProducerBuilder();
+        var consumer = new InspectedConsumerBuilder();
 
-        using var producer = new ProducerBuilder<string, Order>(new ProducerConfig { BootstrapServers = "127.0.0.1:1" })
-            .SetAvroSharpKeySerializer(registry, ruleRegistry: rules)
-            .SetAvroSharpValueSerializer(registry, ruleRegistry: rules)
-            .Build();
-        using var consumer = new ConsumerBuilder<string, Order>(new ConsumerConfig { BootstrapServers = "127.0.0.1:1", GroupId = "g" })
-            .SetAvroSharpKeyDeserializer(registry, ruleRegistry: rules)
-            .SetAvroSharpValueDeserializer(registry, ruleRegistry: rules)
-            .Build();
+        producer.SetAvroSharpKeySerializer(registry, ruleRegistry: rules).SetAvroSharpValueSerializer(registry, ruleRegistry: rules);
+        consumer.SetAvroSharpKeyDeserializer(registry, ruleRegistry: rules).SetAvroSharpValueDeserializer(registry, ruleRegistry: rules);
 
-        await Assert.That(producer.Name).IsNotEmpty();
-        await Assert.That(consumer.Name).IsNotEmpty();
+        await Assert.That(producer.Key).IsTypeOf<AvroSharpSerializer<string>>();
+        await Assert.That(producer.Value).IsTypeOf<AvroSharpSerializer<Order>>();
+        await Assert.That(producer.HasAsync).IsFalse();
+        await Assert.That(consumer.Key).IsTypeOf<AvroSharpDeserializer<string>>();
+        await Assert.That(consumer.Value).IsTypeOf<AvroSharpDeserializer<Order>>();
+    }
+
+    // Builders whose serializers can be read: Confluent.Kafka keeps them in protected properties.
+    private sealed class InspectedProducerBuilder() : ProducerBuilder<string, Order>(new ProducerConfig())
+    {
+        public object? Key => KeySerializer;
+
+        public object? Value => ValueSerializer;
+
+        public bool HasAsync => AsyncKeySerializer is not null || AsyncValueSerializer is not null;
+    }
+
+    private sealed class InspectedConsumerBuilder() : ConsumerBuilder<string, Order>(new ConsumerConfig())
+    {
+        public object? Key => KeyDeserializer;
+
+        public object? Value => ValueDeserializer;
     }
 
     [Test]
