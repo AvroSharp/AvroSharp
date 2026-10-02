@@ -281,7 +281,8 @@ public ref struct AvroWriter
             if (room == 0)
             {
                 // Grows the buffer, or near the end of a fixed span writes only the bytes the value needs.
-                WriteIntOutOfLine(values[i++]);
+                var item = values[i++];
+                WriteBulkFallback((uint)((item << 1) ^ (item >> 31)));
                 continue;
             }
 
@@ -313,7 +314,8 @@ public ref struct AvroWriter
             var room = (_buffer.Length - _buffered) / MaxVarint64Length;
             if (room == 0)
             {
-                WriteLongOutOfLine(values[i++]);
+                var item = values[i++];
+                WriteBulkFallback((ulong)((item << 1) ^ (item >> 63)));
                 continue;
             }
 
@@ -414,14 +416,54 @@ public ref struct AvroWriter
         WriteRawSlow(value);
     }
 
-    // The bulk writers' fallback, for a value when the buffer has no room for a whole varint: rare, so out of line.
-    // Inlined, WriteVarint64 changed how .NET 8 and 9 compile the bulk loops around it: on the EPYC 7543, a smaller
-    // single-value path made 1-byte WriteLongs up to 48% slower (#168).
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void WriteIntOutOfLine(int value) => WriteInt(value);
+    /// <summary>The bulk writers' fallback, for a value when the buffer has no room for a whole varint.</summary>
+    /// <remarks>
+    /// PERF: this is the single-value path as it was before #168, kept as is because the JIT inlines it into the bulk
+    /// loops, and its shape decides how .NET 8 and 9 lay those loops out. On the EPYC 7543, inlining the new
+    /// single-value path made 1-byte WriteLongs up to 48% slower, and calling it out of line instead made 3- to 8-byte
+    /// WriteLongs 6-10% slower on .NET 8, with the same loop instructions at other offsets (#168). Keep this copy, or
+    /// re-measure the bulk rows of VarintBenchmarks on .NET 8 and 9 when it changes.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteBulkFallback(ulong value)
+    {
+        if (_buffer.Length - _buffered < MaxVarint64Length)
+        {
+            if (_output is null)
+            {
+                WriteVarintExact(value);
+                return;
+            }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void WriteLongOutOfLine(long value) => WriteLong(value);
+            Grow(MaxVarint64Length);
+        }
+
+        ref var destination = ref At(_buffered);
+        if (value < 0x80)
+        {
+            destination = (byte)value;
+            _buffered++;
+            return;
+        }
+
+        if (value < 0x4000)
+        {
+            destination = (byte)(value | 0x80);
+            Unsafe.Add(ref destination, 1) = (byte)(value >> 7);
+            _buffered += 2;
+            return;
+        }
+
+#if NET8_0_OR_GREATER
+        if (FastBmi2.IsSupported && value < 1UL << 56)
+        {
+            _buffered += WriteSpreadWord(ref destination, value);
+            return;
+        }
+#endif
+
+        WriteVarintMulti(value);
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint32(uint value) => WriteVarint64(value);
