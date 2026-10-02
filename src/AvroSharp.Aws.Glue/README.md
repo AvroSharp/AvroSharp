@@ -1,4 +1,4 @@
-![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/banner.png)
+![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/logo.png)
 
 # AvroSharp.Aws.Glue
 
