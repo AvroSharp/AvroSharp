@@ -492,8 +492,7 @@ public ref struct AvroWriter
     {
         // The fast paths need room for a whole 8-byte store. An IBufferWriter destination simply grows; near the end
         // of a fixed span the exact-size path writes only the bytes the value needs.
-        var position = _buffered;
-        if (_buffer.Length - position < MaxVarint64Length)
+        if (_buffer.Length - _buffered < MaxVarint64Length)
         {
             if (_output is null)
             {
@@ -502,10 +501,11 @@ public ref struct AvroWriter
             }
 
             Grow(MaxVarint64Length);
-            position = _buffered;
         }
 
-        // Capacity is checked above, so these stores skip the per-element bounds check.
+        // Capacity is checked above, so these stores skip the per-element bounds check. The position is read once and
+        // stored back as position + n: an increment in place is a read-modify-write of the field (#168).
+        var position = _buffered;
         ref var destination = ref At(position);
         if (value < 0x80)
         {
