@@ -52,6 +52,10 @@ Order received = await serializer.DeserializeAsync<Order>(eventData);
    - `SchemaRegistryAvroSerializerOptions` → `AvroSharpSchemaRegistrySerializerOptions`.
 
    The method calls stay the same.
+4. **What differs:**
+   - **Exceptions:** a type the serializer can't write throws `InvalidOperationException`, where Microsoft's throws `ArgumentException`. Avro errors aren't wrapped: they're AvroSharp's own `AvroException` types.
+   - **Generic records:** AvroSharp's `GenericRecord` and `AvroValue`, not Apache.Avro's `GenericRecord`.
+   - **Without auto-registration,** a schema registered only by Microsoft's serializer may not be found, because its text differs (see the schema text, below). The serializer says so, and how to fix it: register the schema from AvroSharp, or turn auto-registration on.
 3. **The messages don't change:**
    - the same body, which the tests compare with Microsoft's serializer byte for byte;
    - the same content type format;
@@ -62,5 +66,6 @@ Order received = await serializer.DeserializeAsync<Order>(eventData);
 - **Native AOT.** CI publishes an application that uses it with Native AOT and runs it ([the add-ons smoke test](https://github.com/AvroSharp/AvroSharp/tree/main/tests/AvroSharp.AotSmoke.Addons/Program.cs)), and neither it nor Azure.Data.SchemaRegistry has trim or AOT warnings there.
 - **The schema text.** AvroSharp registers a schema as Java's Avro writes it (`Schema.toString()`), which is likely what Azure's Java serializer registers too (not checked here). Microsoft's .NET serializer registers Apache.Avro .NET's text of the same schema, with the keys in another order, and with each nested named type's namespace written out even when it's the enclosing one's. With auto-registration this doesn't matter: each registration gives an ID that readers fetch. Without it, a schema registered only from Microsoft's .NET serializer might not be found by its text. Whether the service compares schemas by text or by meaning isn't documented, and isn't verified here. Register the schema from AvroSharp, or with auto-registration, if that happens.
 - **Mocking.** The serializer's methods are virtual, and it has a protected constructor, as Microsoft's serializer does, so tests of code that uses it can substitute it.
-- **Named schemas only.** The registry names each schema, so a value of a primitive schema, such as a `string`, can't be written.
+- **Named schemas only.** The registry names each schema by its full name, so a value is a generated type, or a generic record, enum or fixed value. A value of a primitive schema, such as a `string`, can't be written.
+- **One fetch per schema ID:** when several callers read messages of a new schema ID at once, one fetches its schema, and the rest wait for it.
 - **Caching:** the IDs of the schemas written and the writer schemas read are kept for the serializer's lifetime. Microsoft's serializer keeps its last 128.
