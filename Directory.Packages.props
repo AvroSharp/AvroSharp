@@ -55,6 +55,13 @@
     <PackageVersion Include="Azure.Data.SchemaRegistry" Version="1.4.0" />
   </ItemGroup>
 
+  <!-- AvroSharp.Aws.Glue. The package itself references AWSSDK.Glue [4.0.0, 5.0.0) and Confluent.Kafka [2.0.2, 3.0.0)
+       through VersionOverride. -->
+  <ItemGroup>
+    <PackageVersion Include="AWSSDK.Glue" Version="4.0.111" />
+    <PackageVersion Include="AWSSDK.Core" Version="4.0.102.8" />
+  </ItemGroup>
+
   <!-- Command-line tool -->
   <ItemGroup>
     <PackageVersion Include="System.CommandLine" Version="2.0.12" />
@@ -73,6 +80,7 @@
     <PackageVersion Include="Confluent.SchemaRegistry.Encryption" Version="$(ConfluentVersion)" />
     <PackageVersion Include="Confluent.Kafka" Version="$(ConfluentVersion)" />
     <PackageVersion Include="Testcontainers.Redpanda" Version="4.15.0" />
+    <PackageVersion Include="Testcontainers" Version="4.15.0" />
     <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="4.2.0" />
     <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
