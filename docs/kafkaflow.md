@@ -56,7 +56,7 @@ The middlewares are [`AvroSharpKafkaFlowSerializer`](xref:AvroSharp.KafkaFlow.Av
 
 ## Several types on one topic
 
-A topic can carry several record types, each under its own subject with the `TopicRecord` or `Record` strategy. The consumer then picks each message's type from its writer's schema:
+A topic can carry several record types, each under its own subject with the `TopicRecord` or `Record` strategy, or under the topic's subject as a top-level union of the records. The consumer then picks each message's type from its writer's schema, and for a union from the branch the message holds:
 
 ```csharp
 // Producer: each type's schema under "<topic>-<record name>".
@@ -68,7 +68,7 @@ middlewares
     .AddTypedHandlers(handlers => handlers.AddHandler<OrderPlacedHandler>().AddHandler<OrderShippedHandler>());
 ```
 
-- **With a list of types,** [`AvroSharpMessageTypeResolver`](xref:AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver) matches each type by its schema's record name. A type's .NET name can differ from its Avro name. There's no reflection, so AvroSharp's part has no trimming or Native AOT warnings; whether KafkaFlow itself runs under Native AOT is up to KafkaFlow.
+- **With a list of types,** [`AvroSharpMessageTypeResolver`](xref:AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver) matches each type by its schema's record name, or one of its aliases, so a type whose record was renamed still reads messages written under the old name. A type's .NET name can differ from its Avro name. There's no reflection, so AvroSharp's part has no trimming or Native AOT warnings; whether KafkaFlow itself runs under Native AOT is up to KafkaFlow.
 - **Without a list,** `AddSchemaRegistryAvroSharpDeserializerByTypeName()` finds the type by its .NET full name in the loaded assemblies, as KafkaFlow's `AddSchemaRegistryAvroDeserializer()` does. That works when the .NET names match the Avro names, as they do by default for generated types. It's marked as unsafe for trimming. It also finds types of assemblies loaded only for their metadata, such as one a handler's signature names.
 
 ## Moving from KafkaFlow's Confluent Avro serializer
@@ -86,8 +86,9 @@ middlewares
 
 ## Behavior to know
 
-- **The schema ID is in front of the message.** KafkaFlow's serializer middleware gives serializers and deserializers no message headers, so the schema ID can't go in a header. A serializer set up with `SchemaIdStrategy = Header` is rejected.
+- **The schema ID is in front of the message.** KafkaFlow's serializer middleware gives serializers and deserializers no message headers, so the schema ID can't go in a header. A serializer set up with `SchemaIdStrategy = Header` is rejected, and messages from other producers that carry the ID in a header (Confluent.Kafka 2.10 and later with `SchemaIdSerializerStrategy.Header`) can't be read: the resolver says so.
+- **Avro only:** a message whose schema is Protobuf or JSON Schema is reported as such.
 - **Mistakes show at startup.** The `Add...` methods check their arguments when they're called: a message type AvroSharp doesn't know, a type whose schema isn't a record, two types of the same record, a header schema ID, or `use.latest.version` with auto-registration. A missing `WithSchemaRegistry` shows when the bus creates the middleware.
-- **A record no type has** stops the message: the resolver throws an `InvalidOperationException` naming the record and the schema ID, and KafkaFlow handles it as any failed message. List every record the topic carries, or handle the error in an earlier middleware.
+- **A record no type has** stops the message: the resolver throws an `InvalidOperationException` naming the record and the schema ID, and KafkaFlow handles it as any failed message. List every record the topic carries, or handle the error in an earlier middleware. Without a list of types, a record no loaded type has is looked for again only after more assemblies have loaded.
 - **Caching:** each producer and consumer has its own serializer per message type. A schema is registered or looked up once per type and subject. A consumer fetches each writer schema once per schema ID.
 - **Tombstones:** KafkaFlow's middleware passes a null message through without calling the serializer, so tombstones work as they do with KafkaFlow's own serializer.

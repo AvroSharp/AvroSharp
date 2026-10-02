@@ -17,7 +17,12 @@ internal static class MessageTypes
             ? info!
             : throw new InvalidOperationException(
                 $"{type} is not a type AvroSharp knows: generate it from an .avsc file or mark it [AvroSerializable] (with " +
-                "AvroSharp.Generators). On .NET Standard, register it first with AvroTypes.Register(" + type.Name + ".AvroTypeInfo).");
+                "AvroSharp.Generators). A generated type registers itself through a module initializer, which needs C# 9 " +
+                "and .NET 5 or later; when its assembly targets .NET Standard, or its C# version is older, register it " +
+                $"first with AvroTypes.Register({CSharpName(type)}.AvroTypeInfo).");
+
+    // The type's name as C# writes it: nested types with dots, not the runtime's plus signs.
+    private static string CSharpName(Type type) => (type.FullName ?? type.Name).Replace('+', '.');
 
     // The type as AvroTypeInfo<object>: the boxed read and write functions of its non-generic info.
     public static AvroTypeInfo<object> AsObject(AvroTypeInfo info) =>
