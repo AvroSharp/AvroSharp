@@ -439,17 +439,10 @@ public ref struct AvroWriter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteVarint64(ulong value)
     {
-        var position = _buffered;
-        if (value < 0x80 && (uint)position < (uint)_buffer.Length)
-        {
-            At(position) = (byte)value;
-            _buffered = position + 1;
-            return;
-        }
-
         // The fast paths need room for a whole 8-byte store. An IBufferWriter destination simply grows; near the end
         // of a fixed span the exact-size path writes only the bytes the value needs.
-        if (_buffer.Length - _buffered < MaxVarint64Length)
+        var position = _buffered;
+        if (_buffer.Length - position < MaxVarint64Length)
         {
             if (_output is null)
             {
@@ -458,14 +451,15 @@ public ref struct AvroWriter
             }
 
             Grow(MaxVarint64Length);
+            position = _buffered;
         }
 
         // Capacity is checked above, so these stores skip the per-element bounds check.
-        ref var destination = ref At(_buffered);
+        ref var destination = ref At(position);
         if (value < 0x80)
         {
             destination = (byte)value;
-            _buffered++;
+            _buffered = position + 1;
             return;
         }
 
@@ -474,14 +468,14 @@ public ref struct AvroWriter
             // Two bytes: common enough (64 to 8191 in magnitude) to deserve direct stores.
             destination = (byte)(value | 0x80);
             Unsafe.Add(ref destination, 1) = (byte)(value >> 7);
-            _buffered += 2;
+            _buffered = position + 2;
             return;
         }
 
 #if NET8_0_OR_GREATER
         if (FastBmi2.IsSupported && value < 1UL << 56)
         {
-            _buffered += WriteSpreadWord(ref destination, value);
+            _buffered = position + WriteSpreadWord(ref destination, value);
             return;
         }
 #endif
