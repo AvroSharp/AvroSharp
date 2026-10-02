@@ -21,9 +21,11 @@ public static class AvroSharpKafkaFlowExtensions
     /// <summary>Writes each produced message with <see cref="AvroSharpKafkaFlowSerializer"/>: of any type <see cref="Serialization.AvroTypes"/> knows.</summary>
     /// <param name="middlewares">The producer's middlewares.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults. The schema ID can't go in a header.</param>
+    /// <exception cref="ArgumentException"><paramref name="config"/> puts the schema ID in a header, or enables both <c>use.latest.version</c> and <c>auto.register.schemas</c>.</exception>
     public static IProducerMiddlewareConfigurationBuilder AddSchemaRegistryAvroSharpSerializer(this IProducerMiddlewareConfigurationBuilder middlewares, AvroSharpSerializerConfig? config = null)
     {
         ArgumentNullException.ThrowIfNull(middlewares);
+        AvroSharpKafkaFlowSerializer.Check(config);
         return middlewares.Add(resolver => new SerializerProducerMiddleware(new AvroSharpKafkaFlowSerializer(Registry(resolver), config), ProducedType.Instance));
     }
 
@@ -31,9 +33,11 @@ public static class AvroSharpKafkaFlowExtensions
     /// <typeparam name="TMessage">The message type, which <see cref="Serialization.AvroTypes"/> knows.</typeparam>
     /// <param name="middlewares">The consumer's middlewares.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
+    /// <exception cref="InvalidOperationException"><typeparamref name="TMessage"/> is not a type <see cref="Serialization.AvroTypes"/> knows.</exception>
     public static IConsumerMiddlewareConfigurationBuilder AddSchemaRegistryAvroSharpDeserializer<TMessage>(this IConsumerMiddlewareConfigurationBuilder middlewares, AvroSharpDeserializerConfig? config = null)
     {
         ArgumentNullException.ThrowIfNull(middlewares);
+        MessageTypes.Info(typeof(TMessage));
         return middlewares.Add(resolver => new DeserializerConsumerMiddleware(new AvroSharpKafkaFlowDeserializer(Registry(resolver), config), new SingleMessageTypeResolver(typeof(TMessage))));
     }
 
@@ -44,15 +48,16 @@ public static class AvroSharpKafkaFlowExtensions
     /// <param name="middlewares">The consumer's middlewares.</param>
     /// <param name="messageTypes">The message types, which <see cref="Serialization.AvroTypes"/> knows, each of a record schema.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
+    /// <exception cref="ArgumentException">A type's schema isn't a record, or two types have records of the same name.</exception>
+    /// <exception cref="InvalidOperationException">A type is not one <see cref="Serialization.AvroTypes"/> knows.</exception>
     public static IConsumerMiddlewareConfigurationBuilder AddSchemaRegistryAvroSharpDeserializer(this IConsumerMiddlewareConfigurationBuilder middlewares, IEnumerable<Type> messageTypes, AvroSharpDeserializerConfig? config = null)
     {
         ArgumentNullException.ThrowIfNull(middlewares);
-        ArgumentNullException.ThrowIfNull(messageTypes);
-        var types = new List<Type>(messageTypes);
+        var byRecordName = AvroSharpMessageTypeResolver.ByRecordName(messageTypes);
         return middlewares.Add(resolver =>
         {
             var registry = Registry(resolver);
-            return new DeserializerConsumerMiddleware(new AvroSharpKafkaFlowDeserializer(registry, config), new AvroSharpMessageTypeResolver(registry, types));
+            return new DeserializerConsumerMiddleware(new AvroSharpKafkaFlowDeserializer(registry, config), new AvroSharpMessageTypeResolver(registry, byRecordName));
         });
     }
 

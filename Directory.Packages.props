@@ -55,8 +55,8 @@
     <PackageVersion Include="Azure.Data.SchemaRegistry" Version="1.4.0" />
   </ItemGroup>
 
-  <!-- AvroSharp.Aws.Glue. The package itself references AWSSDK.Glue [4.0.0, 5.0.0) and Confluent.Kafka [2.0.2, 3.0.0)
-       through VersionOverride. -->
+  <!-- AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka. The packages themselves reference AWSSDK.Glue [4.0.0, 5.0.0)
+       and Confluent.Kafka [2.0.2, 3.0.0) through VersionOverride. -->
   <ItemGroup>
     <PackageVersion Include="AWSSDK.Glue" Version="4.0.111" />
     <PackageVersion Include="AWSSDK.Core" Version="4.0.102.8" />

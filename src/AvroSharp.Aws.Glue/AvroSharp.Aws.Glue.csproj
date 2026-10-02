@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- A managed AWS Glue Schema Registry serializer, with Confluent.Kafka adapters: a replacement for AWS's
-       AWS.Glue.SchemaRegistry, a native build for Linux only, without Apache.Avro. -->
+  <!-- A managed AWS Glue Schema Registry serializer: a replacement for AWS's AWS.Glue.SchemaRegistry, a native build
+       for Linux only, without Apache.Avro. Its Confluent.Kafka serializers are in AvroSharp.Aws.Glue.Kafka. -->
   <PropertyGroup>
     <TargetFrameworks>net10.0;net9.0;net8.0;netstandard2.0</TargetFrameworks>
     <RootNamespace>AvroSharp.Aws.Glue</RootNamespace>
     <PackageId>AvroSharp.Aws.Glue</PackageId>
-    <Description>A managed AWS Glue Schema Registry serializer on AvroSharp, for every platform: generated and [AvroSerializable] types and generic records, zlib compression, and Confluent.Kafka serializers, in AWS's wire format. No Apache.Avro, no native library.</Description>
+    <Description>A managed AWS Glue Schema Registry serializer on AvroSharp, for every platform: generated and [AvroSerializable] types and generic records, and zlib compression, in AWS's wire format, for Kinesis, Kafka and any transport. No Apache.Avro, no native library. Confluent.Kafka serializers are in AvroSharp.Aws.Glue.Kafka.</Description>
     <PackageTags>$(PackageTags);aws;glue;schema-registry;kafka;msk;kinesis</PackageTags>
     <!-- A new package: there is no earlier version to validate against. -->
     <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
@@ -17,12 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Each built against the lowest version of its range. AWSSDK.Glue 4 is the AWS SDK for .NET's current major
-         version. Only Confluent.Kafka's serializer interfaces are used, which haven't changed in 2.x. -->
+    <!-- Built against the lowest version of the range. AWSSDK.Glue 4 is the AWS SDK for .NET's current major
+         version. -->
     <PackageReference Include="AWSSDK.Glue" VersionOverride="[4.0.0, 5.0.0)" />
     <!-- AWSSDK.Glue takes AWSSDK.Core [4.0.0, 5.0.0), and below 4.0.3.3 it has an advisory (GHSA-9cvc-h2w8-phrp). -->
     <PackageReference Include="AWSSDK.Core" VersionOverride="[4.0.3.3, 5.0.0)" />
-    <PackageReference Include="Confluent.Kafka" VersionOverride="[2.0.2, 3.0.0)" />
   </ItemGroup>
 
 </Project>

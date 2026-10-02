@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.Glue;
@@ -19,8 +20,13 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
     // AWS's serializer checks a pending version this many times.
     private const int PendingChecks = 10;
 
+    // The registry is the authority on the schemas it holds: a writer schema with an invalid field default still
+    // describes its data, and its defaults are never used to read it.
+    private static readonly AvroSchemaParseOptions Lenient = new() { ValidateDefaults = false };
+
     private readonly ConcurrentDictionary<(string Name, string Definition), Guid> _versionIds = new();
     private readonly ConcurrentDictionary<Guid, AvroSchema> _schemas = new();
+    private readonly ConditionalWeakTable<AvroSchema, string> _definitions = new();
 
     /// <summary>
     /// The ID of the schema version with <paramref name="schema"/>'s definition: looked up, or registered when
@@ -29,7 +35,7 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
     public async ValueTask<Guid> VersionIdAsync(string schemaName, AvroSchema schema, CancellationToken cancellationToken)
     {
         // The definition is Java's Schema.toString() text, which AWS's Java and native serializers register.
-        var definition = schema.ToJson();
+        var definition = _definitions.GetValue(schema, static s => s.ToJson());
         if (_versionIds.TryGetValue((schemaName, definition), out var cached))
         {
             return cached;
@@ -42,7 +48,7 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
                 new GetSchemaByDefinitionRequest { SchemaId = SchemaId(schemaName), SchemaDefinition = definition },
                 cancellationToken).ConfigureAwait(false);
             id = found.Status == SchemaVersionStatus.AVAILABLE
-                ? Guid.Parse(found.SchemaVersionId)
+                ? ParseVersionId(found.SchemaVersionId)
                 : throw new InvalidOperationException($"The version of the schema '{schemaName}' with this definition is {found.Status}, not AVAILABLE.");
         }
         catch (EntityNotFoundException notFound)
@@ -79,7 +85,7 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
             throw new InvalidOperationException($"The schema version {id.Guid} is {version.DataFormat}, not AVRO.");
         }
 
-        return _schemas.GetOrAdd(id.Guid, AvroSchema.Parse(version.SchemaDefinition));
+        return _schemas.GetOrAdd(id.Guid, AvroSchema.Parse(version.SchemaDefinition, Lenient));
     }
 
     // A new version of the schema or, when the schema doesn't exist, the schema with this as its first version.
@@ -89,10 +95,7 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
         SchemaVersionStatus status;
         try
         {
-            var registered = await glue.RegisterSchemaVersionAsync(
-                new RegisterSchemaVersionRequest { SchemaId = SchemaId(schemaName), SchemaDefinition = definition },
-                cancellationToken).ConfigureAwait(false);
-            (versionId, status) = (registered.SchemaVersionId, registered.Status);
+            (versionId, status) = await RegisterVersionAsync(schemaName, definition, cancellationToken).ConfigureAwait(false);
         }
         catch (EntityNotFoundException)
         {
@@ -114,17 +117,27 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
             }
             catch (AlreadyExistsException)
             {
-                // Another producer created the schema meanwhile.
-                return await RegisterAsync(schemaName, definition, cancellationToken).ConfigureAwait(false);
+                // Another producer created the schema meanwhile: add the version to it.
+                (versionId, status) = await RegisterVersionAsync(schemaName, definition, cancellationToken).ConfigureAwait(false);
             }
         }
 
         return await AvailableAsync(versionId, status, cancellationToken).ConfigureAwait(false);
     }
 
-    // A new version is PENDING while the registry checks its compatibility, then AVAILABLE, or FAILURE.
+    private async Task<(string VersionId, SchemaVersionStatus Status)> RegisterVersionAsync(string schemaName, string definition, CancellationToken cancellationToken)
+    {
+        var registered = await glue.RegisterSchemaVersionAsync(
+            new RegisterSchemaVersionRequest { SchemaId = SchemaId(schemaName), SchemaDefinition = definition },
+            cancellationToken).ConfigureAwait(false);
+        return (registered.SchemaVersionId, registered.Status);
+    }
+
+    // A new version is PENDING while the registry checks its compatibility, then AVAILABLE, or FAILURE. It is
+    // checked every PendingVersionInterval, PendingChecks times at most.
     private async Task<Guid> AvailableAsync(string versionId, SchemaVersionStatus status, CancellationToken cancellationToken)
     {
+        var id = ParseVersionId(versionId);
         for (var check = 0; status == SchemaVersionStatus.PENDING && check < PendingChecks; check++)
         {
             await Task.Delay(options.PendingVersionInterval, cancellationToken).ConfigureAwait(false);
@@ -132,9 +145,14 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
         }
 
         return status == SchemaVersionStatus.AVAILABLE
-            ? Guid.Parse(versionId)
-            : throw new InvalidOperationException($"The registry didn't make the schema version {versionId} available: it is {status}. Its compatibility check may have failed.");
+            ? id
+            : status == SchemaVersionStatus.PENDING
+                ? throw new TimeoutException($"The schema version {versionId} is still PENDING after {PendingChecks} checks, {options.PendingVersionInterval} apart: the registry hasn't finished its compatibility check.")
+                : throw new InvalidOperationException($"The registry didn't make the schema version {versionId} available: it is {status}. Its compatibility check may have failed.");
     }
+
+    private static Guid ParseVersionId(string? versionId) =>
+        Guid.TryParse(versionId, out var id) ? id : throw new InvalidOperationException($"The registry answered without a valid schema version ID ('{versionId}').");
 
     private SchemaId SchemaId(string schemaName) => new() { RegistryName = options.RegistryName, SchemaName = schemaName };
 }

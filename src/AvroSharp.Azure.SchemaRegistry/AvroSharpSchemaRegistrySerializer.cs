@@ -48,6 +48,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
 
     private readonly ConditionalWeakTable<AvroSchema, GenericDatumWriter> _genericWriters = new();
     private readonly ConcurrentDictionary<string, GenericDatumReader> _genericReaders = new(StringComparer.Ordinal);
+    private readonly ConditionalWeakTable<AvroSchema, string> _json = new();
 
     /// <summary>Creates a serializer.</summary>
     /// <param name="client">The schema registry.</param>
@@ -178,9 +179,11 @@ public sealed class AvroSharpSchemaRegistrySerializer
     private static MessageContent NewMessage([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? messageType) =>
         messageType is null
             ? new MessageContent()
-            : typeof(MessageContent).IsAssignableFrom(messageType)
-                ? (MessageContent)Activator.CreateInstance(messageType)!
-                : throw new ArgumentException($"{messageType} is not a MessageContent.", nameof(messageType));
+            : !typeof(MessageContent).IsAssignableFrom(messageType)
+                ? throw new ArgumentException($"{messageType} is not a MessageContent.", nameof(messageType))
+                : messageType.IsAbstract || messageType.GetConstructor(Type.EmptyTypes) is null
+                    ? throw new ArgumentException($"{messageType} has no public parameterless constructor.", nameof(messageType))
+                    : (MessageContent)Activator.CreateInstance(messageType)!;
 
     private static TMessage Message<TMessage>(TMessage message, byte[] body, string schemaId)
         where TMessage : MessageContent
@@ -227,7 +230,9 @@ public sealed class AvroSharpSchemaRegistrySerializer
         }
         else
         {
-            var info = TypeInfo(dataType is null || dataType == typeof(object) ? data.GetType() : dataType);
+            // The declared type, or the value's own when AvroTypes doesn't know the declared one (object, a base class
+            // or an interface).
+            var info = dataType is not null && AvroTypes.TryGet(dataType, out var declared) ? declared : TypeInfo(data.GetType());
             schema = info.Schema;
             info.WriteObject(ref writer, data);
         }
@@ -265,7 +270,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
 
     private string SchemaId(AvroSchema schema, CancellationToken cancellationToken)
     {
-        var json = schema.ToJson();
+        var json = _json.GetValue(schema, static s => s.ToJson());
         if (_ids.TryGetValue(json, out var id))
         {
             return id;
@@ -280,7 +285,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
 
     private async ValueTask<string> SchemaIdAsync(AvroSchema schema, CancellationToken cancellationToken)
     {
-        var json = schema.ToJson();
+        var json = _json.GetValue(schema, static s => s.ToJson());
         if (_ids.TryGetValue(json, out var id))
         {
             return id;

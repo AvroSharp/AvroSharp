@@ -78,6 +78,15 @@ jobs:
           dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release --no-build --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"
           dotnet test --project tests/AvroSharp.Aws.Glue.Tests -c Release --no-build --treenode-filter "/*/*/MotoGlueTests/*"
 
+      # AvroSharp.Confluent depends on Confluent.SchemaRegistry [2.14.0, 3.0.0) and the build uses the newest, so this
+      # builds and tests it, and AvroSharp.KafkaFlow on it, against the lowest too. Its own artifacts path keeps the
+      # solution's build intact.
+      - name: Test against Confluent's lowest supported version
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          dotnet test --project tests/AvroSharp.Confluent.Tests -c Release -f net10.0 -p:ConfluentVersion=2.14.0 -p:ArtifactsPath=${{ runner.temp }}/confluent-2.14.0
+          dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release -f net10.0 -p:ConfluentVersion=2.14.0 -p:ArtifactsPath=${{ runner.temp }}/confluent-2.14.0
+
       # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit
       # tests that way too so the fallbacks are exercised on every build.
       - name: Test without hardware intrinsics

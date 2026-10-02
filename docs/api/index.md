@@ -18,7 +18,8 @@ The public API of the AvroSharp packages, generated from the XML documentation i
 | [`AvroSharp.Confluent`](xref:AvroSharp.Confluent) | Confluent Schema Registry serializers and deserializers for Confluent.Kafka (the `AvroSharp.Confluent` package; see [its guide](../confluent.md)) |
 | [`AvroSharp.KafkaFlow`](xref:AvroSharp.KafkaFlow) | KafkaFlow serializer middleware on AvroSharp.Confluent (the `AvroSharp.KafkaFlow` package; see [its guide](../kafkaflow.md)) |
 | [`AvroSharp.Azure.SchemaRegistry`](xref:AvroSharp.Azure.SchemaRegistry) | An Azure Schema Registry serializer for Event Hubs and Service Bus messages (the `AvroSharp.Azure.SchemaRegistry` package; see [its guide](../azure-schema-registry.md)) |
-| [`AvroSharp.Aws.Glue`](xref:AvroSharp.Aws.Glue) | A managed AWS Glue Schema Registry serializer, with Confluent.Kafka serializers (the `AvroSharp.Aws.Glue` package; see [its guide](../aws-glue.md)) |
+| [`AvroSharp.Aws.Glue`](xref:AvroSharp.Aws.Glue) | A managed AWS Glue Schema Registry serializer (the `AvroSharp.Aws.Glue` package; see [its guide](../aws-glue.md)) |
+| [`AvroSharp.Aws.Glue.Kafka`](xref:AvroSharp.Aws.Glue.Kafka) | Confluent.Kafka serializers on it (the `AvroSharp.Aws.Glue.Kafka` package) |
 
 ## Where to start
 
@@ -33,7 +34,7 @@ The public API of the AvroSharp packages, generated from the XML documentation i
 - **JSON:** [`GenericDatumJsonWriter.Create`](xref:AvroSharp.Generic.GenericDatumJsonWriter.Create%2A) and [`GenericDatumJsonReader.Create`](xref:AvroSharp.Generic.GenericDatumJsonReader.Create%2A), for the Avro JSON encoding; [`AvroSchema.ToJson`](xref:AvroSharp.Schemas.AvroSchema.ToJson%2A) for the schema itself.
 - **Kafka with Confluent Schema Registry:** [`AvroSharpSerializer<T>`](xref:AvroSharp.Confluent.AvroSharpSerializer%601) and [`AvroSharpDeserializer<T>`](xref:AvroSharp.Confluent.AvroSharpDeserializer%601), set on Confluent.Kafka's builders with [`AvroSharpSerdeExtensions`](xref:AvroSharp.Confluent.AvroSharpSerdeExtensions), from the `AvroSharp.Confluent` package. With KafkaFlow, [`AvroSharpKafkaFlowExtensions`](xref:AvroSharp.KafkaFlow.AvroSharpKafkaFlowExtensions) from the `AvroSharp.KafkaFlow` package.
 - **Azure Event Hubs and Service Bus with Azure Schema Registry:** [`AvroSharpSchemaRegistrySerializer`](xref:AvroSharp.Azure.SchemaRegistry.AvroSharpSchemaRegistrySerializer), from the `AvroSharp.Azure.SchemaRegistry` package.
-- **AWS Glue Schema Registry, with Kafka (MSK) or Kinesis:** [`AvroSharpGlueSerializer`](xref:AvroSharp.Aws.Glue.AvroSharpGlueSerializer) and its Kafka serializers, from the `AvroSharp.Aws.Glue` package.
+- **AWS Glue Schema Registry, with Kafka (MSK) or Kinesis:** [`AvroSharpGlueSerializer`](xref:AvroSharp.Aws.Glue.AvroSharpGlueSerializer) from the `AvroSharp.Aws.Glue` package, and its Kafka serializers, [`AvroSharpGlueKafkaExtensions`](xref:AvroSharp.Aws.Glue.Kafka.AvroSharpGlueKafkaExtensions), from `AvroSharp.Aws.Glue.Kafka`.
 - **Low-level binary encoding:** [`AvroWriter`](xref:AvroSharp.IO.AvroWriter) and [`AvroReader`](xref:AvroSharp.IO.AvroReader).
 - **Code generation:** [`CSharpCodeGenerator.Generate`](xref:AvroSharp.CodeGen.CSharpCodeGenerator.Generate%2A) with [`CodeGenOptions`](xref:AvroSharp.CodeGen.CodeGenOptions), and [`SchemaFileSet`](xref:AvroSharp.CodeGen.SchemaFileSet) to parse a set of schema files together.
 

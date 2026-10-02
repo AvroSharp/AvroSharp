@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Amazon.Glue;
 using Avro.IO;
 using Avro.Specific;
+using AvroSharp.Aws.Glue.Kafka;
 using AvroSharp.Generic;
 using AvroSharp.Serialization;
 using Confluent.Kafka;
@@ -186,6 +187,55 @@ public class GlueSerializerTests
     }
 
     [Test]
+    public async Task PendingVersion_ThatStaysPending_TimesOut()
+    {
+        using var glue = new InMemoryGlueClient { PendingChecks = 100 };
+        glue.Add("orders", OrderV1);
+        var options = new AvroSharpGlueOptions { AutoRegisterSchemas = true, PendingVersionInterval = TimeSpan.FromMilliseconds(1) };
+
+        await Assert.That(async () => await new AvroSharpGlueSerializer(glue, options).SerializeAsync(NewOrder(), "orders"))
+            .Throws<TimeoutException>().WithMessageContaining("still PENDING after 10 checks", StringComparison.Ordinal);
+        await Assert.That(glue.Count("GetSchemaVersion")).IsEqualTo(10);
+    }
+
+    [Test]
+    public async Task ASchemaCreatedElsewhereMeanwhile_GetsTheVersion()
+    {
+        using var glue = new InMemoryGlueClient { CreatedElsewhere = true };
+        var serializer = new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { AutoRegisterSchemas = true });
+
+        var message = await serializer.SerializeAsync(NewOrder(), "orders");
+
+        await AssertIsNewOrder(await serializer.DeserializeAsync<Order>(message));
+        await Assert.That(glue.Calls).IsEquivalentTo(["GetSchemaByDefinition", "RegisterSchemaVersion", "CreateSchema", "RegisterSchemaVersion"], CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task AnAnswerWithoutAVersionId_IsReported()
+    {
+        using var glue = new InMemoryGlueClient { WithoutVersionIds = true };
+        glue.Add("orders", AvroTypes.Get<Order>().Schema.ToJson());
+
+        await Assert.That(async () => await new AvroSharpGlueSerializer(glue).SerializeAsync(NewOrder(), "orders"))
+            .Throws<InvalidOperationException>().WithMessageContaining("without a valid schema version ID", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Options_ChangedAfterwards_DontChangeTheSerializer()
+    {
+        using var glue = new InMemoryGlueClient();
+        var id = glue.Add("fixed", AvroTypes.Get<Order>().Schema.ToJson());
+        var options = new AvroSharpGlueOptions { SchemaName = "fixed" };
+        var serializer = new AvroSharpGlueSerializer(glue, options);
+
+        options.SchemaName = "other";
+        options.Compression = AvroSharpGlueCompression.Zlib;
+        var message = await serializer.SerializeAsync(NewOrder(), "orders");
+
+        await Assert.That(message.Take(18)).IsEquivalentTo(AwsMessage(id, 0x00, []), CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task SchemaNames_FromTheOptions_OrTheTransport()
     {
         using var glue = new InMemoryGlueClient();
@@ -242,8 +292,46 @@ public class GlueSerializerTests
         await Assert.That(tombstone).IsNull();
         await Assert.That(await deserializer.DeserializeAsync(ReadOnlyMemory<byte>.Empty, isNull: true, context)).IsNull();
         await Assert.That(async () => await new AvroSharpGlueKafkaDeserializer<int>(glue).DeserializeAsync(ReadOnlyMemory<byte>.Empty, isNull: true, context)).Throws<InvalidOperationException>();
-        await Assert.That(new ProducerBuilder<string, Order>(new ProducerConfig()).SetAvroSharpGlueValueSerializer(glue)).IsNotNull();
-        await Assert.That(new ConsumerBuilder<string, Order>(new ConsumerConfig()).SetAvroSharpGlueValueDeserializer(glue)).IsNotNull();
+        var producer = new ProducerBuilder<string, Order>(new ProducerConfig());
+        var consumer = new ConsumerBuilder<string, Order>(new ConsumerConfig());
+        await Assert.That(producer.SetAvroSharpGlueValueSerializer(glue)).IsSameReferenceAs(producer);
+        await Assert.That(consumer.SetAvroSharpGlueValueDeserializer(glue)).IsSameReferenceAs(consumer);
+    }
+
+    [Test]
+    public async Task KafkaAdapters_AreSynchronousToo()
+    {
+        using var glue = new InMemoryGlueClient();
+        glue.Add("orders", AvroTypes.Get<Order>().Schema.ToJson());
+        var context = new SerializationContext(MessageComponentType.Value, "orders");
+        var serializer = new AvroSharpGlueKafkaSerializer<Order>(glue);
+        var deserializer = new AvroSharpGlueKafkaDeserializer<Order>(glue);
+        var generic = new AvroSharpGlueKafkaSerializer<AvroValue>(glue);
+
+        var bytes = serializer.Serialize(NewOrder(), context);
+
+        await AssertIsNewOrder(deserializer.Deserialize(bytes, isNull: false, context));
+        await Assert.That(serializer.Serialize(null!, context)).IsNull();
+        await Assert.That(generic.Serialize(AvroValue.Null, context)).IsNull();
+        await Assert.That(deserializer.Deserialize(default, isNull: true, context)).IsNull();
+        await Assert.That(() => new AvroSharpGlueKafkaDeserializer<int>(glue).Deserialize(default, isNull: true, context)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task ConcurrentFirstMessages_AllWriteAndRead()
+    {
+        using var glue = new InMemoryGlueClient();
+        var id = glue.Add("orders", AvroTypes.Get<Order>().Schema.ToJson());
+        var serializer = new AvroSharpGlueSerializer(glue);
+
+        var messages = await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(async () => await serializer.SerializeAsync(NewOrder(), "orders"))));
+        var orders = await Task.WhenAll(messages.Select(m => Task.Run(async () => await serializer.DeserializeAsync<Order>(m))));
+
+        await Assert.That(messages.Select(m => Convert.ToHexString(m.AsSpan(0, 18))).Distinct(StringComparer.Ordinal)).IsEquivalentTo([Convert.ToHexString(AwsMessage(id, 0x00, []))], CollectionOrdering.Any);
+        foreach (var order in orders)
+        {
+            await AssertIsNewOrder(order);
+        }
     }
 
     [Test]
@@ -251,12 +339,13 @@ public class GlueSerializerTests
     {
         using var glue = new InMemoryGlueClient();
         var jsonVersion = glue.Add("events", """{"type":"object"}""", DataFormat.JSON);
+        var orderVersion = glue.Add("orders", AvroTypes.Get<Order>().Schema.ToJson());
         var serializer = new AvroSharpGlueSerializer(glue);
 
         await Assert.That(async () => await serializer.DeserializeAsync<Order>(AwsMessage(jsonVersion, 0x00, [0x00]))).Throws<InvalidOperationException>().WithMessageContaining("JSON", StringComparison.Ordinal);
         await Assert.That(async () => await serializer.DeserializeAsync<Order>(new byte[] { 0x00, 0x01, 0x02 })).Throws<AvroDataException>();
-        await Assert.That(async () => await serializer.SerializeAsync(new Uri("https://example.com"), "orders")).Throws<InvalidOperationException>();
-        await Assert.That(async () => await serializer.DeserializeAsync<Uri>(AwsMessage(jsonVersion, 0x00, [0x00]))).Throws<InvalidOperationException>();
+        await Assert.That(async () => await serializer.SerializeAsync(new Uri("https://example.com"), "orders")).Throws<InvalidOperationException>().WithMessageContaining("not a type AvroSharp knows", StringComparison.Ordinal);
+        await Assert.That(async () => await serializer.DeserializeAsync<Uri>(AwsMessage(orderVersion, 0x00, [0x00]))).Throws<InvalidOperationException>().WithMessageContaining("not a type AvroSharp knows", StringComparison.Ordinal);
     }
 
     // A message as AWS's encoder writes it.

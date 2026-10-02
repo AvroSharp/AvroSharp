@@ -1,6 +1,6 @@
 # Roadmap
 
-The live status of each milestone. The milestones and their exit criteria come from [design.md §11](design.md#11-phased-roadmap-each-milestone-ends-with-a-tagged-pre-release); the GitHub milestones and issues are the source of truth for open work. Last updated 2026-09-30.
+The live status of each milestone. The milestones and their exit criteria come from [design.md §11](design.md#11-phased-roadmap-each-milestone-ends-with-a-tagged-pre-release); the GitHub milestones and issues are the source of truth for open work. Last updated 2026-10-01.
 
 | Milestone | Status | Open work |
 |---|---|---|
@@ -12,7 +12,7 @@ The live status of each milestone. The milestones and their exit criteria come f
 | M4: attribute generator and `AvroSerializer<T>` | Done (1.0.0-rc.1) | #31: `[AvroSerializable]` and `AvroTypes`, designed in #180 and built in #181. Later: `init`-only members, positional records, nested types, collection interfaces ([design §6.5.5](design.md#655-scope-of-the-first-version-and-what-comes-later)) |
 | M5: container files, codecs, single-object encoding | Done | |
 | M6: CLI tool and protocols | Started | The `avrosharp` tool (`gen`, `schema canonical`, `schema fingerprint`) ships in 0.2.0, and `schema compat` in 1.0.0-rc.1 (#165); the file commands (#172) and protocols are open (#33) |
-| M7: hardening and 1.0 | Started | 1.0.0-rc.1, with the public API frozen, is being released (2026-10-01). 1.0.0 follows when .NET 11 is released and supported, about a month later. Done: the docs site and samples (#74, #126), the migration guide (#21), the ecosystem spike (#78), the performance gate fix (#157), package metadata (#66), coverage (#75), release workflows (#76), nightly fuzzing (#34), public API before 1.0 (#134), the API freeze and package validation baseline (#73), CI consuming the packages (#136), dev container (#139), performance review (#135) |
+| M7: hardening and 1.0 | Started | 1.0.0-rc.1 was released on 2026-10-01, with the core packages' public API frozen. The add-on packages join in the next release candidate; their APIs may still change until 1.0.0. 1.0.0 follows when .NET 11 is released and supported, about a month later. Done: the docs site and samples (#74, #126), the migration guide (#21), the ecosystem spike (#78), the performance gate fix (#157), package metadata (#66), coverage (#75), release workflows (#76), nightly fuzzing (#34), public API before 1.0 (#134), the API freeze and package validation baseline (#73), CI consuming the packages (#136), dev container (#139), performance review (#135) |
 | Integrations | Started | #77, [integrations](integrations.md): `AvroSharp.Confluent` (#185; its follow-ups are #186 to #203), `AvroSharp.KafkaFlow` (#154), `AvroSharp.Azure.SchemaRegistry` (#155) and `AvroSharp.Aws.Glue` (#156) join the 1.0.0 release candidates. The add-on packages live in this repository and are released with AvroSharp at the same version (#77). Done: schema references (#80), registry wire framing (#81), the field walker (#82) and the spike (#78) |
 
 ## Done, in more detail

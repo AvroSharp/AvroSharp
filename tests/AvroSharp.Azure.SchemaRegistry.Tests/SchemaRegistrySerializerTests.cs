@@ -45,6 +45,10 @@ public class SchemaRegistrySerializerTests
         await Assert.That(ourMessage.ContentType!.Value.ToString()).StartsWith("avro/binary+", StringComparison.Ordinal);
         await AssertIsNewOrder(await ours.DeserializeAsync<Order>(theirMessage));
         await AssertIsNewOrder(await microsoft.DeserializeAsync<Order>(ourMessage));
+        // This registry matches schemas by their exact text, and the two write the same schema's text differently
+        // (the key order, and the namespaces of nested types), so each registers a version of its own. Whether the
+        // service compares text or meaning isn't documented: see "The schema text" in the guide.
+        await Assert.That(ourMessage.ContentType!.Value.ToString()).IsNotEqualTo(theirMessage.ContentType!.Value.ToString());
     }
 
     [Test]
@@ -149,6 +153,36 @@ public class SchemaRegistrySerializerTests
     }
 
     [Test]
+    public async Task ADeclaredTypeAvroTypesDoesntKnow_WritesTheValuesOwnType()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        var ours = new AvroSharpSchemaRegistrySerializer(registry, Group, new AvroSharpSchemaRegistrySerializerOptions { AutoRegisterSchemas = true });
+
+        var byInterface = await ours.SerializeAsync<MessageContent, Avro.Specific.ISpecificRecord>(NewOrder());
+        var byType = await ours.SerializeAsync(NewOrder(), typeof(Avro.Specific.ISpecificRecord));
+
+        await AssertIsNewOrder(await ours.DeserializeAsync<Order>(byInterface));
+        await AssertIsNewOrder(await ours.DeserializeAsync<Order>(byType));
+    }
+
+    [Test]
+    public async Task ConcurrentFirstMessages_AllWriteAndRead()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        var ours = new AvroSharpSchemaRegistrySerializer(registry, Group, new AvroSharpSchemaRegistrySerializerOptions { AutoRegisterSchemas = true });
+        var reader = new AvroSharpSchemaRegistrySerializer(registry);
+
+        var messages = await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(async () => await ours.SerializeAsync<MessageContent, Order>(NewOrder()))));
+        var orders = await Task.WhenAll(messages.Select(m => Task.Run(async () => await reader.DeserializeAsync<Order>(m))));
+
+        await Assert.That(messages.Select(m => m.ContentType!.Value.ToString()).Distinct(StringComparer.Ordinal)).Count().IsEqualTo(1);
+        foreach (var order in orders)
+        {
+            await AssertIsNewOrder(order);
+        }
+    }
+
+    [Test]
     public async Task ReportsWhatItCantDo()
     {
         var registry = new InMemorySchemaRegistryClient();
@@ -160,6 +194,8 @@ public class SchemaRegistrySerializerTests
         await Assert.That(async () => await ours.SerializeAsync<MessageContent, string>("text")).Throws<ArgumentException>();
         await Assert.That(async () => await ours.SerializeAsync<MessageContent, Uri>(new Uri("https://example.com"))).Throws<InvalidOperationException>();
         await Assert.That(() => ours.Serialize(NewOrder(), messageType: typeof(string))).Throws<ArgumentException>();
+        await Assert.That(() => ours.Serialize(NewOrder(), messageType: typeof(NoParameterlessConstructor)))
+            .Throws<ArgumentException>().WithMessageContaining("parameterless", StringComparison.Ordinal);
         foreach (var contentType in new[] { "application/json", "avro/binary", "avro/binary+", "avro/json+1", "avro/binary+1+2" })
         {
             var message = new MessageContent { Data = valid.Data, ContentType = contentType };
@@ -191,4 +227,12 @@ public class SchemaRegistrySerializerTests
         await Assert.That(order.Tags).IsEquivalentTo(expected.Tags, CollectionOrdering.Any);
         await Assert.That(order.Note).IsEqualTo(expected.Note);
     }
+}
+
+/// <summary>A message type the serializer can't create.</summary>
+/// <param name="tag">Anything.</param>
+public sealed class NoParameterlessConstructor(string tag) : MessageContent
+{
+    /// <summary>Gets the tag.</summary>
+    public string Tag { get; } = tag;
 }

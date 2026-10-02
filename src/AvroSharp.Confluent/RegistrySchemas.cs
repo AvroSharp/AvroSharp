@@ -11,13 +11,18 @@ namespace AvroSharp.Confluent;
 /// <summary>Parses schemas from the registry, with the schemas they reference.</summary>
 internal static class RegistrySchemas
 {
+    // The registry is the authority on the schemas it holds: a schema with an invalid field default (which older
+    // registries and Apache.Avro, so Confluent's serde, accept) still describes the data written with it, and a writer
+    // schema's defaults are never used to read it. Rejecting it would stop a consumer at the first such message.
+    private static readonly AvroSchemaParseOptions Lenient = new() { ValidateDefaults = false };
+
     /// <summary>
     /// Parses a registered schema after its references, which Confluent's base class fetches (recursively). A
     /// reference can itself use another, so they are parsed in rounds until each one's names are known.
     /// </summary>
     public static async Task<AvroSchema> ParseAsync(ConfluentSchema schema, Func<ConfluentSchema, Task<IDictionary<string, string>>> resolveReferences)
     {
-        var parser = new AvroSchemaParser();
+        var parser = new AvroSchemaParser(Lenient);
         var pending = (await resolveReferences(schema).ConfigureAwait(false)).Values.ToList();
         while (pending.Count > 0)
         {

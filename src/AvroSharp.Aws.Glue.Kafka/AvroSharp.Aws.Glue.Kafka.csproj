@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Confluent.Kafka serializers and deserializers on AvroSharp.Aws.Glue: a replacement for AWS's
+       GlueSchemaRegistryKafkaSerializer and GlueSchemaRegistryKafkaDeserializer. A package of its own, so Kinesis and
+       other users of AvroSharp.Aws.Glue don't take Confluent.Kafka and its native librdkafka. -->
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net9.0;net8.0;netstandard2.0</TargetFrameworks>
+    <RootNamespace>AvroSharp.Aws.Glue.Kafka</RootNamespace>
+    <PackageId>AvroSharp.Aws.Glue.Kafka</PackageId>
+    <Description>Confluent.Kafka serializers and deserializers for AWS Glue Schema Registry on AvroSharp.Aws.Glue, in AWS's wire format, for Amazon MSK or any Kafka broker. Fully managed, no Apache.Avro.</Description>
+    <PackageTags>$(PackageTags);aws;glue;schema-registry;kafka;msk</PackageTags>
+    <!-- A new package: there is no earlier version to validate against. -->
+    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AvroSharp.Aws.Glue\AvroSharp.Aws.Glue.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Built against the lowest version of the range. Only Confluent.Kafka's serializer interfaces are used, which
+         haven't changed in 2.x. -->
+    <PackageReference Include="Confluent.Kafka" VersionOverride="[2.0.2, 3.0.0)" />
+  </ItemGroup>
+
+</Project>

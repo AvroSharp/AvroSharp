@@ -22,14 +22,27 @@ public static class AvroSharpGeneric
 
     /// <summary>
     /// Creates a deserializer of generic values: each message as its writer's schema, or resolved to
-    /// <paramref name="readerSchema"/> when one is given.
+    /// <paramref name="readerSchema"/> when one is given. Without one, and with <c>use.latest.version</c> or
+    /// <c>use.latest.with.metadata</c>, each message is resolved to the subject's latest schema, as Confluent's generic
+    /// deserializer reads.
     /// </summary>
     /// <param name="client">The schema registry.</param>
-    /// <param name="readerSchema">The schema to read every message as, or <see langword="null"/> to read each as written.</param>
+    /// <param name="readerSchema">The schema to read every message as, or <see langword="null"/> to read each as written (or as the latest schema, with the settings above).</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
     /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
     public static AvroSharpDeserializer<AvroValue> CreateDeserializer(ISchemaRegistryClient client, AvroSchema? readerSchema = null, AvroSharpDeserializerConfig? config = null, RuleRegistry? ruleRegistry = null) =>
-        new(client, TypeInfo(readerSchema ?? AvroSchema.Parse("\"null\""), readerSchema), config, ruleRegistry);
+        new(client, TypeInfo(readerSchema ?? AvroSchema.Parse("\"null\""), readerSchema), config, ruleRegistry)
+        {
+            // Without a reader schema, values are read as the latest schema when the settings name one, as Confluent's
+            // generic deserializer reads them, and as each writer's otherwise.
+            ReadAsLatest = readerSchema is null ? ReadAs : null,
+        };
+
+    private static AvroReadFunc<AvroValue> ReadAs(AvroSchema writerSchema, AvroSchema latestSchema)
+    {
+        var resolving = GenericDatumReader.Create(writerSchema, latestSchema);
+        return (ref r) => resolving.Read(ref r);
+    }
 
     private static AvroTypeInfo<AvroValue> TypeInfo(AvroSchema schema, AvroSchema? readerSchema)
     {

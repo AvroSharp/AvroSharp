@@ -94,6 +94,51 @@ public class KafkaFlowSerializerTests
         await Assert.That(async () => await Serialize(new AvroSharpKafkaFlowSerializer(registry), new Uri("https://example.com"), Topic())).Throws<InvalidOperationException>();
     }
 
+    [Test]
+    public async Task Extensions_CheckTheirArguments_WhenCalled()
+    {
+        var consumer = new ConsumerMiddlewares();
+        var producer = new ProducerMiddlewares();
+
+        await Assert.That(() => consumer.AddSchemaRegistryAvroSharpDeserializer<Uri>()).Throws<InvalidOperationException>();
+        await Assert.That(() => consumer.AddSchemaRegistryAvroSharpDeserializer([typeof(Order), typeof(string)])).Throws<ArgumentException>();
+        await Assert.That(() => producer.AddSchemaRegistryAvroSharpSerializer(new AvroSharpSerializerConfig { SchemaIdStrategy = SchemaIdSerializerStrategy.Header })).Throws<ArgumentException>();
+        await Assert.That(() => producer.AddSchemaRegistryAvroSharpSerializer(new AvroSharpSerializerConfig { UseLatestVersion = true })).Throws<ArgumentException>();
+        await Assert.That(consumer.Factories.Count + producer.Factories.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Extensions_WithoutASchemaRegistry_SaySo()
+    {
+        var consumer = new ConsumerMiddlewares()
+            .AddSchemaRegistryAvroSharpDeserializer<Order>()
+            .AddSchemaRegistryAvroSharpDeserializer([typeof(Order), typeof(Cart)]);
+        var producer = new ProducerMiddlewares().AddSchemaRegistryAvroSharpSerializer();
+        var noRegistry = new RegistryResolver(null);
+
+        foreach (var factory in ((ConsumerMiddlewares)consumer).Factories.Concat(((ProducerMiddlewares)producer).Factories))
+        {
+            await Assert.That(() => factory(noRegistry)).Throws<InvalidOperationException>().WithMessageContaining("WithSchemaRegistry", StringComparison.Ordinal);
+        }
+    }
+
+    [Test]
+    public async Task Resolver_FindsATypeOfAnAssemblyNoCodeOfWhichRan()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        // Loaded for its metadata only, as a message handler's signature loads it: its module initializer hasn't run.
+        System.Reflection.Assembly.Load("AvroSharp.Generators.LateTypes");
+        var id = await registry.RegisterSchemaAsync(Topic() + "-value", new Schema(
+            """{"type":"record","name":"LateEvent","namespace":"AvroSharp.Generators.LateTypes","fields":[]}""", SchemaType.Avro));
+#pragma warning disable IL2026 // The test types are in assemblies that aren't trimmed.
+        var found = new AvroSharpMessageTypeResolver(registry);
+#pragma warning restore IL2026
+
+        var type = await found.OnConsumeAsync(new ConsumedMessage([0, (byte)(id >> 24), (byte)(id >> 16), (byte)(id >> 8), (byte)id]));
+
+        await Assert.That(type.FullName).IsEqualTo("AvroSharp.Generators.LateTypes.LateEvent");
+    }
+
     internal static async Task AssertIsNewOrder(Order order)
     {
         var expected = NewOrder();
