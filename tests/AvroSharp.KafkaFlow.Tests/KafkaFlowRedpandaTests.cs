@@ -53,6 +53,35 @@ public class KafkaFlowRedpandaTests(RedpandaFixture redpanda)
         await KafkaFlowSerializerTests.AssertIsNewOrder((Order)received.Single());
     }
 
+    [Test]
+    public async Task AvroSharpsProducer_ReadByKafkaFlowsConfluentAvroConsumer()
+    {
+        var topic = Topic();
+        var received = await RoundTrip(
+            topic,
+            middlewares => middlewares.AddSchemaRegistryAvroSharpSerializer(),
+            middlewares => middlewares.AddSchemaRegistryAvroDeserializer(),
+            [NewOrder()]);
+
+        await KafkaFlowSerializerTests.AssertIsNewOrder((Order)received.Single());
+    }
+
+    [Test]
+    public async Task TypesFoundByName_ProducedAndConsumed()
+    {
+        var topic = Topic();
+#pragma warning disable IL2026 // The test types are in this assembly, which isn't trimmed.
+        var received = await RoundTrip(
+            topic,
+            middlewares => middlewares.AddSchemaRegistryAvroSharpSerializer(new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.TopicRecord }),
+            middlewares => middlewares.AddSchemaRegistryAvroSharpDeserializerByTypeName(),
+            [NewOrder(), SampleCart]);
+#pragma warning restore IL2026
+
+        await KafkaFlowSerializerTests.AssertIsNewOrder(received.OfType<Order>().Single());
+        await Assert.That(received.OfType<Cart>().Single().Owner).IsEqualTo("Ada");
+    }
+
     // Produces the messages through a KafkaFlow bus and returns what its consumer read, in order.
     private async Task<object[]> RoundTrip(
         string topic,

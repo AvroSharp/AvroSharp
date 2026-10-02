@@ -12,6 +12,8 @@
     <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
     <TrimmerSingleWarn>true</TrimmerSingleWarn>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2104;IL3053</WarningsNotAsErrors>
+    <!-- The tests' in-memory Confluent registry compares schemas with Apache.Avro, which this project leaves out. -->
+    <DefineConstants>$(DefineConstants);NO_APACHE_AVRO</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

@@ -78,14 +78,17 @@ jobs:
           dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release --no-build --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"
           dotnet test --project tests/AvroSharp.Aws.Glue.Tests -c Release --no-build --treenode-filter "/*/*/MotoGlueTests/*"
 
-      # AvroSharp.Confluent depends on Confluent.SchemaRegistry [2.14.0, 3.0.0) and the build uses the newest, so this
-      # builds and tests it, and AvroSharp.KafkaFlow on it, against the lowest too. Its own artifacts path keeps the
-      # solution's build intact.
-      - name: Test against Confluent's lowest supported version
+      # The add-ons are built against the lowest version of each dependency range, and tested against newer ones; this
+      # tests them against the lowest too: Confluent.SchemaRegistry 2.14.0 (and KafkaFlow 4.0.0 on it),
+      # Azure.Data.SchemaRegistry 1.2.0 and AWSSDK.Glue 4.0.0. Its own artifacts path keeps the solution's build intact.
+      - name: Test against the lowest supported dependency versions
         if: matrix.os == 'ubuntu-latest'
         run: |
-          dotnet test --project tests/AvroSharp.Confluent.Tests -c Release -f net10.0 -p:ConfluentVersion=2.14.0 -p:ArtifactsPath=${{ runner.temp }}/confluent-2.14.0
-          dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release -f net10.0 -p:ConfluentVersion=2.14.0 -p:ArtifactsPath=${{ runner.temp }}/confluent-2.14.0
+          lowest="-c Release -f net10.0 -p:ArtifactsPath=${{ runner.temp }}/lowest -p:ConfluentVersion=2.14.0 -p:KafkaFlowVersion=4.0.0 -p:AzureSchemaRegistryVersion=1.2.0 -p:AwsGlueVersion=4.0.0"
+          dotnet test --project tests/AvroSharp.Confluent.Tests $lowest
+          dotnet test --project tests/AvroSharp.KafkaFlow.Tests $lowest
+          dotnet test --project tests/AvroSharp.Azure.SchemaRegistry.Tests $lowest
+          dotnet test --project tests/AvroSharp.Aws.Glue.Tests $lowest
 
       # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit
       # tests that way too so the fallbacks are exercised on every build.

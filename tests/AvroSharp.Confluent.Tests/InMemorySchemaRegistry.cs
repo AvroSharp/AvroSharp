@@ -28,13 +28,19 @@ internal sealed class InMemorySchemaRegistry : ISchemaRegistryClient
     /// <summary>The number of calls that registered a schema or looked one up, to check the serializers cache IDs.</summary>
     public int RegistrationCalls { get; private set; }
 
+    /// <summary>The <c>normalize</c> flag of each registration and lookup, in order.</summary>
+    public List<bool> NormalizeFlags { get; } = [];
+
+    /// <summary>The number of calls that fetched a schema by its ID.</summary>
+    public int GetSchemaCalls { get; private set; }
+
     public IEnumerable<KeyValuePair<string, string>> Config => [];
 
     public IAuthenticationHeaderValueProvider AuthHeaderProvider => null!;
 
     public IWebProxy Proxy => null!;
 
-    public int MaxCachedSchemas => 1000;
+    public int MaxCachedSchemas { get; set; } = 1000;
 
     public Task<int> RegisterSchemaAsync(string subject, Schema schema, bool normalize = false) =>
         RegisterSchemaWithResponseAsync(subject, schema, normalize).ContinueWith(t => t.Result.Id, TaskScheduler.Default);
@@ -47,6 +53,7 @@ internal sealed class InMemorySchemaRegistry : ISchemaRegistryClient
         lock (_lock)
         {
             RegistrationCalls++;
+            NormalizeFlags.Add(normalize);
             var versions = Versions(subject);
             if (versions.Find(s => SameSchema(s.SchemaString, schema.SchemaString)) is { } existing)
             {
@@ -70,6 +77,7 @@ internal sealed class InMemorySchemaRegistry : ISchemaRegistryClient
         lock (_lock)
         {
             RegistrationCalls++;
+            NormalizeFlags.Add(normalize);
             return Versions(subject).Find(s => SameSchema(s.SchemaString, schema.SchemaString)) is { } found
                 ? Task.FromResult(found)
                 : throw NotFound($"The schema is not registered under '{subject}'.");
@@ -80,6 +88,7 @@ internal sealed class InMemorySchemaRegistry : ISchemaRegistryClient
     {
         lock (_lock)
         {
+            GetSchemaCalls++;
             return Task.FromResult(ById(id).Schema);
         }
     }
@@ -193,12 +202,25 @@ internal sealed class InMemorySchemaRegistry : ISchemaRegistryClient
     // As a registry compares schemas: by what they mean, not their text, so key order and a repeated namespace
     // don't matter (Apache.Avro and AvroSharp write the same schema differently). A schema with references, which
     // doesn't parse alone, is compared as text.
+    // Whether two schema texts are the same schema, as the registry decides (its normalized text). Apache.Avro's
+    // normalization decides here, so the test of AvroSharp's text isn't AvroSharp's own parser agreeing with itself;
+    // a schema Apache.Avro can't parse alone (one with references) falls back to AvroSharp's.
     private static bool SameSchema(string registered, string candidate)
     {
         if (string.Equals(registered, candidate, StringComparison.Ordinal))
         {
             return true;
         }
+
+#if !NO_APACHE_AVRO
+        try
+        {
+            return string.Equals(Avro.Schema.Parse(registered).ToString(), Avro.Schema.Parse(candidate).ToString(), StringComparison.Ordinal);
+        }
+        catch (Exception notAvro) when (notAvro is Avro.AvroException or Newtonsoft.Json.JsonException)
+        {
+        }
+#endif
 
         try
         {

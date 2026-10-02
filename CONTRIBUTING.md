@@ -25,6 +25,7 @@ AvroSharp.Confluent's, AvroSharp.KafkaFlow's and AvroSharp.Aws.Glue's tests need
 - **Redpanda:** the tests against a real broker and registry need Docker with Linux containers. They are `[Explicit]`, so they run only when a filter names them: `dotnet test --project tests/AvroSharp.Confluent.Tests --treenode-filter "/*/*/RedpandaTests/*"`, and AvroSharp.KafkaFlow's with `--project tests/AvroSharp.KafkaFlow.Tests --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"`. Otherwise they are neither run nor listed.
 - **moto:** AvroSharp.Aws.Glue's tests against moto, an AWS emulator in Docker, are `[Explicit]` too: `dotnet test --project tests/AvroSharp.Aws.Glue.Tests --treenode-filter "/*/*/MotoGlueTests/*"`.
 - **Confluent's lowest supported version:** the package depends on Confluent.SchemaRegistry [2.14.0, 3.0.0). The build uses the newest by default; to test against 2.14.0, build and test with `-p:ConfluentVersion=2.14.0` (and an `-p:ArtifactsPath` of its own, to keep the main build). CI does this on the x64 Linux runner.
+- **The other add-ons' lowest versions:** likewise `-p:KafkaFlowVersion=4.0.0` (with `ConfluentVersion=2.14.0`), `-p:AzureSchemaRegistryVersion=1.2.0` and `-p:AwsGlueVersion=4.0.0`. CI runs all of them in one step.
 
 CI runs them with the rest of the solution, and the Redpanda and moto tests in a step of their own on the x64 Linux runner. The Confluent and KafkaFlowEvents samples need a broker and a registry too: `docker compose up -d --wait` in `samples/Confluent` starts Redpanda for both.
 
@@ -68,7 +69,7 @@ It runs, in CI's order:
 - restore and build;
 - the tests on net8.0, net9.0 and net10.0 with coverage;
 - the Redpanda and moto tests, when Docker is available (the dev container has no Docker inside it, so there they are left out);
-- AvroSharp.Confluent's and AvroSharp.KafkaFlow's tests against Confluent 2.14.0, the lowest supported version;
+- the add-ons' tests against the lowest versions of their dependencies (Confluent 2.14.0, KafkaFlow 4.0.0, Azure.Data.SchemaRegistry 1.2.0, AWSSDK.Glue 4.0.0);
 - the tests without hardware intrinsics;
 - the coverage check (the summary is in `artifacts/coverage/SummaryGithub.md`);
 - the samples;

@@ -42,9 +42,10 @@ if docker info > /dev/null 2>&1; then
   dotnet test --project tests/AvroSharp.Aws.Glue.Tests -c Release --no-build --treenode-filter "/*/*/MotoGlueTests/*"
 fi
 
-step "Test against Confluent's lowest supported version"
-for project in AvroSharp.Confluent.Tests AvroSharp.KafkaFlow.Tests; do
-  dotnet test --project tests/$project -c Release -f net10.0 -p:ConfluentVersion=2.14.0 -p:ArtifactsPath="${TMPDIR:-/tmp}/confluent-2.14.0"
+step "Test against the lowest supported dependency versions"
+for project in AvroSharp.Confluent.Tests AvroSharp.KafkaFlow.Tests AvroSharp.Azure.SchemaRegistry.Tests AvroSharp.Aws.Glue.Tests; do
+  dotnet test --project tests/$project -c Release -f net10.0 -p:ArtifactsPath="${TMPDIR:-/tmp}/lowest" \
+    -p:ConfluentVersion=2.14.0 -p:KafkaFlowVersion=4.0.0 -p:AzureSchemaRegistryVersion=1.2.0 -p:AwsGlueVersion=4.0.0
 done
 
 step Test without hardware intrinsics

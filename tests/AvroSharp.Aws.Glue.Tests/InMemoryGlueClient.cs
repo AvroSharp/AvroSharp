@@ -35,6 +35,9 @@ internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCreden
     /// <summary>Gets or sets whether another producer creates each schema just before this client's CreateSchema call.</summary>
     public bool CreatedElsewhere { get; set; }
 
+    /// <summary>Gets or sets the registries that exist, as the service has them, or <see langword="null"/> (the default) for any.</summary>
+    public HashSet<string>? Registries { get; set; }
+
     /// <summary>Gets or sets whether GetSchemaByDefinition answers without a schema version ID.</summary>
     public bool WithoutVersionIds { get; set; }
 
@@ -112,6 +115,12 @@ internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCreden
                 throw new EntityNotFoundException("Schema is not found.");
             }
 
+            // As the service: a schema's versions all have its data format, and an Avro definition isn't JSON Schema.
+            if (versions[0].Format != DataFormat.AVRO)
+            {
+                throw new InvalidInputException($"The schema {request.SchemaId.SchemaName} has the data format {versions[0].Format}, and the definition doesn't match it.");
+            }
+
             var version = versions.Find(v => string.Equals(v.Definition, request.SchemaDefinition, StringComparison.Ordinal))
                 ?? AddVersion(request.SchemaId.RegistryName, request.SchemaId.SchemaName, request.SchemaDefinition, DataFormat.AVRO, SchemaVersionStatus.PENDING);
             if (version.Status == SchemaVersionStatus.PENDING && PendingChecks == 0)
@@ -129,6 +138,11 @@ internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCreden
         lock (_lock)
         {
             Calls.Add("CreateSchema");
+            if (Registries is { } known && !known.Contains(request.RegistryId.RegistryName))
+            {
+                throw new EntityNotFoundException("Registry is not found.");
+            }
+
             if (CreatedElsewhere)
             {
                 AddVersion(request.RegistryId.RegistryName, request.SchemaName, """{"type":"record","name":"Other","fields":[]}""", DataFormat.AVRO, SchemaVersionStatus.AVAILABLE);

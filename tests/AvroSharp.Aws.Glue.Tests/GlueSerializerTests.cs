@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Amazon.Glue;
 using Avro.IO;
@@ -379,6 +380,47 @@ public class GlueSerializerTests
 
         await Assert.That(async () => await new AvroSharpGlueSerializer(glue).DeserializeAsync<Order>(AwsMessage(Guid.NewGuid().ToString(), 0x00, [0x00])))
             .Throws<AvroDataException>().WithMessageContaining("unknown, or was deleted", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task AVersionAnotherProducerIsRegistering_ThatFails_IsReported()
+    {
+        using var glue = new InMemoryGlueClient { FailNewVersions = true };
+        glue.AddPending("orders", AvroTypes.Get<Order>().Schema.ToJson(), checks: 1);
+        var serializer = new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { PendingVersionInterval = TimeSpan.FromMilliseconds(1) });
+
+        await Assert.That(async () => await serializer.SerializeAsync(NewOrder(), "orders"))
+            .Throws<InvalidOperationException>().WithMessageContaining("FAILURE", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GenericValues_AndValuesTypedAsObject()
+    {
+        using var glue = new InMemoryGlueClient();
+        var serializer = new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { AutoRegisterSchemas = true });
+        var record = await serializer.DeserializeAsync<GenericRecord>(await serializer.SerializeAsync<object>(NewOrder(), "orders"));
+
+        var again = await serializer.SerializeAsync(AvroValue.FromRecord(record), "orders");
+
+        await AssertIsNewOrder(await serializer.DeserializeAsync<Order>(again));
+        await Assert.That(async () => await serializer.SerializeAsync(AvroValue.FromInt32(1), "orders"))
+            .Throws<ArgumentException>().WithMessageContaining("must be a record", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task Cancellation_AndWhatTheServiceRejects()
+    {
+        using var glue = new InMemoryGlueClient { Registries = ["default-registry"] };
+        glue.Add("events", """{"type":"object"}""", DataFormat.JSON);
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+        var autoRegister = new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { AutoRegisterSchemas = true });
+
+        await Assert.That(async () => await autoRegister.SerializeAsync(NewOrder(), "orders", canceled.Token)).Throws<OperationCanceledException>();
+        await Assert.That(async () => await new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { AutoRegisterSchemas = true, RegistryName = "missing" }).SerializeAsync(NewOrder(), "orders"))
+            .Throws<InvalidOperationException>().WithMessageContaining("registry 'missing' doesn't exist", StringComparison.Ordinal);
+        // An Avro schema under the name of a JSON Schema: the service rejects the version.
+        await Assert.That(async () => await autoRegister.SerializeAsync(NewOrder(), "events")).Throws<Amazon.Glue.Model.InvalidInputException>();
     }
 
     [Test]

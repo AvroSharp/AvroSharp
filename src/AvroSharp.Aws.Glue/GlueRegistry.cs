@@ -177,6 +177,11 @@ internal sealed class GlueRegistry(IAmazonGlue glue, AvroSharpGlueOptions option
                 // Another producer created the schema meanwhile: add the version to it.
                 (versionId, status) = await RegisterVersionAsync(schemaName, definition, cancellationToken).ConfigureAwait(false);
             }
+            catch (EntityNotFoundException noRegistry)
+            {
+                // Creating a schema needs its registry, which the serializer doesn't create.
+                throw new InvalidOperationException($"The registry '{options.RegistryName}' doesn't exist: create it in Glue first, or set RegistryName to one that does.", noRegistry);
+            }
         }
 
         return await AvailableAsync(versionId, status, cancellationToken).ConfigureAwait(false);

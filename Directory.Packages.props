@@ -7,6 +7,12 @@
          base classes' protected members in a minor release (GetSubjectName became async), so older versions can't load
          it. To build and test against the lowest: -p:ConfluentVersion=2.14.0. -->
     <ConfluentVersion Condition="'$(ConfluentVersion)' == ''">2.15.1</ConfluentVersion>
+    <!-- The versions the tests use of the add-ons' other dependencies, so CI can also test the lowest each package
+         accepts: -p:KafkaFlowVersion=4.0.0 (with ConfluentVersion=2.14.0), -p:AzureSchemaRegistryVersion=1.2.0 and
+         -p:AwsGlueVersion=4.0.0 (#215). -->
+    <KafkaFlowVersion Condition="'$(KafkaFlowVersion)' == ''">4.2.0</KafkaFlowVersion>
+    <AzureSchemaRegistryVersion Condition="'$(AzureSchemaRegistryVersion)' == ''">1.4.0</AzureSchemaRegistryVersion>
+    <AwsGlueVersion Condition="'$(AwsGlueVersion)' == ''">4.0.111</AwsGlueVersion>
   </PropertyGroup>
 
   <!-- Build tooling and analyzers -->
@@ -47,18 +53,18 @@
 
   <!-- AvroSharp.KafkaFlow. The package itself references [4.0.0, 5.0.0) through VersionOverride. -->
   <ItemGroup>
-    <PackageVersion Include="KafkaFlow.SchemaRegistry" Version="4.2.0" />
+    <PackageVersion Include="KafkaFlow.SchemaRegistry" Version="$(KafkaFlowVersion)" />
   </ItemGroup>
 
   <!-- AvroSharp.Azure.SchemaRegistry. The package itself references [1.2.0, 2.0.0) through VersionOverride. -->
   <ItemGroup>
-    <PackageVersion Include="Azure.Data.SchemaRegistry" Version="1.4.0" />
+    <PackageVersion Include="Azure.Data.SchemaRegistry" Version="$(AzureSchemaRegistryVersion)" />
   </ItemGroup>
 
   <!-- AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka. The packages themselves reference AWSSDK.Glue [4.0.0, 5.0.0)
        and Confluent.Kafka [2.0.2, 3.0.0) through VersionOverride. -->
   <ItemGroup>
-    <PackageVersion Include="AWSSDK.Glue" Version="4.0.111" />
+    <PackageVersion Include="AWSSDK.Glue" Version="$(AwsGlueVersion)" />
     <PackageVersion Include="AWSSDK.Core" Version="4.0.102.8" />
   </ItemGroup>
 
@@ -81,8 +87,8 @@
     <PackageVersion Include="Confluent.Kafka" Version="$(ConfluentVersion)" />
     <PackageVersion Include="Testcontainers.Redpanda" Version="4.15.0" />
     <PackageVersion Include="Testcontainers" Version="4.15.0" />
-    <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="4.2.0" />
-    <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0" />
+    <PackageVersion Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" Version="$(KafkaFlowVersion)" />
+    <PackageVersion Include="KafkaFlow.Microsoft.DependencyInjection" Version="$(KafkaFlowVersion)" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Azure.Data.SchemaRegistry.ApacheAvro" Version="1.0.1" />

@@ -202,7 +202,7 @@ public class KafkaFlowSerializerTests
         await Assert.That(order.Note).IsEqualTo(expected.Note);
     }
 
-    private static async Task<byte[]> Serialize(ISerializer serializer, object message, string topic)
+    internal static async Task<byte[]> Serialize(ISerializer serializer, object message, string topic)
     {
         using var output = new MemoryStream();
         await serializer.SerializeAsync(message, output, new SerializerContext(topic));
