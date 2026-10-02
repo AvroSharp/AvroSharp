@@ -1,3 +1,5 @@
+![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/logo.png)
+
 # AvroSharp.KafkaFlow
 
 [KafkaFlow](https://github.com/Farfetch/kafkaflow) serializer middleware for Confluent Schema Registry, on [AvroSharp](https://github.com/AvroSharp/AvroSharp) and [AvroSharp.Confluent](https://github.com/AvroSharp/AvroSharp/tree/main/src/AvroSharp.Confluent), without Apache.Avro. A replacement for KafkaFlow's `KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro`:

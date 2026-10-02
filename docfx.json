@@ -21,14 +21,17 @@
       }
     ],
     "resource": [
-      { "files": [ "LICENSE", "THIRD-PARTY-NOTICES.md", "samples/**/*.cs", "samples/**/*.avsc", "samples/**/*.csproj", "samples/**/global.json", "samples/**/compose.yaml", "samples/Directory.Build.targets", "build/UseLocalGenerator.targets", "fuzz/AvroSharp.Fuzz/*.cs" ] }
+      { "files": [ "LICENSE", "THIRD-PARTY-NOTICES.md", "docs/images/*", "samples/**/*.cs", "samples/**/*.avsc", "samples/**/*.csproj", "samples/**/global.json", "samples/**/compose.yaml", "samples/Directory.Build.targets", "build/UseLocalGenerator.targets", "fuzz/AvroSharp.Fuzz/*.cs" ] }
     ],
     "overwrite": [ { "files": [ "docs/namespaces/*.md" ] } ],
+    "fileMetadata": { "title": { "README.md": "AvroSharp", "index.md": "AvroSharp" } },
     "output": "artifacts/docs",
     "template": [ "default", "modern" ],
     "globalMetadata": {
       "_appName": "AvroSharp",
       "_appTitle": "AvroSharp",
+      "_appLogoPath": "docs/images/navbar.png",
+      "_appFaviconPath": "docs/images/favicon.png",
       "_appFooter": "AvroSharp is MIT licensed. Apache Avro, Avro and Apache are trademarks of The Apache Software Foundation.",
       "_enableSearch": true,
       "_gitContribute": { "repo": "https://github.com/AvroSharp/AvroSharp", "branch": "main" }

@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
+- **A logo:** the packages' icon on NuGet, and the logo in the READMEs and on the documentation site.
 - **AvroSharp.Confluent**, a new package: Confluent Schema Registry serializers and deserializers for Confluent.Kafka, without Apache.Avro (#185). It is released with AvroSharp at the same version, and joins the release candidates so its API is reviewed before 1.0.0.
   - **Serializers:** `AvroSharpSerializer<T>` and `AvroSharpDeserializer<T>` work with:
     - generated and `[AvroSerializable]` types, found through `AvroTypes`, or given as an `AvroTypeInfo<T>`;

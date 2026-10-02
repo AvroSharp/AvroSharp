@@ -1,4 +1,4 @@
-# AvroSharp
+# <img src="docs/images/logo.png" alt="AvroSharp">
 
 [![CI](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Favrosharp.github.io%2FAvroSharp%2Fcoverage.json)](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml?query=branch%3Amain)

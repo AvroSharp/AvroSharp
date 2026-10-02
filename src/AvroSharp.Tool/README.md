@@ -1,3 +1,5 @@
+![AvroSharp](https://raw.githubusercontent.com/AvroSharp/AvroSharp/main/docs/images/logo.png)
+
 # AvroSharp.Tool
 
 `avrosharp`, the command-line tool of [AvroSharp](https://github.com/AvroSharp/AvroSharp): C# types and serializers from Apache Avro™ schema files (`.avsc`), the canonical form and fingerprints of schemas, and schema compatibility checks. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
