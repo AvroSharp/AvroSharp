@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 256" width="45" height="36">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14325E"/><stop offset="1" stop-color="#0B1F3A"/></linearGradient></defs>
+<rect width="256" height="256" rx="48" fill="url(#bg)"/>
+<g transform="translate(22.77 70.45) scale(0.4111)">
+<defs><linearGradient id="wi" gradientUnits="userSpaceOnUse" x1="14" y1="40" x2="166" y2="150">
+<stop offset="0" stop-color="#6CC0FF"/><stop offset="1" stop-color="#1655C8"/></linearGradient></defs>
+<g transform="translate(-34.199999999999996 14)"><g fill="url(#wi)"><path d="M168 92 C112 78 52 60 8 18 C30 74 90 112 162 122 Z"/><path d="M158 130 C112 120 62 106 26 74 C46 118 96 146 152 156 Z"/><path d="M146 164 C112 158 80 148 52 128 C70 160 104 180 140 188 Z"/></g></g><g transform="translate(546.2 14) scale(-1 1)"><g fill="url(#wi)"><path d="M168 92 C112 78 52 60 8 18 C30 74 90 112 162 122 Z"/><path d="M158 130 C112 120 62 106 26 74 C46 118 96 146 152 156 Z"/><path d="M146 164 C112 158 80 148 52 128 C70 160 104 180 140 188 Z"/></g></g>
+<g fill="#FFFFFF" transform="translate(256 140) scale(1.45) translate(-256 -140)"><path d="M222 62 H248 L234 218 H208 Z"/><path d="M278 62 H304 L290 218 H264 Z"/><rect x="189" y="100" width="140" height="26" rx="3"/><rect x="183" y="154" width="140" height="26" rx="3"/></g></g>
+</svg>

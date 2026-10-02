@@ -10,6 +10,7 @@
     <!-- The breaks since 0.2.0 are listed in each project's CompatibilitySuppressions.xml; the baseline becomes 1.0.0 after 1.0. -->
     <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
     <!-- Polyfill: include the ArgumentNullException/ArgumentOutOfRangeException ThrowIf* helpers. -->
     <PolyArgumentExceptions>true</PolyArgumentExceptions>
@@ -26,6 +27,7 @@
     <None Include="$(MSBuildProjectDirectory)\README.md" Pack="true" PackagePath="\" Condition="Exists('$(MSBuildProjectDirectory)\README.md')" />
     <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" Visible="false" Condition="!Exists('$(MSBuildProjectDirectory)\README.md')" />
     <None Include="$(MSBuildThisFileDirectory)..\THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\docs\images\icon.png" Pack="true" PackagePath="\" Visible="false" />
     <!-- The analyzer package adds PublicAPI.Shipped.txt and PublicAPI.Unshipped.txt as AdditionalFiles itself. -->
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
