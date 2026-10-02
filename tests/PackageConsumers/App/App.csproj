@@ -15,6 +15,7 @@
     <PackageReference Include="AvroSharp.KafkaFlow" Version="$(AvroSharpVersion)" />
     <PackageReference Include="AvroSharp.Azure.SchemaRegistry" Version="$(AvroSharpVersion)" />
     <PackageReference Include="AvroSharp.Aws.Glue" Version="$(AvroSharpVersion)" />
+    <PackageReference Include="AvroSharp.Aws.Glue.Kafka" Version="$(AvroSharpVersion)" />
     <AdditionalFiles Include="Schemas\*.avsc" />
   </ItemGroup>
 

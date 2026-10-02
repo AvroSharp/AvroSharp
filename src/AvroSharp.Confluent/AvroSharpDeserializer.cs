@@ -26,6 +26,10 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>
 
     // The reader of each writer schema. Confluent's client caches a parsed schema per ID, so the instance is the key.
     private readonly ConditionalWeakTable<AvroSchema, AvroReadFunc<T>> _readers = new();
+    private readonly ConditionalWeakTable<AvroSchema, AvroReadFunc<T>>.CreateValueCallback _createReader;
+
+    // For generic values without a reader schema: the reader of each writer schema resolved to each latest schema.
+    private readonly ConditionalWeakTable<AvroSchema, ConditionalWeakTable<AvroSchema, AvroReadFunc<T>>> _latestReaders = new();
 
     /// <summary>
     /// Creates a deserializer of a generated type or a primitive, which <see cref="AvroTypes"/> knows. On .NET Standard,
@@ -53,6 +57,7 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(type);
         _type = type;
+        _createReader = schema => _type.ReadFor(schema);
         subjectNameStrategy = (config?.SubjectNameStrategy ?? SubjectNameStrategy.Associated).ToAsyncDelegate(client, config);
         if (config is null)
         {
@@ -102,7 +107,10 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>
             throw new NotSupportedException($"The subject '{subject}' has migration rules between the writer's schema and the latest, which AvroSharp.Confluent doesn't run yet.");
         }
 
-        var value = Read(writerSchema, payload);
+        var read = ReadAsLatest is not null && latest is not null
+            ? LatestReader(writerSchema, await GetParsedSchema(latest).ConfigureAwait(false))
+            : _readers.GetValue(writerSchema, _createReader);
+        var value = Read(read, writerSchema, payload);
         var target = (ConfluentSchema?)latest ?? writerJson;
         if (target.RuleSet?.DomainRules is { Count: > 0 })
         {
@@ -115,9 +123,18 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
 
-    private T Read(AvroSchema writerSchema, ReadOnlyMemory<byte> payload)
+    /// <summary>
+    /// Gets or sets how values are read when the subject has a latest schema (<c>use.latest.version</c> or
+    /// <c>use.latest.with.metadata</c>): resolved from the writer's schema to it, as Confluent's generic deserializer
+    /// reads. <see langword="null"/> reads them as the type's schema, as for generated types.
+    /// </summary>
+    internal Func<AvroSchema, AvroSchema, AvroReadFunc<T>>? ReadAsLatest { get; init; }
+
+    private AvroReadFunc<T> LatestReader(AvroSchema writerSchema, AvroSchema latestSchema) =>
+        _latestReaders.GetOrCreateValue(writerSchema).GetValue(latestSchema, latest => ReadAsLatest!(writerSchema, latest));
+
+    private static T Read(AvroReadFunc<T> read, AvroSchema writerSchema, ReadOnlyMemory<byte> payload)
     {
-        var read = _readers.GetValue(writerSchema, schema => _type.ReadFor(schema));
         if (writerSchema.Type == AvroSchemaType.Bytes)
         {
             // A value of the schema "bytes" is the message body alone, without Avro's length prefix, as Confluent's

@@ -66,4 +66,12 @@ public sealed class AvroSharpGlueOptions
     /// registry checks its compatibility. The default is 3 seconds, as in AWS's serializer, which checks 10 times.
     /// </summary>
     public TimeSpan PendingVersionInterval { get; set; } = TimeSpan.FromSeconds(3);
+
+    // The serializer keeps a copy, so settings changed after it is created don't change it halfway.
+    internal AvroSharpGlueOptions Copy()
+    {
+        var copy = (AvroSharpGlueOptions)MemberwiseClone();
+        copy.Tags = Tags is null ? null : new Dictionary<string, string>(Tags, StringComparer.Ordinal);
+        return copy;
+    }
 }

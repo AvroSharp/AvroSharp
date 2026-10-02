@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- AvroSharp.Aws.Glue on an in-memory Glue client: AWS's wire format (pinned by a test vector from AWS's Java
-       encoder), its registration flow, and the Kafka adapters. And against moto, an AWS emulator, in Docker
+       encoder), its registration flow, and AvroSharp.Aws.Glue.Kafka's adapters. And against moto, an AWS emulator, in Docker
        (MotoGlueTests: [Explicit], run with a filter that names them). -->
   <PropertyGroup>
     <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AvroSharp.Aws.Glue\AvroSharp.Aws.Glue.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Aws.Glue.Kafka\AvroSharp.Aws.Glue.Kafka.csproj" />
     <PackageReference Include="AWSSDK.Glue" />
     <PackageReference Include="AWSSDK.Core" />
     <PackageReference Include="Confluent.Kafka" />

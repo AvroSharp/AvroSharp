@@ -31,6 +31,12 @@ internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCreden
     /// <summary>Gets or sets whether new versions (not a schema's first) fail their compatibility check.</summary>
     public bool FailNewVersions { get; set; }
 
+    /// <summary>Gets or sets whether another producer creates each schema just before this client's CreateSchema call.</summary>
+    public bool CreatedElsewhere { get; set; }
+
+    /// <summary>Gets or sets whether GetSchemaByDefinition answers without a schema version ID.</summary>
+    public bool WithoutVersionIds { get; set; }
+
     public List<string> Calls { get; } = [];
 
     public List<CreateSchemaRequest> Created { get; } = [];
@@ -56,7 +62,7 @@ internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCreden
 
             var version = versions.Find(v => string.Equals(v.Definition, request.SchemaDefinition, StringComparison.Ordinal))
                 ?? throw new EntityNotFoundException("Schema version is not found.");
-            return Task.FromResult(new GetSchemaByDefinitionResponse { SchemaVersionId = version.Id, Status = version.Status, DataFormat = version.Format });
+            return Task.FromResult(new GetSchemaByDefinitionResponse { SchemaVersionId = WithoutVersionIds ? null : version.Id, Status = version.Status, DataFormat = version.Format });
         }
     }
 
@@ -87,6 +93,11 @@ internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCreden
         lock (_lock)
         {
             Calls.Add("CreateSchema");
+            if (CreatedElsewhere)
+            {
+                AddVersion(request.RegistryId.RegistryName, request.SchemaName, """{"type":"record","name":"Other","fields":[]}""", DataFormat.AVRO, SchemaVersionStatus.AVAILABLE);
+            }
+
             if (_schemas.ContainsKey((request.RegistryId.RegistryName, request.SchemaName)))
             {
                 throw new AlreadyExistsException($"The schema {request.SchemaName} exists.");

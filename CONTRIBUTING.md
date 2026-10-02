@@ -24,9 +24,9 @@ Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on 
 AvroSharp.Confluent's, AvroSharp.KafkaFlow's and AvroSharp.Aws.Glue's tests need more:
 - **Redpanda:** the tests against a real broker and registry need Docker with Linux containers. They are `[Explicit]`, so they run only when a filter names them: `dotnet test --project tests/AvroSharp.Confluent.Tests --treenode-filter "/*/*/RedpandaTests/*"`, and AvroSharp.KafkaFlow's with `--project tests/AvroSharp.KafkaFlow.Tests --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"`. Otherwise they are neither run nor listed.
 - **moto:** AvroSharp.Aws.Glue's tests against moto, an AWS emulator in Docker, are `[Explicit]` too: `dotnet test --project tests/AvroSharp.Aws.Glue.Tests --treenode-filter "/*/*/MotoGlueTests/*"`.
-- **Confluent's lowest supported version:** the package depends on Confluent.SchemaRegistry [2.14.0, 3.0.0). The build uses the newest by default; to test against 2.14.0, build and test with `-p:ConfluentVersion=2.14.0`.
+- **Confluent's lowest supported version:** the package depends on Confluent.SchemaRegistry [2.14.0, 3.0.0). The build uses the newest by default; to test against 2.14.0, build and test with `-p:ConfluentVersion=2.14.0` (and an `-p:ArtifactsPath` of its own, to keep the main build). CI does this on the x64 Linux runner.
 
-CI runs them with the rest of the solution, and the Redpanda and moto tests in a step of their own on the x64 Linux runner. The Confluent sample needs a broker and a registry too: `docker compose up -d --wait` in `samples/Confluent` starts Redpanda.
+CI runs them with the rest of the solution, and the Redpanda and moto tests in a step of their own on the x64 Linux runner. The Confluent and KafkaFlowEvents samples need a broker and a registry too: `docker compose up -d --wait` in `samples/Confluent` starts Redpanda for both.
 
 Formatting is not checked in CI. To check or fix it locally:
 
@@ -66,7 +66,8 @@ build/ci-local.sh
 It runs, in CI's order:
 - restore and build;
 - the tests on net8.0, net9.0 and net10.0 with coverage;
-- the Redpanda and moto tests, when Docker is available;
+- the Redpanda and moto tests, when Docker is available (the dev container has no Docker inside it, so there they are left out);
+- AvroSharp.Confluent's and AvroSharp.KafkaFlow's tests against Confluent 2.14.0, the lowest supported version;
 - the tests without hardware intrinsics;
 - the coverage check (the summary is in `artifacts/coverage/SummaryGithub.md`);
 - the samples;
@@ -85,9 +86,9 @@ It doesn't cover:
 
 ## Public API
 
-The public API is frozen for 1.0, and from 1.0 follows [semantic versioning](https://semver.org/): a breaking change waits for the next major version. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
+The core packages' public API is frozen for 1.0, and from 1.0 follows [semantic versioning](https://semver.org/): a breaking change waits for the next major version. The add-on packages (AvroSharp.Confluent, AvroSharp.KafkaFlow, AvroSharp.Azure.SchemaRegistry, AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka) are new in the release candidates, and their APIs may still change until 1.0.0. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
 
-Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its baseline release (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), and a break that isn't listed in the project's `CompatibilitySuppressions.xml` fails the pack.
+Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its baseline release (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), and a break that isn't listed in the project's `CompatibilitySuppressions.xml` fails the pack. The add-on packages have no baseline yet (an empty `PackageValidationBaselineVersion`); they get one with 1.0.0.
 
 ## Workflow
 

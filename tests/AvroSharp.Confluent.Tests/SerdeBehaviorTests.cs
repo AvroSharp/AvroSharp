@@ -191,6 +191,35 @@ public class SerdeBehaviorTests
     }
 
     [Test]
+    public async Task ConcurrentFirstMessages_RegisterOnce_AndAllRead()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var serializer = new AvroSharpSerializer<Order>(registry);
+        var deserializer = new AvroSharpDeserializer<Order>(registry);
+
+        var messages = await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(() => serializer.SerializeAsync(NewOrder(), Value(topic)))));
+        var orders = await Task.WhenAll(messages.Select(m => Task.Run(() => deserializer.DeserializeAsync(m, isNull: false, Value(topic)))));
+
+        await Assert.That(registry.RegistrationCalls).IsEqualTo(1);
+        await Assert.That(messages.Select(m => Convert.ToHexString(m)).Distinct(StringComparer.Ordinal)).Count().IsEqualTo(1);
+        await Assert.That(orders.Select(o => o.Customer).Distinct(StringComparer.Ordinal)).IsEquivalentTo(["Ada"], CollectionOrdering.Any);
+    }
+
+    [Test]
+    public async Task NoSubject_WithoutUseSchemaId_IsReported()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var serializer = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.None, AutoRegisterSchemas = false });
+        var primitive = new AvroSharpSerializer<string>(registry, new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.Record });
+
+        await Assert.That(async () => await serializer.SerializeAsync(NewOrder(), Value(Topic())))
+            .Throws<InvalidOperationException>().WithMessageContaining("None needs use.schema.id", StringComparison.Ordinal);
+        await Assert.That(async () => await primitive.SerializeAsync("text", Value(Topic())))
+            .Throws<InvalidOperationException>().WithMessageContaining("need a schema with a name", StringComparison.Ordinal);
+    }
+
+    [Test]
     public async Task UseSchemaId_OfAnotherSchema_IsRejected()
     {
         using var registry = new InMemorySchemaRegistry();
@@ -211,6 +240,57 @@ public class SerdeBehaviorTests
         var serializer = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { UseLatestVersion = true, AutoRegisterSchemas = false });
 
         await ConfluentInteropTests.AssertIsNewOrder(await new AvroSharpDeserializer<Order>(registry).DeserializeAsync(await serializer.SerializeAsync(NewOrder(), Value(topic)), isNull: false, Value(topic)));
+    }
+
+    [Test]
+    public async Task ARegisteredSchemaWithAnInvalidDefault_IsRead()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        // Older registries and Apache.Avro accept a default that doesn't match its field's type.
+        var id = await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(
+            """{"type":"record","name":"Odd","namespace":"test.shop","fields":[{"name":"n","type":"int","default":"zero"}]}""", SchemaType.Avro));
+        byte[] message = [0, (byte)(id >> 24), (byte)(id >> 16), (byte)(id >> 8), (byte)id, 0x0E];
+
+        var value = await AvroSharpGeneric.CreateDeserializer(registry).DeserializeAsync(message, isNull: false, Value(topic));
+
+        await Assert.That(value.AsRecord()["n"].AsInt32()).IsEqualTo(7);
+    }
+
+    [Test]
+    [Arguments("""{"type":"bytes","logicalType":"decimal","precision":12,"scale":2}""", """{"type":"bytes","logicalType":"decimal","precision":12,"scale":4}""")]
+    [Arguments("""{"type":"long","logicalType":"timestamp-millis"}""", """{"type":"long","logicalType":"timestamp-micros"}""")]
+    [Arguments("""{"type":"long","logicalType":"timestamp-millis"}""", "\"long\"")]
+    public async Task UseLatestVersion_WithOtherLogicalTypes_IsRejected(string ours, string registered)
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(Priced(registered), SchemaType.Avro));
+        var schema = (RecordSchema)AvroSchema.Parse(Priced(ours));
+        var serializer = AvroSharpGeneric.CreateSerializer(registry, schema, new AvroSharpSerializerConfig { UseLatestVersion = true, AutoRegisterSchemas = false });
+        var value = AvroValue.FromRecord(new GenericRecord(schema) { ["p"] = schema.Fields[0].Schema.Type == AvroSchemaType.Bytes ? AvroValue.FromBytes([1]) : AvroValue.FromInt64(1) });
+
+        await Assert.That(async () => await serializer.SerializeAsync(value, Value(topic))).Throws<InvalidOperationException>().WithMessageContaining("logical", StringComparison.Ordinal);
+
+        static string Priced(string field) => $$"""{"type":"record","name":"Priced","namespace":"test.shop","fields":[{"name":"p","type":{{field}}}]}""";
+    }
+
+    [Test]
+    public async Task Generic_UseLatestVersion_ReadsAsTheLatestSchema()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var v1 = (RecordSchema)AvroSchema.Parse("""{"type":"record","name":"Point","namespace":"test.shop","fields":[{"name":"a","type":"int"}]}""");
+        var bytes = await AvroSharpGeneric.CreateSerializer(registry, v1).SerializeAsync(AvroValue.FromRecord(new GenericRecord(v1) { ["a"] = 1 }), Value(topic));
+        await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(
+            """{"type":"record","name":"Point","namespace":"test.shop","fields":[{"name":"a","type":"int"},{"name":"b","type":"string","default":"x"}]}""", SchemaType.Avro));
+
+        var latest = (await AvroSharpGeneric.CreateDeserializer(registry, config: new AvroSharpDeserializerConfig { UseLatestVersion = true }).DeserializeAsync(bytes, isNull: false, Value(topic))).AsRecord();
+        var written = (await AvroSharpGeneric.CreateDeserializer(registry).DeserializeAsync(bytes, isNull: false, Value(topic))).AsRecord();
+
+        await Assert.That(latest["a"].AsInt32()).IsEqualTo(1);
+        await Assert.That(latest["b"].AsString()).IsEqualTo("x");
+        await Assert.That(written.Schema.Fields.Count).IsEqualTo(1);
     }
 
     [Test]

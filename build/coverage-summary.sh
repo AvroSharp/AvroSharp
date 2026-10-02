@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-assemblies=(AvroSharp AvroSharp.Aws.Glue AvroSharp.Azure.SchemaRegistry AvroSharp.Codecs AvroSharp.CodeGen AvroSharp.Confluent AvroSharp.Generators AvroSharp.KafkaFlow AvroSharp.Tool)
+assemblies=(AvroSharp AvroSharp.Aws.Glue AvroSharp.Aws.Glue.Kafka AvroSharp.Azure.SchemaRegistry AvroSharp.Codecs AvroSharp.CodeGen AvroSharp.Confluent AvroSharp.Generators AvroSharp.KafkaFlow AvroSharp.Tool)
 
 # Every report must have data, and together they must cover each shipped assembly: collection that silently records
 # nothing would otherwise shrink the summary without failing anything (#133).

@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AvroSharp.KafkaFlow\AvroSharp.KafkaFlow.csproj" />
+    <!-- Only loaded by name (Resolver_FindsATypeOfAnAssemblyNoCodeOfWhichRan): never called. -->
+    <ProjectReference Include="..\AvroSharp.Generators.LateTypes\AvroSharp.Generators.LateTypes.csproj" />
     <PackageReference Include="KafkaFlow.Serializer.SchemaRegistry.ConfluentAvro" />
     <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />

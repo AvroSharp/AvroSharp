@@ -24,6 +24,7 @@
     <Project Path="src/AvroSharp.KafkaFlow/AvroSharp.KafkaFlow.csproj" />
     <Project Path="src/AvroSharp.Azure.SchemaRegistry/AvroSharp.Azure.SchemaRegistry.csproj" />
     <Project Path="src/AvroSharp.Aws.Glue/AvroSharp.Aws.Glue.csproj" />
+    <Project Path="src/AvroSharp.Aws.Glue.Kafka/AvroSharp.Aws.Glue.Kafka.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/GettingStarted/GettingStarted.csproj" />
@@ -46,6 +47,7 @@
     <Project Path="tests/AvroSharp.Generators.Tests/AvroSharp.Generators.Tests.csproj" />
     <Project Path="tests/AvroSharp.Generators.Consumer.Tests/AvroSharp.Generators.Consumer.Tests.csproj" />
     <Project Path="tests/AvroSharp.Generators.ApacheCompat.Tests/AvroSharp.Generators.ApacheCompat.Tests.csproj" />
+    <Project Path="tests/AvroSharp.Generators.LateTypes/AvroSharp.Generators.LateTypes.csproj" />
     <Project Path="tests/AvroSharp.AotSmoke/AvroSharp.AotSmoke.csproj" />
     <Project Path="tests/AvroSharp.Tool.Tests/AvroSharp.Tool.Tests.csproj" />
     <Project Path="tests/AvroSharp.Confluent.Tests/AvroSharp.Confluent.Tests.csproj" />

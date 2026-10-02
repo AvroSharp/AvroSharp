@@ -168,7 +168,8 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
 
     // With use.latest.version, use.latest.with.metadata or use.schema.id, the message carries another schema's ID,
     // but its bytes are still written in the type's schema. Readers decode them with that other schema, so the two
-    // must encode alike: the same Parsing Canonical Form. Checked once per schema ID.
+    // must encode alike: the same Parsing Canonical Form, and the same logical types (SchemaEncoding). Checked once per
+    // schema ID.
     private async Task CheckWritesAsAsync(RegisteredSchema target)
     {
         if (_writesAs.ContainsKey(target.Id))
@@ -177,12 +178,13 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>
         }
 
         var parsed = await GetParsedSchema(target).ConfigureAwait(false);
-        if (!parsed.HasSameCanonicalForm(_type.Schema))
+        if (!SchemaEncoding.Same(parsed, _type.Schema))
         {
             throw new InvalidOperationException(
                 $"The message would carry the schema ID {target.Id} (version {target.Version} of '{target.Subject}'), but " +
-                $"{typeof(T).Name} is written with a different schema, which readers would decode wrongly. Use a type " +
-                "generated from that schema, or turn off use.latest.version, use.latest.with.metadata and use.schema.id.");
+                $"{typeof(T).Name} is written with a schema that encodes differently (another structure, or other logical " +
+                "types), which readers would decode wrongly. Use a type generated from that schema, or turn off " +
+                "use.latest.version, use.latest.with.metadata and use.schema.id.");
         }
 
         _writesAs.TryAdd(target.Id, true);

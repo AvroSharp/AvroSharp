@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
-- **AvroSharp.Confluent**, a new package: Confluent Schema Registry serializers and deserializers for Confluent.Kafka, without Apache.Avro. It is released with AvroSharp at the same version, and joins the release candidates so its API is reviewed before 1.0.0.
+- **AvroSharp.Confluent**, a new package: Confluent Schema Registry serializers and deserializers for Confluent.Kafka, without Apache.Avro (#185). It is released with AvroSharp at the same version, and joins the release candidates so its API is reviewed before 1.0.0.
   - **Serializers:** `AvroSharpSerializer<T>` and `AvroSharpDeserializer<T>` work with:
     - generated and `[AvroSerializable]` types, found through `AvroTypes`, or given as an `AvroTypeInfo<T>`;
     - the primitives `string`, `int`, `long`, `float`, `double`, `bool` and `byte[]`;
@@ -15,9 +15,9 @@ All notable changes to this project are documented here. The format follows [Kee
     - the same message bytes, and a top-level `bytes` value is the message body alone;
     - the same default subject name strategy (`Associated`, falling back to `Topic`);
     - the same configuration keys (`avro.serializer.*`, `avro.deserializer.*`). Unknown keys are rejected.
-  - **Schema evolution:** the deserializer reads each message in its writer's schema and resolves it to the type's.
+  - **Schema evolution:** the deserializer reads each message in its writer's schema and resolves it to the type's. A generic deserializer with `use.latest.version` and no reader schema reads each message as the latest version. A registered schema with an invalid field default still reads: the registry is the authority.
   - **Checks:**
-    - With `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, the serializer checks that the type's schema encodes like the schema whose ID the message carries.
+    - With `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, the serializer checks that the type's schema encodes like the schema whose ID the message carries: the same canonical form, and the same logical types (a decimal's precision and scale, a timestamp's unit).
     - Tombstones follow Confluent: a null value is written with no body, and reading one into a value type throws.
   - **Builder extensions** for Confluent.Kafka's producer and consumer builders.
   - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Confluent.SchemaRegistry [2.14.0, 3.0.0). The tests run against both ends of that range (`-p:ConfluentVersion=2.14.0` for the lowest) and against Redpanda.
@@ -36,12 +36,16 @@ All notable changes to this project are documented here. The format follows [Kee
   - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Azure.Data.SchemaRegistry [1.2.0, 2.0.0).
 - **AvroSharp.Aws.Glue**, a new package: a managed AWS Glue Schema Registry serializer for Kafka and Kinesis, on every platform, in place of AWS's native, Linux-only `AWS.Glue.SchemaRegistry`, without Apache.Avro (#156). It is released with AvroSharp at the same version.
   - **`AvroSharpGlueSerializer`:** writes and reads AWS's wire format: `0x03`, the compression byte (none, or zlib), the schema version UUID with the most significant bits first, then the Avro data. A test vector from AWS's Java encoder pins the format.
-  - **Kafka:** `AvroSharpGlueKafkaSerializer<T>` and `AvroSharpGlueKafkaDeserializer<T>` for Confluent.Kafka, with builder extensions.
-  - **Registry calls, as AWS's serializer makes them:** the version is looked up by its definition (Java's `Schema.toString()` text, as AWS registers it). With auto-registration the serializer registers a new version, or creates the schema with the configured compatibility, and waits while a new version is `PENDING`. Each version ID and each schema is cached.
+  - **Kafka, in AvroSharp.Aws.Glue.Kafka:** `AvroSharpGlueKafkaSerializer<T>` and `AvroSharpGlueKafkaDeserializer<T>` for Confluent.Kafka, both asynchronous and synchronous, with builder extensions. They're a package of their own, so Kinesis and other users don't take Confluent.Kafka. A null value, or a null `AvroValue`, is a tombstone.
+  - **Registry calls, as AWS's serializer makes them:** the version is looked up by its definition (Java's `Schema.toString()` text, as AWS registers it). With auto-registration the serializer registers a new version, or creates the schema with the configured compatibility, and waits while a new version is `PENDING` (a `TimeoutException` after 10 checks). Each version ID and each schema is cached. A writer schema with an invalid default still reads: the registry is the authority.
   - **Settings:** `AvroSharpGlueOptions` has AWS's settings and defaults: `default-registry`, schemas named after the topic or stream, auto-registration off, no compression, and `BACKWARD` compatibility.
   - **Types:** generated and `[AvroSerializable]` types, resolved from the writer's schema, and generic records.
-  - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on AWSSDK.Glue [4.0.0, 5.0.0), AWSSDK.Core 4.0.3.3 or later (below 4.0.3.3 it has an advisory), and Confluent.Kafka [2.0.2, 3.0.0).
+  - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on AWSSDK.Glue [4.0.0, 5.0.0), and AWSSDK.Core [4.0.3.3, 5.0.0) (below 4.0.3.3 it has an advisory). AvroSharp.Aws.Glue.Kafka adds Confluent.Kafka [2.0.2, 3.0.0).
   - **Tests:** an in-memory Glue client, and moto (an AWS emulator in Docker) through the AWS SDK's real client. Not yet against AWS's own package, whose native library didn't start in the Docker environment tried.
+
+### Fixed
+
+- **`AvroTypes.TryGet(Type)` and `AvroTypes.Get<T>()` find a generated type whose assembly no code has run from yet**, such as one loaded only for its metadata, by a type name or a message handler's signature. They run the assembly's module initializer, which registers its types, before they report the type unknown.
 
 ## [1.0.0-rc.1] - 2026-10-01
 

@@ -7,14 +7,14 @@ Confluent Schema Registry serializers and deserializers for [Confluent.Kafka](ht
   - your own C# types marked `[AvroSerializable]`;
   - generic records (`AvroValue`);
   - the primitives `string`, `int`, `long`, `float`, `double`, `bool` and `byte[]`, as in Confluent's serializers (not yet its `Null`).
-- **Confluent's own code** for the registry: AvroSharp's serializers derive from Confluent's serializer base classes, so these work exactly as in Confluent's serializer:
+- **Confluent's own code** for the registry: AvroSharp's serializers derive from Confluent's serializer base classes, so these work as in Confluent's serializer:
   - subject name strategies;
   - registration and `use.latest.version`;
   - schema ID strategies (prefix or header);
   - schema references;
-  - data contract rules.
+  - data contract rules: domain rules (such as CEL) and encoding rules. Field rules, such as field-level encryption (CSFLE), aren't supported yet and fail rather than being skipped.
 
-  Only the Avro encoding is AvroSharp's.
+  Only the Avro encoding is AvroSharp's. With `use.latest.version` or `use.schema.id`, the serializer also checks that the target schema encodes as your type's, logical types included, which Confluent's doesn't.
 - **Interchangeable with Confluent's serializer:**
   - the same message bytes for the same schema and value;
   - the same configuration keys (`avro.serializer.*`, `avro.deserializer.*`);

@@ -74,10 +74,11 @@ catch (ArgumentException)
 {
 }
 
-// AvroSharp.Aws.Glue loads with its AWS dependencies, and knows AWS's header.
+// AvroSharp.Aws.Glue loads with its AWS dependencies, and knows AWS's header; AvroSharp.Aws.Glue.Kafka with Confluent.Kafka.
 using (var glue = new Amazon.Glue.AmazonGlueClient(new Amazon.Runtime.BasicAWSCredentials("consumer", "consumer"), Amazon.RegionEndpoint.USEast1))
 {
     _ = new AvroSharp.Aws.Glue.AvroSharpGlueSerializer(glue);
+    _ = new AvroSharp.Aws.Glue.Kafka.AvroSharpGlueKafkaSerializer<Order>(glue);
     if (!AvroSharp.Aws.Glue.AvroSharpGlueSerializer.CanDecode([0x03, 0x00, .. new byte[16]]))
     {
         failures.Add("AWS Glue serializer");

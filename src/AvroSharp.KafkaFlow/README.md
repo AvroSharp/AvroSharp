@@ -17,7 +17,7 @@ dotnet add package AvroSharp.KafkaFlow --prerelease
 dotnet add package AvroSharp.Generators --prerelease
 ```
 
-AvroSharp.KafkaFlow depends on KafkaFlow 4.0.0 or later (below 5.0), and targets .NET 8 and later. KafkaFlow's assemblies aren't strong-named, so neither is this one.
+AvroSharp.KafkaFlow depends on KafkaFlow 4.0.0 or later (below 5.0), and targets .NET 8 and later (no .NET Framework). KafkaFlow's assemblies aren't strong-named, so neither is this one.
 
 ## Use
 

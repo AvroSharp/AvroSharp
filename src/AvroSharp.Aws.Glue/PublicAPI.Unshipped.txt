@@ -2,15 +2,6 @@
 AvroSharp.Aws.Glue.AvroSharpGlueCompression
 AvroSharp.Aws.Glue.AvroSharpGlueCompression.None = 0 -> AvroSharp.Aws.Glue.AvroSharpGlueCompression
 AvroSharp.Aws.Glue.AvroSharpGlueCompression.Zlib = 1 -> AvroSharp.Aws.Glue.AvroSharpGlueCompression
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaDeserializer<T>
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaDeserializer<T>.AvroSharpGlueKafkaDeserializer(Amazon.Glue.IAmazonGlue! glue, AvroSharp.Aws.Glue.AvroSharpGlueOptions? options = null) -> void
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaDeserializer<T>.AvroSharpGlueKafkaDeserializer(AvroSharp.Aws.Glue.AvroSharpGlueSerializer! serializer) -> void
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaDeserializer<T>.DeserializeAsync(System.ReadOnlyMemory<byte> data, bool isNull, Confluent.Kafka.SerializationContext context) -> System.Threading.Tasks.Task<T>!
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaExtensions
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaSerializer<T>
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaSerializer<T>.AvroSharpGlueKafkaSerializer(Amazon.Glue.IAmazonGlue! glue, AvroSharp.Aws.Glue.AvroSharpGlueOptions? options = null) -> void
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaSerializer<T>.AvroSharpGlueKafkaSerializer(AvroSharp.Aws.Glue.AvroSharpGlueSerializer! serializer) -> void
-AvroSharp.Aws.Glue.AvroSharpGlueKafkaSerializer<T>.SerializeAsync(T data, Confluent.Kafka.SerializationContext context) -> System.Threading.Tasks.Task<byte[]!>!
 AvroSharp.Aws.Glue.AvroSharpGlueOptions
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.AutoRegisterSchemas.get -> bool
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.AutoRegisterSchemas.set -> void
@@ -35,6 +26,4 @@ AvroSharp.Aws.Glue.AvroSharpGlueSerializer
 AvroSharp.Aws.Glue.AvroSharpGlueSerializer.AvroSharpGlueSerializer(Amazon.Glue.IAmazonGlue! glue, AvroSharp.Aws.Glue.AvroSharpGlueOptions? options = null) -> void
 AvroSharp.Aws.Glue.AvroSharpGlueSerializer.DeserializeAsync<T>(System.ReadOnlyMemory<byte> message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
 AvroSharp.Aws.Glue.AvroSharpGlueSerializer.SerializeAsync<T>(T value, string! transportName, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<byte[]!>
-static AvroSharp.Aws.Glue.AvroSharpGlueKafkaExtensions.SetAvroSharpGlueValueDeserializer<TKey, TValue>(this Confluent.Kafka.ConsumerBuilder<TKey, TValue>! builder, Amazon.Glue.IAmazonGlue! glue, AvroSharp.Aws.Glue.AvroSharpGlueOptions? options = null) -> Confluent.Kafka.ConsumerBuilder<TKey, TValue>!
-static AvroSharp.Aws.Glue.AvroSharpGlueKafkaExtensions.SetAvroSharpGlueValueSerializer<TKey, TValue>(this Confluent.Kafka.ProducerBuilder<TKey, TValue>! builder, Amazon.Glue.IAmazonGlue! glue, AvroSharp.Aws.Glue.AvroSharpGlueOptions? options = null) -> Confluent.Kafka.ProducerBuilder<TKey, TValue>!
 static AvroSharp.Aws.Glue.AvroSharpGlueSerializer.CanDecode(System.ReadOnlySpan<byte> message) -> bool

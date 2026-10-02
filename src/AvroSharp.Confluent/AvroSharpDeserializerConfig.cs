@@ -24,7 +24,8 @@ public sealed class AvroSharpDeserializerConfig : SerdeConfig
 
     /// <summary>
     /// Gets or sets whether migration and domain rules apply with the subject's latest schema
-    /// (<c>avro.deserializer.use.latest.version</c>). Values are read as the target type's schema either way.
+    /// (<c>avro.deserializer.use.latest.version</c>). A type's values are read as its own schema either way; generic
+    /// values without a reader schema (<see cref="AvroSharpGeneric"/>) are read as the latest schema.
     /// </summary>
     public bool? UseLatestVersion
     {

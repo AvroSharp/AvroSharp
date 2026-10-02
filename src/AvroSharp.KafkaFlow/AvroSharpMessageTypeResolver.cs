@@ -35,24 +35,15 @@ public sealed class AvroSharpMessageTypeResolver : IMessageTypeResolver
     /// <exception cref="ArgumentException">A type's schema isn't a record, or two types have records of the same name.</exception>
     /// <exception cref="InvalidOperationException">A type is not one <see cref="AvroTypes"/> knows.</exception>
     public AvroSharpMessageTypeResolver(ISchemaRegistryClient client, IEnumerable<Type> messageTypes)
+        : this(client, ByRecordName(messageTypes))
+    {
+    }
+
+    internal AvroSharpMessageTypeResolver(ISchemaRegistryClient client, Dictionary<string, Type> byRecordName)
     {
         ArgumentNullException.ThrowIfNull(client);
-        ArgumentNullException.ThrowIfNull(messageTypes);
         _client = client;
-        var byName = new Dictionary<string, Type>(StringComparer.Ordinal);
-        foreach (var type in messageTypes)
-        {
-            var name = (MessageTypes.Info(type).Schema as RecordSchema)?.FullName
-                ?? throw new ArgumentException($"The schema of {type} is not a record, so a message's schema can't name it.", nameof(messageTypes));
-            if (byName.TryGetValue(name, out var other))
-            {
-                throw new ArgumentException($"{other} and {type} both have the record {name}.", nameof(messageTypes));
-            }
-
-            byName.Add(name, type);
-        }
-
-        _typeOf = name => byName.TryGetValue(name, out var type) ? type : null;
+        _typeOf = name => byRecordName.TryGetValue(name, out var type) ? type : null;
     }
 
     /// <summary>
@@ -93,6 +84,27 @@ public sealed class AvroSharpMessageTypeResolver : IMessageTypeResolver
         type = _typeOf(name)
             ?? throw new InvalidOperationException($"No message type has the record {name} (schema {id}).");
         return _types.GetOrAdd(id, type);
+    }
+
+    // The message types by their records' full names.
+    internal static Dictionary<string, Type> ByRecordName(IEnumerable<Type> messageTypes)
+    {
+        ArgumentNullException.ThrowIfNull(messageTypes);
+        var byName = new Dictionary<string, Type>(StringComparer.Ordinal);
+        foreach (var type in messageTypes)
+        {
+            ArgumentNullException.ThrowIfNull(type, nameof(messageTypes));
+            var name = (MessageTypes.Info(type).Schema as RecordSchema)?.FullName
+                ?? throw new ArgumentException($"The schema of {type} is not a record, so a message's schema can't name it.", nameof(messageTypes));
+            if (byName.TryGetValue(name, out var other))
+            {
+                throw new ArgumentException($"{other} and {type} both have the record {name}.", nameof(messageTypes));
+            }
+
+            byName.Add(name, type);
+        }
+
+        return byName;
     }
 
     /// <summary>Does nothing: a produced message's type is its value's.</summary>

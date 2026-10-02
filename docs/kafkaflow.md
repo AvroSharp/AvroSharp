@@ -14,7 +14,7 @@ dotnet add package AvroSharp.KafkaFlow --prerelease
 dotnet add package AvroSharp.Generators --prerelease
 ```
 
-AvroSharp.KafkaFlow depends on KafkaFlow 4.0.0 or later (below 5.0), and is released with AvroSharp, at the same version. It targets .NET 8 and later. KafkaFlow's assemblies aren't strong-named, so neither is this one.
+AvroSharp.KafkaFlow depends on KafkaFlow 4.0.0 or later (below 5.0), and is released with AvroSharp, at the same version. It targets .NET 8 and later; there's no .NET Framework or .NET Standard build, because KafkaFlow 4 needs a newer System.Threading.Tasks.Extensions than AvroSharp's .NET Standard build brings. KafkaFlow's assemblies aren't strong-named, so neither is this one.
 
 On this page:
 - [Use](#use)
@@ -68,8 +68,8 @@ middlewares
     .AddTypedHandlers(handlers => handlers.AddHandler<OrderPlacedHandler>().AddHandler<OrderShippedHandler>());
 ```
 
-- **With a list of types,** [`AvroSharpMessageTypeResolver`](xref:AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver) matches each type by its schema's record name. A type's .NET name can differ from its Avro name. There's no reflection, so this works with trimming and Native AOT.
-- **Without a list,** `AddSchemaRegistryAvroSharpDeserializer()` finds the type by its .NET full name in the loaded assemblies, as KafkaFlow's `AddSchemaRegistryAvroDeserializer()` does. That works when the .NET names match the Avro names, as they do by default for generated types. It's marked as unsafe for trimming.
+- **With a list of types,** [`AvroSharpMessageTypeResolver`](xref:AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver) matches each type by its schema's record name. A type's .NET name can differ from its Avro name. There's no reflection, so AvroSharp's part has no trimming or Native AOT warnings; whether KafkaFlow itself runs under Native AOT is up to KafkaFlow.
+- **Without a list,** `AddSchemaRegistryAvroSharpDeserializer()` finds the type by its .NET full name in the loaded assemblies, as KafkaFlow's `AddSchemaRegistryAvroDeserializer()` does. That works when the .NET names match the Avro names, as they do by default for generated types. It's marked as unsafe for trimming. It also finds types of assemblies loaded only for their metadata, such as one a handler's signature names.
 
 ## Moving from KafkaFlow's Confluent Avro serializer
 
@@ -87,5 +87,7 @@ middlewares
 ## Behavior to know
 
 - **The schema ID is in front of the message.** KafkaFlow's serializer middleware gives serializers and deserializers no message headers, so the schema ID can't go in a header. A serializer set up with `SchemaIdStrategy = Header` is rejected.
+- **Mistakes show at startup.** The `Add...` methods check their arguments when they're called: a message type AvroSharp doesn't know, a type whose schema isn't a record, two types of the same record, a header schema ID, or `use.latest.version` with auto-registration. A missing `WithSchemaRegistry` shows when the bus creates the middleware.
+- **A record no type has** stops the message: the resolver throws an `InvalidOperationException` naming the record and the schema ID, and KafkaFlow handles it as any failed message. List every record the topic carries, or handle the error in an earlier middleware.
 - **Caching:** each producer and consumer has its own serializer per message type. A schema is registered or looked up once per type and subject. A consumer fetches each writer schema once per schema ID.
 - **Tombstones:** KafkaFlow's middleware passes a null message through without calling the serializer, so tombstones work as they do with KafkaFlow's own serializer.

@@ -22,17 +22,28 @@ public sealed class AvroSharpKafkaFlowSerializer : ISerializer
     /// <param name="client">The schema registry.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
     /// <exception cref="ArgumentException">
-    /// <paramref name="config"/> puts the schema ID in a header: KafkaFlow's serializer middleware gives serializers no headers.
+    /// <paramref name="config"/> puts the schema ID in a header (KafkaFlow's serializer middleware gives serializers no
+    /// headers), or enables both <c>use.latest.version</c> and <c>auto.register.schemas</c> (the default).
     /// </exception>
     public AvroSharpKafkaFlowSerializer(ISchemaRegistryClient client, AvroSharpSerializerConfig? config = null)
     {
         ArgumentNullException.ThrowIfNull(client);
+        Check(config);
+        _serializers = new SerializersByType(client, config);
+    }
+
+    // The settings the serializers of each type would reject only when the first message is written.
+    internal static void Check(AvroSharpSerializerConfig? config)
+    {
         if (config?.SchemaIdStrategy == SchemaIdSerializerStrategy.Header)
         {
             throw new ArgumentException("KafkaFlow's serializer middleware gives serializers no message headers, so the schema ID can't go in one.", nameof(config));
         }
 
-        _serializers = new SerializersByType(client, config);
+        if (config?.UseLatestVersion == true && config.AutoRegisterSchemas != false)
+        {
+            throw new ArgumentException("use.latest.version and auto.register.schemas can't both be enabled: set AutoRegisterSchemas to false.", nameof(config));
+        }
     }
 
     /// <summary>Writes a message: its schema ID, registered or looked up once per type and subject, then its Avro encoding.</summary>

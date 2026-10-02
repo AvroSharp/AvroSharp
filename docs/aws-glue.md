@@ -1,6 +1,6 @@
 # AWS Glue Schema Registry
 
-[AvroSharp.Aws.Glue](https://www.nuget.org/packages/AvroSharp.Aws.Glue) writes and reads Avro messages with [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html), for Kafka (Amazon MSK, or any broker) and Kinesis. It's fully managed and calls Glue through the AWS SDK for .NET, so it runs on every platform .NET runs on, and its own code is Native AOT compatible. AWS's own .NET package, `AWS.Glue.SchemaRegistry`, is a native build of its Java serializer for Linux only, with Apache.Avro.
+[AvroSharp.Aws.Glue](https://www.nuget.org/packages/AvroSharp.Aws.Glue) writes and reads Avro messages with [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html), for Kafka (Amazon MSK, or any broker) and Kinesis. It's fully managed and calls Glue through the AWS SDK for .NET, so it runs on every platform .NET runs on. Its own code has no trimming or Native AOT warnings; whether the AWS SDK for .NET and Confluent.Kafka work under Native AOT is up to them. AWS's own .NET package, `AWS.Glue.SchemaRegistry`, is a native build of its Java serializer for Linux only, with Apache.Avro.
 - **AWS's wire format:** the header byte `0x03`, the compression byte (`0x00`, or `0x05` for zlib), the schema version's UUID, then the Avro data.
 - **AWS's settings:** the registry name, auto-registration, compression, the compatibility of schemas it creates, and schema naming, with AWS's defaults.
 - **Types:** generated from `.avsc` files, or your own types marked `[AvroSerializable]`, and generic records.
@@ -8,10 +8,11 @@
 
 ```
 dotnet add package AvroSharp.Aws.Glue --prerelease
+dotnet add package AvroSharp.Aws.Glue.Kafka --prerelease   # for Confluent.Kafka
 dotnet add package AvroSharp.Generators --prerelease
 ```
 
-AvroSharp.Aws.Glue depends on AWSSDK.Glue 4 and Confluent.Kafka 2, and is released with AvroSharp, at the same version. It targets .NET 8 and later, and .NET Standard 2.0.
+AvroSharp.Aws.Glue depends on AWSSDK.Glue 4. Its Confluent.Kafka serializers are in AvroSharp.Aws.Glue.Kafka, which depends on Confluent.Kafka 2, so Kinesis and other users don't take Confluent.Kafka. Both are released with AvroSharp, at the same version, and target .NET 8 and later, and .NET Standard 2.0.
 
 On this page:
 - [Use](#use)
@@ -24,6 +25,7 @@ On this page:
 ```csharp
 using Amazon.Glue;
 using AvroSharp.Aws.Glue;
+using AvroSharp.Aws.Glue.Kafka;
 using Confluent.Kafka;
 
 var glue = new AmazonGlueClient();   // the region and credentials from the environment, as usual
@@ -71,16 +73,17 @@ Order read = await serializer.DeserializeAsync<Order>(data);
 
 1. **Generate the types with AvroSharp.Generators.** AWS's serializer takes Apache.Avro's `ISpecificRecord` and `GenericRecord`. With `<AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>`, the generated classes implement `ISpecificRecord` too, so the same classes work with both while you move. See [the Apache.Avro compatibility mode](code-generation.md#migrating-from-avrogen-the-apacheavro-compatibility-mode).
 2. **Replace the serializer:**
-   - `GlueSchemaRegistryKafkaSerializer` and `GlueSchemaRegistryKafkaDeserializer` → `AvroSharpGlueKafkaSerializer<T>` and `AvroSharpGlueKafkaDeserializer<T>`;
+   - `GlueSchemaRegistryKafkaSerializer` and `GlueSchemaRegistryKafkaDeserializer` → `AvroSharpGlueKafkaSerializer<T>` and `AvroSharpGlueKafkaDeserializer<T>`, from AvroSharp.Aws.Glue.Kafka;
    - the settings move from the properties file to `AvroSharpGlueOptions`;
    - the region, endpoint and credentials move to the `AmazonGlueClient`.
 3. **The messages don't change:**
    - the same header and UUID byte order, pinned by a test vector from AWS's encoder;
    - the same Avro data;
-   - the same registered schema text: Java's `Schema.toString()`, which AWS's Java and native serializers register too. So a version they registered is found by its definition.
+   - the same registered schema text as AWS's Java serializer: Java's `Schema.toString()`. So a version it registered is found by its definition. AWS's .NET package registers Apache.Avro's text for the schema, which can differ from Java's (in key order and namespaces, for example). Glue finds a version by its exact text, so a version registered that way may not be found: with auto-registration, the serializer then registers its own text as a new version of the same schema, which Glue's compatibility check accepts.
 
 ## Behavior to know
 
-- **Asynchronous only.** The AWS SDK for .NET calls Glue asynchronously, so the serializer has no synchronous methods. Confluent.Kafka's consumer calls deserializers synchronously, so `SetAvroSharpGlueValueDeserializer` wraps the deserializer, and it waits for Glue the first time each schema version is seen.
-- **New versions can wait.** A version the serializer registers is `PENDING` while Glue checks its compatibility. The serializer waits until it's `AVAILABLE`, and throws if it fails or doesn't become available in time.
+- **Asynchronous, and synchronous for Kafka.** The AWS SDK for .NET calls Glue asynchronously only, so `AvroSharpGlueSerializer` has asynchronous methods only. The Kafka serializer and deserializer are both asynchronous and synchronous: the synchronous methods wait for Glue the first time each schema version is seen. Confluent.Kafka's consumer calls deserializers synchronously. Its producer builder takes either kind, so to pass the serializer yourself, cast it to the one you want (`(IAsyncSerializer<Order>)serializer`); `SetAvroSharpGlueValueSerializer` sets the asynchronous one.
+- **Tombstones.** A `null` value, or a null `AvroValue`, is written as no message body, and a message without a body reads as `null`. Reading one as a value type, such as `int`, throws.
+- **New versions can wait.** A version the serializer registers is `PENDING` while Glue checks its compatibility. The serializer checks it every `PendingVersionInterval`, 10 times at most. It throws an `InvalidOperationException` if the check fails, and a `TimeoutException` if the version is still pending.
 - **Not yet checked against AWS's own package.** The format comes from AWS's Java source, and the tests pin it with a test vector. Messages from AWS's own .NET package haven't been read in a test yet: its native library didn't start in the Docker environment used for this package.

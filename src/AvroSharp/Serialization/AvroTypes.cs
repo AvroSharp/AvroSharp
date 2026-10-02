@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using AvroSharp.IO;
 using AvroSharp.Schemas;
@@ -122,7 +123,8 @@ public sealed class AvroTypeInfo<T> : AvroTypeInfo
 /// <summary>
 /// Finds a type's <see cref="AvroTypeInfo{T}"/> without reflection, so generic code and code that has only a
 /// <see cref="Type"/> can read and write it on every target and under Native AOT. Generated types register
-/// themselves when their assembly loads (on targets with module initializers, .NET 5 and later; elsewhere call
+/// themselves from their assembly's module initializer, which runs when code of the assembly first runs, or when one
+/// of its types is looked up here (on targets with module initializers, .NET 5 and later; elsewhere call
 /// <see cref="Register{T}"/> with the type's <c>AvroTypeInfo</c>). <see langword="bool"/>, <see langword="int"/>,
 /// <see langword="long"/>, <see langword="float"/>, <see langword="double"/>, <see langword="string"/> and
 /// <c>byte[]</c> are registered with their primitive schemas.
@@ -170,7 +172,12 @@ public static class AvroTypes
     /// <param name="info">The registration.</param>
     public static bool TryGet<T>([NotNullWhen(true)] out AvroTypeInfo<T>? info)
     {
-        info = Cache<T>.Info ?? (s_types.TryGetValue(typeof(T), out var found) ? (AvroTypeInfo<T>)found : null);
+        info = Cache<T>.Info;
+        if (info is null && TryGet(typeof(T), out var found))
+        {
+            info = (AvroTypeInfo<T>)found;
+        }
+
         return info is not null;
     }
 
@@ -180,6 +187,15 @@ public static class AvroTypes
     public static bool TryGet(Type type, [NotNullWhen(true)] out AvroTypeInfo? info)
     {
         ArgumentNullException.ThrowIfNull(type);
+        if (s_types.TryGetValue(type, out info))
+        {
+            return true;
+        }
+
+        // A generated type registers itself from its module's initializer, which runs once code of its assembly runs.
+        // An assembly loaded only for its metadata (a type found by name, or named in another type's signature, as
+        // message handlers name their messages) hasn't run it yet: run it now, and look again.
+        RuntimeHelpers.RunModuleConstructor(type.Module.ModuleHandle);
         return s_types.TryGetValue(type, out info);
     }
 

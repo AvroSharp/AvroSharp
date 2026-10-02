@@ -29,7 +29,7 @@ namespace AvroSharp.Aws.Glue;
 /// schema and resolved to the type's schema, so data of older and newer versions reads; a generic record is read in
 /// the writer's schema. Compressed and uncompressed messages both read.
 /// </para>
-/// <para>For Kafka, <see cref="AvroSharpGlueKafkaSerializer{T}"/> and <see cref="AvroSharpGlueKafkaDeserializer{T}"/> wrap it.</para>
+/// <para>For Confluent.Kafka, <c>AvroSharpGlueKafkaSerializer&lt;T&gt;</c> and <c>AvroSharpGlueKafkaDeserializer&lt;T&gt;</c> of the AvroSharp.Aws.Glue.Kafka package wrap it.</para>
 /// </remarks>
 public sealed class AvroSharpGlueSerializer
 {
@@ -45,7 +45,7 @@ public sealed class AvroSharpGlueSerializer
     public AvroSharpGlueSerializer(IAmazonGlue glue, AvroSharpGlueOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(glue);
-        _options = options ?? new AvroSharpGlueOptions();
+        _options = options?.Copy() ?? new AvroSharpGlueOptions();
         _registry = new GlueRegistry(glue, _options);
         _framing = _options.Compression == AvroSharpGlueCompression.Zlib ? AvroRegistryFraming.AwsGlueCompressed : AvroRegistryFraming.AwsGlue;
     }
