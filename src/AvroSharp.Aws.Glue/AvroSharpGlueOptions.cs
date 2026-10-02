@@ -62,6 +62,14 @@ public sealed class AvroSharpGlueOptions
     public IDictionary<string, string>? Tags { get; set; }
 
     /// <summary>
+    /// Gets or sets metadata to put on each schema version the serializer registers (<c>metadata</c>). As in AWS's
+    /// serializer, a registered version also gets <c>x-amz-meta-transport</c>: the Kafka topic or Kinesis stream it
+    /// was registered for.
+    /// </summary>
+    [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "Settings, set as a whole like the others.")]
+    public IDictionary<string, string>? Metadata { get; set; }
+
+    /// <summary>
     /// Gets or sets how long to wait between checks of a new schema version that is still pending, while the
     /// registry checks its compatibility. The default is 3 seconds, as in AWS's serializer, which checks 10 times.
     /// </summary>
@@ -72,6 +80,7 @@ public sealed class AvroSharpGlueOptions
     {
         var copy = (AvroSharpGlueOptions)MemberwiseClone();
         copy.Tags = Tags is null ? null : new Dictionary<string, string>(Tags, StringComparer.Ordinal);
+        copy.Metadata = Metadata is null ? null : new Dictionary<string, string>(Metadata, StringComparer.Ordinal);
         return copy;
     }
 }

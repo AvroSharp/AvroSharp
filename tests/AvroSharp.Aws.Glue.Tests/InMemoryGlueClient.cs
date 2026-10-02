@@ -51,6 +51,41 @@ internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCreden
         }
     }
 
+    /// <summary>Adds a version another producer is registering: PENDING for the given number of status checks.</summary>
+    public string AddPending(string schemaName, string definition, int checks)
+    {
+        lock (_lock)
+        {
+            var version = AddVersion("default-registry", schemaName, definition, DataFormat.AVRO, SchemaVersionStatus.PENDING);
+            version.ChecksLeft = checks;
+            return version.Id;
+        }
+    }
+
+    /// <summary>Gets the metadata put on each version, by version ID.</summary>
+    public Dictionary<string, Dictionary<string, string>> Metadata { get; } = new(StringComparer.Ordinal);
+
+    public override Task<PutSchemaVersionMetadataResponse> PutSchemaVersionMetadataAsync(PutSchemaVersionMetadataRequest request, CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            Calls.Add("PutSchemaVersionMetadata");
+            if (!_versions.ContainsKey(request.SchemaVersionId))
+            {
+                throw new EntityNotFoundException("Schema version is not found.");
+            }
+
+            if (!Metadata.TryGetValue(request.SchemaVersionId, out var metadata))
+            {
+                metadata = new Dictionary<string, string>(StringComparer.Ordinal);
+                Metadata[request.SchemaVersionId] = metadata;
+            }
+
+            metadata[request.MetadataKeyValue.MetadataKey] = request.MetadataKeyValue.MetadataValue;
+            return Task.FromResult(new PutSchemaVersionMetadataResponse { SchemaVersionId = request.SchemaVersionId });
+        }
+    }
+
     public override Task<GetSchemaByDefinitionResponse> GetSchemaByDefinitionAsync(GetSchemaByDefinitionRequest request, CancellationToken cancellationToken = default)
     {
         lock (_lock)

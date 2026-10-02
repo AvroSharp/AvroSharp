@@ -135,7 +135,7 @@ public sealed class AvroSharpGlueSerializer
     private async ValueTask<AvroSchemaId> VersionIdAsync(AvroSchema schema, string transportName, bool isKey, CancellationToken cancellationToken)
     {
         var name = _options.SchemaName ?? _options.SchemaNameStrategy?.Invoke(new AvroSharpGlueSchemaNameContext(transportName, schema, isKey)) ?? transportName;
-        return AvroSchemaId.FromGuid(await _registry.VersionIdAsync(name, schema, cancellationToken).ConfigureAwait(false));
+        return AvroSchemaId.FromGuid(await _registry.VersionIdAsync(name, schema, transportName, cancellationToken).ConfigureAwait(false));
     }
 
     private static AvroTypeInfo TypeInfo(Type type) => AvroTypes.TryGet(type, out var info) ? info! : throw NotKnown(type);

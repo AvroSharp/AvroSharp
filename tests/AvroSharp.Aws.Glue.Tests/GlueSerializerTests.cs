@@ -207,7 +207,7 @@ public class GlueSerializerTests
         var message = await serializer.SerializeAsync(NewOrder(), "orders");
 
         await AssertIsNewOrder(await serializer.DeserializeAsync<Order>(message));
-        await Assert.That(glue.Calls).IsEquivalentTo(["GetSchemaByDefinition", "RegisterSchemaVersion", "CreateSchema", "RegisterSchemaVersion"], CollectionOrdering.Matching);
+        await Assert.That(glue.Calls).IsEquivalentTo(["GetSchemaByDefinition", "RegisterSchemaVersion", "CreateSchema", "RegisterSchemaVersion", "PutSchemaVersionMetadata"], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -334,6 +334,63 @@ public class GlueSerializerTests
         await Assert.That(generic.Serialize(AvroValue.Null, context)).IsNull();
         await Assert.That(deserializer.Deserialize(default, isNull: true, context)).IsNull();
         await Assert.That(() => new AvroSharpGlueKafkaDeserializer<int>(glue).Deserialize(default, isNull: true, context)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task AVersionAnotherProducerIsRegistering_IsWaitedFor()
+    {
+        using var glue = new InMemoryGlueClient();
+        var id = glue.AddPending("orders", AvroTypes.Get<Order>().Schema.ToJson(), checks: 2);
+        var serializer = new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { PendingVersionInterval = TimeSpan.FromMilliseconds(1) });
+
+        var message = await serializer.SerializeAsync(NewOrder(), "orders");
+
+        await Assert.That(message.Take(18)).IsEquivalentTo(AwsMessage(id, 0x00, []), CollectionOrdering.Matching);
+        await Assert.That(glue.Count("GetSchemaVersion")).IsEqualTo(2);
+        await Assert.That(glue.Count("RegisterSchemaVersion") + glue.Count("CreateSchema")).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task RegisteredVersions_GetTheTransportAndTheUsersMetadata()
+    {
+        using var glue = new InMemoryGlueClient();
+        var options = new AvroSharpGlueOptions
+        {
+            AutoRegisterSchemas = true,
+            SchemaName = "orders-value",
+            Metadata = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "billing" },
+        };
+        var found = glue.Add("found", AvroTypes.Get<Order>().Schema.ToJson());
+
+        var message = await new AvroSharpGlueSerializer(glue, options).SerializeAsync(NewOrder(), "orders");
+        await new AvroSharpGlueSerializer(glue, new AvroSharpGlueOptions { SchemaName = "found" }).SerializeAsync(NewOrder(), "orders");
+
+        var id = GlueSerializerTests.BigEndianGuid(message.AsSpan(2, 16)).ToString();
+        await Assert.That(glue.Metadata[id]).IsEquivalentTo(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["x-amz-meta-transport"] = "orders", ["team"] = "billing" }, CollectionOrdering.Any);
+        // Only versions the serializer registers get metadata, as with AWS's serializer.
+        await Assert.That(glue.Metadata.ContainsKey(found)).IsFalse();
+    }
+
+    [Test]
+    public async Task AnUnknownVersionId_IsAnAvroDataException()
+    {
+        using var glue = new InMemoryGlueClient();
+
+        await Assert.That(async () => await new AvroSharpGlueSerializer(glue).DeserializeAsync<Order>(AwsMessage(Guid.NewGuid().ToString(), 0x00, [0x00])))
+            .Throws<AvroDataException>().WithMessageContaining("unknown, or was deleted", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ConcurrentFirstWrites_LookTheSchemaUpOnce()
+    {
+        using var glue = new InMemoryGlueClient();
+        glue.Add("orders", AvroTypes.Get<Order>().Schema.ToJson());
+        var serializer = new AvroSharpGlueSerializer(glue);
+
+        await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(async () => await serializer.SerializeAsync(NewOrder(), "orders"))));
+
+        await Assert.That(glue.Count("GetSchemaByDefinition")).IsEqualTo(1);
     }
 
     [Test]
