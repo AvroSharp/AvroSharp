@@ -150,8 +150,10 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
 
         // Encoding rules (such as payload encryption) take and return the encoded bytes.
         body ??= Body(Write(value, header).WrittenSpan[header..]).ToArray();
-        var encoded = (byte[])(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RulePhase.Encoding, RuleMode.Write, null, latest, body, null).ConfigureAwait(false))!;
-        return Frame(header, encoded, ref context, ref id);
+        // A rule returns the bytes as a byte[] or a ReadOnlyMemory<byte>, as the deserializer accepts them.
+        var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RulePhase.Encoding, RuleMode.Write, null, latest, body, null).ConfigureAwait(false);
+        var encoded = result is byte[] bytes ? bytes : (ReadOnlyMemory<byte>)result!;
+        return Frame(header, encoded.Span, ref context, ref id);
     }
 
     // Runs the domain rules on a value. Field rules, such as field-level encryption, aren't supported yet.

@@ -3,6 +3,8 @@
   <!-- The package consumers are built like a user's projects, from the packed packages only (build/test-packages.sh,
        #136). This file stops MSBuild from importing the repository's Directory.Build.props; AvroSharpVersion is the
        packed version, given by the script. -->
+  <Import Project="$(MSBuildThisFileDirectory)../../build/TargetFrameworks.props" />
+
   <PropertyGroup>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

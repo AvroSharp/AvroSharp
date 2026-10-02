@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- A .NET 10 application using the packed source generator, codecs, Confluent serde, KafkaFlow middleware, and the
-       Azure and AWS Glue schema registry serializers (#136). -->
+  <!-- An application using the packed source generator, codecs, Confluent serde, KafkaFlow middleware, and the Azure
+       and AWS Glue schema registry serializers (#136). It runs on every test target framework, so each of the
+       packages' .NET builds is used. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 

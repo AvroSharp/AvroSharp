@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Uses the packed packages the way a user does (#136): restores tests/PackageConsumers from artifacts/package/release
 # only, into an empty package cache, then builds and runs each consumer, and installs and runs the tool. CI runs it
-# after packing; locally, run `dotnet pack AvroSharp.slnx -c Release` first. Needs the .NET 8 and .NET 10 runtimes.
+# after packing; locally, run `dotnet pack AvroSharp.slnx -c Release` first. Needs the .NET 8, 9 and 10 runtimes.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -22,8 +22,12 @@ trap 'rm -rf "$work"' EXIT
 export NUGET_PACKAGES="$work/packages"
 properties="-p:AvroSharpVersion=$version"
 
-# A .NET 10 app with the generator and codecs: generated types, a zstandard container file, schema defaults.
-dotnet run --project "$consumers/App" -c Release "$properties"
+# An app with the generator, the codecs and every add-on: generated types, a zstandard container file, schema
+# defaults, and each add-on's serializers built. On each of its target frameworks (TestTargetFrameworks, in
+# build/TargetFrameworks.props), so each of the packages' .NET builds is used.
+for framework in $(dotnet msbuild "$consumers/App" -getProperty:TargetFrameworks "$properties" | tr ';' ' '); do
+  dotnet run --project "$consumers/App" -c Release -f "$framework" "$properties"
+done
 
 # A netstandard2.0 library on C# 7.3 with the generator: the generated code compiles there.
 dotnet build "$consumers/NetStandardLib" -c Release "$properties"
