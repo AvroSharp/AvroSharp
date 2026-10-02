@@ -12,6 +12,8 @@ AvroSharp.Aws.Glue.AvroSharpGlueOptions.Compression.get -> AvroSharp.Aws.Glue.Av
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.Compression.set -> void
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.Description.get -> string?
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.Description.set -> void
+AvroSharp.Aws.Glue.AvroSharpGlueOptions.Metadata.get -> System.Collections.Generic.IDictionary<string!, string!>?
+AvroSharp.Aws.Glue.AvroSharpGlueOptions.Metadata.set -> void
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.PendingVersionInterval.get -> System.TimeSpan
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.PendingVersionInterval.set -> void
 AvroSharp.Aws.Glue.AvroSharpGlueOptions.RegistryName.get -> string!

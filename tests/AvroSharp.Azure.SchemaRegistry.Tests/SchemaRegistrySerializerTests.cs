@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
-using Azure;
 using Azure.Messaging;
 using Azure.Messaging.EventHubs;
 using Microsoft.Azure.Data.SchemaRegistry.ApacheAvro;
@@ -104,7 +104,8 @@ public class SchemaRegistrySerializerTests
         var registry = new InMemorySchemaRegistryClient();
         var ours = new AvroSharpSchemaRegistrySerializer(registry, Group);
 
-        await Assert.That(async () => await ours.SerializeAsync<MessageContent, Order>(NewOrder())).Throws<RequestFailedException>();
+        await Assert.That(async () => await ours.SerializeAsync<MessageContent, Order>(NewOrder()))
+            .Throws<InvalidOperationException>().WithMessageContaining("auto-registration is off", StringComparison.Ordinal);
 
         var id = registry.RegisterSchema(Group, "test.azure.Order", Serialization.AvroTypes.Get<Order>().Schema.ToJson(), global::Azure.Data.SchemaRegistry.SchemaFormat.Avro).Value.Id;
         var message = await ours.SerializeAsync<MessageContent, Order>(NewOrder());
@@ -190,6 +191,97 @@ public class SchemaRegistrySerializerTests
         var message = await serializer.SerializeAsync<MessageContent, Order>(NewOrder());
 
         await Assert.That(message.ContentType!.Value.ToString()).IsEqualTo("avro/binary+fake");
+    }
+
+    [Test]
+    public async Task AMicrosoftRegisteredSchema_WithoutAutoRegistration_SaysWhy()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        var microsoft = new SchemaRegistryAvroSerializer(registry, Group, new SchemaRegistryAvroSerializerOptions { AutoRegisterSchemas = true });
+        await microsoft.SerializeAsync<MessageContent, Order>(NewOrder());
+        var ours = new AvroSharpSchemaRegistrySerializer(registry, Group);
+
+        // This registry matches by text, and Apache.Avro's text of the schema differs from AvroSharp's.
+        await Assert.That(async () => await ours.SerializeAsync<MessageContent, Order>(NewOrder()))
+            .Throws<InvalidOperationException>().WithMessageContaining("Microsoft's", StringComparison.Ordinal);
+        await Assert.That(() => ours.Serialize<MessageContent, Order>(NewOrder()))
+            .Throws<InvalidOperationException>().WithMessageContaining("auto-registration is off", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task GenericEnums_AreWrittenAndRead_OtherUnnamedValuesAreRejected()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        var ours = new AvroSharpSchemaRegistrySerializer(registry, Group, new AvroSharpSchemaRegistrySerializerOptions { AutoRegisterSchemas = true });
+        var colors = (Schemas.EnumSchema)Schemas.AvroSchema.Parse("""{"type":"enum","name":"Color","namespace":"test.azure","symbols":["RED","GREEN"]}""");
+
+        var message = await ours.SerializeAsync<MessageContent, Generic.AvroValue>(Generic.AvroValue.FromEnum(colors, "GREEN"));
+        var back = await ours.DeserializeAsync<Generic.AvroValue>(message);
+
+        await Assert.That(back.AsEnumSymbol()).IsEqualTo("GREEN");
+        await Assert.That(async () => await ours.SerializeAsync<MessageContent, Generic.AvroValue>(Generic.AvroValue.FromInt32(1)))
+            .Throws<ArgumentException>().WithMessageContaining("a record, an enum or a fixed, not Int", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task ConcurrentFirstReads_FetchTheSchemaOnce()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        var message = await new AvroSharpSchemaRegistrySerializer(registry, Group, new AvroSharpSchemaRegistrySerializerOptions { AutoRegisterSchemas = true })
+            .SerializeAsync<MessageContent, Order>(NewOrder());
+        var reader = new AvroSharpSchemaRegistrySerializer(registry);
+
+        await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(async () => await reader.DeserializeAsync<Order>(message))));
+
+        await Assert.That(registry.GetSchemaCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task TheOverloadsByType_AndTheSyncCache()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        var ours = new AvroSharpSchemaRegistrySerializer(registry, Group, new AvroSharpSchemaRegistrySerializerOptions { AutoRegisterSchemas = true });
+        var reader = new AvroSharpSchemaRegistrySerializer(registry);
+
+        var message = await ours.SerializeAsync(NewOrder(), typeof(Order), typeof(EventData));
+        var record = reader.Deserialize<GenericRecord>(message);
+        var again = await ours.SerializeAsync<MessageContent, Generic.AvroValue>(Generic.AvroValue.FromRecord(record));
+
+        await Assert.That(message).IsTypeOf<EventData>();
+        await AssertIsNewOrder(reader.Deserialize<Order>(again));
+        await Assert.That(registry.GetSchemaCalls).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ReportsBadInput_AndCancellation()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        var ours = new AvroSharpSchemaRegistrySerializer(registry, Group, new AvroSharpSchemaRegistrySerializerOptions { AutoRegisterSchemas = true });
+        var valid = await ours.SerializeAsync<MessageContent, Order>(NewOrder());
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+
+        await Assert.That(async () => await ours.SerializeAsync<MessageContent, Generic.AvroValue>(Generic.AvroValue.Null))
+            .Throws<ArgumentException>().WithMessageContaining("not null", StringComparison.Ordinal);
+        await Assert.That(async () => await ours.DeserializeAsync<Order>(new MessageContent { ContentType = valid.ContentType }))
+            .Throws<ArgumentException>().WithMessageContaining("no data", StringComparison.Ordinal);
+        await Assert.That(async () => await ours.DeserializeAsync<Order>(new MessageContent { Data = valid.Data }))
+            .Throws<FormatException>();
+        await Assert.That(async () => await new AvroSharpSchemaRegistrySerializer(registry).DeserializeAsync<Order>(valid, canceled.Token))
+            .Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    public async Task AnAvroSharpRegisteredSchema_IsNotFoundByMicrosoftsText()
+    {
+        var registry = new InMemorySchemaRegistryClient();
+        await new AvroSharpSchemaRegistrySerializer(registry, Group, new AvroSharpSchemaRegistrySerializerOptions { AutoRegisterSchemas = true })
+            .SerializeAsync<MessageContent, Order>(NewOrder());
+        var microsoft = new SchemaRegistryAvroSerializer(registry, Group);
+
+        // The other direction of AMicrosoftRegisteredSchema_WithoutAutoRegistration_SaysWhy, on this registry, which
+        // matches by text: Microsoft's serializer doesn't find AvroSharp's text either.
+        await Assert.That(async () => await microsoft.SerializeAsync<MessageContent, Order>(NewOrder())).ThrowsException();
     }
 
     [Test]

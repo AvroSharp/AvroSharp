@@ -42,9 +42,10 @@ if docker info > /dev/null 2>&1; then
   dotnet test --project tests/AvroSharp.Aws.Glue.Tests -c Release --no-build --treenode-filter "/*/*/MotoGlueTests/*"
 fi
 
-step "Test against Confluent's lowest supported version"
-for project in AvroSharp.Confluent.Tests AvroSharp.KafkaFlow.Tests; do
-  dotnet test --project tests/$project -c Release -f net10.0 -p:ConfluentVersion=2.14.0 -p:ArtifactsPath="${TMPDIR:-/tmp}/confluent-2.14.0"
+step "Test against the lowest supported dependency versions"
+for project in AvroSharp.Confluent.Tests AvroSharp.KafkaFlow.Tests AvroSharp.Azure.SchemaRegistry.Tests AvroSharp.Aws.Glue.Tests; do
+  dotnet test --project tests/$project -c Release -f net10.0 -p:ArtifactsPath="${TMPDIR:-/tmp}/lowest" \
+    -p:ConfluentVersion=2.14.0 -p:KafkaFlowVersion=4.0.0 -p:AzureSchemaRegistryVersion=1.2.0 -p:AwsGlueVersion=4.0.0
 done
 
 step Test without hardware intrinsics
@@ -68,6 +69,11 @@ fi
 step Native AOT smoke test
 dotnet publish tests/AvroSharp.AotSmoke -c Release -r "$rid"
 "./artifacts/publish/AvroSharp.AotSmoke/release_$rid/AvroSharp.AotSmoke"
+
+step Native AOT smoke test of the add-ons
+dotnet publish tests/AvroSharp.AotSmoke.Addons -c Release -r "$rid" | tee artifacts/aot-addons.log
+if grep -E "IL(2104|3053): Assembly 'AvroSharp" artifacts/aot-addons.log; then echo "An AvroSharp assembly has trim or AOT warnings."; exit 1; fi
+"./artifacts/publish/AvroSharp.AotSmoke.Addons/release_$rid/AvroSharp.AotSmoke.Addons"
 
 step Pack
 dotnet pack AvroSharp.slnx -c Release --no-build

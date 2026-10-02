@@ -41,6 +41,10 @@ public class AvroSharpSchemaRegistrySerializer
 {
     private const string AvroMimeType = "avro/binary";
 
+    // The registry is the authority on the schemas it holds: a writer schema with an invalid field default or name
+    // still describes its data, and its defaults are never used to read it.
+    private static readonly AvroSchemaParseOptions Lenient = new() { ValidateDefaults = false, ValidateNames = false };
+
     private readonly SchemaRegistryClient _client;
     private readonly string? _groupName;
     private readonly bool _autoRegisterSchemas;
@@ -52,6 +56,7 @@ public class AvroSharpSchemaRegistrySerializer
     private readonly ConditionalWeakTable<AvroSchema, GenericDatumWriter> _genericWriters = new();
     private readonly ConcurrentDictionary<string, GenericDatumReader> _genericReaders = new(StringComparer.Ordinal);
     private readonly ConditionalWeakTable<AvroSchema, string> _json = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _fetchGates = new(StringComparer.Ordinal);
 
     /// <summary>Creates a serializer for mocking: its methods are virtual, as in Microsoft's serializer, and this instance has no registry.</summary>
     protected AvroSharpSchemaRegistrySerializer()
@@ -233,8 +238,13 @@ public class AvroSharpSchemaRegistrySerializer
         if (data is GenericRecord or AvroValue)
         {
             var value = data is GenericRecord record ? record : (AvroValue)data;
-            schema = (value.IsNull ? null : value.Kind == AvroValueKind.Record ? value.AsRecord().Schema : null)
-                ?? throw new ArgumentException("A generic value must be a record: the registry needs its schema's name.", nameof(data));
+            schema = (value.IsNull ? (NamedSchema?)null : value.Kind switch
+            {
+                AvroValueKind.Record => (NamedSchema)value.AsRecord().Schema,
+                AvroValueKind.Enum => value.EnumSchema,
+                AvroValueKind.Fixed => value.AsFixed().Schema,
+                _ => null,
+            }) ?? throw new ArgumentException($"A generic value must be a record, an enum or a fixed, not {(value.IsNull ? "null" : value.Kind)}: Azure Schema Registry names each schema, and other values have no name.", nameof(data));
             _genericWriters.GetValue(schema, s => GenericDatumWriter.Create(s)).Write(ref writer, value);
         }
         else
@@ -251,7 +261,7 @@ public class AvroSharpSchemaRegistrySerializer
         // The registry names each schema, by its full name.
         if (schema is not NamedSchema)
         {
-            throw new ArgumentException($"Azure Schema Registry names each schema, and {schema.Type} schemas have no name: write a record.", nameof(data));
+            throw new ArgumentException($"Azure Schema Registry names each schema, and {schema.Type} schemas have no name: write a record, an enum or a fixed.", nameof(data));
         }
 
         return (schema, output.WrittenSpan.ToArray());
@@ -286,10 +296,17 @@ public class AvroSharpSchemaRegistrySerializer
         }
 
         var name = ((NamedSchema)schema).FullName;
-        SchemaProperties properties = _autoRegisterSchemas
-            ? _client.RegisterSchema(_groupName, name, json, SchemaFormat.Avro, cancellationToken)
-            : _client.GetSchemaProperties(_groupName, name, json, SchemaFormat.Avro, cancellationToken);
-        return Remember(json, schema, properties.Id);
+        try
+        {
+            SchemaProperties properties = _autoRegisterSchemas
+                ? _client.RegisterSchema(_groupName, name, json, SchemaFormat.Avro, cancellationToken)
+                : _client.GetSchemaProperties(_groupName, name, json, SchemaFormat.Avro, cancellationToken);
+            return Remember(json, schema, properties.Id);
+        }
+        catch (global::Azure.RequestFailedException notFound) when (notFound.Status == 404 && !_autoRegisterSchemas)
+        {
+            throw NotRegistered(name, notFound);
+        }
     }
 
     private async ValueTask<string> SchemaIdAsync(AvroSchema schema, CancellationToken cancellationToken)
@@ -301,11 +318,25 @@ public class AvroSharpSchemaRegistrySerializer
         }
 
         var name = ((NamedSchema)schema).FullName;
-        SchemaProperties properties = _autoRegisterSchemas
-            ? await _client.RegisterSchemaAsync(_groupName, name, json, SchemaFormat.Avro, cancellationToken).ConfigureAwait(false)
-            : await _client.GetSchemaPropertiesAsync(_groupName, name, json, SchemaFormat.Avro, cancellationToken).ConfigureAwait(false);
-        return Remember(json, schema, properties.Id);
+        try
+        {
+            SchemaProperties properties = _autoRegisterSchemas
+                ? await _client.RegisterSchemaAsync(_groupName, name, json, SchemaFormat.Avro, cancellationToken).ConfigureAwait(false)
+                : await _client.GetSchemaPropertiesAsync(_groupName, name, json, SchemaFormat.Avro, cancellationToken).ConfigureAwait(false);
+            return Remember(json, schema, properties.Id);
+        }
+        catch (global::Azure.RequestFailedException notFound) when (notFound.Status == 404 && !_autoRegisterSchemas)
+        {
+            throw NotRegistered(name, notFound);
+        }
     }
+
+    // Without auto-registration, the schema's text must be registered: another serializer's text of the same schema
+    // (Microsoft's, from Apache.Avro) can differ, in its key order and namespaces.
+    private InvalidOperationException NotRegistered(string name, global::Azure.RequestFailedException notFound) =>
+        new($"The group '{_groupName}' has no schema '{name}' with this text, and auto-registration is off (AutoRegisterSchemas). " +
+            "Register the schema from AvroSharp, or turn auto-registration on: a schema registered by another serializer, such as " +
+            "Microsoft's, can have other text for the same schema.", notFound);
 
     private string Remember(string json, AvroSchema schema, string id)
     {
@@ -313,13 +344,47 @@ public class AvroSharpSchemaRegistrySerializer
         return _ids.GetOrAdd(json, id);
     }
 
-    private AvroSchema WriterSchema(string id, CancellationToken cancellationToken) =>
-        _schemas.TryGetValue(id, out var schema)
-            ? schema
-            : _schemas.GetOrAdd(id, AvroSchema.Parse(_client.GetSchema(id, cancellationToken).Value.Definition));
+    // A writer schema is fetched once per ID, however many callers read it at once: a gate per ID, with the cache
+    // checked again inside it.
+    private AvroSchema WriterSchema(string id, CancellationToken cancellationToken)
+    {
+        if (_schemas.TryGetValue(id, out var schema))
+        {
+            return schema;
+        }
 
-    private async ValueTask<AvroSchema> WriterSchemaAsync(string id, CancellationToken cancellationToken) =>
-        _schemas.TryGetValue(id, out var schema)
-            ? schema
-            : _schemas.GetOrAdd(id, AvroSchema.Parse((await _client.GetSchemaAsync(id, cancellationToken).ConfigureAwait(false)).Value.Definition));
+        var gate = _fetchGates.GetOrAdd(id, static _ => new SemaphoreSlim(1, 1));
+        gate.Wait(cancellationToken);
+        try
+        {
+            return _schemas.TryGetValue(id, out schema)
+                ? schema
+                : _schemas.GetOrAdd(id, AvroSchema.Parse(_client.GetSchema(id, cancellationToken).Value.Definition, Lenient));
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async ValueTask<AvroSchema> WriterSchemaAsync(string id, CancellationToken cancellationToken)
+    {
+        if (_schemas.TryGetValue(id, out var schema))
+        {
+            return schema;
+        }
+
+        var gate = _fetchGates.GetOrAdd(id, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return _schemas.TryGetValue(id, out schema)
+                ? schema
+                : _schemas.GetOrAdd(id, AvroSchema.Parse((await _client.GetSchemaAsync(id, cancellationToken).ConfigureAwait(false)).Value.Definition, Lenient));
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
 }

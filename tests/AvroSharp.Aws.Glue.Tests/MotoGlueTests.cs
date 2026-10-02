@@ -64,7 +64,7 @@ public class MotoGlueTests(MotoFixture moto)
             .SerializeAsync(new Order { Id = Guid.NewGuid(), Customer = "Ada", Total = new Avro.AvroDecimal(1.50m), Items = new List<Item>() }, "orders");
         var read = await new AvroSharpGlueSerializer(glue).DeserializeAsync<Order>(message);
 
-        await Assert.That(new Guid(message.AsSpan(2, 16), bigEndian: true)).IsEqualTo(Guid.Parse(created.SchemaVersionId));
+        await Assert.That(GlueSerializerTests.BigEndianGuid(message.AsSpan(2, 16))).IsEqualTo(Guid.Parse(created.SchemaVersionId));
         await Assert.That(read.Customer).IsEqualTo("Ada");
     }
 }

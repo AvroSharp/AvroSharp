@@ -73,7 +73,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         // The record name for the Record and TopicRecord strategies: only a record has one, as in Confluent's .NET and
         // Java serializers, so the subjects match theirs.
         _recordName = (type.Schema as RecordSchema)?.FullName;
-        _rawBytes = type.Schema.Type == AvroSchemaType.Bytes;
+        _rawBytes = RegistrySchemas.IsRawBytes(type.Schema);
         subjectNameStrategy = (config?.SubjectNameStrategy ?? SubjectNameStrategy.Associated).ToAsyncDelegate(client, config);
         if (config is null)
         {
@@ -111,11 +111,13 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
 
         var isKey = context.Component == MessageComponentType.Key;
         var subject = await GetSubjectName(context.Topic, isKey, _recordName).ConfigureAwait(false);
-        if (subject is null && useSchemaId < 0)
+        if (subject is null)
         {
+            // Confluent's base class needs a subject for use.schema.id too: its client looks the ID up within the
+            // subject, and throws ArgumentNullException without one, as Confluent's own serializer does.
             throw new InvalidOperationException(
                 $"The subject name strategy gave no subject for the topic '{context.Topic}'. The Record and TopicRecord " +
-                "strategies need a schema with a name, and None needs use.schema.id.");
+                "strategies need a schema with a name; the None strategy isn't supported, with or without use.schema.id.");
         }
 
         var latest = await GetReaderSchema(subject).ConfigureAwait(false);

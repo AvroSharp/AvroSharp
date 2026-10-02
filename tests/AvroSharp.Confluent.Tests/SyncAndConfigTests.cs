@@ -131,6 +131,33 @@ public class SyncAndConfigTests
         await Assert.That(consumer.Value).IsTypeOf<AvroSharpDeserializer<Order>>();
     }
 
+    [Test]
+    public async Task GenericBuilderExtensions_SetTheGenericSerdes()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var perRecord = new InspectedGenericProducerBuilder();
+        var bySchema = new InspectedGenericProducerBuilder();
+        var consumer = new InspectedGenericConsumerBuilder();
+
+        perRecord.SetAvroSharpGenericValueSerializer(registry);
+        bySchema.SetAvroSharpGenericValueSerializer(registry, AvroSchema.Parse(PointSchema));
+        consumer.SetAvroSharpGenericValueDeserializer(registry);
+
+        await Assert.That(perRecord.Value).IsTypeOf<AvroSharpGenericRecordSerializer>();
+        await Assert.That(bySchema.Value).IsTypeOf<AvroSharpSerializer<AvroValue>>();
+        await Assert.That(consumer.Value).IsTypeOf<AvroSharpDeserializer<AvroValue>>();
+    }
+
+    private sealed class InspectedGenericProducerBuilder() : ProducerBuilder<string, AvroValue>(new ProducerConfig())
+    {
+        public object? Value => ValueSerializer;
+    }
+
+    private sealed class InspectedGenericConsumerBuilder() : ConsumerBuilder<string, AvroValue>(new ConsumerConfig())
+    {
+        public object? Value => ValueDeserializer;
+    }
+
     // Builders whose serializers can be read: Confluent.Kafka keeps them in protected properties.
     private sealed class InspectedProducerBuilder() : ProducerBuilder<string, Order>(new ProducerConfig())
     {

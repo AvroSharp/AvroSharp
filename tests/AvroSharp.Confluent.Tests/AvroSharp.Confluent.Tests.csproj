@@ -4,6 +4,7 @@
        (RedpandaTests: [Explicit], run with a filter that names them). -->
   <PropertyGroup>
     <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <!-- The generated test types are also Apache.Avro ISpecificRecords, so the same value goes through Confluent's
          Avro serde and AvroSharp's, and the bytes are compared. -->

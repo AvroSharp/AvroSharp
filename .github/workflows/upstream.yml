@@ -1,0 +1,48 @@
+name: Upstream
+
+# Weekly, and on demand: AvroSharp.Confluent and AvroSharp.KafkaFlow against the newest Confluent.SchemaRegistry 2.x
+# on NuGet. AvroSharp.Confluent subclasses Confluent's serde base classes and uses their protected members, which
+# 2.14.0 changed in a minor release, so its range [2.14.0, 3.0.0) is open to a break that the pinned versions in
+# Directory.Packages.props (CI tests 2.14.0 and that newest pinned version) would not show (#211).
+on:
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  confluent:
+    name: Newest Confluent 2.x
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # MinVer needs tags and history
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Find the newest Confluent.SchemaRegistry 2.x
+        id: version
+        shell: bash
+        run: |
+          version=$(curl -fsSL https://api.nuget.org/v3-flatcontainer/confluent.schemaregistry/index.json \
+            | jq -r '[.versions[] | select(test("^2\\.[0-9]+\\.[0-9]+$"))] | last')
+          echo "Confluent.SchemaRegistry $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Test against it
+        run: |
+          dotnet test --project tests/AvroSharp.Confluent.Tests -c Release -f net10.0 -p:ConfluentVersion=${{ steps.version.outputs.version }}
+          dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release -f net10.0 -p:ConfluentVersion=${{ steps.version.outputs.version }}

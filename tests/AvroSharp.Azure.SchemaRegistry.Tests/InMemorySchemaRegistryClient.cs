@@ -41,7 +41,7 @@ internal sealed class InMemorySchemaRegistryClient : SchemaRegistryClient
                 _versions[(groupName, schemaName)] = version;
                 id = Guid.NewGuid().ToString("N");
                 _ids[(groupName, schemaName, schemaDefinition)] = id;
-                _byId[id] = SchemaRegistryModelFactory.SchemaRegistrySchema(SchemaRegistryModelFactory.SchemaProperties(format, id, groupName, schemaName, version), schemaDefinition);
+                _byId[id] = SchemaRegistryModelFactory.SchemaRegistrySchema(SchemaRegistryModelFactory.SchemaProperties(format, id, groupName, schemaName), schemaDefinition);
             }
 
             return Response.FromValue(_byId[id].Properties, Ok);

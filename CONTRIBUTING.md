@@ -19,12 +19,13 @@ dotnet build -c Release
 dotnet test --solution AvroSharp.slnx -c Release -f net10.0
 ```
 
-Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on Linux and Windows, x64 and Arm64, and on Windows also net481, which tests the `netstandard2.0` build on .NET Framework. Run `-f net481` locally too when a change touches the netstandard code paths.
+Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on Linux and Windows, x64 and Arm64, and on Windows also net481, which tests the `netstandard2.0` builds on .NET Framework (the add-ons too, except AvroSharp.KafkaFlow, which has no .NET Framework build; their test projects register the generated types first, as a .NET Framework application does). Run `-f net481` locally too when a change touches the netstandard code paths.
 
 AvroSharp.Confluent's, AvroSharp.KafkaFlow's and AvroSharp.Aws.Glue's tests need more:
 - **Redpanda:** the tests against a real broker and registry need Docker with Linux containers. They are `[Explicit]`, so they run only when a filter names them: `dotnet test --project tests/AvroSharp.Confluent.Tests --treenode-filter "/*/*/RedpandaTests/*"`, and AvroSharp.KafkaFlow's with `--project tests/AvroSharp.KafkaFlow.Tests --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"`. Otherwise they are neither run nor listed.
 - **moto:** AvroSharp.Aws.Glue's tests against moto, an AWS emulator in Docker, are `[Explicit]` too: `dotnet test --project tests/AvroSharp.Aws.Glue.Tests --treenode-filter "/*/*/MotoGlueTests/*"`.
 - **Confluent's lowest supported version:** the package depends on Confluent.SchemaRegistry [2.14.0, 3.0.0). The build uses the newest by default; to test against 2.14.0, build and test with `-p:ConfluentVersion=2.14.0` (and an `-p:ArtifactsPath` of its own, to keep the main build). CI does this on the x64 Linux runner.
+- **The other add-ons' lowest versions:** likewise `-p:KafkaFlowVersion=4.0.0` (with `ConfluentVersion=2.14.0`), `-p:AzureSchemaRegistryVersion=1.2.0` and `-p:AwsGlueVersion=4.0.0`. CI runs all of them in one step.
 
 CI runs them with the rest of the solution, and the Redpanda and moto tests in a step of their own on the x64 Linux runner. The Confluent and KafkaFlowEvents samples need a broker and a registry too: `docker compose up -d --wait` in `samples/Confluent` starts Redpanda for both.
 
@@ -38,7 +39,8 @@ dotnet format AvroSharp.slnx                       # fix
 Native AOT smoke test:
 
 ```shell
-dotnet publish tests/AvroSharp.AotSmoke -c Release -r win-x64   # or linux-x64
+dotnet publish tests/AvroSharp.AotSmoke -c Release -r win-x64          # or linux-x64
+dotnet publish tests/AvroSharp.AotSmoke.Addons -c Release -r win-x64   # the add-on packages
 ```
 
 The documentation site, with the same DocFX version and broken-link check as the docs workflow:
@@ -67,11 +69,11 @@ It runs, in CI's order:
 - restore and build;
 - the tests on net8.0, net9.0 and net10.0 with coverage;
 - the Redpanda and moto tests, when Docker is available (the dev container has no Docker inside it, so there they are left out);
-- AvroSharp.Confluent's and AvroSharp.KafkaFlow's tests against Confluent 2.14.0, the lowest supported version;
+- the add-ons' tests against the lowest versions of their dependencies (Confluent 2.14.0, KafkaFlow 4.0.0, Azure.Data.SchemaRegistry 1.2.0, AWSSDK.Glue 4.0.0);
 - the tests without hardware intrinsics;
 - the coverage check (the summary is in `artifacts/coverage/SummaryGithub.md`);
 - the samples;
-- the Native AOT smoke test;
+- the Native AOT smoke tests, of the core packages and of the add-ons;
 - pack, and the package consumers.
 
 Behind a proxy that intercepts HTTPS, the image build and restores fail with certificate errors, because the container doesn't trust the proxy's root certificate the way the host does. Add the certificate in a local copy of the Dockerfile, and don't commit it: `COPY proxy-root.crt /usr/local/share/ca-certificates/` and then `RUN update-ca-certificates`, right after `FROM`.
