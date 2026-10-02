@@ -129,6 +129,16 @@ jobs:
           dotnet publish tests/AvroSharp.AotSmoke -c Release -r ${{ matrix.rid }}
           ./artifacts/publish/AvroSharp.AotSmoke/release_${{ matrix.rid }}/AvroSharp.AotSmoke
 
+      # The add-on packages under Native AOT. Their dependencies' warnings are one line per assembly (only
+      # Newtonsoft.Json, through Confluent's CachedSchemaRegistryClient, has any); one that names an AvroSharp assembly
+      # fails the step.
+      - name: Native AOT smoke test of the add-ons
+        shell: bash
+        run: |
+          dotnet publish tests/AvroSharp.AotSmoke.Addons -c Release -r ${{ matrix.rid }} | tee aot-addons.log
+          if grep -E "IL(2104|3053): Assembly 'AvroSharp" aot-addons.log; then echo "An AvroSharp assembly has trim or AOT warnings."; exit 1; fi
+          ./artifacts/publish/AvroSharp.AotSmoke.Addons/release_${{ matrix.rid }}/AvroSharp.AotSmoke.Addons
+
       - name: Pack
         run: dotnet pack AvroSharp.slnx -c Release --no-build
 

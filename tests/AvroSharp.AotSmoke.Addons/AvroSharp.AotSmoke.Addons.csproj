@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The add-on packages under Native AOT: published and run in CI, against the in-memory registries the tests use.
+       Their dependencies (Confluent.SchemaRegistry, Azure.Core, the AWS SDK) have trim and AOT warnings of their own,
+       so each assembly's warnings collapse into one IL2104/IL3053 line (TrimmerSingleWarn) and don't fail the
+       publish; CI fails if one of those lines names an AvroSharp assembly (#198). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
+    <TrimmerSingleWarn>true</TrimmerSingleWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2104;IL3053</WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp.Confluent\AvroSharp.Confluent.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Azure.SchemaRegistry\AvroSharp.Azure.SchemaRegistry.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Aws.Glue\AvroSharp.Aws.Glue.csproj" />
+    <ProjectReference Include="..\..\src\AvroSharp.Aws.Glue.Kafka\AvroSharp.Aws.Glue.Kafka.csproj" />
+    <TrimmerRootAssembly Include="AvroSharp.Confluent" />
+    <TrimmerRootAssembly Include="AvroSharp.Azure.SchemaRegistry" />
+    <TrimmerRootAssembly Include="AvroSharp.Aws.Glue" />
+    <TrimmerRootAssembly Include="AvroSharp.Aws.Glue.Kafka" />
+  </ItemGroup>
+
+  <!-- The in-memory registries of the add-on tests. -->
+  <ItemGroup>
+    <Compile Include="..\AvroSharp.Confluent.Tests\InMemorySchemaRegistry.cs" Link="Shared\InMemorySchemaRegistry.cs" />
+    <Compile Include="..\AvroSharp.Azure.SchemaRegistry.Tests\InMemorySchemaRegistryClient.cs" Link="Shared\InMemorySchemaRegistryClient.cs" />
+    <Compile Include="..\AvroSharp.Aws.Glue.Tests\InMemoryGlueClient.cs" Link="Shared\InMemoryGlueClient.cs" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+  <ItemGroup>
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+</Project>

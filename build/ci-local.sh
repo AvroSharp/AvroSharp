@@ -69,6 +69,11 @@ step Native AOT smoke test
 dotnet publish tests/AvroSharp.AotSmoke -c Release -r "$rid"
 "./artifacts/publish/AvroSharp.AotSmoke/release_$rid/AvroSharp.AotSmoke"
 
+step Native AOT smoke test of the add-ons
+dotnet publish tests/AvroSharp.AotSmoke.Addons -c Release -r "$rid" | tee artifacts/aot-addons.log
+if grep -E "IL(2104|3053): Assembly 'AvroSharp" artifacts/aot-addons.log; then echo "An AvroSharp assembly has trim or AOT warnings."; exit 1; fi
+"./artifacts/publish/AvroSharp.AotSmoke.Addons/release_$rid/AvroSharp.AotSmoke.Addons"
+
 step Pack
 dotnet pack AvroSharp.slnx -c Release --no-build
 

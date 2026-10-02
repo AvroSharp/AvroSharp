@@ -87,7 +87,7 @@ public class GlueSerializerTests
         var message = await serializer.SerializeAsync(NewOrder(), "orders");
 
         await Assert.That(message.Take(18)).IsEquivalentTo(AwsMessage(versionId, compression: 0x05, []), CollectionOrdering.Matching);
-        await Assert.That(Unzlib(message[18..])).IsEquivalentTo(ApacheBytes(NewOrder()), CollectionOrdering.Matching);
+        await Assert.That(Unzlib(message.AsSpan(18).ToArray())).IsEquivalentTo(ApacheBytes(NewOrder()), CollectionOrdering.Matching);
         await AssertIsNewOrder(await serializer.DeserializeAsync<Order>(message));
     }
 
@@ -397,23 +397,58 @@ public class GlueSerializerTests
         return stream.ToArray();
     }
 
+    // zlib (RFC 1950): ZLibStream from .NET 6; on .NET Framework, a deflate stream with zlib's 2-byte header and its
+    // Adler-32 trailer.
     private static byte[] Zlib(byte[] data)
     {
         using var output = new MemoryStream();
+#if NET6_0_OR_GREATER
         using (var zlib = new ZLibStream(output, CompressionLevel.Optimal))
         {
             zlib.Write(data);
         }
+#else
+        output.WriteByte(0x78);
+        output.WriteByte(0x9C);
+        using (var deflate = new DeflateStream(output, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            deflate.Write(data, 0, data.Length);
+        }
 
+        uint a = 1, b = 0;
+        foreach (var x in data)
+        {
+            a = (a + x) % 65521;
+            b = (b + a) % 65521;
+        }
+
+        var adler = (b << 16) | a;
+        output.Write([(byte)(adler >> 24), (byte)(adler >> 16), (byte)(adler >> 8), (byte)adler], 0, 4);
+#endif
         return output.ToArray();
     }
 
     private static byte[] Unzlib(byte[] data)
     {
+#if NET6_0_OR_GREATER
         using var input = new ZLibStream(new MemoryStream(data), CompressionMode.Decompress);
+#else
+        using var input = new DeflateStream(new MemoryStream(data, 2, data.Length - 2), CompressionMode.Decompress);
+#endif
         using var output = new MemoryStream();
         input.CopyTo(output);
         return output.ToArray();
+    }
+
+    /// <summary>A GUID from its 16 big-endian bytes, as AWS's wire format writes it (<c>new Guid(bytes, bigEndian: true)</c> from .NET 8).</summary>
+    internal static Guid BigEndianGuid(ReadOnlySpan<byte> bytes)
+    {
+        Span<byte> little = stackalloc byte[16];
+        bytes[..16].CopyTo(little);
+        little[..4].Reverse();
+        little.Slice(4, 2).Reverse();
+        little.Slice(6, 2).Reverse();
+        return new Guid(little.ToArray());
     }
 
     private static Order NewOrder() => new()

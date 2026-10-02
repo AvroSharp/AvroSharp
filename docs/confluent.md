@@ -130,6 +130,7 @@ Chr.Avro.Confluent maps your classes to schemas by reflection when the serialize
 
 ## Behavior to know
 
+- **Native AOT.** CI publishes an application that uses it with Native AOT and runs it ([the add-ons smoke test](https://github.com/AvroSharp/AvroSharp/tree/main/tests/AvroSharp.AotSmoke.Addons/Program.cs)). AvroSharp.Confluent has no trim or AOT warnings. Confluent's `CachedSchemaRegistryClient` reads the registry's REST API with Newtonsoft.Json, which has trim and AOT warnings of its own; they come from Confluent's client, not from the serializers.
 - **Tombstones.** A `null` value, or a null `AvroValue`, is written as a message with no body, which Kafka calls a tombstone. Reading one gives `null`, or a null `AvroValue`. A value type such as `int` can't be null, so reading a tombstone into one throws, as in Confluent's deserializer.
 - **`use.latest.version`, `use.latest.with.metadata` and `use.schema.id`.** The message carries that schema's ID, but its bytes are written in your type's schema. So the serializer checks once that the two schemas encode alike (the same Parsing Canonical Form, and the same logical types), and throws when they don't. Otherwise readers would decode the message wrongly.
 - **Configuration keys.** A key the serializer doesn't know is an error, as in Confluent's serializers, so a misspelled key isn't ignored. Keys under `rules.` and `subject.name.strategy.` are passed through to Confluent's code.

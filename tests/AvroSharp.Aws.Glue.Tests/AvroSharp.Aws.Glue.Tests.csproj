@@ -5,6 +5,7 @@
        (MotoGlueTests: [Explicit], run with a filter that names them). -->
   <PropertyGroup>
     <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <!-- The generated test types are also Apache.Avro ISpecificRecords: AWS's serializers write Apache.Avro's
          encoding, which the tests compare with. -->
@@ -25,6 +26,11 @@
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+  <!-- Registers the generated types on .NET Framework, as AvroSharp.Confluent.Tests does. -->
+  <ItemGroup>
+    <Compile Include="..\AvroSharp.Confluent.Tests\FrameworkRegistration.cs" Link="Shared\FrameworkRegistration.cs" />
   </ItemGroup>
 
   <Import Project="..\..\build\UseLocalGenerator.targets" />

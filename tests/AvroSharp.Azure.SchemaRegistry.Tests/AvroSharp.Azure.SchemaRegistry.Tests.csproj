@@ -4,6 +4,7 @@
        on a schema registry client in memory. -->
   <PropertyGroup>
     <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <!-- The generated test types are also Apache.Avro ISpecificRecords, so the same value goes through Microsoft's
          serializer and AvroSharp's. -->
@@ -22,6 +23,11 @@
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
     <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+  <!-- Registers the generated types on .NET Framework, as AvroSharp.Confluent.Tests does. -->
+  <ItemGroup>
+    <Compile Include="..\AvroSharp.Confluent.Tests\FrameworkRegistration.cs" Link="Shared\FrameworkRegistration.cs" />
   </ItemGroup>
 
   <Import Project="..\..\build\UseLocalGenerator.targets" />

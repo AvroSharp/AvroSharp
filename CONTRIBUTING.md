@@ -19,7 +19,7 @@ dotnet build -c Release
 dotnet test --solution AvroSharp.slnx -c Release -f net10.0
 ```
 
-Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on Linux and Windows, x64 and Arm64, and on Windows also net481, which tests the `netstandard2.0` build on .NET Framework. Run `-f net481` locally too when a change touches the netstandard code paths.
+Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on Linux and Windows, x64 and Arm64, and on Windows also net481, which tests the `netstandard2.0` builds on .NET Framework (the add-ons too, except AvroSharp.KafkaFlow, which has no .NET Framework build; their test projects register the generated types first, as a .NET Framework application does). Run `-f net481` locally too when a change touches the netstandard code paths.
 
 AvroSharp.Confluent's, AvroSharp.KafkaFlow's and AvroSharp.Aws.Glue's tests need more:
 - **Redpanda:** the tests against a real broker and registry need Docker with Linux containers. They are `[Explicit]`, so they run only when a filter names them: `dotnet test --project tests/AvroSharp.Confluent.Tests --treenode-filter "/*/*/RedpandaTests/*"`, and AvroSharp.KafkaFlow's with `--project tests/AvroSharp.KafkaFlow.Tests --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"`. Otherwise they are neither run nor listed.
@@ -38,7 +38,8 @@ dotnet format AvroSharp.slnx                       # fix
 Native AOT smoke test:
 
 ```shell
-dotnet publish tests/AvroSharp.AotSmoke -c Release -r win-x64   # or linux-x64
+dotnet publish tests/AvroSharp.AotSmoke -c Release -r win-x64          # or linux-x64
+dotnet publish tests/AvroSharp.AotSmoke.Addons -c Release -r win-x64   # the add-on packages
 ```
 
 The documentation site, with the same DocFX version and broken-link check as the docs workflow:
@@ -71,7 +72,7 @@ It runs, in CI's order:
 - the tests without hardware intrinsics;
 - the coverage check (the summary is in `artifacts/coverage/SummaryGithub.md`);
 - the samples;
-- the Native AOT smoke test;
+- the Native AOT smoke tests, of the core packages and of the add-ons;
 - pack, and the package consumers.
 
 Behind a proxy that intercepts HTTPS, the image build and restores fail with certificate errors, because the container doesn't trust the proxy's root certificate the way the host does. Add the certificate in a local copy of the Dockerfile, and don't commit it: `COPY proxy-root.crt /usr/local/share/ca-certificates/` and then `RUN update-ca-certificates`, right after `FROM`.

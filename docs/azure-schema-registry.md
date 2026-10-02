@@ -59,6 +59,7 @@ Order received = await serializer.DeserializeAsync<Order>(eventData);
 
 ## Behavior to know
 
+- **Native AOT.** CI publishes an application that uses it with Native AOT and runs it ([the add-ons smoke test](https://github.com/AvroSharp/AvroSharp/tree/main/tests/AvroSharp.AotSmoke.Addons/Program.cs)), and neither it nor Azure.Data.SchemaRegistry has trim or AOT warnings there.
 - **The schema text.** AvroSharp registers a schema as Java's Avro writes it (`Schema.toString()`), which is likely what Azure's Java serializer registers too (not checked here). Microsoft's .NET serializer registers Apache.Avro .NET's text of the same schema, with the keys in another order, and with each nested named type's namespace written out even when it's the enclosing one's. With auto-registration this doesn't matter: each registration gives an ID that readers fetch. Without it, a schema registered only from Microsoft's .NET serializer might not be found by its text. Whether the service compares schemas by text or by meaning isn't documented, and isn't verified here. Register the schema from AvroSharp, or with auto-registration, if that happens.
 - **Mocking.** The serializer's methods are virtual, and it has a protected constructor, as Microsoft's serializer does, so tests of code that uses it can substitute it.
 - **Named schemas only.** The registry names each schema, so a value of a primitive schema, such as a `string`, can't be written.

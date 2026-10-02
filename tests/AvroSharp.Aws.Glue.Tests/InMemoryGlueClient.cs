@@ -17,10 +17,11 @@ namespace AvroSharp.Aws.Glue.Tests;
 /// </summary>
 internal sealed class InMemoryGlueClient() : AmazonGlueClient(new BasicAWSCredentials("test", "test"), RegionEndpoint.USEast1)
 {
-#if NET9_0_OR_GREATER
-    private readonly Lock _lock = new();
-#else
+    // System.Threading.Lock is in .NET 9 and later, and Polyfill adds it on .NET Framework; .NET 8 has neither.
+#if NET8_0
     private readonly object _lock = new();
+#else
+    private readonly System.Threading.Lock _lock = new();
 #endif
     private readonly Dictionary<(string Registry, string Schema), List<Version>> _schemas = [];
     private readonly Dictionary<string, Version> _versions = new(StringComparer.Ordinal);

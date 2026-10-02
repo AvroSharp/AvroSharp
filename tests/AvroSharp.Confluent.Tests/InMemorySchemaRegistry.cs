@@ -15,10 +15,11 @@ namespace AvroSharp.Confluent.Tests;
 /// </summary>
 internal sealed class InMemorySchemaRegistry : ISchemaRegistryClient
 {
-#if NET9_0_OR_GREATER
-    private readonly System.Threading.Lock _lock = new();
-#else
+    // System.Threading.Lock is in .NET 9 and later, and Polyfill adds it on .NET Framework; .NET 8 has neither.
+#if NET8_0
     private readonly object _lock = new();
+#else
+    private readonly System.Threading.Lock _lock = new();
 #endif
     private readonly List<RegisteredSchema> _byId = [];
     private readonly Dictionary<string, List<RegisteredSchema>> _bySubject = new(StringComparer.Ordinal);

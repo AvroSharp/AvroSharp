@@ -89,6 +89,9 @@
     <PackageVersion Include="Azure.Messaging.EventHubs" Version="5.12.2" />
     <!-- Brought in by Confluent.SchemaRegistry.Encryption's dependencies at 4.7.0, which has a critical advisory. -->
     <PackageVersion Include="System.Drawing.Common" Version="4.7.2" />
+    <!-- Brought in on .NET Framework by Confluent.SchemaRegistry.Rules (through Cel.NET, Antlr4BuildTasks and
+         Microsoft.Build.Utilities.Core) at 6.0.0, which has a high advisory. -->
+    <PackageVersion Include="Microsoft.IO.Redist" Version="6.1.0" />
     <PackageVersion Include="Apache.Avro.File.Snappy" Version="1.12.2" />
     <PackageVersion Include="Apache.Avro.File.BZip2" Version="1.12.2" />
     <PackageVersion Include="Apache.Avro.File.XZ" Version="1.12.2" />

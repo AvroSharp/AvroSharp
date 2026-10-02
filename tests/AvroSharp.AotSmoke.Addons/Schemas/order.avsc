@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "Order",
+  "namespace": "aot.shop",
+  "fields": [
+    {"name": "id", "type": "long"},
+    {"name": "customer", "type": "string"},
+    {"name": "total", "type": {"type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2}},
+    {"name": "lines", "type": {"type": "array", "items": "string"}}
+  ]
+}
