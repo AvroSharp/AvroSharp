@@ -32,7 +32,7 @@ public sealed class AvroSharpMessageTypeResolver : IMessageTypeResolver
     /// <summary>Creates a resolver that picks among <paramref name="messageTypes"/>, by their records' full names.</summary>
     /// <param name="client">The schema registry.</param>
     /// <param name="messageTypes">The types messages are read as: types <see cref="AvroTypes"/> knows, of record schemas.</param>
-    /// <exception cref="ArgumentException">A type's schema isn't a record, or two types have records of the same name.</exception>
+    /// <exception cref="ArgumentException">No types are given, a type's schema isn't a record, or two types have records of the same name.</exception>
     /// <exception cref="InvalidOperationException">A type is not one <see cref="AvroTypes"/> knows.</exception>
     public AvroSharpMessageTypeResolver(ISchemaRegistryClient client, IEnumerable<Type> messageTypes)
         : this(client, ByRecordName(messageTypes))
@@ -104,7 +104,9 @@ public sealed class AvroSharpMessageTypeResolver : IMessageTypeResolver
             byName.Add(name, type);
         }
 
-        return byName;
+        return byName.Count > 0
+            ? byName
+            : throw new ArgumentException("No message types are given: list the types the topic carries.", nameof(messageTypes));
     }
 
     /// <summary>Does nothing: a produced message's type is its value's.</summary>

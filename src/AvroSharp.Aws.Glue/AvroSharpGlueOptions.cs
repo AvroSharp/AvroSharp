@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Amazon.Glue;
-using AvroSharp.Schemas;
 
 namespace AvroSharp.Aws.Glue;
 
@@ -33,10 +32,11 @@ public sealed class AvroSharpGlueOptions
 
     /// <summary>
     /// Gets or sets how a schema is named when <see cref="SchemaName"/> isn't set (<c>schemaNameGenerationClass</c>):
-    /// from the transport name (the Kafka topic, or the Kinesis stream) and the value's schema. When it is
-    /// <see langword="null"/>, the default, the schema is named after the transport, as AWS's default strategy does.
+    /// from the transport name (the Kafka topic, or the Kinesis stream), the value's schema, and whether it's a message
+    /// key. When it is <see langword="null"/>, the default, the schema is named after the transport, as AWS's default
+    /// strategy does.
     /// </summary>
-    public Func<string, AvroSchema, string>? SchemaNameStrategy { get; set; }
+    public Func<AvroSharpGlueSchemaNameContext, string>? SchemaNameStrategy { get; set; }
 
     /// <summary>
     /// Gets or sets whether the serializer registers a schema the registry doesn't have

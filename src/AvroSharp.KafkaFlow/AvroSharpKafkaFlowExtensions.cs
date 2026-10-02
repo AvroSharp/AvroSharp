@@ -48,7 +48,7 @@ public static class AvroSharpKafkaFlowExtensions
     /// <param name="middlewares">The consumer's middlewares.</param>
     /// <param name="messageTypes">The message types, which <see cref="Serialization.AvroTypes"/> knows, each of a record schema.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
-    /// <exception cref="ArgumentException">A type's schema isn't a record, or two types have records of the same name.</exception>
+    /// <exception cref="ArgumentException">No types are given, a type's schema isn't a record, or two types have records of the same name.</exception>
     /// <exception cref="InvalidOperationException">A type is not one <see cref="Serialization.AvroTypes"/> knows.</exception>
     public static IConsumerMiddlewareConfigurationBuilder AddSchemaRegistryAvroSharpDeserializer(this IConsumerMiddlewareConfigurationBuilder middlewares, IEnumerable<Type> messageTypes, AvroSharpDeserializerConfig? config = null)
     {
@@ -63,12 +63,14 @@ public static class AvroSharpKafkaFlowExtensions
 
     /// <summary>
     /// Reads each consumed message as the type its writer's record names, found by its .NET full name in the loaded
-    /// assemblies, as KafkaFlow's <c>AddSchemaRegistryAvroDeserializer</c> does.
+    /// assemblies, as KafkaFlow's <c>AddSchemaRegistryAvroDeserializer</c> does. It needs reflection, which
+    /// <see cref="AddSchemaRegistryAvroSharpDeserializer(IConsumerMiddlewareConfigurationBuilder, IEnumerable{Type}, AvroSharpDeserializerConfig?)"/>,
+    /// given the message types, doesn't.
     /// </summary>
     /// <param name="middlewares">The consumer's middlewares.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
     [RequiresUnreferencedCode("The message types are found by name in the loaded assemblies, and trimming can remove them. Pass the message types instead.")]
-    public static IConsumerMiddlewareConfigurationBuilder AddSchemaRegistryAvroSharpDeserializer(this IConsumerMiddlewareConfigurationBuilder middlewares, AvroSharpDeserializerConfig? config = null)
+    public static IConsumerMiddlewareConfigurationBuilder AddSchemaRegistryAvroSharpDeserializerByTypeName(this IConsumerMiddlewareConfigurationBuilder middlewares, AvroSharpDeserializerConfig? config = null)
     {
         ArgumentNullException.ThrowIfNull(middlewares);
         return middlewares.Add(resolver =>

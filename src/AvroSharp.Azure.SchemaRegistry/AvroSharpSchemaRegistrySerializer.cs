@@ -33,8 +33,11 @@ namespace AvroSharp.Azure.SchemaRegistry;
 /// fetched by its ID once. The message is read in the writer's schema and resolved to the type's schema, so data of
 /// older and newer versions reads. A generic record is read in the writer's schema.
 /// </para>
+/// <para>
+/// Its methods are virtual, and it has a protected constructor, so tests can mock it, as they can Microsoft's.
+/// </para>
 /// </remarks>
-public sealed class AvroSharpSchemaRegistrySerializer
+public class AvroSharpSchemaRegistrySerializer
 {
     private const string AvroMimeType = "avro/binary";
 
@@ -49,6 +52,12 @@ public sealed class AvroSharpSchemaRegistrySerializer
     private readonly ConditionalWeakTable<AvroSchema, GenericDatumWriter> _genericWriters = new();
     private readonly ConcurrentDictionary<string, GenericDatumReader> _genericReaders = new(StringComparer.Ordinal);
     private readonly ConditionalWeakTable<AvroSchema, string> _json = new();
+
+    /// <summary>Creates a serializer for mocking: its methods are virtual, as in Microsoft's serializer, and this instance has no registry.</summary>
+    protected AvroSharpSchemaRegistrySerializer()
+    {
+        _client = null!;
+    }
 
     /// <summary>Creates a serializer.</summary>
     /// <param name="client">The schema registry.</param>
@@ -69,7 +78,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="InvalidOperationException">The serializer has no group, or <typeparamref name="TData"/> is not a type it can write.</exception>
     /// <exception cref="ArgumentException">The value's schema has no name, which the registry needs.</exception>
-    public TMessage Serialize<TMessage, TData>(TData data, CancellationToken cancellationToken = default)
+    public virtual TMessage Serialize<TMessage, TData>(TData data, CancellationToken cancellationToken = default)
         where TMessage : MessageContent, new()
     {
         var (schema, body) = Encode(data, typeof(TData));
@@ -83,7 +92,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="InvalidOperationException">The serializer has no group, or <typeparamref name="TData"/> is not a type it can write.</exception>
     /// <exception cref="ArgumentException">The value's schema has no name, which the registry needs.</exception>
-    public async ValueTask<TMessage> SerializeAsync<TMessage, TData>(TData data, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<TMessage> SerializeAsync<TMessage, TData>(TData data, CancellationToken cancellationToken = default)
         where TMessage : MessageContent, new()
     {
         var (schema, body) = Encode(data, typeof(TData));
@@ -97,7 +106,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="InvalidOperationException">The serializer has no group, or the value is not of a type it can write.</exception>
     /// <exception cref="ArgumentException">The value's schema has no name, or <paramref name="messageType"/> is not a <see cref="MessageContent"/>.</exception>
-    public MessageContent Serialize(
+    public virtual MessageContent Serialize(
         object data,
         Type? dataType = null,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? messageType = null,
@@ -115,7 +124,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="InvalidOperationException">The serializer has no group, or the value is not of a type it can write.</exception>
     /// <exception cref="ArgumentException">The value's schema has no name, or <paramref name="messageType"/> is not a <see cref="MessageContent"/>.</exception>
-    public async ValueTask<MessageContent> SerializeAsync(
+    public virtual async ValueTask<MessageContent> SerializeAsync(
         object data,
         Type? dataType = null,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] Type? messageType = null,
@@ -132,7 +141,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="FormatException">The content type is not <c>avro/binary+&lt;schema ID&gt;</c>.</exception>
     /// <exception cref="InvalidOperationException"><typeparamref name="TData"/> is not a type the serializer can read.</exception>
-    public TData Deserialize<TData>(MessageContent content, CancellationToken cancellationToken = default)
+    public virtual TData Deserialize<TData>(MessageContent content, CancellationToken cancellationToken = default)
     {
         var id = SchemaIdOf(content);
         return (TData)Decode(content, typeof(TData), WriterSchema(id, cancellationToken), id)!;
@@ -144,7 +153,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="FormatException">The content type is not <c>avro/binary+&lt;schema ID&gt;</c>.</exception>
     /// <exception cref="InvalidOperationException"><typeparamref name="TData"/> is not a type the serializer can read.</exception>
-    public async ValueTask<TData> DeserializeAsync<TData>(MessageContent content, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<TData> DeserializeAsync<TData>(MessageContent content, CancellationToken cancellationToken = default)
     {
         var id = SchemaIdOf(content);
         return (TData)Decode(content, typeof(TData), await WriterSchemaAsync(id, cancellationToken).ConfigureAwait(false), id)!;
@@ -156,7 +165,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="FormatException">The content type is not <c>avro/binary+&lt;schema ID&gt;</c>.</exception>
     /// <exception cref="InvalidOperationException"><paramref name="dataType"/> is not a type the serializer can read.</exception>
-    public object? Deserialize(MessageContent content, Type dataType, CancellationToken cancellationToken = default)
+    public virtual object? Deserialize(MessageContent content, Type dataType, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(dataType);
         var id = SchemaIdOf(content);
@@ -169,7 +178,7 @@ public sealed class AvroSharpSchemaRegistrySerializer
     /// <param name="cancellationToken">Cancels the registry call, if one is needed.</param>
     /// <exception cref="FormatException">The content type is not <c>avro/binary+&lt;schema ID&gt;</c>.</exception>
     /// <exception cref="InvalidOperationException"><paramref name="dataType"/> is not a type the serializer can read.</exception>
-    public async ValueTask<object?> DeserializeAsync(MessageContent content, Type dataType, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<object?> DeserializeAsync(MessageContent content, Type dataType, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(dataType);
         var id = SchemaIdOf(content);

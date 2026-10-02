@@ -26,6 +26,22 @@ internal static class ConfigKeys
         AvroSharpDeserializerConfig.PropertyNames.SchemaIdStrategy,
     };
 
+    /// <summary>A copy of the pairs that have a value, so the settings never write into the caller's collection.</summary>
+    public static Dictionary<string, string> Copy(IEnumerable<KeyValuePair<string, string>> config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        var copy = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var item in config)
+        {
+            if (item.Value is not null)
+            {
+                copy[item.Key] = item.Value;
+            }
+        }
+
+        return copy;
+    }
+
     /// <summary>
     /// Checks every key: one of <paramref name="known"/>, or a key of the rules (<c>rules.*</c>) or of the
     /// <c>Associated</c> subject name strategy (<c>subject.name.strategy.*</c>), which Confluent's code reads.

@@ -60,7 +60,7 @@ Check(read.Count == orders.Count && read.Select(m => m.Value.Total).SequenceEqua
 
 // Consume as generic values, for code that has no type for the schema: each message in its writer's schema.
 var generic = Consume(new ConsumerBuilder<string, AvroValue>(ConsumerConfig(bootstrap)).SetKeyDeserializer(Deserializers.Utf8)
-    .SetValueDeserializer(new Confluent.Kafka.SyncOverAsync.SyncOverAsyncDeserializer<AvroValue>(AvroSharpGeneric.CreateDeserializer(registry))));
+    .SetValueDeserializer(AvroSharpGeneric.CreateDeserializer(registry)));
 var first = generic[0].Value.AsRecord();
 Console.WriteLine($"As a generic record: {first.Schema.FullName}, customer {first["customer"].AsString()}");
 Check(string.Equals(first["customer"].AsString(), "customer-1", StringComparison.Ordinal));

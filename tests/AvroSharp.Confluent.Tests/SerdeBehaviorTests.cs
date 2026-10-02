@@ -202,7 +202,7 @@ public class SerdeBehaviorTests
         var orders = await Task.WhenAll(messages.Select(m => Task.Run(() => deserializer.DeserializeAsync(m, isNull: false, Value(topic)))));
 
         await Assert.That(registry.RegistrationCalls).IsEqualTo(1);
-        await Assert.That(messages.Select(m => Convert.ToHexString(m)).Distinct(StringComparer.Ordinal)).Count().IsEqualTo(1);
+        await Assert.That(messages.Select(m => Convert.ToHexString(m!)).Distinct(StringComparer.Ordinal)).Count().IsEqualTo(1);
         await Assert.That(orders.Select(o => o.Customer).Distinct(StringComparer.Ordinal)).IsEquivalentTo(["Ada"], CollectionOrdering.Any);
     }
 
@@ -360,5 +360,5 @@ public class SerdeBehaviorTests
         await Assert.That(() => new AvroSharpDeserializer<Uri>(registry)).Throws<InvalidOperationException>();
     }
 
-    private static int SchemaIdOf(byte[] message) => (message[1] << 24) | (message[2] << 16) | (message[3] << 8) | message[4];
+    private static int SchemaIdOf(byte[]? message) => (message![1] << 24) | (message[2] << 16) | (message[3] << 8) | message[4];
 }

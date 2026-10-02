@@ -62,7 +62,7 @@ Order read = await serializer.DeserializeAsync<Order>(data);
 |---|---|---|
 | `RegistryName` | `registry.name` | `default-registry` |
 | `SchemaName` | `schemaName` | none: `SchemaNameStrategy` names the schema |
-| `SchemaNameStrategy` | `schemaNameGenerationClass` | none: the schema is named after the transport (the Kafka topic, or the Kinesis stream) |
+| `SchemaNameStrategy` | `schemaNameGenerationClass` | none: the schema is named after the transport (the Kafka topic, or the Kinesis stream). A strategy gets the transport name, the schema, and whether a key is written |
 | `AutoRegisterSchemas` | `schemaAutoRegistrationEnabled` | `false`: the schema version must exist |
 | `Compression` | `compression` | `None` (or `Zlib`) |
 | `Compatibility` | `compatibility` | `BACKWARD`, for a schema the serializer creates |
@@ -83,7 +83,7 @@ Order read = await serializer.DeserializeAsync<Order>(data);
 
 ## Behavior to know
 
-- **Asynchronous, and synchronous for Kafka.** The AWS SDK for .NET calls Glue asynchronously only, so `AvroSharpGlueSerializer` has asynchronous methods only. The Kafka serializer and deserializer are both asynchronous and synchronous: the synchronous methods wait for Glue the first time each schema version is seen. Confluent.Kafka's consumer calls deserializers synchronously. Its producer builder takes either kind, so to pass the serializer yourself, cast it to the one you want (`(IAsyncSerializer<Order>)serializer`); `SetAvroSharpGlueValueSerializer` sets the asynchronous one.
+- **Asynchronous, and synchronous for Kafka.** The AWS SDK for .NET calls Glue asynchronously only, so `AvroSharpGlueSerializer` has asynchronous methods only. The Kafka serializer and deserializer are both asynchronous and synchronous: the synchronous methods wait for Glue the first time each schema version is seen. Confluent.Kafka's consumer calls deserializers synchronously. Its producer builder takes either kind, so to pass the serializer yourself, cast it to the one you want (`(ISerializer<Order>)serializer`); `SetAvroSharpGlueValueSerializer` sets the synchronous one, so both `Produce` and `ProduceAsync` work.
 - **Tombstones.** A `null` value, or a null `AvroValue`, is written as no message body, and a message without a body reads as `null`. Reading one as a value type, such as `int`, throws.
 - **New versions can wait.** A version the serializer registers is `PENDING` while Glue checks its compatibility. The serializer checks it every `PendingVersionInterval`, 10 times at most. It throws an `InvalidOperationException` if the check fails, and a `TimeoutException` if the version is still pending.
 - **Not yet checked against AWS's own package.** The format comes from AWS's Java source, and the tests pin it with a test vector. Messages from AWS's own .NET package haven't been read in a test yet: its native library didn't start in the Docker environment used for this package.

@@ -69,7 +69,7 @@ middlewares
 ```
 
 - **With a list of types,** [`AvroSharpMessageTypeResolver`](xref:AvroSharp.KafkaFlow.AvroSharpMessageTypeResolver) matches each type by its schema's record name. A type's .NET name can differ from its Avro name. There's no reflection, so AvroSharp's part has no trimming or Native AOT warnings; whether KafkaFlow itself runs under Native AOT is up to KafkaFlow.
-- **Without a list,** `AddSchemaRegistryAvroSharpDeserializer()` finds the type by its .NET full name in the loaded assemblies, as KafkaFlow's `AddSchemaRegistryAvroDeserializer()` does. That works when the .NET names match the Avro names, as they do by default for generated types. It's marked as unsafe for trimming. It also finds types of assemblies loaded only for their metadata, such as one a handler's signature names.
+- **Without a list,** `AddSchemaRegistryAvroSharpDeserializerByTypeName()` finds the type by its .NET full name in the loaded assemblies, as KafkaFlow's `AddSchemaRegistryAvroDeserializer()` does. That works when the .NET names match the Avro names, as they do by default for generated types. It's marked as unsafe for trimming. It also finds types of assemblies loaded only for their metadata, such as one a handler's signature names.
 
 ## Moving from KafkaFlow's Confluent Avro serializer
 
@@ -78,7 +78,7 @@ middlewares
    - **Moving at once?** Use AvroSharp's own types, without Apache.Avro.
 2. **Replace the middleware:**
    - `AddSchemaRegistryAvroSerializer(config)` → `AddSchemaRegistryAvroSharpSerializer(config)`, with `AvroSharpSerializerConfig` in place of `AvroSerializerConfig`, and the same keys;
-   - `AddSchemaRegistryAvroDeserializer()` → `AddSchemaRegistryAvroSharpDeserializer()`, or the overload that takes the message types;
+   - `AddSchemaRegistryAvroDeserializer()` → `AddSchemaRegistryAvroSharpDeserializerByTypeName()`, or, better, `AddSchemaRegistryAvroSharpDeserializer` with the message types, which needs no reflection;
    - keep `WithSchemaRegistry` on the cluster.
 3. **Nothing changes on the wire or in the registry:**
    - the same subjects;
