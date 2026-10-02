@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Runs the steps of the Linux CI job (.github/workflows/ci.yml) in order, so passing here means passing that job:
-# restore, build, tests on every target with coverage, the Redpanda tests (with Docker), tests without hardware
-# intrinsics, the coverage check, the samples, the Native AOT smoke test, pack, and the package consumers. Meant for
-# the dev container (#139); see CONTRIBUTING.md for what it does not cover.
+# restore, build, tests on every target with coverage, the Redpanda and moto tests (with Docker), tests without
+# hardware intrinsics, the coverage check, the samples, the Native AOT smoke test, pack, and the package consumers.
+# Meant for the dev container (#139); see CONTRIBUTING.md for what it does not cover.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -29,15 +29,17 @@ dotnet build AvroSharp.slnx -c Release --no-restore
 step Test
 dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
-# AvroSharp.Confluent's and AvroSharp.KafkaFlow's Redpanda tests, and the Confluent and KafkaFlowEvents samples, need
-# Docker with Linux containers; without it they are left out, as on CI's other runners.
+# AvroSharp.Confluent's and AvroSharp.KafkaFlow's Redpanda tests, AvroSharp.Aws.Glue's moto tests, and the
+# Confluent and KafkaFlowEvents samples, need Docker with Linux containers; without it they are left out, as on CI's
+# other runners.
 docker=no
 if docker info > /dev/null 2>&1; then
   docker=yes
   docker compose -f samples/Confluent/compose.yaml up -d --wait
-  step Test against Redpanda
+  step Test against Redpanda and moto
   dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build --treenode-filter "/*/*/RedpandaTests/*"
   dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release --no-build --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"
+  dotnet test --project tests/AvroSharp.Aws.Glue.Tests -c Release --no-build --treenode-filter "/*/*/MotoGlueTests/*"
 fi
 
 step Test without hardware intrinsics

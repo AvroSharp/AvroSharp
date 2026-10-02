@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- AvroSharp.Aws.Glue on an in-memory Glue client: AWS's wire format (pinned by a test vector from AWS's Java
+       encoder), its registration flow, and the Kafka adapters. And against moto, an AWS emulator, in Docker
+       (MotoGlueTests: [Explicit], run with a filter that names them). -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <!-- The generated test types are also Apache.Avro ISpecificRecords: AWS's serializers write Apache.Avro's
+         encoding, which the tests compare with. -->
+    <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
+    <!-- Apache.Avro is not strong-named. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AvroSharp.Aws.Glue\AvroSharp.Aws.Glue.csproj" />
+    <PackageReference Include="AWSSDK.Glue" />
+    <PackageReference Include="AWSSDK.Core" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="Testcontainers" />
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>

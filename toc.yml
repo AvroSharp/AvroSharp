@@ -13,6 +13,8 @@
   href: docs/kafkaflow.md
 - name: Azure Schema Registry
   href: docs/azure-schema-registry.md
+- name: AWS Glue
+  href: docs/aws-glue.md
 - name: Integrations
   href: docs/integrations.md
 - name: API reference

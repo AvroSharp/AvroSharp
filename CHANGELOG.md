@@ -34,6 +34,14 @@ All notable changes to this project are documented here. The format follows [Kee
   - **Types:** generated and `[AvroSerializable]` types, resolved from the writer's schema, and generic records (`GenericRecord`, `AvroValue`), read in the writer's schema.
   - **Registry:** schemas are registered or looked up once, by full name in the serializer's group (`AutoRegisterSchemas`, off by default as in Microsoft's), and writer schemas are fetched once per ID.
   - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Azure.Data.SchemaRegistry [1.2.0, 2.0.0).
+- **AvroSharp.Aws.Glue**, a new package: a managed AWS Glue Schema Registry serializer for Kafka and Kinesis, on every platform, in place of AWS's native, Linux-only `AWS.Glue.SchemaRegistry`, without Apache.Avro (#156). It is released with AvroSharp at the same version.
+  - **`AvroSharpGlueSerializer`:** writes and reads AWS's wire format: `0x03`, the compression byte (none, or zlib), the schema version UUID with the most significant bits first, then the Avro data. A test vector from AWS's Java encoder pins the format.
+  - **Kafka:** `AvroSharpGlueKafkaSerializer<T>` and `AvroSharpGlueKafkaDeserializer<T>` for Confluent.Kafka, with builder extensions.
+  - **Registry calls, as AWS's serializer makes them:** the version is looked up by its definition (Java's `Schema.toString()` text, as AWS registers it). With auto-registration the serializer registers a new version, or creates the schema with the configured compatibility, and waits while a new version is `PENDING`. Each version ID and each schema is cached.
+  - **Settings:** `AvroSharpGlueOptions` has AWS's settings and defaults: `default-registry`, schemas named after the topic or stream, auto-registration off, no compression, and `BACKWARD` compatibility.
+  - **Types:** generated and `[AvroSerializable]` types, resolved from the writer's schema, and generic records.
+  - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on AWSSDK.Glue [4.0.0, 5.0.0), AWSSDK.Core 4.0.3.3 or later (below 4.0.3.3 it has an advisory), and Confluent.Kafka [2.0.2, 3.0.0).
+  - **Tests:** an in-memory Glue client, and moto (an AWS emulator in Docker) through the AWS SDK's real client. Not yet against AWS's own package, whose native library didn't start in the Docker environment tried.
 
 ## [1.0.0-rc.1] - 2026-10-01
 

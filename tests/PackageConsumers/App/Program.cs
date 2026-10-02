@@ -74,6 +74,16 @@ catch (ArgumentException)
 {
 }
 
+// AvroSharp.Aws.Glue loads with its AWS dependencies, and knows AWS's header.
+using (var glue = new Amazon.Glue.AmazonGlueClient(new Amazon.Runtime.BasicAWSCredentials("consumer", "consumer"), Amazon.RegionEndpoint.USEast1))
+{
+    _ = new AvroSharp.Aws.Glue.AvroSharpGlueSerializer(glue);
+    if (!AvroSharp.Aws.Glue.AvroSharpGlueSerializer.CanDecode([0x03, 0x00, .. new byte[16]]))
+    {
+        failures.Add("AWS Glue serializer");
+    }
+}
+
 Console.WriteLine(failures.Count == 0 ? "App: ok" : "App failed: " + string.Join(", ", failures));
 return failures.Count == 0 ? 0 : 1;
 

@@ -68,13 +68,15 @@ jobs:
           AVROSHARP_RANDOM_SCHEMA_FAILURES: ${{ github.workspace }}/TestResults/random-schema-failure
         run: dotnet test --solution AvroSharp.slnx -c Release --no-build --coverage --coverage-output-format cobertura
 
-      # AvroSharp.Confluent and AvroSharp.KafkaFlow against a real broker and registry: Redpanda in Docker, which needs
-      # Linux containers, so only the x64 Linux runner. The tests are [Explicit], so the solution run above leaves them out.
-      - name: Test against Redpanda
+      # Against services in Docker, which need Linux containers, so only the x64 Linux runner: AvroSharp.Confluent and
+      # AvroSharp.KafkaFlow against Redpanda, and AvroSharp.Aws.Glue against moto (an AWS emulator). The tests are
+      # [Explicit], so the solution run above leaves them out.
+      - name: Test against Redpanda and moto
         if: matrix.os == 'ubuntu-latest'
         run: |
           dotnet test --project tests/AvroSharp.Confluent.Tests -c Release --no-build --treenode-filter "/*/*/RedpandaTests/*"
           dotnet test --project tests/AvroSharp.KafkaFlow.Tests -c Release --no-build --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"
+          dotnet test --project tests/AvroSharp.Aws.Glue.Tests -c Release --no-build --treenode-filter "/*/*/MotoGlueTests/*"
 
       # Vector and bit-manipulation fast paths fall back to scalar code without hardware intrinsics; run the unit
       # tests that way too so the fallbacks are exercised on every build.
