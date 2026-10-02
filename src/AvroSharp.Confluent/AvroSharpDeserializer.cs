@@ -176,7 +176,7 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
 
     private static T Read(AvroReadFunc<T> read, AvroSchema writerSchema, ReadOnlyMemory<byte> payload)
     {
-        if (writerSchema.Type == AvroSchemaType.Bytes)
+        if (RegistrySchemas.IsRawBytes(writerSchema))
         {
             // A value of the schema "bytes" is the message body alone, without Avro's length prefix, as Confluent's
             // serdes (.NET and Java) write it.

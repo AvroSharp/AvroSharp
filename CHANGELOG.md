@@ -15,12 +15,14 @@ All notable changes to this project are documented here. The format follows [Kee
     - the same message bytes, and a top-level `bytes` value is the message body alone;
     - the same default subject name strategy (`Associated`, falling back to `Topic`);
     - the same configuration keys (`avro.serializer.*`, `avro.deserializer.*`). Unknown keys are rejected.
-  - **Schema evolution:** the deserializer reads each message in its writer's schema and resolves it to the type's. A generic deserializer with `use.latest.version` and no reader schema reads each message as the latest version. A registered schema with an invalid field default still reads: the registry is the authority.
+  - **Schema evolution:** the deserializer reads each message in its writer's schema and resolves it to the type's. A generic deserializer with `use.latest.version` and no reader schema reads each message as the latest version. A registered schema with an invalid field default or name still reads: the registry is the authority.
   - **Checks:**
     - With `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, the serializer checks that the type's schema encodes like the schema whose ID the message carries: the same canonical form, and the same logical types (a decimal's precision and scale, a timestamp's unit).
     - Tombstones follow Confluent: a null value is written with no body, and reading one into a value type throws.
+    - The `None` subject name strategy is rejected with an error that says so, with or without `use.schema.id`, which Confluent's client can't look up without a subject (#211).
+    - A top-level `bytes` value is the message body alone only for plain `bytes`; with a logical type, such as a decimal, it keeps Avro's length prefix, as Java's serializer writes it (#211).
   - **Synchronous too:** the serializer and deserializer also implement Confluent.Kafka's `ISerializer<T>` and `IDeserializer<T>`, so `producer.Produce` works, and a consumer takes the deserializer without `AsSyncOverAsync` (#189). Once a topic's schema ID, or a schema ID's reader, is known, the synchronous path runs without a task; with `use.latest.version`, `use.latest.with.metadata`, `use.schema.id` or rules, it waits for the asynchronous one.
-  - **Builder extensions** for Confluent.Kafka's producer and consumer builders. They set the synchronous interfaces, and take a `RuleRegistry`.
+  - **Builder extensions** for Confluent.Kafka's producer and consumer builders. They set the synchronous interfaces, and take a `RuleRegistry`. `SetAvroSharpGenericValueSerializer` and `SetAvroSharpGenericValueDeserializer` set generic serdes (#211).
   - **Generic records of several schemas:** `AvroSharpGeneric.CreateSerializer(registry)` writes each record with its own schema, as Confluent's generic serializer does (#193).
   - **Configuration:** the config classes copy any key-value pairs, as Confluent's do, such as a configuration section's (#195). A cached schema ID is read without a lock (#197).
   - **Dependencies and targets:** net10.0, net9.0, net8.0 and netstandard2.0, on Confluent.SchemaRegistry [2.14.0, 3.0.0). The tests run against both ends of that range (`-p:ConfluentVersion=2.14.0` for the lowest) and against Redpanda.

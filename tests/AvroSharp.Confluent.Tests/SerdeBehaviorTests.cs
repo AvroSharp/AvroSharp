@@ -207,16 +207,53 @@ public class SerdeBehaviorTests
     }
 
     [Test]
-    public async Task NoSubject_WithoutUseSchemaId_IsReported()
+    public async Task NoSubject_IsReported_WithOrWithoutUseSchemaId()
     {
         using var registry = new InMemorySchemaRegistry();
-        var serializer = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.None, AutoRegisterSchemas = false });
+        var id = await registry.RegisterSchemaAsync(Topic() + "-value", new ConfluentSchema(AvroTypes.Get<Order>().Schema.ToJson(), SchemaType.Avro));
+        var none = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.None, AutoRegisterSchemas = false });
+        // Confluent's client needs the subject to look the ID up in, so None with use.schema.id isn't supported either.
+        var noneWithId = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.None, UseSchemaId = id, AutoRegisterSchemas = false });
         var primitive = new AvroSharpSerializer<string>(registry, new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.Record });
 
-        await Assert.That(async () => await serializer.SerializeAsync(NewOrder(), Value(Topic())))
-            .Throws<InvalidOperationException>().WithMessageContaining("None needs use.schema.id", StringComparison.Ordinal);
+        await Assert.That(async () => await none.SerializeAsync(NewOrder(), Value(Topic())))
+            .Throws<InvalidOperationException>().WithMessageContaining("None strategy isn't supported", StringComparison.Ordinal);
+        await Assert.That(async () => await noneWithId.SerializeAsync(NewOrder(), Value(Topic())))
+            .Throws<InvalidOperationException>().WithMessageContaining("None strategy isn't supported", StringComparison.Ordinal);
         await Assert.That(async () => await primitive.SerializeAsync("text", Value(Topic())))
             .Throws<InvalidOperationException>().WithMessageContaining("need a schema with a name", StringComparison.Ordinal);
+    }
+
+    [Test]
+    public async Task DecimalBytes_HaveTheLengthPrefix_PlainBytesDont()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var decimalSchema = AvroSchema.Parse("""{"type":"bytes","logicalType":"decimal","precision":6,"scale":2}""");
+        var value = AvroValue.FromBytes([0x30, 0x39]);
+
+        var withPrefix = await AvroSharpGeneric.CreateSerializer(registry, decimalSchema).SerializeAsync(value, Value(topic));
+        var raw = await AvroSharpGeneric.CreateSerializer(registry, AvroSchema.Bytes).SerializeAsync(value, Value(Topic()));
+        var back = await AvroSharpGeneric.CreateDeserializer(registry).DeserializeAsync(withPrefix, isNull: false, Value(topic));
+
+        // A decimal is a value of its own, written with Avro's length prefix as Java's serializer writes a BigDecimal.
+        await Assert.That(withPrefix.AsSpan(5).ToArray()).IsEquivalentTo(new byte[] { 0x04, 0x30, 0x39 }, CollectionOrdering.Matching);
+        await Assert.That(raw.AsSpan(5).ToArray()).IsEquivalentTo(new byte[] { 0x30, 0x39 }, CollectionOrdering.Matching);
+        await Assert.That(back.AsBytes()).IsEquivalentTo(new byte[] { 0x30, 0x39 }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async Task ARegisteredSchemaWithAnInvalidName_IsRead()
+    {
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var id = await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(
+            """{"type":"record","name":"Odd-Name","namespace":"test.shop","fields":[{"name":"n","type":"int"}]}""", SchemaType.Avro));
+        byte[] message = [0, (byte)(id >> 24), (byte)(id >> 16), (byte)(id >> 8), (byte)id, 0x0E];
+
+        var value = await AvroSharpGeneric.CreateDeserializer(registry).DeserializeAsync(message, isNull: false, Value(topic));
+
+        await Assert.That(value.AsRecord()["n"].AsInt32()).IsEqualTo(7);
     }
 
     [Test]

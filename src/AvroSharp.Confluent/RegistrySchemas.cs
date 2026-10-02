@@ -14,7 +14,16 @@ internal static class RegistrySchemas
     // The registry is the authority on the schemas it holds: a schema with an invalid field default (which older
     // registries and Apache.Avro, so Confluent's serde, accept) still describes the data written with it, and a writer
     // schema's defaults are never used to read it. Rejecting it would stop a consumer at the first such message.
-    private static readonly AvroSchemaParseOptions Lenient = new() { ValidateDefaults = false };
+    // Names too: the registry may hold a schema that a stricter parser rejects, such as one registered by a client with
+    // name validation off (Java's parser can turn it off).
+    private static readonly AvroSchemaParseOptions Lenient = new() { ValidateDefaults = false, ValidateNames = false };
+
+    /// <summary>
+    /// Gets whether a value of <paramref name="schema"/> is the message body alone, without Avro's length prefix: a
+    /// plain <c>bytes</c> schema, as Confluent's serdes write a <c>byte[]</c> (.NET) or <c>ByteBuffer</c> (Java).
+    /// Bytes with a logical type, such as a decimal, are a value of their own, written with the prefix as Java does.
+    /// </summary>
+    public static bool IsRawBytes(AvroSchema schema) => schema.Type == AvroSchemaType.Bytes && schema.LogicalType is null;
 
     /// <summary>
     /// Parses a registered schema after its references, which Confluent's base class fetches (recursively). A
