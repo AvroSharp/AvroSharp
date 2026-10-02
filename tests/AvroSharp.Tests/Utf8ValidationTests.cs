@@ -65,6 +65,21 @@ public class Utf8ValidationTests
         await Assert.That(ex.Message).StartsWith("The schema JSON escapes an unpaired surrogate");
     }
 
+    /// <summary>
+    /// Text that ends in a backslash, an unfinished escape, is a JSON error. The surrogate check, which runs first,
+    /// threw ArgumentOutOfRangeException for it (found by the SchemaParse and ContainerFile fuzz targets).
+    /// </summary>
+    [Test]
+    [Arguments("\\")]
+    [Arguments("{\"type\":\"int\",\"x\":\"a\\")]
+    [Arguments("{\"type\":\"int\",\"x\":\"\\\\\\")]
+    [Arguments("{\"type\":\"int\",\"x\":\"\\u12")]
+    [Arguments("{\"type\":\"int\",\"x\":\"\\ud800\\")]
+    public async Task ABackslashAtTheEnd_IsASchemaError(string json)
+    {
+        await Assert.That(() => AvroSchema.Parse(json)).Throws<AvroSchemaException>();
+    }
+
     [Test]
     public async Task EscapedSurrogatePairs_AndEscapedBackslashes_AreRead()
     {

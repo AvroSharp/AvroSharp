@@ -16,8 +16,9 @@ internal static class Utf8Validation
     /// </summary>
     public static bool HasUnpairedSurrogateEscape(ReadOnlySpan<byte> json)
     {
+        // A backslash at the very end is skipped with the byte after it, which isn't there: i can pass the end.
         var i = 0;
-        while (true)
+        while (i < json.Length)
         {
             var next = json.Slice(i).IndexOf((byte)'\\');
             if (next < 0)
@@ -51,6 +52,8 @@ internal static class Utf8Validation
 
             i += 6;
         }
+
+        return false;
     }
 
     private static bool TryHex(ReadOnlySpan<byte> digits, out int value)

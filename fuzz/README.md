@@ -42,7 +42,7 @@ These steps were run on Linux (the `mcr.microsoft.com/dotnet/sdk:10.0` image) wi
    libfuzzer-dotnet --target_path=out/fuzz/AvroSharp.Fuzz --target_arg=GenericBinary -max_total_time=1800 corpus/GenericBinary
    ```
 
-A crash leaves its input in a `crash-*` file. To reproduce it, add the input to `FuzzSmokeTests` as a fixed case, fix the bug, and keep the case as a regression test.
+A crash leaves its input in a `crash-*` file. To reproduce it, add the input to `FuzzSmokeTests.CrashInputs_OnlyRaiseAvroExceptions` as a fixed case (the target and the input in hex), fix the bug, and keep the case as a regression test.
 
 ## Nightly runs
 

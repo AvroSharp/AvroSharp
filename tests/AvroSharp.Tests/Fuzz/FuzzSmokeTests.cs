@@ -22,16 +22,7 @@ public class FuzzSmokeTests
     [MethodDataSource(nameof(Targets))]
     public async Task MutatedInputs_OnlyRaiseAvroExceptions(string target)
     {
-        FuzzTarget run = target switch
-        {
-            nameof(FuzzTargets.GenericBinary) => FuzzTargets.GenericBinary,
-            nameof(FuzzTargets.GenericJson) => FuzzTargets.GenericJson,
-            nameof(FuzzTargets.ContainerFile) => FuzzTargets.ContainerFile,
-            nameof(FuzzTargets.SingleObject) => FuzzTargets.SingleObject,
-            nameof(FuzzTargets.Resolution) => FuzzTargets.Resolution,
-            nameof(FuzzTargets.RegistryMessage) => FuzzTargets.RegistryMessage,
-            _ => FuzzTargets.SchemaParse,
-        };
+        var run = Run(target);
 
         var seeds = FuzzTargets.Seeds().Where(s => string.Equals(s.Target, target, StringComparison.Ordinal)).Select(s => s.Input).ToList();
         var random = new Random(target.Length * 7919);
@@ -58,6 +49,30 @@ public class FuzzSmokeTests
 
         await Assert.That(runs).IsEqualTo(seeds.Count * MutationsPerSeed);
     }
+
+    /// <summary>Inputs that crashed a target under libFuzzer (the nightly <c>crashes-&lt;target&gt;</c> artifacts), kept as regression tests.</summary>
+    [Test]
+    [Arguments(nameof(FuzzTargets.SchemaParse), "7b2274797065223a22666c6f6174222c22223a5b7b2271715c745c746f6174222c22223a5b7b2271715c745c745c745c74223a7b34223a5b7b2271715c")]
+    [Arguments(nameof(FuzzTargets.ContainerFile), "4f626a0104166176726f2e736368656d6196017b2274797065223a76616c756573223a7b2274797065223a226172726179222c226974656d73223a5b32226e756c6c222c22646f75626c65222c22737472696e67225d7d7d0000005c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c00000000002600000000000000000000006c6c0000000000000000000005060000000000000000f00000000000000000f800000000000000000000000000330000000000000074650000000000000000000000000000000000")]
+    public async Task CrashInputs_OnlyRaiseAvroExceptions(string target, string hex)
+    {
+        var input = Convert.FromHexString(hex);
+
+        Run(target)(input);
+
+        await Assert.That(input).IsNotEmpty();
+    }
+
+    private static FuzzTarget Run(string target) => target switch
+    {
+        nameof(FuzzTargets.GenericBinary) => FuzzTargets.GenericBinary,
+        nameof(FuzzTargets.GenericJson) => FuzzTargets.GenericJson,
+        nameof(FuzzTargets.ContainerFile) => FuzzTargets.ContainerFile,
+        nameof(FuzzTargets.SingleObject) => FuzzTargets.SingleObject,
+        nameof(FuzzTargets.Resolution) => FuzzTargets.Resolution,
+        nameof(FuzzTargets.RegistryMessage) => FuzzTargets.RegistryMessage,
+        _ => FuzzTargets.SchemaParse,
+    };
 
     private static byte[] Mutate(byte[] seed, Random random)
     {

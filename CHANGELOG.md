@@ -49,6 +49,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **Schema JSON that ends in a backslash** (an unfinished escape) is a schema error. The check for escaped unpaired surrogates, which runs before the JSON parser, threw `ArgumentOutOfRangeException` for it, from `AvroSchema.Parse` and from a container file whose header held such a schema. Found by the nightly fuzzing (SchemaParse and ContainerFile).
 - **`AvroTypes.TryGet(Type)` and `AvroTypes.Get<T>()` find a generated type whose assembly no code has run from yet**, such as one loaded only for its metadata, by a type name or a message handler's signature. They run the assembly's module initializer, which registers its types, before they report the type unknown.
 
 ## [1.0.0-rc.1] - 2026-10-01
