@@ -1,0 +1,63 @@
+/* Menu entries stay on one line each: "Getting started" over two lines makes the navbar twice as tall. */
+#navbar .nav-link {
+  white-space: nowrap;
+}
+
+/* DocFX lets names break after a dot (a <wbr>); in the menu, "Apache.Avro" stays whole. */
+#navbar wbr {
+  display: none;
+}
+
+/* Up to 1200 pixels wide the menu doesn't fit on one row, so it folds behind the menu button, as the template does
+   below 768: these are its small-screen rules, for 768 to 1199. */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  /* The template's header is 60 pixels from 768 up: it grows while the menu is open. */
+  body > header {
+    height: auto;
+  }
+
+  #autocollapse .container-xxl {
+    flex-wrap: wrap !important;
+  }
+
+  #autocollapse .btn.d-md-none {
+    display: inline-block !important;
+    margin-left: auto;
+  }
+
+  #autocollapse .navbar-collapse {
+    flex-basis: 100%;
+  }
+
+  #autocollapse .navbar-collapse:not(.show):not(.collapsing) {
+    display: none !important;
+  }
+
+  #autocollapse .navbar-nav {
+    flex-direction: column;
+  }
+
+  #autocollapse .navbar-nav .dropdown-menu {
+    position: static;
+  }
+
+  .navbar #navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .navbar #navbar form {
+    margin: 1rem 0 0;
+  }
+
+  .navbar #navbar form.search {
+    align-self: stretch;
+    order: 30;
+  }
+
+  .navbar #navbar form.icons {
+    align-self: center;
+    order: 40;
+    margin: 1rem 0;
+  }
+}
