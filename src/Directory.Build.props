@@ -7,8 +7,8 @@
     <TargetFrameworks>$(LibraryTargetFrameworks)</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <EnablePackageValidation>true</EnablePackageValidation>
-    <!-- The breaks since 0.2.0 are listed in each project's CompatibilitySuppressions.xml; the baseline becomes 1.0.0 after 1.0. -->
-    <PackageValidationBaselineVersion>0.2.0</PackageValidationBaselineVersion>
+    <!-- Each package is compared with its 1.0.0 release on nuget.org: a break fails the pack, and waits for 2.0. -->
+    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>

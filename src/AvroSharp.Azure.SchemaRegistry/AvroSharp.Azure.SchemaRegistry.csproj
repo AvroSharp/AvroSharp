@@ -8,8 +8,6 @@
     <PackageId>AvroSharp.Azure.SchemaRegistry</PackageId>
     <Description>An Azure Schema Registry serializer on AvroSharp for Event Hubs and Service Bus messages (MessageContent): generated and [AvroSerializable] types and generic records, with the content type and bytes of Microsoft's Avro serializer. No Apache.Avro.</Description>
     <PackageTags>$(PackageTags);azure;schema-registry;event-hubs;service-bus</PackageTags>
-    <!-- A new package: there is no earlier version to validate against. -->
-    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>

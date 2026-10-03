@@ -9,8 +9,6 @@
     <PackageId>AvroSharp.Aws.Glue.Kafka</PackageId>
     <Description>Confluent.Kafka serializers and deserializers for AWS Glue Schema Registry on AvroSharp.Aws.Glue, in AWS's wire format, for Amazon MSK or any Kafka broker. Fully managed, no Apache.Avro.</Description>
     <PackageTags>$(PackageTags);aws;glue;schema-registry;kafka;msk</PackageTags>
-    <!-- A new package: there is no earlier version to validate against. -->
-    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>

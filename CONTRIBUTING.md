@@ -90,7 +90,7 @@ It doesn't cover:
 
 Every package's public API, the add-ons' (AvroSharp.Confluent, AvroSharp.KafkaFlow, AvroSharp.Azure.SchemaRegistry, AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka) included, follows [semantic versioning](https://semver.org/) from 1.0.0: a breaking change waits for the next major version. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
 
-Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its baseline release (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), and a break that isn't listed in the project's `CompatibilitySuppressions.xml` fails the pack. The add-on packages have no baseline until 1.0.0 is published (an empty `PackageValidationBaselineVersion`); then every package's baseline becomes 1.0.0.
+Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its 1.0.0 release on nuget.org (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), so a break fails the pack: it waits for 2.0.
 
 ## Workflow
 

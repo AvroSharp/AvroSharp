@@ -11,8 +11,6 @@
     <PackageId>AvroSharp.KafkaFlow</PackageId>
     <Description>KafkaFlow serializers and deserializers for Confluent Schema Registry on AvroSharp: generated and [AvroSerializable] types, several types per topic, the same bytes as KafkaFlow's Confluent Avro serializer. No Apache.Avro.</Description>
     <PackageTags>$(PackageTags);kafka;kafkaflow;confluent;schema-registry</PackageTags>
-    <!-- A new package: there is no earlier version to validate against. -->
-    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
     <!-- Not strong-named, unlike the other packages: KafkaFlow's assemblies aren't, and a strong-named assembly that
          references them gets warning CS8002. .NET 8 and later don't check strong names, so this changes nothing at
          run time. Referencing the strong-named AvroSharp packages from here is fine. -->

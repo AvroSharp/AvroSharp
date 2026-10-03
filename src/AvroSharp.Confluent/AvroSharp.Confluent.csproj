@@ -8,8 +8,6 @@
     <PackageId>AvroSharp.Confluent</PackageId>
     <Description>Confluent Schema Registry serializers and deserializers for Confluent.Kafka on AvroSharp: generated types, your own [AvroSerializable] types, generic records and primitives, with the registry's framing, subject name strategies, references and rules. No Apache.Avro.</Description>
     <PackageTags>$(PackageTags);kafka;confluent;schema-registry</PackageTags>
-    <!-- A new package: there is no earlier version to validate against. -->
-    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
