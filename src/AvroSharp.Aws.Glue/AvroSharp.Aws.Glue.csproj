@@ -8,8 +8,6 @@
     <PackageId>AvroSharp.Aws.Glue</PackageId>
     <Description>A managed AWS Glue Schema Registry serializer on AvroSharp, for every platform: generated and [AvroSerializable] types and generic records, and zlib compression, in AWS's wire format, for Kinesis, Kafka and any transport. No Apache.Avro, no native library. Confluent.Kafka serializers are in AvroSharp.Aws.Glue.Kafka.</Description>
     <PackageTags>$(PackageTags);aws;glue;schema-registry;kafka;msk;kinesis</PackageTags>
-    <!-- A new package: there is no earlier version to validate against. -->
-    <PackageValidationBaselineVersion></PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>
