@@ -7,9 +7,9 @@
 - **Schema evolution:** each message is read in its writer's schema and resolved to your type's.
 
 ```
-dotnet add package AvroSharp.Aws.Glue --prerelease
-dotnet add package AvroSharp.Aws.Glue.Kafka --prerelease   # for Confluent.Kafka
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.Aws.Glue
+dotnet add package AvroSharp.Aws.Glue.Kafka   # for Confluent.Kafka
+dotnet add package AvroSharp.Generators
 ```
 
 AvroSharp.Aws.Glue depends on AWSSDK.Glue 4. Its Confluent.Kafka serializers are in AvroSharp.Aws.Glue.Kafka, which depends on Confluent.Kafka 2, so Kinesis and other users don't take Confluent.Kafka. Both are released with AvroSharp, at the same version, and target .NET 8 and later, and .NET Standard 2.0.

@@ -13,8 +13,8 @@ An [Azure Schema Registry](https://learn.microsoft.com/azure/event-hubs/schema-r
 ## Install
 
 ```
-dotnet add package AvroSharp.Azure.SchemaRegistry --prerelease
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.Azure.SchemaRegistry
+dotnet add package AvroSharp.Generators
 ```
 
 AvroSharp.Azure.SchemaRegistry depends on Azure.Data.SchemaRegistry 1.2.0 or later (below 2.0), and targets .NET 8 and later, and .NET Standard 2.0.

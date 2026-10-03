@@ -7,8 +7,8 @@
 - **Schema evolution:** each message is read in its writer's schema and resolved to your type's.
 
 ```
-dotnet add package AvroSharp.Azure.SchemaRegistry --prerelease
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.Azure.SchemaRegistry
+dotnet add package AvroSharp.Generators
 ```
 
 AvroSharp.Azure.SchemaRegistry depends on Azure.Data.SchemaRegistry 1.2.0 or later (below 2.0), and is released with AvroSharp, at the same version. It targets .NET 8 and later, and .NET Standard 2.0.

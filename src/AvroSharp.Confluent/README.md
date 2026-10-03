@@ -28,8 +28,8 @@ Confluent Schema Registry serializers and deserializers for [Confluent.Kafka](ht
 ## Install
 
 ```
-dotnet add package AvroSharp.Confluent --prerelease
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.Confluent
+dotnet add package AvroSharp.Generators
 ```
 
 AvroSharp.Generators turns your `.avsc` files and `[AvroSerializable]` types into C# code while the project builds (see [code generation](https://avrosharp.github.io/AvroSharp/docs/code-generation.html)). AvroSharp.Confluent depends on Confluent.SchemaRegistry 2.14.0 or later (below 3.0). The tests run against 2.14.0 and the newest release.

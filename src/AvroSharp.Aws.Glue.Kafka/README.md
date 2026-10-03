@@ -9,8 +9,8 @@
 ## Install
 
 ```
-dotnet add package AvroSharp.Aws.Glue.Kafka --prerelease
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.Aws.Glue.Kafka
+dotnet add package AvroSharp.Generators
 ```
 
 AvroSharp.Aws.Glue.Kafka depends on AvroSharp.Aws.Glue and Confluent.Kafka 2, and targets .NET 8 and later, and .NET Standard 2.0.

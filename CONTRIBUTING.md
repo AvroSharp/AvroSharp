@@ -88,9 +88,9 @@ It doesn't cover:
 
 ## Public API
 
-The core packages' public API is frozen for 1.0, and from 1.0 follows [semantic versioning](https://semver.org/): a breaking change waits for the next major version. The add-on packages (AvroSharp.Confluent, AvroSharp.KafkaFlow, AvroSharp.Azure.SchemaRegistry, AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka) are new in 1.0.0: they have never been published, and their APIs may still change until 1.0.0 is released. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
+Every package's public API, the add-ons' (AvroSharp.Confluent, AvroSharp.KafkaFlow, AvroSharp.Azure.SchemaRegistry, AvroSharp.Aws.Glue and AvroSharp.Aws.Glue.Kafka) included, follows [semantic versioning](https://semver.org/) from 1.0.0: a breaking change waits for the next major version. The [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) shows it.
 
-Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its baseline release (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), and a break that isn't listed in the project's `CompatibilitySuppressions.xml` fails the pack. The add-on packages have no baseline yet (an empty `PackageValidationBaselineVersion`); they get one with 1.0.0.
+Public API is tracked with `Microsoft.CodeAnalysis.PublicApiAnalyzers`. Add new members to `PublicAPI.Unshipped.txt` (members that exist only on .NET 8 and later go in `src/AvroSharp/PublicAPI/net8.0/`); the build fails otherwise. Package validation also compares each package with its baseline release (`PackageValidationBaselineVersion` in `src/Directory.Build.props`), and a break that isn't listed in the project's `CompatibilitySuppressions.xml` fails the pack. The add-on packages have no baseline until 1.0.0 is published (an empty `PackageValidationBaselineVersion`); then every package's baseline becomes 1.0.0.
 
 ## Workflow
 

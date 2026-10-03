@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-02
+
+The first stable release. The core packages' public API is the one frozen in 1.0.0-rc.1, and from now on it follows semantic versioning: no breaking changes before 2.0. New since 1.0.0-rc.1:
+- five add-on packages, released with AvroSharp at the same version: AvroSharp.Confluent for Confluent.Kafka with Confluent Schema Registry, AvroSharp.KafkaFlow, AvroSharp.Azure.SchemaRegistry, and AvroSharp.Aws.Glue with AvroSharp.Aws.Glue.Kafka, all without Apache.Avro;
+- a logo, and the packages' icon;
+- the fixes below.
+
+The performance gate passes on an i7-12800H, an EPYC 7543 and a Ryzen 5 3500U with .NET 8, 9 and 10, apart from two near-ties: single-value varint writes on Zen+ CPUs, the one exception in docs/design.md §11 (#168), and one bzip2 container write, where both libraries compress with the same SharpZipLib.
+
 ### Added
 - **A logo:** the packages' icon on NuGet, and the logo in the READMEs and on the documentation site (#220).
 - **AvroSharp.Confluent**, a new package: Confluent Schema Registry serializers and deserializers for Confluent.Kafka, without Apache.Avro (#185). It is released with AvroSharp at the same version.
@@ -357,7 +366,8 @@ Packages: `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen` and `AvroSharp.Ge
 - Generated code needed C# 9 (`new()` initializers, `??=`, `is { }` and `is not` patterns), so it failed to compile in netstandard2.0 and .NET Framework projects, which default to C# 7.3. It now uses constructs every version accepts, and emits nullable annotations only for C# 8 and later.
 - Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.
 
-[Unreleased]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0-rc.1...HEAD
+[Unreleased]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0-rc.1...v1.0.0
 [1.0.0-rc.1]: https://github.com/AvroSharp/AvroSharp/compare/v0.2.0...v1.0.0-rc.1
 [0.2.0]: https://github.com/AvroSharp/AvroSharp/releases/tag/v0.2.0
 [0.1.1]: https://github.com/AvroSharp/AvroSharp/releases/tag/v0.1.1

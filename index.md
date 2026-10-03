@@ -4,7 +4,7 @@ A high-performance, Native AOT-friendly .NET implementation of the [Apache Avro�
 
 [Get started](README.md#getting-started) · [Code generation](docs/code-generation.md) · [Command-line tool](docs/cli.md) · [Kafka and Confluent](docs/confluent.md) · [Integrations](docs/integrations.md) · [API reference](docs/api/index.md) · [Benchmarks](docs/benchmarks.md) · [Compared with Apache.Avro](docs/apache-avro.md) · [GitHub](https://github.com/AvroSharp/AvroSharp)
 
-> **Status:** a release candidate for 1.0.0. The public API is frozen, and from 1.0 it follows [semantic versioning](https://semver.org/): no breaking changes before 2.0.
+> **Status:** stable. The public API follows [semantic versioning](https://semver.org/): no breaking changes before 2.0.
 
 ## Why AvroSharp
 

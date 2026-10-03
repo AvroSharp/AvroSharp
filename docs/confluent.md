@@ -20,8 +20,8 @@ On this page:
 The [Confluent sample](../samples/Confluent/Program.cs) produces and consumes through a real broker and registry. It reads the same messages three ways: as the type that wrote them, as generic values, and as a newer version of the type. Its [compose file](https://github.com/AvroSharp/AvroSharp/blob/main/samples/Confluent/compose.yaml) starts Redpanda: run `docker compose up -d --wait`, then `dotnet run`, in `samples/Confluent`.
 
 ```
-dotnet add package AvroSharp.Confluent --prerelease
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.Confluent
+dotnet add package AvroSharp.Generators
 ```
 
 AvroSharp.Confluent depends on Confluent.SchemaRegistry 2.14.0 or later (below 3.0), and is released with AvroSharp, at the same version.
