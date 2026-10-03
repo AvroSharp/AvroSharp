@@ -10,8 +10,8 @@ It's built on [AvroSharp.Confluent](confluent.md), whose settings, rules and beh
 The [KafkaFlowEvents sample](../samples/KafkaFlowEvents/Program.cs) runs two event types on one topic through a KafkaFlow producer and typed handlers. It uses the Redpanda that the Confluent sample's [compose file](https://github.com/AvroSharp/AvroSharp/blob/main/samples/Confluent/compose.yaml) starts: run `docker compose up -d --wait` in `samples/Confluent`, then `dotnet run` in `samples/KafkaFlowEvents`.
 
 ```
-dotnet add package AvroSharp.KafkaFlow --prerelease
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.KafkaFlow
+dotnet add package AvroSharp.Generators
 ```
 
 AvroSharp.KafkaFlow depends on KafkaFlow 4.0.0 or later (below 5.0), and is released with AvroSharp, at the same version. It targets .NET 8 and later; there's no .NET Framework or .NET Standard build, because KafkaFlow 4 needs a newer System.Threading.Tasks.Extensions than AvroSharp's .NET Standard build brings. KafkaFlow's assemblies aren't strong-named, so neither is this one.

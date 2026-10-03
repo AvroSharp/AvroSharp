@@ -2,7 +2,7 @@
 
 The C# code generation engine behind [AvroSharp](https://github.com/AvroSharp/AvroSharp)'s source generator, in the [`AvroSharp.CodeGen`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.html) namespace. It turns parsed Avro schemas into C# source: records, enums and fixed types with serializers that call [`AvroWriter`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroWriter.html)/[`AvroReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.IO.AvroReader.html) directly, with no reflection.
 
-> **Status:** a release candidate for 1.0.0. The public API is frozen, and from 1.0 it follows [semantic versioning](https://semver.org/): no breaking changes before 2.0. Most projects should reference `AvroSharp.Generators` instead, which runs this engine inside the compiler. Use this package to generate code from your own tools.
+> **Status:** stable. The public API follows [semantic versioning](https://semver.org/): no breaking changes before 2.0. Most projects should reference `AvroSharp.Generators` instead, which runs this engine inside the compiler. Use this package to generate code from your own tools.
 
 **[Documentation](https://avrosharp.github.io/AvroSharp/)** · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.html) · [Code generation guide](https://avrosharp.github.io/AvroSharp/docs/code-generation.html)
 

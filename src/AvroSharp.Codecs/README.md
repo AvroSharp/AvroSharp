@@ -2,7 +2,7 @@
 
 The snappy, zstandard, bzip2 and xz codecs for [AvroSharp](https://github.com/AvroSharp/AvroSharp)'s object container files, in the [`AvroSharp.Codecs`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.html) namespace. With the `null` and `deflate` codecs built into AvroSharp, that covers every codec in the Avro specification. All of them use fully managed libraries, with no native binaries or P/Invoke.
 
-> **Status:** a release candidate for 1.0.0. The public API is frozen, and from 1.0 it follows [semantic versioning](https://semver.org/): no breaking changes before 2.0.
+> **Status:** stable. The public API follows [semantic versioning](https://semver.org/): no breaking changes before 2.0.
 
 **[Documentation](https://avrosharp.github.io/AvroSharp/)** · [Container files and codecs](https://github.com/AvroSharp/AvroSharp#object-container-files) · [Benchmarks by codec](https://avrosharp.github.io/AvroSharp/docs/benchmarks.html)
 

@@ -42,7 +42,7 @@ Changes since that run, measured on the same machine and recorded in the [change
 
 The performance review ([#135](https://github.com/AvroSharp/AvroSharp/issues/135)), measured on an EPYC 7543, made decimal writes 2.9× faster (62 µs per 1,024 `decimal(18,4)` values on bytes, against 94 µs for Apache.Avro), made `uuid` strings faster than Apache.Avro both ways, and made schema parsing 9–13% faster and the resolving generic reader 9–10% faster. The [changelog](../CHANGELOG.md) has the details.
 
-For 1.0.0-rc.1 the gate passed on an EPYC 7543 with .NET 8, 9 and 10: 330 of 330 comparisons were faster than Apache.Avro and allocated no more.
+For 1.0.0-rc.1 the gate passed on an EPYC 7543 with .NET 8, 9 and 10: 330 of 330 comparisons were faster than Apache.Avro and allocated no more. For 1.0.0 it ran on an i7-12800H, the EPYC 7543 and a Ryzen 5 3500U: every comparison passed apart from single-value varint writes on the Ryzen, the Zen+ exception above (#168), and one bzip2 container write on the i7 (0.98×), where both libraries compress with the same SharpZipLib.
 
 ## What is measured
 

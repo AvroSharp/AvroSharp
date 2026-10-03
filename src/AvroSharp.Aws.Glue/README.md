@@ -14,8 +14,8 @@ A managed [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/
 ## Install
 
 ```
-dotnet add package AvroSharp.Aws.Glue --prerelease
-dotnet add package AvroSharp.Generators --prerelease
+dotnet add package AvroSharp.Aws.Glue
+dotnet add package AvroSharp.Generators
 ```
 
 For Kafka, add `AvroSharp.Aws.Glue.Kafka` too. AvroSharp.Aws.Glue depends on AWSSDK.Glue 4, and targets .NET 8 and later, and .NET Standard 2.0.

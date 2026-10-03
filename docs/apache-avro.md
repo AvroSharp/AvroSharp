@@ -28,7 +28,7 @@ On this page:
 | Hostile input | bounded memory and nesting for malformed or hostile data and schemas; fuzzed nightly | — |
 | Targets | .NET 8, 9 and 10, .NET Standard 2.0 and 2.1 (so .NET Framework) | .NET Standard 2.0 and 2.1 |
 | License | MIT | Apache 2.0 |
-| Maturity | a 1.0 release candidate: the public API is frozen for 1.0 | the long-standing reference implementation |
+| Maturity | 1.0: stable, following semantic versioning | the long-standing reference implementation |
 
 ## Speed and allocations
 
@@ -102,7 +102,6 @@ The limits are options ([`GenericDatumReaderOptions`](https://avrosharp.github.i
 
 ## When Apache.Avro is the better fit
 
-- **You need a final 1.x release today.** AvroSharp is at its 1.0 release candidate; the API is frozen, and 1.0.0 is the next release, before .NET 11.
 - **You serialize classes you can't change.** Apache.Avro's reflect API works with any class, at run time. AvroSharp's `[AvroSerializable]` needs a `partial` class it can add to, and doesn't support `init`-only members or primary constructors yet.
 - **You want the Apache Software Foundation's implementation**, maintained alongside the other Avro languages.
 
