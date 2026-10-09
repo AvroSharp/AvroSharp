@@ -4,8 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-09
+
+A faster snappy codec on .NET 8 and later. No API changes.
+
 ### Changed
-- `AvroSharp.Codecs`: on .NET 8 and later, the snappy codec uses [Snappiest](https://github.com/zcsizmadia/Snappiest) 0.9.0 instead of Snappier. It is faster than Snappier and reads and writes the same data. The .NET Standard builds keep Snappier.
+- `AvroSharp.Codecs`: on .NET 8 and later, the snappy codec uses [Snappiest](https://github.com/zcsizmadia/Snappiest) 0.9.0 instead of Snappier (#233). It is faster than Snappier and reads and writes the same data. The .NET Standard builds keep Snappier.
 
 ## [1.0.0] - 2026-10-02
 
@@ -369,7 +373,8 @@ Packages: `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen` and `AvroSharp.Ge
 - Generated code needed C# 9 (`new()` initializers, `??=`, `is { }` and `is not` patterns), so it failed to compile in netstandard2.0 and .NET Framework projects, which default to C# 7.3. It now uses constructs every version accepts, and emits nullable annotations only for C# 8 and later.
 - Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.
 
-[Unreleased]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0-rc.1...v1.0.0
 [1.0.0-rc.1]: https://github.com/AvroSharp/AvroSharp/compare/v0.2.0...v1.0.0-rc.1
 [0.2.0]: https://github.com/AvroSharp/AvroSharp/releases/tag/v0.2.0
