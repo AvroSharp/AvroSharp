@@ -4,6 +4,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+- `AvroSharp.Codecs`: on .NET 8 and later, the snappy codec uses [Snappiest](https://github.com/zcsizmadia/Snappiest) 0.9.0 instead of Snappier. It is faster than Snappier and reads and writes the same data. The .NET Standard builds keep Snappier.
+
 ## [1.0.0] - 2026-10-02
 
 The first stable release. The core packages' public API is the one frozen in 1.0.0-rc.1, and from now on it follows semantic versioning: no breaking changes before 2.0. New since 1.0.0-rc.1:

@@ -11,7 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Snappier" />
+    <PackageReference Include="Snappier" Condition="$(TargetFramework.StartsWith('netstandard'))" />
+    <PackageReference Include="Snappiest" Condition="!$(TargetFramework.StartsWith('netstandard'))" />
     <PackageReference Include="System.IO.Hashing" />
     <PackageReference Include="ZstdSharp.Port" />
     <PackageReference Include="SharpZipLib" />
