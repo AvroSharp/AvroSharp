@@ -21,7 +21,7 @@ using var reader = AvroFileReader.OpenGeneric(stream, options: new AvroFileReade
 
 | Codec | Class | Settings (defaults as in Apache Avro Java) | Library |
 |---|---|---|---|
-| `snappy` | [`SnappyCodec.Default`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.SnappyCodec.Default.html) | none; each block ends with a CRC-32 of its data, checked on read | [Snappier](https://github.com/brantburnett/Snappier) (BSD-3-Clause) |
+| `snappy` | [`SnappyCodec.Default`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.SnappyCodec.Default.html) | none; each block ends with a CRC-32 of its data, checked on read | [Snappiest](https://github.com/zcsizmadia/Snappiest) on .NET 8+, [Snappier](https://github.com/brantburnett/Snappier) on .NET Standard (both BSD-3-Clause) |
 | `zstandard` | [`ZstandardCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.ZstandardCodec.html) | `level` (default 3), `checksum` (default off) | [ZstdSharp.Port](https://github.com/oleg-st/ZstdSharp) (MIT) |
 | `bzip2` | [`Bzip2Codec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.Bzip2Codec.html) | `blockSize` 1-9 (default 9) | [SharpZipLib](https://github.com/icsharpcode/SharpZipLib) (MIT) |
 | `xz` | [`XzCodec`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Codecs.XzCodec.html) | `level` 0-9 (default 6) | [Lzma.Net](https://github.com/zcsizmadia/Lzma.Net) (0BSD) |

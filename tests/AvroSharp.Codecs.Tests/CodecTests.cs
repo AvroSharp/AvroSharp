@@ -250,14 +250,13 @@ public class CodecTests
     }
 
     [Test]
-    public async Task ASnappyLengthOf2To31OrMore_IsInvalidData()
+    public void ASnappyLengthOf2To31OrMore_IsInvalidData()
     {
-        // The preamble 2^32 - 1, then no data and a checksum.
+        // The preamble 2^32 - 1, then no data and a checksum. Snappier returns the length as -1 and the codec rejects
+        // it; Snappiest (net8+) rejects it itself.
         byte[] block = [0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0, 0, 0, 0];
 
-        var ex = Assert.Throws<InvalidDataException>(() => SnappyCodec.Default.Decompress(block, new System.Buffers.ArrayBufferWriter<byte>()));
-
-        await Assert.That(ex.Message).Contains("declares -1 uncompressed bytes");
+        Assert.Throws<InvalidDataException>(() => SnappyCodec.Default.Decompress(block, new System.Buffers.ArrayBufferWriter<byte>()));
     }
 
     [Test]

@@ -4,7 +4,11 @@ using System.Buffers.Binary;
 using System.IO;
 using System.IO.Hashing;
 using AvroSharp.Containers;
+#if NET8_0_OR_GREATER
+using Snappiest;
+#else
 using Snappier;
+#endif
 
 namespace AvroSharp.Codecs;
 
@@ -12,7 +16,8 @@ namespace AvroSharp.Codecs;
 /// The <c>snappy</c> codec: each block is Snappy-compressed and followed by the 4-byte big-endian CRC-32 of the
 /// uncompressed data, as the specification requires. The checksum is verified on read.
 /// </summary>
-/// <remarks>Uses the fully managed Snappier library. Instances are thread-safe.</remarks>
+/// <remarks>Uses the fully managed Snappiest library on .NET 8 and later, and Snappier on .NET Standard. Instances are
+/// thread-safe.</remarks>
 /// <seealso cref="AvroCodecs"/>
 /// <seealso cref="AvroFileWriterOptions.Codec"/>
 /// <seealso cref="AvroFileReaderOptions.Codecs"/>

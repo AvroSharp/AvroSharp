@@ -6,7 +6,7 @@
 >
 > - **Tests use TUnit**, not xUnit. The test projects cover net8.0/net9.0/net10.0 and, on Windows, most also net481 (the netstandard2.0 build on .NET Framework).
 > - **No reflection on serialization paths.** The source generator is the typed-serialization path. The expression-tree and reflection tiers in Sections 4.5 and 8 are not part of v1; if a runtime fallback is ever added it ships as a separate opt-in package.
-> - **Codecs use fully managed libraries only.** v1.0 ships every specification codec: deflate, snappy (Snappier, BSD-3-Clause), bzip2 (SharpZipLib, MIT), xz (Lzma.Net ≥ 5.8.4.3 (the first strong-named release), 0BSD; targets netstandard2.0/2.1 and net8.0-10.0) and zstandard (ZstdSharp.Port, MIT). Open point: the BCL `DeflateStream` uses the native zlib bundled with the runtime.
+> - **Codecs use fully managed libraries only.** v1.0 ships every specification codec: deflate, snappy (Snappiest on net8+, Snappier on netstandard; both BSD-3-Clause), bzip2 (SharpZipLib, MIT), xz (Lzma.Net ≥ 5.8.4.3 (the first strong-named release), 0BSD; targets netstandard2.0/2.1 and net8.0-10.0) and zstandard (ZstdSharp.Port, MIT). Open point: the BCL `DeflateStream` uses the native zlib bundled with the runtime.
 > - **Name AvroSharp, MIT license** (Section 13).
 > - **One codec package, `AvroSharp.Codecs`**, not one package per codec: a reader of files whose codec is not known in advance needs one reference (2026-09-27).
 
@@ -89,7 +89,7 @@ Legend: **[src]** = verified by reading the reference source/page during this st
 | `AvroSharp.Generators` | Roslyn incremental generator(s): (a) `.avsc/.avpr` AdditionalFiles → C# types; (b) `[AvroSerializable]` attribute → serializer/deserializer/schema. `netstandard2.0`, analyzer package. | Yes |
 | `AvroSharp.CodeGen` | Shared codegen engine (schema → C# model → text), used by CLI + generator. netstandard2.0 (must run inside Roslyn). | Yes |
 | `AvroSharp.Tool` | `dotnet tool` (`dnx AvroSharp.Tool gen ...`), System.CommandLine 2.0 GA. | Yes |
-| `AvroSharp.Codecs` | snappy (Snappier, with the CRC-32 trailer), zstandard (ZstdSharp.Port), bzip2 (SharpZipLib) and xz (Lzma.Net) in one package, so a reader of files of unknown codec needs one reference (decided 2026-09-27; was one package per codec) | Yes |
+| `AvroSharp.Codecs` | snappy (Snappiest on net8+, Snappier on netstandard, with the CRC-32 trailer), zstandard (ZstdSharp.Port), bzip2 (SharpZipLib) and xz (Lzma.Net) in one package, so a reader of files of unknown codec needs one reference (decided 2026-09-27; was one package per codec) | Yes |
 | `AvroSharp.Idl` | `.avdl` parser → protocol/schema model | v1.x |
 | `AvroSharp.Confluent` | Confluent.Kafka serializers on Confluent's serde base classes and `Confluent.SchemaRegistry`'s client. The wire format is in the core package (`AvroRegistryFraming`). | 1.0 (first published in 1.0.0) |
 | `AvroSharp.KafkaFlow`, `AvroSharp.Azure.SchemaRegistry`, `AvroSharp.Aws.Glue`, `AvroSharp.Aws.Glue.Kafka` | KafkaFlow middleware, Azure Schema Registry, and AWS Glue Schema Registry (with its Confluent.Kafka serializers), released with AvroSharp at the same version (see [integrations](integrations.md)) | 1.0 (first published in 1.0.0) |
