@@ -175,12 +175,16 @@ public static class FuzzTargets
         }
     }
 
-    /// <summary>An object container file: every object read (with a small block limit) must round-trip.</summary>
+    /// <summary>
+    /// An object container file: every object read must round-trip. The block limits are small: the default allows
+    /// 16,777,216 zero-size objects per block, which a few bytes can declare and which take longer to round-trip than
+    /// libFuzzer's timeout. 65,536 is the most objects per block that AvroFileWriter writes.
+    /// </summary>
     public static void ContainerFile(ReadOnlySpan<byte> data)
     {
         try
         {
-            using var reader = AvroFileReader.OpenGeneric(new MemoryStream(data.ToArray(), writable: false), options: new AvroFileReaderOptions { MaxBlockLength = 1 << 20 });
+            using var reader = AvroFileReader.OpenGeneric(new MemoryStream(data.ToArray(), writable: false), options: new AvroFileReaderOptions { MaxBlockLength = 1 << 20, MaxZeroSizeValuesPerBlock = 1 << 16 });
             foreach (var value in reader.ReadAll())
             {
                 CheckRoundTrips(reader.WriterSchema, value);
