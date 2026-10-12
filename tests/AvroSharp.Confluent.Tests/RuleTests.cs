@@ -129,14 +129,15 @@ public class RuleTests
         await Assert.That(read.Home.City).IsEqualTo("London");
     }
 
-    // A CEL transform can return a value that isn't a record of the schema, such as a map: it isn't written.
+    // A CEL transform can return a value that isn't a record of the schema, such as a string: it isn't written. (Not a map:
+    // from 2.16.0, Confluent rejects a map that leaves out a required field before AvroSharp sees it.)
     [Test]
     public async Task Transform_ReturningAnotherShape_IsAnError()
     {
         using var cel = new CelExecutor();
         using var registry = new InMemorySchemaRegistry();
         var topic = Topic();
-        var rules = new RuleSet([], [new Rule("t", RuleKind.Transform, RuleMode.Write, "CEL", null, null, "{'name': 'Bob'}", null, null, false)], []);
+        var rules = new RuleSet([], [new Rule("t", RuleKind.Transform, RuleMode.Write, "CEL", null, null, "'Bob'", null, null, false)], []);
         await Register(registry, topic, AvroTypes.Get<Member>().Schema.ToJson(), rules);
         var serializer = new AvroSharpSerializer<Member>(registry, LatestVersion(), Rules(cel));
 
