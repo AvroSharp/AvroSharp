@@ -59,6 +59,15 @@ internal sealed class InMemoryDekRegistry : IDekRegistryClient
 
     public Task<RegisteredKek> UpdateKekAsync(string name, UpdateKek kek) => throw new NotSupportedException();
 
+    // Confluent 2.16.0 added these overloads with a Schema Registry context. This registry holds one context, so the
+    // context is ignored. They are plain public methods, not explicit implementations, so the file also builds against
+    // 2.14.0 and 2.15.x, where the interface does not have them.
+    public Task<RegisteredKek> CreateKekAsync(Kek kek, string? context = null) => CreateKekAsync(kek);
+
+    public Task<RegisteredKek> GetKekAsync(string name, bool ignoreDeletedKeks, string? context = null) => GetKekAsync(name, ignoreDeletedKeks);
+
+    public Task<RegisteredKek> UpdateKekAsync(string name, UpdateKek kek, string? context = null) => UpdateKekAsync(name, kek);
+
     public Task<RegisteredDek> CreateDekAsync(string kekName, Dek dek)
     {
         lock (_deks)

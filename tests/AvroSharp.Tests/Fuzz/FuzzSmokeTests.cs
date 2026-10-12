@@ -59,6 +59,21 @@ public class FuzzSmokeTests
         await Assert.That(runs).IsEqualTo(seeds.Count * MutationsPerSeed);
     }
 
+    // libFuzzer's timeout from the Fuzz workflow (2026-10-12): a "null"-schema file whose 140 bytes declare 16,777,153
+    // objects in one zero-byte block, under the default MaxZeroSizeValuesPerBlock. Round-tripping them all took 12.5 s
+    // uninstrumented; the harness's own limit rejects the block.
+    [Test]
+    public async Task ContainerFile_ManyZeroSizeObjects_FinishesQuickly()
+    {
+        var input = Convert.FromHexString(
+            "4F626A0104166176726F2E736368656D6196017B2274797065223A226E756C6C222C22646C756573223A7B2274797065223A2261727261" +
+            "79222C226974656D73223A5B226E756C6C222C226C64626F7565222C22737472696E67225D7D7D00000000000000000000000000000000" +
+            "00000082FFFF0F0000000000000000000000000000000000000000000000");
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        FuzzTargets.ContainerFile(input);
+        await Assert.That(stopwatch.Elapsed).IsLessThan(TimeSpan.FromSeconds(2));
+    }
+
     private static byte[] Mutate(byte[] seed, Random random)
     {
         var data = new List<byte>(seed);
