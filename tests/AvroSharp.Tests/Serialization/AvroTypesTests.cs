@@ -46,6 +46,27 @@ public class AvroTypesTests
     }
 
     [Test]
+    public async Task ReadObjectFor_ResolvesOnce_AndReadsEveryValueBoxed()
+    {
+        AvroTypeInfo info = AvroTypes.Get<long>();
+        var buffer = new byte[16];
+        var writer = new AvroWriter(buffer);
+        AvroTypes.Get<int>().Write(ref writer, 300);
+        AvroTypes.Get<int>().Write(ref writer, -7);
+        var length = (int)writer.BytesWritten;
+
+        var read = info.ReadObjectFor(AvroSchema.Parse("\"int\""));
+        var reader = new AvroReader(buffer.AsSpan(0, length));
+
+        var first = read(ref reader);
+        var second = read(ref reader);
+
+        await Assert.That(first).IsEqualTo(300L);
+        await Assert.That(second).IsEqualTo(-7L);
+        Assert.Throws<AvroSchemaException>(() => info.ReadObjectFor(AvroSchema.Parse("\"string\"")));
+    }
+
+    [Test]
     public async Task ARegistration_IsFoundByTypeArgumentAndByType_AndTheFirstOneWins()
     {
         var calls = 0;

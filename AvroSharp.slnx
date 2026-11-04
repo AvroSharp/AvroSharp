@@ -61,5 +61,6 @@
   </Folder>
   <Folder Name="/bench/">
     <Project Path="bench/AvroSharp.Benchmarks/AvroSharp.Benchmarks.csproj" />
+    <Project Path="bench/AvroSharp.Confluent.Benchmarks/AvroSharp.Confluent.Benchmarks.csproj" />
   </Folder>
 </Solution>

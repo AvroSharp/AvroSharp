@@ -42,6 +42,15 @@ public abstract class AvroTypeInfo
     /// <param name="reader">The source.</param>
     /// <param name="writerSchema">The schema the data was written with.</param>
     public abstract object? ReadObject(ref AvroReader reader, AvroSchema writerSchema);
+
+    /// <summary>
+    /// Gets the function that reads values written with <paramref name="writerSchema"/>, boxed: resolved once, so code
+    /// that reads many values of one writer schema can keep it, rather than resolve the schemas on every value as
+    /// <see cref="ReadObject(ref AvroReader, AvroSchema)"/> does.
+    /// </summary>
+    /// <param name="writerSchema">The schema the data was written with.</param>
+    /// <exception cref="AvroSchemaException">The schemas cannot be resolved (for a primitive, or a type whose function resolves at once).</exception>
+    public abstract AvroReadFunc<object?> ReadObjectFor(AvroSchema writerSchema);
 }
 
 /// <summary>A type's Avro schema and its read and write functions.</summary>
@@ -112,6 +121,13 @@ public sealed class AvroTypeInfo<T> : AvroTypeInfo
 
     /// <inheritdoc/>
     public override object? ReadObject(ref AvroReader reader, AvroSchema writerSchema) => ReadFor(writerSchema)(ref reader);
+
+    /// <inheritdoc/>
+    public override AvroReadFunc<object?> ReadObjectFor(AvroSchema writerSchema)
+    {
+        var read = ReadFor(writerSchema);
+        return (ref reader) => read(ref reader);
+    }
 
     private AvroSchema Publish()
     {

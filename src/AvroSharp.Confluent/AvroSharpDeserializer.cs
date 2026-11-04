@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -37,6 +38,11 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     // The writer schema and reader of each schema ID, once known, when reading it depends on nothing else (no latest
     // schema, and no rules): the synchronous path reads with them.
     private readonly ConcurrentDictionary<(int? Id, Guid? Guid), (AvroSchema Writer, AvroReadFunc<T> Read)> _known = new();
+
+    // The writer schema of each subject and schema ID, and the pairs of writer schema ID and latest schema ID without
+    // migrations between them, for the messages that can't take the path above.
+    private readonly ConcurrentDictionary<(string? Subject, int? Id, Guid? Guid), (ConfluentSchema Json, AvroSchema Parsed)> _writers = new();
+    private readonly ConcurrentDictionary<(int? Id, Guid? Guid, int Latest), bool> _noMigrations = new();
 
     // The reader of each writer schema. Confluent's client caches a parsed schema per ID, so the instance is the key.
     private readonly ConditionalWeakTable<AvroSchema, AvroReadFunc<T>> _readers = new();
@@ -111,18 +117,51 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     /// <param name="data">The message body.</param>
     /// <param name="isNull">Whether the message has no body; the result is then the default of <typeparamref name="T"/>.</param>
     /// <param name="context">The topic, the component (key or value) and the headers.</param>
-    public override async Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Every exception goes into the returned task, as an async method's does.")]
+    public override Task<T> DeserializeAsync(ReadOnlyMemory<byte> data, bool isNull, SerializationContext context)
     {
-        if (isNull)
+        var start = Telemetry.Measuring ? Telemetry.Timestamp() : 0;
+        try
         {
-            return Tombstone(context);
-        }
+            if (isNull)
+            {
+                return Task.FromResult(Tombstone(context));
+            }
 
+            // Once the schema ID's reader is known, the message is read without the async state machine.
+            var id = new SchemaId(SchemaType.Avro);
+            var payload = schemaIdDecoder.Decode(data, context, ref id);
+            if (_known.TryGetValue((id.Id, id.Guid), out var known))
+            {
+                var value = Read(known.Read, known.Writer, payload);
+                if (start != 0)
+                {
+                    Telemetry.Record(SerdeName, context, start, null);
+                }
+
+                return Task.FromResult(value);
+            }
+
+            var task = DeserializeSlowAsync(payload, id, context);
+            return start == 0 ? task : Telemetry.ObserveAsync(task, SerdeName, context, start);
+        }
+        catch (Exception e)
+        {
+            if (start != 0)
+            {
+                Telemetry.Record(SerdeName, context, start, e);
+            }
+
+            return Task.FromException<T>(e);
+        }
+    }
+
+    // A message whose schema ID's reader isn't known yet, or whose reading depends on the latest schema or on rules.
+    private async Task<T> DeserializeSlowAsync(ReadOnlyMemory<byte> payload, SchemaId id, SerializationContext context)
+    {
         var isKey = context.Component == MessageComponentType.Key;
         var subject = await GetSubjectName(context.Topic, isKey, null).ConfigureAwait(false);
-        var id = new SchemaId(SchemaType.Avro);
-        var payload = schemaIdDecoder.Decode(data, context, ref id);
-        var (writerJson, writerSchema) = await GetWriterSchema(subject, id).ConfigureAwait(false);
+        var (writerJson, writerSchema) = await WriterSchemaAsync(subject, id).ConfigureAwait(false);
         subject ??= await GetSubjectName(context.Topic, isKey, (writerSchema as RecordSchema)?.FullName).ConfigureAwait(false);
         var latest = subject is null ? null : await GetReaderSchema(subject).ConfigureAwait(false);
 
@@ -132,9 +171,9 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
             payload = decoded is byte[] bytes ? bytes : (ReadOnlyMemory<byte>)decoded!;
         }
 
-        if (latest is not null && (await GetMigrations(subject!, writerJson, latest).ConfigureAwait(false)).Count > 0)
+        if (latest is not null)
         {
-            throw new NotSupportedException($"The subject '{subject}' has migration rules between the writer's schema and the latest, which AvroSharp.Confluent doesn't run yet.");
+            await CheckNoMigrationsAsync(subject!, writerJson, latest, id).ConfigureAwait(false);
         }
 
         var read = ReadAsLatest is not null && latest is not null
@@ -179,17 +218,79 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's consumer calls deserializers synchronously: it waits only until the schema ID's reader is known, or with settings or rules that can run asynchronously.")]
     public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
     {
-        if (isNull)
+        var start = Telemetry.Measuring ? Telemetry.Timestamp() : 0;
+        try
         {
-            return Tombstone(context);
+            if (isNull)
+            {
+                return Tombstone(context);
+            }
+
+            var message = data.ToArray();
+            var id = new SchemaId(SchemaType.Avro);
+            var payload = schemaIdDecoder.Decode(message, context, ref id);
+            var value = _known.TryGetValue((id.Id, id.Guid), out var known)
+                ? Read(known.Read, known.Writer, payload)
+                : DeserializeSlowAsync(payload, id, context).GetAwaiter().GetResult();
+            if (start != 0)
+            {
+                Telemetry.Record(SerdeName, context, start, null);
+            }
+
+            return value;
+        }
+        catch (Exception e) when (start != 0 && Recorded(e, context, start))
+        {
+            throw;
+        }
+    }
+
+    private const string SerdeName = "deserializer";
+
+    // Records a failure in an exception filter, which then lets the exception go on unchanged.
+    private static bool Recorded(Exception e, SerializationContext context, long start)
+    {
+        Telemetry.Record(SerdeName, context, start, e);
+        return false;
+    }
+
+    // Migration rules between the writer's schema and the latest aren't run yet, so their reads fail. Looked up once per
+    // writer schema and latest schema: Confluent's lookup fetches the writer's version, and every version in between.
+    private async Task CheckNoMigrationsAsync(string subject, ConfluentSchema writerJson, RegisteredSchema latest, SchemaId id)
+    {
+        if (_noMigrations.ContainsKey((id.Id, id.Guid, latest.Id)))
+        {
+            return;
         }
 
-        var message = data.ToArray();
-        var id = new SchemaId(SchemaType.Avro);
-        var payload = schemaIdDecoder.Decode(message, context, ref id);
-        return _known.TryGetValue((id.Id, id.Guid), out var known)
-            ? Read(known.Read, known.Writer, payload)
-            : DeserializeAsync(message, isNull: false, context).GetAwaiter().GetResult();
+        IList<Migration> migrations;
+        using (Telemetry.RegistryCall("migrations", subject))
+        {
+            migrations = await GetMigrations(subject, writerJson, latest).ConfigureAwait(false);
+        }
+
+        if (migrations.Count > 0)
+        {
+            throw new NotSupportedException($"The subject '{subject}' has migration rules between the writer's schema and the latest, which AvroSharp.Confluent doesn't run yet.");
+        }
+
+        _noMigrations.TryAdd((id.Id, id.Guid, latest.Id), true);
+    }
+
+    // The writer's schema, as registered and parsed, by its ID: fetched once, rather than looked up through Confluent's
+    // caches on every message, which hash the whole schema text.
+    private async Task<(ConfluentSchema Json, AvroSchema Parsed)> WriterSchemaAsync(string? subject, SchemaId id)
+    {
+        var key = (subject, id.Id, id.Guid);
+        if (_writers.TryGetValue(key, out var known))
+        {
+            return known;
+        }
+
+        using var activity = Telemetry.RegistryCall("get_schema", subject);
+        var writer = await GetWriterSchema(subject, id).ConfigureAwait(false);
+        _writers.TryAdd(key, writer);
+        return writer;
     }
 
     /// <inheritdoc/>
@@ -233,7 +334,18 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
         if (RegistrySchemas.IsRawBytes(writerSchema))
         {
             // A value of the schema "bytes" is the message body alone, without Avro's length prefix, as Confluent's
-            // serdes (.NET and Java) write it.
+            // serdes (.NET and Java) write it. The two types that read it as written take the body directly; any other
+            // reads it through Avro's encoding, with the prefix added.
+            if (typeof(T) == typeof(byte[]))
+            {
+                return (T)(object)payload.ToArray();
+            }
+
+            if (typeof(T) == typeof(AvroValue))
+            {
+                return (T)(object)AvroValue.FromBytes(payload.ToArray());
+            }
+
             var encoded = new ArrayBufferWriter<byte>(payload.Length + 10);
             var writer = new AvroWriter(encoded);
             writer.WriteBytes(payload.Span);

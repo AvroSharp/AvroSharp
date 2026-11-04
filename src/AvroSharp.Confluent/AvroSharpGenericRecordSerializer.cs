@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
@@ -40,8 +41,18 @@ public sealed class AvroSharpGenericRecordSerializer : IAsyncSerializer<AvroValu
     /// <param name="context">The topic, the component (key or value) and the headers.</param>
     /// <returns>The message body, or <see langword="null"/> for a tombstone.</returns>
     /// <exception cref="ArgumentException"><paramref name="data"/> is not a record.</exception>
-    public Task<byte[]?> SerializeAsync(AvroValue data, SerializationContext context) =>
-        data.IsNull ? Task.FromResult(Tombstone(context)) : For(data).SerializeAsync(data, context);
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Every exception goes into the returned task, as an async method's does.")]
+    public Task<byte[]?> SerializeAsync(AvroValue data, SerializationContext context)
+    {
+        try
+        {
+            return data.IsNull ? Task.FromResult(Tombstone(context)) : For(data).SerializeAsync(data, context);
+        }
+        catch (Exception e)
+        {
+            return Task.FromException<byte[]?>(e);
+        }
+    }
 
     /// <summary>Writes a record with its schema, without a task once its schema ID is known. A null value is a tombstone: no message body.</summary>
     /// <param name="data">The record.</param>

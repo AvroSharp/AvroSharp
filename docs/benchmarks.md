@@ -8,6 +8,7 @@ On this page:
 - [Running the benchmarks](#running-the-benchmarks)
 - [The performance gate](#the-performance-gate)
 - [Rules for fast paths](#rules-for-fast-paths)
+- [Confluent Schema Registry serializers](#confluent-schema-registry-serializers)
 - [Recorded runs](#recorded-runs)
 
 ## Results
@@ -100,6 +101,34 @@ Two categories mark the exceptions. `Ungated` is for AvroSharp features that Apa
 ## Rules for fast paths
 
 A SIMD or bulk path stays only if it beats Apache.Avro on every tested CPU, and AvroSharp's plain scalar loop on current CPUs, on uniform and on mixed data ([#29](https://github.com/AvroSharp/AvroSharp/issues/29), revised in [#135](https://github.com/AvroSharp/AvroSharp/issues/135)). The one exception is Zen+ CPUs, such as the Ryzen 5 3500U: there, single-value writes may tie with Apache.Avro or lose to it in some processes ([#168](https://github.com/AvroSharp/AvroSharp/issues/168), still open); bulk writes and every other path must still be faster. A result within 3% of the scalar loop counts as noise; anything slower by more than 3% removes the path. A CPU more than 10 years old may be slower than the loop, but a change never makes a current CPU slower. The paths are measured on x64; there is no Arm64 machine to benchmark on, and CI tests the same paths on Arm64. No path is picked by CPU vendor at startup. The [design notes](design.md) record the decisions and the machines they were measured on: an i7-12800H, an EPYC 7543, an i5-3570K and a Ryzen 5 3500U.
+
+## Confluent Schema Registry serializers
+
+`bench/AvroSharp.Confluent.Benchmarks` measures AvroSharp.Confluent against Confluent's Avro serializer (on Apache.Avro) and Chr.Avro.Confluent 10.13.1, writing and reading one order (a record with a decimal, a timestamp, an enum, an array, a map and a nullable string). It runs on an in-memory registry, so the numbers are the serializers' own costs, not a network's. Every library runs on Confluent 2.14.0, the newest that Chr.Avro.Confluent, whose repository is archived, accepts. Its own gate isn't part of [the performance gate](#the-performance-gate).
+
+```
+dotnet run -c Release -f net10.0 --project bench/AvroSharp.Confluent.Benchmarks -- --filter *SerdeBenchmarks*
+```
+
+An i7-12800H, Windows 11, .NET 10, 2026-11-04 (BenchmarkDotNet's short job). Times are per message; *before* is the 1.0.1 code, *after* is the code of #197.
+
+| One message at a time | Confluent | Chr.Avro | AvroSharp before | AvroSharp after |
+|---|---|---|---|---|
+| Serialize, async | 1,902 ns, 3,768 B | 410 ns, 832 B | 321 ns, 1,552 B | **130 ns, 224 B** |
+| Serialize, sync (Confluent.Kafka's `ISerializer`) | | | 184 ns, 1,232 B | **118 ns, 152 B** |
+| Deserialize, async | 4,244 ns, 4,504 B | 282 ns, 976 B | 906 ns, 1,288 B | **279 ns, 760 B** |
+| Deserialize, sync | | | 260 ns, 808 B | 273 ns, 808 B |
+| Serialize with `use.latest.version` | 2,387 ns, 4,200 B | 419 ns, 832 B | 318 ns, 1,592 B | **244 ns, 512 B** |
+| Deserialize with `use.latest.version` | 4,796 ns, 4,920 B | 286 ns, 976 B | 971 ns, 1,632 B | **467 ns, 1,128 B** |
+
+| Eight threads sharing one serializer | Confluent | AvroSharp before | AvroSharp after |
+|---|---|---|---|
+| Serialize, async | 1,944 ns | 261 ns | **57 ns** |
+| Deserialize, async | 3,083 ns | 423 ns | **117 ns** |
+
+- **Chr.Avro** always writes with the subject's latest schema, so its rows are the same with `use.latest.version` and without.
+- **A message** allocates its bytes after the first one of a topic. The 152 B of the synchronous write is the message itself, and the asynchronous one adds its task. A read allocates the value, here an order with two items and a map; the synchronous read also copies the message, which Confluent's schema ID decoders take as memory.
+- **With `use.latest.version`,** both serializers ask Confluent's client for the subject's latest schema on every message, as Confluent's serde does, so the latest version is picked up when it changes.
 
 ## Recorded runs
 
