@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.Schemas;
-using Confluent.SchemaRegistry;
 using ConfluentSchema = Confluent.SchemaRegistry.Schema;
 
 namespace AvroSharp.Confluent;
@@ -59,15 +58,4 @@ internal static class RegistrySchemas
 
         return parser.Parse(schema.SchemaString);
     }
-}
-
-/// <summary>Data contract rules: what this version supports.</summary>
-internal static class RuleSupport
-{
-    /// <summary>
-    /// The field transformer for rules that change fields, such as field-level encryption (CSFLE): not supported
-    /// yet, so such a rule fails rather than leaving the field unchanged.
-    /// </summary>
-    public static Task<object> NoFieldTransformsAsync(RuleContext context, IFieldTransform transform, object message) =>
-        throw new NotSupportedException($"The rule '{context.Rule.Name}' changes fields (such as field-level encryption), which AvroSharp.Confluent doesn't support yet.");
 }

@@ -44,6 +44,9 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     private readonly ConcurrentDictionary<(string? Subject, int? Id, Guid? Guid), (ConfluentSchema Json, AvroSchema Parsed)> _writers = new();
     private readonly ConcurrentDictionary<(int? Id, Guid? Guid, int Latest), IList<Migration>> _migrations = new();
 
+    // For field rules: the type's schema resolved to each rules' schema.
+    private readonly ConditionalWeakTable<AvroSchema, GenericDatumReader> _resolvers = new();
+
     // The reader of each writer schema. Confluent's client caches a parsed schema per ID, so the instance is the key.
     private readonly ConditionalWeakTable<AvroSchema, AvroReadFunc<T>> _readers = new();
     private readonly ConditionalWeakTable<AvroSchema, AvroReadFunc<T>>.CreateValueCallback _createReader;
@@ -192,7 +195,7 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
                 // decoded that way, in the rules' schema. A rule that returns another value (a transform) is read back.
                 var targetSchema = latest is null ? writerSchema : await GetParsedSchema(latest).ConfigureAwait(false);
                 var generic = ApacheAvroGeneric.Decode(writerSchema, targetSchema, payload);
-                var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, generic, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false);
+                var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, generic, FieldTransforms.ForApache(targetSchema)).ConfigureAwait(false);
                 if (!ReferenceEquals(result, generic) || ApacheAvroGeneric.HasTransforms(target.RuleSet))
                 {
                     value = Read(_readers.GetValue(targetSchema, _createReader), targetSchema, ApacheAvroGeneric.Encode(targetSchema, result));
@@ -200,7 +203,8 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
             }
             else
             {
-                value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!;
+                var targetSchema = latest is null ? writerSchema : await GetParsedSchema(latest).ConfigureAwait(false);
+                value = (T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Read, null, target, value, FieldsOf(targetSchema)).ConfigureAwait(false))!;
             }
         }
         else if (latest is null && !useLatestVersion && useLatestWithMetadata is null && writerJson.RuleSet?.EncodingRules is not { Count: > 0 })
@@ -326,6 +330,38 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
         get => subjectNameStrategy;
         init => subjectNameStrategy = value ?? throw new ArgumentNullException(nameof(value));
     }
+
+    // Field rules on the value itself: it is walked as a value of the rules' schema (the latest, or the writer's), and
+    // read back from it. A generic value read without a reader schema is already one.
+    private FieldTransformer FieldsOf(AvroSchema schema) =>
+        _fieldTransformers.GetValue(schema, _ => FieldTransforms.For(
+            schema,
+            message =>
+            {
+                if (message is AvroValue generic && ReadAsLatest is not null)
+                {
+                    return generic;
+                }
+
+                var encoded = new ArrayBufferWriter<byte>();
+                var writer = new AvroWriter(encoded);
+                _type.Write(ref writer, (T)message);
+                writer.Flush();
+                var reader = new AvroReader(encoded.WrittenSpan);
+                return _resolvers.GetValue(schema, target => GenericDatumReader.Create(_type.Schema, target)).Read(ref reader);
+            },
+            value =>
+            {
+                if (typeof(T) == typeof(AvroValue) && ReadAsLatest is not null)
+                {
+                    return value;
+                }
+
+                var reader = new AvroReader(FieldTransforms.Encode(schema, value));
+                return _readers.GetValue(schema, _createReader)(ref reader)!;
+            }));
+
+    private readonly ConditionalWeakTable<AvroSchema, FieldTransformer> _fieldTransformers = new();
 
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);

@@ -145,7 +145,6 @@ Confluent.SchemaRegistry.Serdes.Avro uses Apache.Avro and its `avrogen` classes.
    - a top-level `bytes` value is still the message body itself, as Confluent's serializers (.NET and Java) write it. Bytes with a logical type, such as a decimal, keep Avro's length prefix, as Java's serializer writes a `BigDecimal`.
 4. **What differs:**
    - **Writing with another schema:** with `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, values are written in that schema, as Java writes them, where Confluent's specific serializer writes the type's own bytes under its ID ([behavior to know](#behavior-to-know)).
-   - **Rules:** field rules (field-level encryption, `CEL_FIELD`) aren't supported yet, and fail rather than being skipped ([#186](https://github.com/AvroSharp/AvroSharp/issues/186)).
    - **Generic records:** `AvroSharpGeneric.CreateSerializer(registry)` writes each record with its own schema, as Confluent's generic serializer does; it writes records only. With a schema, it writes values of that schema, primitives included.
    - **Synchronous too:** both serializers also implement Confluent.Kafka's synchronous interfaces, which Confluent's don't. So passing one straight to `SetValueSerializer` needs a cast; the `SetAvroSharp…` extensions don't.
 
@@ -211,7 +210,7 @@ Rules run in Confluent's executors (Confluent.SchemaRegistry.Rules and Confluent
 |---|---|---|
 | CEL conditions and transforms (`CEL`) | Run, by the Avro field names | Run, by the Avro field names |
 | Payload encryption (`ENCRYPT_PAYLOAD`) | Runs | Runs |
-| Field rules: field-level encryption (`ENCRYPT`, CSFLE) and `CEL_FIELD` | Not supported yet: they fail with `NotSupportedException` instead of leaving the fields unchanged. | Not supported yet |
+| Field rules: field-level encryption (`ENCRYPT`, CSFLE) and `CEL_FIELD` | Run, on the tagged fields | Run, on the tagged fields |
 | Migration rules (`UPGRADE`, `DOWNGRADE`, such as `JSONATA`) | Run, on Avro JSON, then read as the type | Run, on Avro JSON |
 
 **CEL names the Avro fields,** as rules written for Java's and Confluent's serializers do: `message.customer_name`, not the C# property `message.CustomerName`. Confluent's CEL executor reads a value by its Avro field names only as one of Apache.Avro's records. So when a subject's domain rules include CEL rules, the rules get the value decoded from its encoding as Apache.Avro's generic model: a `GenericRecord`, with `GenericEnum`, lists and dictionaries inside, as Confluent's generic serializer gives them.
@@ -219,6 +218,12 @@ Rules run in Confluent's executors (Confluent.SchemaRegistry.Rules and Confluent
 - **A condition that passes** writes the value's own encoding, so the bytes are the same as without the rule.
 - **A transform** returns the value to write (or, on reads, to read): a record of the subject's schema in Apache.Avro's generic model. A rule that returns anything else, such as a CEL map literal, fails with `InvalidOperationException`.
 - **Other domain rules,** with no CEL rule among them, get your value itself.
+**Field rules** run as in Confluent's serde, on the fields whose tags the rule names (every field, for a rule without tags): a field's tags are its `confluent:tags` property and the schema metadata's tags for its path.
+- **Fields are found by walking the value in the rules' schema,** the latest one (or the writer's, on reads): records, arrays, maps and union branches, as Confluent's `AvroUtils` walks them. Messages written with field-level encryption by Confluent's .NET serde read here, and it reads what AvroSharp writes (tested with the same registry and keys).
+- **The transform gets the field's .NET value:** a `string`, a `byte[]` for bytes and fixed, a number, a `bool`, an enum's symbol, or `null`. Field-level encryption takes strings and bytes, as in Confluent's serde.
+- **`CEL_FIELD`** expressions can use `value`, `name`, `fullName`, `typeName` and `tags`. Its `message` variable, the record that holds the field, isn't readable by CEL here.
+- **Without field rules,** nothing is walked.
+
 **Migration rules** run as in Confluent's and Java's deserializers, with `use.latest.version` or `use.latest.with.metadata`, between the writer's version and that one: `UPGRADE` rules to a newer version, `DOWNGRADE` rules to an older one.
 - **The rules see the value as Avro JSON,** in the shape of Apache.Avro's `JsonEncoder`: unions wrapped by their branch's full name (`{"string": "x"}`), bytes and fixed as ISO-8859-1 strings, enums as their symbols, and logical types as their underlying values. Expressions written for Confluent's or Java's serializers work unchanged.
 - **What they return** is read as the target version's schema, so it must be a value of that schema; a generated type then reads it as its own schema.
