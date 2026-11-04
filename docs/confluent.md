@@ -93,6 +93,8 @@ A section's own entry has no value, and is left out.
 | `BufferBytes` | `avro.serializer.buffer.bytes` | 1024 |
 | `RemoveJavaProperties` | `avro.serializer.remove.java.properties` | `false`; Java's `avro.remove.java.properties` |
 | `TombstoneBehavior` | `avro.serializer.tombstone.behavior` | `None`, Confluent's behavior; AvroSharp's own key |
+| `LatestCompatibilityStrict` | `avro.serializer.latest.compatibility.strict` | `true`; Java's `latest.compatibility.strict` |
+| `IdCompatibilityStrict` | `avro.serializer.id.compatibility.strict` | `true`; Java's `id.compatibility.strict` |
 
 | Deserializer | Key | Default |
 |---|---|---|
@@ -123,6 +125,7 @@ Confluent.SchemaRegistry.Serdes.Avro uses Apache.Avro and its `avrogen` classes.
    - the same message bytes, schema ID included. The schema's JSON may be formatted differently, but registries treat equivalent schemas as one;
    - a top-level `bytes` value is still the message body itself, as Confluent's serializers (.NET and Java) write it. Bytes with a logical type, such as a decimal, keep Avro's length prefix, as Java's serializer writes a `BigDecimal`.
 4. **What differs:**
+   - **Writing with another schema:** with `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, values are written in that schema, as Java writes them, where Confluent's specific serializer writes the type's own bytes under its ID ([behavior to know](#behavior-to-know)).
    - **Rules:** field rules (field-level encryption, `CEL_FIELD`) and migration rules aren't supported yet, and fail rather than being skipped ([#186](https://github.com/AvroSharp/AvroSharp/issues/186), [#187](https://github.com/AvroSharp/AvroSharp/issues/187)).
    - **Generic records:** `AvroSharpGeneric.CreateSerializer(registry)` writes each record with its own schema, as Confluent's generic serializer does; it writes records only. With a schema, it writes values of that schema, primitives included.
    - **Synchronous too:** both serializers also implement Confluent.Kafka's synchronous interfaces, which Confluent's don't. So passing one straight to `SetValueSerializer` needs a cast; the `SetAvroSharp…` extensions don't.
@@ -146,7 +149,12 @@ Chr.Avro.Confluent maps your classes to schemas by reflection when the serialize
 - **Tombstones.** A `null` value, or a null `AvroValue`, is written as a message with no body, which Kafka calls a tombstone. Reading one gives `null`, or a null `AvroValue`. A value type such as `int` can't be null, so reading a tombstone into one throws, as in Confluent's deserializer.
   - **Confluent.Kafka's `Null`** has the schema `"null"`, as in Confluent's serializer: `AvroSharpSerializer<Null>` writes a message with the schema ID and an empty body, not a tombstone.
   - **`TombstoneBehavior.Strict`**, as in Chr.Avro, makes sure a tombstone can't be mistaken for a value. The serializer or deserializer is refused when it's created if the type can't be null (a value type, rather than `int?`), or if the schema can hold null (`"null"`, or a union with `"null"`). The deserializer checks each writer's schema as it meets it. A key with no value throws, since keys have no tombstones.
-- **`use.latest.version`, `use.latest.with.metadata` and `use.schema.id`.** The message carries that schema's ID, but its bytes are written in your type's schema. So the serializer checks once that the two schemas encode alike (the same Parsing Canonical Form, and the same logical types), and throws when they don't. Otherwise readers would decode the message wrongly.
+- **`use.latest.version`, `use.latest.with.metadata` and `use.schema.id`.** The message carries that schema's ID, so it is written in that schema, as Java's serializer and Confluent's generic serializer write it. Confluent's specific serializer doesn't: it writes your type's bytes under the other ID. This is decided once per schema ID:
+  - When the two schemas encode alike (the same Parsing Canonical Form and logical types), your type's bytes are written as they are.
+  - Otherwise the value is resolved into that schema, as a reader of your type's data would read it, and written in it. Fields the schema lacks are dropped, and fields it adds get their defaults. This costs a second encoding per message.
+  - With `LatestCompatibilityStrict` (or `IdCompatibilityStrict`, for `use.schema.id`), the default, that schema must be able to read your type's, by [the compatibility check](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Schemas.AvroSchemaCompatibility.html); the error names every reason it can't. Off, values are written whenever the schemas resolve, and a value the schema can't hold, such as a union branch it lacks, fails when it is written.
+  - Other logical types, or another decimal precision or scale, are always refused: the encoded numbers would mean other values.
+  - A top-level `bytes` value is the message body alone, so it is written only with a schema that encodes alike.
 - **Configuration keys.** A key the serializer doesn't know is an error, as in Confluent's serializers, so a misspelled key isn't ignored. Keys under `rules.` and `subject.name.strategy.` are passed through to Confluent's code.
 - **The `None` subject name strategy isn't supported,** with or without `use.schema.id`: Confluent's client needs a subject to look a schema ID up in, and Confluent's serializer fails the same way. The serializer says so.
 - **The `Record` and `TopicRecord` strategies** name the subject after a record schema, as Confluent's .NET and Java serializers do. Any other schema, such as a primitive, has no record name, and serializing it fails with an error that says so.

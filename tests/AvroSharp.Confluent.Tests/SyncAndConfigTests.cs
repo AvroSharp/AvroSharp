@@ -137,12 +137,13 @@ public class SyncAndConfigTests
         await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(AvroTypes.Get<Order>().Schema.ToJson(), SchemaType.Avro));
         var serializer = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { UseLatestVersion = true, AutoRegisterSchemas = false });
 
-        var bytes = serializer.Serialize(NewOrder(), Value(topic));
-        await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(OrderV1, SchemaType.Avro));
+        var bytes = serializer.Serialize(NewOrder(), Value(topic))!;
+        var v1 = await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(OrderV1, SchemaType.Avro));
 
-        await Assert.That(bytes).IsNotEmpty();
-        // The latest version now has another schema, which the serializer sees on the next message.
-        await Assert.That(() => serializer.Serialize(NewOrder(), Value(topic))).Throws<InvalidOperationException>();
+        // The latest version now has another schema, which the serializer sees on the next message, and writes in.
+        var next = serializer.Serialize(NewOrder(), Value(topic))!;
+        await Assert.That((next[1] << 24) | (next[2] << 16) | (next[3] << 8) | next[4]).IsEqualTo(v1);
+        await Assert.That(next.Length).IsLessThan(bytes.Length);
     }
 
     [Test]

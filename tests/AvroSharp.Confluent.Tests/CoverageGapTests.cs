@@ -29,15 +29,15 @@ public class CoverageGapTests
         var tagged = await registry.RegisterSchemaAsync(topic + "-value", WithMetadata(AvroTypes.Get<Order>().Schema.ToJson(), "app", "billing"));
         await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(OrderV1, SchemaType.Avro));
         var otherTopic = Topic();
-        await registry.RegisterSchemaAsync(otherTopic + "-value", WithMetadata(OrderV1, "app", "other"));
+        var otherVersion = await registry.RegisterSchemaAsync(otherTopic + "-value", WithMetadata(OrderV1, "app", "other"));
 
         var billing = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { UseLatestWithMetadata = Metadata("app", "billing"), AutoRegisterSchemas = false });
         var bytes = await billing.SerializeAsync(NewOrder(), Value(topic));
 
         await Assert.That(SchemaIdOf(bytes!)).IsEqualTo(tagged);
         var other = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { UseLatestWithMetadata = Metadata("app", "other"), AutoRegisterSchemas = false });
-        // The version with that metadata has another schema, which the type's values don't encode as.
-        await Assert.That(async () => await other.SerializeAsync(NewOrder(), Value(otherTopic))).Throws<InvalidOperationException>();
+        // The version with that metadata has an older schema, which the value is written in (#188).
+        await Assert.That(SchemaIdOf((await other.SerializeAsync(NewOrder(), Value(otherTopic)))!)).IsEqualTo(otherVersion);
         await Assert.That(async () => await other.SerializeAsync(NewOrder(), Value(Topic()))).Throws<SchemaRegistryException>().Because("no version has that metadata");
     }
 
