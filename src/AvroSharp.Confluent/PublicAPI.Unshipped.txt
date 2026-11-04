@@ -1,1 +1,16 @@
 #nullable enable
+AvroSharp.Confluent.AvroSharpDeserializerConfig.FailOnTrailingData.get -> bool?
+AvroSharp.Confluent.AvroSharpDeserializerConfig.FailOnTrailingData.set -> void
+AvroSharp.Confluent.AvroSharpDeserializerConfig.TombstoneBehavior.get -> AvroSharp.Confluent.TombstoneBehavior?
+AvroSharp.Confluent.AvroSharpDeserializerConfig.TombstoneBehavior.set -> void
+AvroSharp.Confluent.AvroSharpSerializerConfig.RemoveJavaProperties.get -> bool?
+AvroSharp.Confluent.AvroSharpSerializerConfig.RemoveJavaProperties.set -> void
+AvroSharp.Confluent.AvroSharpSerializerConfig.TombstoneBehavior.get -> AvroSharp.Confluent.TombstoneBehavior?
+AvroSharp.Confluent.AvroSharpSerializerConfig.TombstoneBehavior.set -> void
+AvroSharp.Confluent.TombstoneBehavior
+AvroSharp.Confluent.TombstoneBehavior.None = 0 -> AvroSharp.Confluent.TombstoneBehavior
+AvroSharp.Confluent.TombstoneBehavior.Strict = 1 -> AvroSharp.Confluent.TombstoneBehavior
+const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.FailOnTrailingData = "avro.deserializer.fail.on.trailing.data" -> string!
+const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.TombstoneBehavior = "avro.deserializer.tombstone.behavior" -> string!
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.RemoveJavaProperties = "avro.serializer.remove.java.properties" -> string!
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.TombstoneBehavior = "avro.serializer.tombstone.behavior" -> string!

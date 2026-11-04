@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- **AvroSharp.Confluent:**
+  - `AvroSharpDeserializerConfig.FailOnTrailingData` (`avro.deserializer.fail.on.trailing.data`): a message with bytes left after the value fails, as with Java's `avro.fail.on.trailing.data` (#196).
+  - Confluent.Kafka's `Null`, with the schema `"null"`: `AvroSharpSerializer<Null>` writes Confluent's bytes, and each reads the other's (#203).
+  - `TombstoneBehavior.Strict` (`avro.serializer.tombstone.behavior`, `avro.deserializer.tombstone.behavior`): refuses types that can't be null and schemas that can, so a tombstone can't be mistaken for a value, and a key with no value throws (#190). The default, `None`, is Confluent's behavior.
+  - `AvroSharpSerializerConfig.RemoveJavaProperties` (`avro.serializer.remove.java.properties`): `avro.java.string` is removed from the schema before it is registered, as with Java's `avro.remove.java.properties` (#202).
+
 ## [1.0.1] - 2026-10-09
 
 A faster snappy codec on .NET 8 and later. No API changes.
