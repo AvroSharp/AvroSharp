@@ -68,6 +68,26 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     {
     }
 
+    /// <summary>
+    /// Creates a deserializer of several record types, for a topic that carries them all: each message is read as the
+    /// type of its writer's record (by the record's full name, or a type's alias), or, for a top-level union of
+    /// records, of the branch the message holds.
+    /// </summary>
+    /// <param name="client">The schema registry.</param>
+    /// <param name="types">The record types: types <see cref="AvroTypes"/> knows, each a <typeparamref name="T"/>, of record schemas.</param>
+    /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
+    /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
+    /// <exception cref="ArgumentException">
+    /// No types are given, a type isn't a <typeparamref name="T"/> or its schema isn't a record, two types have records of the
+    /// same name or alias, or <paramref name="config"/> is one the other constructors reject.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">A type is not one <see cref="AvroTypes"/> knows.</exception>
+    /// <example><c>new AvroSharpDeserializer&lt;object&gt;(registry, [typeof(OrderPlaced), typeof(OrderShipped)])</c></example>
+    public AvroSharpDeserializer(ISchemaRegistryClient client, IEnumerable<Type> types, AvroSharpDeserializerConfig? config = null, RuleRegistry? ruleRegistry = null)
+        : this(client, new RecordTypes<T>(types, nameof(types)).Info, config, ruleRegistry)
+    {
+    }
+
     /// <summary>Creates a deserializer of the type that <paramref name="type"/> reads and writes.</summary>
     /// <param name="client">The schema registry.</param>
     /// <param name="type">The type's schema and serializers.</param>
