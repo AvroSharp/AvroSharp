@@ -56,6 +56,17 @@ public sealed class AvroSharpSerializerConfig : SerdeConfig
         set => SetObject(PropertyNames.UseSchemaId, value);
     }
 
+    /// <summary>
+    /// Gets or sets the GUID of the registered schema to write with (<c>avro.serializer.use.schema.guid</c>, Java's
+    /// <c>use.schema.guid</c>): the GUID form of <see cref="UseSchemaId"/>. The schema must be registered under the
+    /// subject, whose version of it the message carries.
+    /// </summary>
+    public string? UseSchemaGuid
+    {
+        get => Get(PropertyNames.UseSchemaGuid);
+        set => SetObject(PropertyNames.UseSchemaGuid, value);
+    }
+
     /// <summary>Gets or sets whether the serializer writes with the subject's latest schema (<c>avro.serializer.use.latest.version</c>).</summary>
     public bool? UseLatestVersion
     {
@@ -148,6 +159,9 @@ public sealed class AvroSharpSerializerConfig : SerdeConfig
 
         /// <summary>The schema ID to write with.</summary>
         public const string UseSchemaId = "avro.serializer.use.schema.id";
+
+        /// <summary>The schema GUID to write with.</summary>
+        public const string UseSchemaGuid = "avro.serializer.use.schema.guid";
 
         /// <summary>Whether to write with the latest schema.</summary>
         public const string UseLatestVersion = "avro.serializer.use.latest.version";

@@ -20,3 +20,12 @@ const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.IdCompatibilit
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.LatestCompatibilityStrict = "avro.serializer.latest.compatibility.strict" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.RemoveJavaProperties = "avro.serializer.remove.java.properties" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.TombstoneBehavior = "avro.serializer.tombstone.behavior" -> string!
+AvroSharp.Confluent.AvroSharpDeserializer<T>.CustomSubjectNameStrategy.get -> Confluent.SchemaRegistry.AsyncSubjectNameStrategyDelegate!
+AvroSharp.Confluent.AvroSharpDeserializer<T>.CustomSubjectNameStrategy.init -> void
+AvroSharp.Confluent.AvroSharpSerializer<T>.CustomSubjectNameStrategy.get -> Confluent.SchemaRegistry.AsyncSubjectNameStrategyDelegate!
+AvroSharp.Confluent.AvroSharpSerializer<T>.CustomSubjectNameStrategy.init -> void
+AvroSharp.Confluent.AvroSharpSerializerConfig.UseSchemaGuid.get -> string?
+AvroSharp.Confluent.AvroSharpSerializerConfig.UseSchemaGuid.set -> void
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.UseSchemaGuid = "avro.serializer.use.schema.guid" -> string!
+static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpKeySerializerAsync<TKey, TValue>(this Confluent.Kafka.ProducerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, string! subject, int version, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> System.Threading.Tasks.Task<Confluent.Kafka.ProducerBuilder<TKey, TValue>!>!
+static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpValueSerializerAsync<TKey, TValue>(this Confluent.Kafka.ProducerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, string! subject, int version, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> System.Threading.Tasks.Task<Confluent.Kafka.ProducerBuilder<TKey, TValue>!>!

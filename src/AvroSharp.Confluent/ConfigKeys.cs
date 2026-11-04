@@ -12,6 +12,7 @@ internal static class ConfigKeys
         AvroSharpSerializerConfig.PropertyNames.AutoRegisterSchemas,
         AvroSharpSerializerConfig.PropertyNames.NormalizeSchemas,
         AvroSharpSerializerConfig.PropertyNames.UseSchemaId,
+        AvroSharpSerializerConfig.PropertyNames.UseSchemaGuid,
         AvroSharpSerializerConfig.PropertyNames.UseLatestVersion,
         AvroSharpSerializerConfig.PropertyNames.UseLatestWithMetadata,
         AvroSharpSerializerConfig.PropertyNames.SubjectNameStrategy,

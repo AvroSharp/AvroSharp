@@ -86,6 +86,7 @@ A section's own entry has no value, and is left out.
 | `AutoRegisterSchemas` | `avro.serializer.auto.register.schemas` | `true` |
 | `NormalizeSchemas` | `avro.serializer.normalize.schemas` | `false` |
 | `UseSchemaId` | `avro.serializer.use.schema.id` | none |
+| `UseSchemaGuid` | `avro.serializer.use.schema.guid` | none; Java's `use.schema.guid` |
 | `UseLatestVersion` | `avro.serializer.use.latest.version` | `false`; can't be combined with auto-registration |
 | `UseLatestWithMetadata` | `avro.serializer.use.latest.with.metadata` | none |
 | `SubjectNameStrategy` | `avro.serializer.subject.name.strategy` | `Associated`: the topic's association, or else `Topic` |
@@ -108,6 +109,24 @@ A section's own entry has no value, and is left out.
 Two keys come from Java's serializers, which Confluent's .NET serializer doesn't have:
 - **`RemoveJavaProperties`** removes the property `avro.java.string` from the schema before it is registered or looked up, as Java's serializer does. Java's generated classes add it, so with the option on everywhere, the same `.avsc` registers as one version from Java and .NET.
 - **`FailOnTrailingData`** fails a message that has bytes left after the value, a sign of a wrong schema or a corrupt message. Without it, they are ignored, as Confluent's .NET deserializer does.
+
+**Subjects and pinned schemas.** For subject names that `SubjectNameStrategy` can't express, such as a schema context or a team's prefix, give the serializer or deserializer a function:
+
+```csharp
+var serializer = new AvroSharpSerializer<Order>(registry)
+{
+    CustomSubjectNameStrategy = (context, recordType) => Task.FromResult($":.billing:{context.Topic}-value"),
+};
+```
+
+To write with one version of a subject, whatever the topic, pin it. The registry is asked for the version's schema ID once:
+
+```csharp
+var builder = await new ProducerBuilder<string, Order>(producerConfig)
+    .SetAvroSharpValueSerializerAsync(registry, subject: "orders-value", version: 3);
+```
+
+`UseSchemaId` pins a schema by its ID, and `UseSchemaGuid` by its GUID, under the subject the strategy names. A pinned schema that differs from your type's is written as described under [behavior to know](#behavior-to-know), with `IdCompatibilityStrict`.
 
 ## Moving from Confluent's Avro serializer
 

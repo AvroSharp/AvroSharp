@@ -40,6 +40,10 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     private readonly ConcurrentDictionary<int, TargetWriter> _writesAs = new();
     private readonly bool _latestStrict = true;
     private readonly bool _idStrict = true;
+    private readonly string? _useSchemaGuid;
+
+    // With use.schema.guid: the schema of that GUID as registered under each subject.
+    private readonly ConcurrentDictionary<string, RegisteredSchema> _byGuid = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, SchemaId> _registered = new(StringComparer.Ordinal);
 
     // The schema ID of each topic, for keys and for values, once known, when the ID depends on nothing else (without
@@ -99,6 +103,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         useSchemaId = config.UseSchemaId ?? useSchemaId;
         _latestStrict = config.LatestCompatibilityStrict ?? true;
         _idStrict = config.IdCompatibilityStrict ?? true;
+        _useSchemaGuid = config.UseSchemaGuid;
         useLatestVersion = config.UseLatestVersion ?? useLatestVersion;
         useLatestWithMetadata = config.UseLatestWithMetadata ?? useLatestWithMetadata;
         initialBufferSize = config.BufferBytes ?? initialBufferSize;
@@ -121,6 +126,11 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         if (config.SchemaIdStrategy is { } strategy)
         {
             schemaIdEncoder = strategy.ToEncoder();
+        }
+
+        if (_useSchemaGuid is not null && (useSchemaId >= 0 || useLatestVersion || useLatestWithMetadata is not null))
+        {
+            throw new ArgumentException("use.schema.guid can't be combined with use.schema.id, use.latest.version or use.latest.with.metadata.", nameof(config));
         }
 
         if (useLatestVersion && autoRegisterSchema)
@@ -185,7 +195,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
                 "strategies need a schema with a name; the None strategy isn't supported, with or without use.schema.id.");
         }
 
-        var latest = await GetReaderSchema(subject).ConfigureAwait(false);
+        var latest = _useSchemaGuid is null ? await GetReaderSchema(subject).ConfigureAwait(false) : await ByGuidAsync(subject).ConfigureAwait(false);
         if (latest is null)
         {
             var registered = await IdForAsync(subject!).ConfigureAwait(false);
@@ -282,8 +292,39 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         return false;
     }
 
+    /// <summary>
+    /// Gets or sets how subjects are named, as a function (by default, the one of the configuration's
+    /// <c>subject.name.strategy</c>), for names that <see cref="global::Confluent.SchemaRegistry.SubjectNameStrategy"/>
+    /// can't express, such as a schema context (<c>:.context:orders-value</c>) or a team's prefix. It replaces the
+    /// configuration's <c>subject.name.strategy</c>. It is asked when a topic's schema is first written, and on every message
+    /// whose settings need the subject (<c>use.latest.version</c> and the others), so it should give the same subject
+    /// for the same topic and component.
+    /// </summary>
+    /// <example><c>new AvroSharpSerializer&lt;Order&gt;(registry) { CustomSubjectNameStrategy = (context, recordType) =&gt; Task.FromResult("billing." + context.Topic) }</c></example>
+    public AsyncSubjectNameStrategyDelegate CustomSubjectNameStrategy
+    {
+        get => subjectNameStrategy;
+        init => subjectNameStrategy = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
+
+    // The schema of use.schema.guid, as registered under the subject (its ID, version and rules), looked up once per
+    // subject: by its GUID, then in the subject, as the schema of use.schema.id is.
+    private async Task<RegisteredSchema> ByGuidAsync(string subject)
+    {
+        if (_byGuid.TryGetValue(subject, out var known))
+        {
+            return known;
+        }
+
+        using var activity = Telemetry.RegistryCall("get_schema_by_guid", subject);
+        var schema = await schemaRegistryClient.GetSchemaByGuidAsync(_useSchemaGuid!).ConfigureAwait(false);
+        var registered = await schemaRegistryClient.LookupSchemaAsync(subject, schema, ignoreDeletedSchemas: true, normalizeSchemas).ConfigureAwait(false);
+        _byGuid.TryAdd(subject, registered);
+        return registered;
+    }
 
     // A null value is a tombstone: no message body. So is a null generic value. Unless the schema is "null", as for
     // Confluent.Kafka's Null: the value is then written, as Confluent's serde writes it. With TombstoneBehavior.Strict
@@ -382,7 +423,8 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     private TargetWriter TargetWriterFor(RegisteredSchema target, AvroSchema parsed)
     {
         var name = $"the schema ID {target.Id} (version {target.Version} of '{target.Subject}')";
-        var strictKey = useSchemaId >= 0 ? "id.compatibility.strict" : "latest.compatibility.strict";
+        var pinned = useSchemaId >= 0 || _useSchemaGuid is not null;
+        var strictKey = pinned ? "id.compatibility.strict" : "latest.compatibility.strict";
         if (_rawBytes || RegistrySchemas.IsRawBytes(parsed))
         {
             throw new InvalidOperationException(
@@ -401,7 +443,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
                 $"change the values written: {string.Join("; ", meaning)}. Use a type generated from that schema.");
         }
 
-        if (!check.IsCompatible && (useSchemaId >= 0 ? _idStrict : _latestStrict))
+        if (!check.IsCompatible && (pinned ? _idStrict : _latestStrict))
         {
             throw new InvalidOperationException(
                 $"The message would carry {name}, which can't read {typeof(T).Name}'s schema: " +
