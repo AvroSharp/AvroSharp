@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.IO;
@@ -231,21 +232,21 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         return Frame(header, encoded.Span, ref context, ref id);
     }
 
-    // Runs the domain rules on a value. Field rules, such as field-level encryption, aren't supported yet.
+    // Runs the domain rules on a value. Field rules (field-level encryption, CEL_FIELD) walk it in the latest schema.
     private async Task<(T Value, byte[]? Body)> DomainRulesAsync(T value, bool isKey, string subject, SerializationContext context, RegisteredSchema latest, int header, TargetWriter target)
     {
+        var schema = await GetParsedSchema(latest).ConfigureAwait(false);
         if (!ApacheAvroGeneric.HasCelRules(latest.RuleSet) || _rawBytes || !ApacheAvroGeneric.IsAvailable)
         {
-            return ((T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, value, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false))!, null);
+            return ((T)(await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, value, FieldsOf(schema, header, target)).ConfigureAwait(false))!, null);
         }
 
         // CEL reads a value by its Avro field names only as Apache.Avro's generic model, which Java's and Confluent's
         // serializers give it: so the rules see the value decoded that way. A rule that returns another value (a
         // transform) changes what is written.
         var body = Body(Write(value, header, target).WrittenSpan[header..]).ToArray();
-        var schema = await GetParsedSchema(latest).ConfigureAwait(false);
         var generic = ApacheAvroGeneric.Decode(schema, schema, body);
-        var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, generic, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false);
+        var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, generic, FieldTransforms.ForApache(schema)).ConfigureAwait(false);
         return (value, ReferenceEquals(result, generic) && !ApacheAvroGeneric.HasTransforms(latest.RuleSet) ? body : ApacheAvroGeneric.Encode(schema, result).ToArray());
     }
 
@@ -309,6 +310,20 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
 
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
+
+    // Field rules on the value itself: it is walked as a value of the latest schema, written as the message is. One per
+    // schema, so messages whose rules aren't field rules don't allocate one each.
+    private FieldTransformer FieldsOf(AvroSchema schema, int header, TargetWriter target) =>
+        _fieldTransformers.GetValue(schema, _ => FieldTransforms.For(
+            schema,
+            message => FieldTransforms.Decode(schema, Write((T)message, header, target).WrittenSpan[header..]),
+            value =>
+            {
+                var reader = new AvroReader(FieldTransforms.Encode(schema, value));
+                return _type.ReadFor(schema)(ref reader)!;
+            }));
+
+    private readonly ConditionalWeakTable<AvroSchema, FieldTransformer> _fieldTransformers = new();
 
     // The schema of use.schema.guid, as registered under the subject (its ID, version and rules), looked up once per
     // subject: by its GUID, then in the subject, as the schema of use.schema.id is.

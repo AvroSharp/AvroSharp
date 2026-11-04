@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - `AvroSharpSerializerConfig.RemoveJavaProperties` (`avro.serializer.remove.java.properties`): `avro.java.string` is removed from the schema before it is registered, as with Java's `avro.remove.java.properties` (#202).
   - Metrics and traces for OpenTelemetry: a `Meter` and an `ActivitySource` named `AvroSharp.Confluent`, with the time of each message, errors, rule failures and registry calls (#200). Nothing is measured without a listener.
   - Benchmarks against Confluent's Avro serializer and Chr.Avro.Confluent: `bench/AvroSharp.Confluent.Benchmarks` (#197).
+  - Field rules: field-level encryption (`ENCRYPT`, CSFLE) and `CEL_FIELD` run on the fields their tags name, in records, arrays, maps and unions, for types and generic values (#186). Messages encrypted by Confluent's serde read, and it reads AvroSharp's. They used to fail with `NotSupportedException`.
   - Migration rules (`UPGRADE`, `DOWNGRADE`, such as JSONata) run on reads with `use.latest.version` or `use.latest.with.metadata`, on the value as Avro JSON, as Confluent's deserializer runs them (#187). They used to fail with `NotSupportedException`.
   - Subjects and pinned schemas (#194):
     - `CustomSubjectNameStrategy` on the serializer and the deserializer, a function for subject names the enum can't express, such as schema contexts;

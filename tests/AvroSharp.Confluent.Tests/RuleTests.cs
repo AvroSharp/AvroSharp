@@ -225,38 +225,6 @@ public class RuleTests
         await Assert.That(async () => await deserializer.DeserializeAsync(bob, isNull: false, Value(topic))).Throws<SerializationException>();
     }
 
-    // Field rules change fields as the encoding is written or read, which AvroSharp.Confluent doesn't do yet (#186):
-    // the rule fails, so a field isn't written unencrypted.
-    [Test]
-    public async Task FieldEncryption_IsNotSupported()
-    {
-        using var registry = new InMemorySchemaRegistry();
-        var topic = Topic();
-        var encrypt = new Rule("encryptPII", RuleKind.Transform, RuleMode.WriteRead, "ENCRYPT", new HashSet<string>(StringComparer.Ordinal) { "PII" }, new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["encrypt.kek.name"] = "kek1",
-            ["encrypt.kms.type"] = "local-kms",
-            ["encrypt.kms.key.id"] = "mykey",
-        });
-        await Register(registry, topic, """{"type":"record","name":"Customer","namespace":"test.native","fields":[{"name":"Name","type":"string","confluent:tags":["PII"]},{"name":"Level","type":"int"}]}""", new RuleSet([], [encrypt], []));
-        LocalKmsDriver.Register();
-        using var keys = new InMemoryDekRegistry();
-        using var encryption = new FieldEncryptionExecutor(keys, new TestClock());
-        var config = LatestVersion();
-        config.Set("rules.secret", "mysecret");
-
-        var write = async () => await new AvroSharpSerializer<Customer>(registry, config, Rules(encryption)).SerializeAsync(new Customer { Name = "Ada" }, Value(topic));
-
-        var error = await Assert.That(write).ThrowsException();
-        var notSupported = false;
-        for (var e = error; e is not null; e = e.InnerException)
-        {
-            notSupported |= e is NotSupportedException && e.Message.Contains("encryptPII", StringComparison.Ordinal);
-        }
-
-        await Assert.That(notSupported).IsTrue();
-    }
-
     private static RuleSet Cel(string expression, RuleMode mode = RuleMode.Write) =>
         new([], [new Rule("check", RuleKind.Condition, mode, "CEL", null, null, expression, null, null, false)], []);
 
