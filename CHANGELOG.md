@@ -18,6 +18,7 @@ All notable changes to this project are documented here. The format follows [Kee
     - `CustomSubjectNameStrategy` on the serializer and the deserializer, a function for subject names the enum can't express, such as schema contexts;
     - `SetAvroSharpKeySerializerAsync` and `SetAvroSharpValueSerializerAsync(client, subject, version)`, which write with that version of the subject for every topic;
     - `AvroSharpSerializerConfig.UseSchemaGuid` (`avro.serializer.use.schema.guid`), the GUID form of `use.schema.id`.
+  - Several record types on one topic: `new AvroSharpSerializer<object>(registry, types, config)` writes each value as its own type, under its own subject with `TopicRecord`, as Confluent's serializer of `ISpecificRecord` does, and `new AvroSharpDeserializer<object>(registry, types)` reads each message as the type of its writer's record, or of its union branch (#192). `T` can be a base type or interface the types share.
 - **AvroSharp:** `AvroTypeInfo.ReadObjectFor(AvroSchema)`, the boxed reader of a writer schema, resolved once (#197).
 
 ### Changed
