@@ -15,6 +15,8 @@ On this page:
 - [Moving from Confluent's Avro serializer](#moving-from-confluents-avro-serializer)
 - [Moving from Chr.Avro](#moving-from-chravro)
 - [Behavior to know](#behavior-to-know)
+- [Metrics and tracing](#metrics-and-tracing)
+- [Performance](#performance)
 - [Data contract rules](#data-contract-rules)
 
 The [Confluent sample](../samples/Confluent/Program.cs) produces and consumes through a real broker and registry. It reads the same messages three ways: as the type that wrote them, as generic values, and as a newer version of the type. Its [compose file](https://github.com/AvroSharp/AvroSharp/blob/main/samples/Confluent/compose.yaml) starts Redpanda: run `docker compose up -d --wait`, then `dotnet run`, in `samples/Confluent`.
@@ -148,6 +150,31 @@ Chr.Avro.Confluent maps your classes to schemas by reflection when the serialize
 - **Configuration keys.** A key the serializer doesn't know is an error, as in Confluent's serializers, so a misspelled key isn't ignored. Keys under `rules.` and `subject.name.strategy.` are passed through to Confluent's code.
 - **The `None` subject name strategy isn't supported,** with or without `use.schema.id`: Confluent's client needs a subject to look a schema ID up in, and Confluent's serializer fails the same way. The serializer says so.
 - **The `Record` and `TopicRecord` strategies** name the subject after a record schema, as Confluent's .NET and Java serializers do. Any other schema, such as a primitive, has no record name, and serializing it fails with an error that says so.
+
+## Metrics and tracing
+
+The serializers publish metrics through a `Meter`, and the registry calls as activities through an `ActivitySource`. Both are named `AvroSharp.Confluent`. Nothing is measured unless a listener subscribes, so they cost nothing otherwise. With OpenTelemetry:
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics => metrics.AddMeter("AvroSharp.Confluent"))
+    .WithTracing(tracing => tracing.AddSource("AvroSharp.Confluent"));
+```
+
+| Instrument | Type | Tags |
+|---|---|---|
+| `avrosharp.confluent.serde.duration` (s) | histogram: the time to write or read a message, registry calls included | `avrosharp.serde` (`serializer`, `deserializer`), `messaging.destination.name` (the topic), `avrosharp.component` (`key`, `value`), `error.type` when it failed |
+| `avrosharp.confluent.serde.errors` | counter: messages that failed | as above |
+| `avrosharp.confluent.rule.failures` | counter: messages whose data contract rules failed (a `RuleException`), among the errors | as above |
+| `avrosharp.confluent.registry.calls` | counter: calls to the registry client when the serializer's own caches miss; Confluent's client may still answer from its cache | `avrosharp.operation` (`register`, `lookup`, `get_schema`, `migrations`), `avrosharp.subject` |
+
+Each registry call is also an activity, `schema_registry <operation>`, with the same tags.
+
+## Performance
+
+After the first message of a topic or schema ID, the serializers don't go back to the registry, and they skip Confluent's per-message lookups. A message writes into a buffer the thread keeps, so a write allocates only the message, and a read only the value (plus the task, on the asynchronous path). With `use.latest.version`, the latest schema is still asked for on every message, as Confluent's serde does, but the writer's schema and the check for migrations are looked up once.
+
+`bench/AvroSharp.Confluent.Benchmarks` compares AvroSharp.Confluent with Confluent's Avro serializer and Chr.Avro.Confluent on an in-memory registry: `dotnet run -c Release -f net10.0 --project bench/AvroSharp.Confluent.Benchmarks`. The results are in [benchmarks](benchmarks.md#confluent-schema-registry-serializers).
 
 ## Data contract rules
 

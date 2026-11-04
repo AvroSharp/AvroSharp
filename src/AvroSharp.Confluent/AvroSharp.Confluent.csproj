@@ -20,4 +20,10 @@
     <PackageReference Include="Confluent.SchemaRegistry" VersionOverride="[2.14.0, 3.0.0)" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <!-- Meter, for the metrics. Confluent.SchemaRegistry already brings 8.0.1 on .NET Standard (through
+         Microsoft.Extensions.Caching.Memory), so it adds no package; .NET 8 and later have it built in. -->
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" VersionOverride="8.0.1" />
+  </ItemGroup>
+
 </Project>

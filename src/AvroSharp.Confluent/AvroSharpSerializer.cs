@@ -43,6 +43,14 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     // use.latest.version, use.latest.with.metadata and use.schema.id): the synchronous path writes with it.
     private readonly ConcurrentDictionary<(string Topic, bool IsKey), SchemaId> _topicIds = new();
 
+    private static readonly Task<byte[]?> s_tombstone = Task.FromResult<byte[]?>(null);
+
+    // The buffer each thread writes messages into, kept between messages so a message allocates only its result. A
+    // buffer that grew past MaxRetainedBuffer for a large message isn't kept.
+    [ThreadStatic]
+    private static ArrayBufferWriter<byte>? t_buffer;
+    private const int MaxRetainedBuffer = 64 * 1024;
+
     /// <summary>
     /// Creates a serializer of a generated type or a primitive, which <see cref="AvroTypes"/> knows. Generated types
     /// register themselves on .NET 5 and later; on .NET Standard, pass the type's <c>AvroTypeInfo</c> to the other
@@ -120,13 +128,47 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     /// <param name="value">The value. A <see langword="null"/> reference is written as no message body.</param>
     /// <param name="context">The topic, the component (key or value) and the headers.</param>
     /// <returns>The message body, or <see langword="null"/> for a tombstone.</returns>
-    public override async Task<byte[]?> SerializeAsync(T value, SerializationContext context)
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Every exception goes into the returned task, as an async method's does.")]
+    public override Task<byte[]?> SerializeAsync(T value, SerializationContext context)
     {
-        if (IsTombstone(value, context))
+        var start = Telemetry.Measuring ? Telemetry.Timestamp() : 0;
+        try
         {
-            return null;
-        }
+            if (IsTombstone(value, context))
+            {
+                return s_tombstone;
+            }
 
+            // Once the topic's schema ID is known, the message is written without the async state machine.
+            if (_topicIds.TryGetValue((context.Topic, context.Component == MessageComponentType.Key), out var id))
+            {
+                var message = Encode(value, ref context, id);
+                if (start != 0)
+                {
+                    Telemetry.Record(SerdeName, context, start, null);
+                }
+
+                return Task.FromResult<byte[]?>(message);
+            }
+
+            var task = SerializeSlowAsync(value, context);
+            return start == 0 ? task : Telemetry.ObserveAsync(task, SerdeName, context, start);
+        }
+        catch (Exception e)
+        {
+            if (start != 0)
+            {
+                Telemetry.Record(SerdeName, context, start, e);
+            }
+
+            return Task.FromException<byte[]?>(e);
+        }
+    }
+
+    // A message whose schema ID isn't known yet, or depends on the registry on every message (use.latest.version,
+    // use.latest.with.metadata, use.schema.id), or whose schema has rules.
+    private async Task<byte[]?> SerializeSlowAsync(T value, SerializationContext context)
+    {
         var isKey = context.Component == MessageComponentType.Key;
         var subject = await GetSubjectName(context.Topic, isKey, _recordName).ConfigureAwait(false);
         if (subject is null)
@@ -202,14 +244,37 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's synchronous interface: it waits only until the topic's schema ID is known, or with settings whose rules can run asynchronously.")]
     public byte[]? Serialize(T data, SerializationContext context)
     {
-        if (IsTombstone(data, context))
+        var start = Telemetry.Measuring ? Telemetry.Timestamp() : 0;
+        try
         {
-            return null;
-        }
+            if (IsTombstone(data, context))
+            {
+                return null;
+            }
 
-        return _topicIds.TryGetValue((context.Topic, context.Component == MessageComponentType.Key), out var id)
-            ? Encode(data, ref context, id)
-            : SerializeAsync(data, context).GetAwaiter().GetResult();
+            var message = _topicIds.TryGetValue((context.Topic, context.Component == MessageComponentType.Key), out var id)
+                ? Encode(data, ref context, id)
+                : SerializeSlowAsync(data, context).GetAwaiter().GetResult();
+            if (start != 0)
+            {
+                Telemetry.Record(SerdeName, context, start, null);
+            }
+
+            return message;
+        }
+        catch (Exception e) when (start != 0 && Recorded(e, context, start))
+        {
+            throw;
+        }
+    }
+
+    private const string SerdeName = "serializer";
+
+    // Records a failure in an exception filter, which then lets the exception go on unchanged.
+    private static bool Recorded(Exception e, SerializationContext context, long start)
+    {
+        Telemetry.Record(SerdeName, context, start, e);
+        return false;
     }
 
     /// <inheritdoc/>
@@ -243,10 +308,25 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         return result;
     }
 
-    // The value's encoding, after room for the header.
+    // The value's encoding, after room for the header, in this thread's buffer: the caller copies it out before the
+    // next write on the thread (no caller awaits in between).
     private ArrayBufferWriter<byte> Write(T value, int header)
     {
-        var output = new ArrayBufferWriter<byte>(Math.Max(initialBufferSize, header + 16));
+        var output = t_buffer;
+        if (output is null || output.Capacity > MaxRetainedBuffer)
+        {
+            output = t_buffer = new ArrayBufferWriter<byte>(Math.Max(initialBufferSize, header + 16));
+        }
+        else
+        {
+#if NET8_0_OR_GREATER
+            output.ResetWrittenCount();
+#else
+            output.Clear();
+#endif
+        }
+
+        output.GetSpan(header);
         output.Advance(header);
         var writer = new AvroWriter(output);
         _type.Write(ref writer, value);
@@ -318,6 +398,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
             }
 
             var schema = new ConfluentSchema(_schemaJson, [], SchemaType.Avro);
+            using var activity = Telemetry.RegistryCall(autoRegisterSchema ? "register" : "lookup", subject);
             var registered = autoRegisterSchema
                 ? await schemaRegistryClient.RegisterSchemaWithResponseAsync(subject, schema, normalizeSchemas).ConfigureAwait(false)
                 : await schemaRegistryClient.LookupSchemaAsync(subject, schema, ignoreDeletedSchemas: true, normalizeSchemas).ConfigureAwait(false);

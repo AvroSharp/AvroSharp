@@ -6,6 +6,9 @@
     <!-- The Confluent version the build uses. AvroSharp.Confluent depends on [2.14.0, 3.0.0): 2.14.0 changed the serde
          base classes' protected members in a minor release (GetSubjectName became async), so older versions can't load
          it. To build and test against the lowest: -p:ConfluentVersion=2.14.0. -->
+    <!-- The Confluent benchmarks compare with Chr.Avro.Confluent (archived), which needs [2.14.0, 2.15.0). The path also
+         matches the project BenchmarkDotNet generates for them, under artifacts/bin/AvroSharp.Confluent.Benchmarks. -->
+    <ConfluentVersion Condition="'$(ConfluentVersion)' == '' And $(MSBuildProjectDirectory.Contains('AvroSharp.Confluent.Benchmarks'))">2.14.0</ConfluentVersion>
     <ConfluentVersion Condition="'$(ConfluentVersion)' == ''">2.15.1</ConfluentVersion>
     <!-- The versions the tests use of the add-ons' other dependencies, so CI can also test the lowest each package
          accepts: -p:KafkaFlowVersion=4.0.0 (with ConfluentVersion=2.14.0), -p:AzureSchemaRegistryVersion=1.2.0 and
@@ -32,6 +35,7 @@
   <ItemGroup>
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.12" />
     <PackageVersion Include="System.Threading.Channels" Version="10.0.12" />
   </ItemGroup>
@@ -79,6 +83,7 @@
     <PackageVersion Include="TUnit" Version="1.72.16" />
     <PackageVersion Include="CsCheck" Version="4.9.1" />
     <PackageVersion Include="Chr.Avro.Json" Version="10.13.1" />
+    <PackageVersion Include="Chr.Avro.Confluent" Version="10.13.1" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.11.2" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Apache.Avro" Version="1.12.2" />

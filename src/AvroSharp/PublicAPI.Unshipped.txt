@@ -1,1 +1,3 @@
 #nullable enable
+abstract AvroSharp.Serialization.AvroTypeInfo.ReadObjectFor(AvroSharp.Schemas.AvroSchema! writerSchema) -> AvroSharp.Serialization.AvroReadFunc<object?>!
+override AvroSharp.Serialization.AvroTypeInfo<T>.ReadObjectFor(AvroSharp.Schemas.AvroSchema! writerSchema) -> AvroSharp.Serialization.AvroReadFunc<object?>!

@@ -30,7 +30,12 @@ internal static class MessageTypes
             () => info.Schema,
             (ref writer, value) => info.WriteObject(ref writer, value),
             (ref reader) => info.ReadObject(ref reader)!,
-            writerSchema => (ref reader) => info.ReadObject(ref reader, writerSchema)!);
+            writerSchema =>
+            {
+                // Resolved once per writer schema: the deserializer keeps this function for every message of it.
+                var read = info.ReadObjectFor(writerSchema);
+                return (ref reader) => read(ref reader)!;
+            });
 }
 
 /// <summary>A serializer of each type, made the first time the type is written.</summary>

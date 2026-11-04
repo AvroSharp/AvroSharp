@@ -47,28 +47,61 @@ public class SyncAndConfigTests
         await Assert.That(deserializer.Deserialize(default, isNull: true, Value(topic))).IsNull();
     }
 
-    // After warm-up the synchronous path allocates only the message (no task or state machine), so it allocates less
-    // than the asynchronous one, which goes through Confluent's subject and latest-schema lookups for every message.
+    // With use.latest.version every message needs the latest schema, but the writer's schema and the check for
+    // migrations between them are looked up once, not per message.
     [Test]
-    public async Task Sync_AfterWarmUp_AllocatesLessThanAsync()
+    public async Task UseLatestVersion_LooksTheWriterSchemaUpOnce()
     {
         using var registry = new InMemorySchemaRegistry();
         var topic = Topic();
-        var serializer = new AvroSharpSerializer<Order>(registry);
-        var deserializer = new AvroSharpDeserializer<Order>(registry);
-        var order = NewOrder();
-        var message = serializer.Serialize(order, Value(topic))!;
+        var message = (await new AvroSharpSerializer<Order>(registry).SerializeAsync(NewOrder(), Value(topic)))!;
+        var deserializer = new AvroSharpDeserializer<Order>(registry, new AvroSharpDeserializerConfig { UseLatestVersion = true });
+        await deserializer.DeserializeAsync(message, isNull: false, Value(topic));
+        var (schemas, lookups) = (registry.GetSchemaCalls, registry.RegistrationCalls);
+
+        for (var i = 0; i < 10; i++)
+        {
+            await ConfluentInteropTests.AssertIsNewOrder(await deserializer.DeserializeAsync(message, isNull: false, Value(topic)));
+            await ConfluentInteropTests.AssertIsNewOrder(deserializer.Deserialize(message, isNull: false, Value(topic)));
+        }
+
+        await Assert.That(registry.GetSchemaCalls).IsEqualTo(schemas);
+        await Assert.That(registry.RegistrationCalls).IsEqualTo(lookups);
+    }
+
+    // After warm-up a serialize allocates only the message (the buffer it is written into is kept per thread), and the
+    // asynchronous path adds no more than its task: neither goes through the state machine, nor Confluent's subject and
+    // schema lookups. A read allocates the value; the synchronous one also copies the message, which Confluent's schema
+    // ID decoders take as memory, and the asynchronous one adds its task instead. A string is measured: the serde's own
+    // costs, not those of a type's values (such as Apache.Avro's AvroDecimal, which allocates as it converts).
+    [Test]
+    public async Task AfterWarmUp_SerializeAllocatesOnlyTheMessage_AndAsyncOnlyATaskMore()
+    {
+        const int TaskSize = 100;
+        const string Text = "a string value of some length";
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var serializer = new AvroSharpSerializer<string>(registry);
+        var deserializer = new AvroSharpDeserializer<string>(registry);
+        var message = serializer.Serialize(Text, Value(topic))!;
         deserializer.Deserialize(message, isNull: false, Value(topic));
-        await serializer.SerializeAsync(order, Value(topic));
+        await serializer.SerializeAsync(Text, Value(topic));
         await deserializer.DeserializeAsync(message, isNull: false, Value(topic));
 
-        var sync = Allocated(() => serializer.Serialize(order, Value(topic)));
-        var async = Allocated(() => serializer.SerializeAsync(order, Value(topic)).GetAwaiter().GetResult());
+        var sync = Allocated(() => serializer.Serialize(Text, Value(topic)));
+        var async = Allocated(() => serializer.SerializeAsync(Text, Value(topic)).GetAwaiter().GetResult());
         var syncRead = Allocated(() => deserializer.Deserialize(message, isNull: false, Value(topic)));
         var asyncRead = Allocated(() => deserializer.DeserializeAsync(message, isNull: false, Value(topic)).GetAwaiter().GetResult());
 
-        await Assert.That(sync).IsLessThan(async);
-        await Assert.That(syncRead).IsLessThan(asyncRead);
+        await Assert.That(async).IsLessThanOrEqualTo(sync + TaskSize);
+        await Assert.That(asyncRead).IsLessThanOrEqualTo(syncRead + TaskSize);
+#if NET
+        // On .NET Framework, Confluent's .NET Standard build allocates as it writes the schema ID too.
+        const int ArrayOverhead = 32;
+        await Assert.That(sync).IsLessThanOrEqualTo(message.Length + ArrayOverhead);
+        var value = syncRead - (message.Length + ArrayOverhead);
+        await Assert.That(asyncRead).IsLessThanOrEqualTo(value + TaskSize);
+#endif
 
         static long Allocated(Action action)
         {

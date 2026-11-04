@@ -10,6 +10,17 @@ All notable changes to this project are documented here. The format follows [Kee
   - Confluent.Kafka's `Null`, with the schema `"null"`: `AvroSharpSerializer<Null>` writes Confluent's bytes, and each reads the other's (#203).
   - `TombstoneBehavior.Strict` (`avro.serializer.tombstone.behavior`, `avro.deserializer.tombstone.behavior`): refuses types that can't be null and schemas that can, so a tombstone can't be mistaken for a value, and a key with no value throws (#190). The default, `None`, is Confluent's behavior.
   - `AvroSharpSerializerConfig.RemoveJavaProperties` (`avro.serializer.remove.java.properties`): `avro.java.string` is removed from the schema before it is registered, as with Java's `avro.remove.java.properties` (#202).
+  - Metrics and traces for OpenTelemetry: a `Meter` and an `ActivitySource` named `AvroSharp.Confluent`, with the time of each message, errors, rule failures and registry calls (#200). Nothing is measured without a listener.
+  - Benchmarks against Confluent's Avro serializer and Chr.Avro.Confluent: `bench/AvroSharp.Confluent.Benchmarks` (#197).
+- **AvroSharp:** `AvroTypeInfo.ReadObjectFor(AvroSchema)`, the boxed reader of a writer schema, resolved once (#197).
+
+### Changed
+- **AvroSharp.Confluent is faster per message** (#197):
+  - after the first message, the asynchronous serializer and deserializer skip the async state machine and Confluent's per-message lookups, as the synchronous ones already did;
+  - a message is written into a buffer the thread keeps, so a write allocates only the message;
+  - with `use.latest.version`, the writer's schema and the check for migrations are looked up once per schema, not per message;
+  - a top-level `bytes` value is read straight from the message.
+- **AvroSharp.KafkaFlow** resolves a writer schema once, not on every message (#197).
 
 ## [1.0.1] - 2026-10-09
 

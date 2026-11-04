@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- AvroSharp.Confluent against Confluent's Avro serde (Apache.Avro) and Chr.Avro.Confluent, on an in-memory
+       registry, so the numbers are the serdes' own costs and not the network's. Apart from AvroSharp.Benchmarks, so the
+       core gate doesn't depend on the Confluent packages. -->
+  <PropertyGroup>
+    <TargetFrameworks>$(TestTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <NoWarn>$(NoWarn);CS1591;CS8002;CA1002;CA2007;CA2227;MA0002;MA0004;MA0006;MA0016;VSTHRD200</NoWarn>
+    <SignAssembly>false</SignAssembly>
+    <AvroSharpApacheCompatible>true</AvroSharpApacheCompatible>
+    <AvroSharpPropertyNames>pascal</AvroSharpPropertyNames>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="Apache.Avro" />
+    <!-- Every serde runs on Confluent 2.14.0, the newest Chr.Avro.Confluent takes (ConfluentVersion, Directory.Packages.props). -->
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Chr.Avro.Confluent" />
+    <ProjectReference Include="..\..\src\AvroSharp.Confluent\AvroSharp.Confluent.csproj" />
+    <Compile Include="..\..\tests\AvroSharp.Confluent.Tests\InMemorySchemaRegistry.cs" Link="InMemorySchemaRegistry.cs" />
+    <AdditionalFiles Include="Schemas\*.avsc" />
+  </ItemGroup>
+
+  <Import Project="..\..\build\UseLocalGenerator.targets" />
+
+</Project>
