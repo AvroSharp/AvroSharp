@@ -101,6 +101,29 @@ public sealed class AvroSharpSerializerConfig : SerdeConfig
     }
 
     /// <summary>
+    /// Gets or sets whether a type is written with the subject's latest schema (<c>use.latest.version</c>,
+    /// <c>use.latest.with.metadata</c>) only when that schema can read the type's
+    /// (<c>avro.serializer.latest.compatibility.strict</c>, Java's <c>latest.compatibility.strict</c>). The default is
+    /// <see langword="true"/>. Off, the value is written whenever the schemas resolve.
+    /// </summary>
+    public bool? LatestCompatibilityStrict
+    {
+        get => GetBool(PropertyNames.LatestCompatibilityStrict);
+        set => SetObject(PropertyNames.LatestCompatibilityStrict, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether a type is written with the schema of <c>use.schema.id</c> only when that schema can read the
+    /// type's (<c>avro.serializer.id.compatibility.strict</c>, Java's <c>id.compatibility.strict</c>). The default is
+    /// <see langword="true"/>. Off, the value is written whenever the schemas resolve.
+    /// </summary>
+    public bool? IdCompatibilityStrict
+    {
+        get => GetBool(PropertyNames.IdCompatibilityStrict);
+        set => SetObject(PropertyNames.IdCompatibilityStrict, value);
+    }
+
+    /// <summary>
     /// Gets or sets how tombstones are treated (<c>avro.serializer.tombstone.behavior</c>, AvroSharp's own key). The
     /// default is <see cref="Confluent.TombstoneBehavior.None"/>, Confluent's behavior.
     /// </summary>
@@ -143,5 +166,11 @@ public sealed class AvroSharpSerializerConfig : SerdeConfig
 
         /// <summary>How tombstones are treated.</summary>
         public const string TombstoneBehavior = "avro.serializer.tombstone.behavior";
+
+        /// <summary>Whether the latest schema must be able to read the type's.</summary>
+        public const string LatestCompatibilityStrict = "avro.serializer.latest.compatibility.strict";
+
+        /// <summary>Whether the schema of use.schema.id must be able to read the type's.</summary>
+        public const string IdCompatibilityStrict = "avro.serializer.id.compatibility.strict";
     }
 }

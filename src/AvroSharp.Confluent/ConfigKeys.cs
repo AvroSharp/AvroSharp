@@ -18,6 +18,8 @@ internal static class ConfigKeys
         AvroSharpSerializerConfig.PropertyNames.SchemaIdStrategy,
         AvroSharpSerializerConfig.PropertyNames.RemoveJavaProperties,
         AvroSharpSerializerConfig.PropertyNames.TombstoneBehavior,
+        AvroSharpSerializerConfig.PropertyNames.LatestCompatibilityStrict,
+        AvroSharpSerializerConfig.PropertyNames.IdCompatibilityStrict,
     };
 
     public static readonly HashSet<string> Deserializer = new(StringComparer.Ordinal)

@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.IO;
@@ -36,7 +37,9 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     private readonly string? _recordName;
     private readonly bool _rawBytes;
     private readonly bool _strict;
-    private readonly ConcurrentDictionary<int, bool> _writesAs = new();
+    private readonly ConcurrentDictionary<int, TargetWriter> _writesAs = new();
+    private readonly bool _latestStrict = true;
+    private readonly bool _idStrict = true;
     private readonly ConcurrentDictionary<string, SchemaId> _registered = new(StringComparer.Ordinal);
 
     // The schema ID of each topic, for keys and for values, once known, when the ID depends on nothing else (without
@@ -94,6 +97,8 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         autoRegisterSchema = config.AutoRegisterSchemas ?? autoRegisterSchema;
         normalizeSchemas = config.NormalizeSchemas ?? normalizeSchemas;
         useSchemaId = config.UseSchemaId ?? useSchemaId;
+        _latestStrict = config.LatestCompatibilityStrict ?? true;
+        _idStrict = config.IdCompatibilityStrict ?? true;
         useLatestVersion = config.UseLatestVersion ?? useLatestVersion;
         useLatestWithMetadata = config.UseLatestWithMetadata ?? useLatestWithMetadata;
         initialBufferSize = config.BufferBytes ?? initialBufferSize;
@@ -192,7 +197,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
             return Encode(value, ref context, registered);
         }
 
-        await CheckWritesAsAsync(latest).ConfigureAwait(false);
+        var target = await WritesAsAsync(latest).ConfigureAwait(false);
         var id = new SchemaId(SchemaType.Avro, latest.Id, latest.Guid);
         var header = schemaIdEncoder.CalculateSize(ref id);
 
@@ -200,16 +205,16 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         byte[]? body = null;
         if (latest.RuleSet?.DomainRules is { Count: > 0 })
         {
-            (value, body) = await DomainRulesAsync(value, isKey, subject, context, latest, header).ConfigureAwait(false);
+            (value, body) = await DomainRulesAsync(value, isKey, subject, context, latest, header, target).ConfigureAwait(false);
         }
 
         if (latest.RuleSet?.EncodingRules is not { Count: > 0 })
         {
-            return body is null ? Encode(value, ref context, id) : Frame(header, body, ref context, ref id);
+            return body is null ? Encode(value, ref context, id, target) : Frame(header, body, ref context, ref id);
         }
 
         // Encoding rules (such as payload encryption) take and return the encoded bytes.
-        body ??= Body(Write(value, header).WrittenSpan[header..]).ToArray();
+        body ??= Body(Write(value, header, target).WrittenSpan[header..]).ToArray();
         // A rule returns the bytes as a byte[] or a ReadOnlyMemory<byte>, as the deserializer accepts them.
         var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RulePhase.Encoding, RuleMode.Write, null, latest, body, null).ConfigureAwait(false);
         var encoded = result is byte[] bytes ? bytes : (ReadOnlyMemory<byte>)result!;
@@ -217,7 +222,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     }
 
     // Runs the domain rules on a value. Field rules, such as field-level encryption, aren't supported yet.
-    private async Task<(T Value, byte[]? Body)> DomainRulesAsync(T value, bool isKey, string subject, SerializationContext context, RegisteredSchema latest, int header)
+    private async Task<(T Value, byte[]? Body)> DomainRulesAsync(T value, bool isKey, string subject, SerializationContext context, RegisteredSchema latest, int header, TargetWriter target)
     {
         if (!ApacheAvroGeneric.HasCelRules(latest.RuleSet) || _rawBytes || !ApacheAvroGeneric.IsAvailable)
         {
@@ -227,7 +232,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         // CEL reads a value by its Avro field names only as Apache.Avro's generic model, which Java's and Confluent's
         // serializers give it: so the rules see the value decoded that way. A rule that returns another value (a
         // transform) changes what is written.
-        var body = Body(Write(value, header).WrittenSpan[header..]).ToArray();
+        var body = Body(Write(value, header, target).WrittenSpan[header..]).ToArray();
         var schema = await GetParsedSchema(latest).ConfigureAwait(false);
         var generic = ApacheAvroGeneric.Decode(schema, schema, body);
         var result = await ExecuteRules(isKey, subject, context.Topic, context.Headers, RuleMode.Write, null, latest, generic, RuleSupport.NoFieldTransformsAsync).ConfigureAwait(false);
@@ -294,10 +299,10 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     }
 
     // The message: the schema ID, then the value's encoding (or the bytes alone, for the schema "bytes").
-    private byte[] Encode(T value, ref SerializationContext context, SchemaId id)
+    private byte[] Encode(T value, ref SerializationContext context, SchemaId id, TargetWriter? target = null)
     {
         var header = schemaIdEncoder.CalculateSize(ref id);
-        var output = Write(value, header);
+        var output = Write(value, header, target);
         if (_rawBytes)
         {
             return Frame(header, Body(output.WrittenSpan[header..]), ref context, ref id);
@@ -310,7 +315,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
 
     // The value's encoding, after room for the header, in this thread's buffer: the caller copies it out before the
     // next write on the thread (no caller awaits in between).
-    private ArrayBufferWriter<byte> Write(T value, int header)
+    private ArrayBufferWriter<byte> Write(T value, int header, TargetWriter? target = null)
     {
         var output = t_buffer;
         if (output is null || output.Capacity > MaxRetainedBuffer)
@@ -331,7 +336,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         var writer = new AvroWriter(output);
         _type.Write(ref writer, value);
         writer.Flush();
-        return output;
+        return target?.Reader is null ? output : target.Transcode(output, header, Math.Max(initialBufferSize, header + 16));
     }
 
     // The message body of an encoded value. A value of the schema "bytes" is the bytes alone, without Avro's length
@@ -356,28 +361,79 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         return framed;
     }
 
-    // With use.latest.version, use.latest.with.metadata or use.schema.id, the message carries another schema's ID,
-    // but its bytes are still written in the type's schema. Readers decode them with that other schema, so the two
-    // must encode alike: the same Parsing Canonical Form, and the same logical types (SchemaEncoding). Checked once per
-    // schema ID.
-    private async Task CheckWritesAsAsync(RegisteredSchema target)
+    // With use.latest.version, use.latest.with.metadata or use.schema.id, the message carries another schema's ID, so
+    // it is written in that schema. When the two encode alike (the same Parsing Canonical Form, and the same logical
+    // types: SchemaEncoding), the type's own bytes are that schema's. Otherwise the value is written, read back as a
+    // generic value of the target schema (resolved, as a reader of the type's data would), and written again, as
+    // Confluent's generic serializer and Java's serializers write with the target schema. Decided once per schema ID.
+    private async Task<TargetWriter> WritesAsAsync(RegisteredSchema target)
     {
-        if (_writesAs.ContainsKey(target.Id))
+        if (_writesAs.TryGetValue(target.Id, out var known))
         {
-            return;
+            return known;
         }
 
         var parsed = await GetParsedSchema(target).ConfigureAwait(false);
-        if (!SchemaEncoding.Same(parsed, _type.Schema))
+        var writer = SchemaEncoding.Same(parsed, _type.Schema) ? TargetWriter.Same : TargetWriterFor(target, parsed);
+        _writesAs.TryAdd(target.Id, writer);
+        return writer;
+    }
+
+    private TargetWriter TargetWriterFor(RegisteredSchema target, AvroSchema parsed)
+    {
+        var name = $"the schema ID {target.Id} (version {target.Version} of '{target.Subject}')";
+        var strictKey = useSchemaId >= 0 ? "id.compatibility.strict" : "latest.compatibility.strict";
+        if (_rawBytes || RegistrySchemas.IsRawBytes(parsed))
         {
             throw new InvalidOperationException(
-                $"The message would carry the schema ID {target.Id} (version {target.Version} of '{target.Subject}'), but " +
-                $"{typeof(T).Name} is written with a schema that encodes differently (another structure, or other logical " +
-                "types), which readers would decode wrongly. Use a type generated from that schema, or turn off " +
-                "use.latest.version, use.latest.with.metadata and use.schema.id.");
+                $"The message would carry {name}, but {typeof(T).Name} is written with another schema, and a top-level " +
+                "\"bytes\" value is the message body alone, so it can't be written as another schema.");
         }
 
-        _writesAs.TryAdd(target.Id, true);
+        var check = AvroSchemaCompatibility.Check(_type.Schema, parsed);
+        var meaning = check.Warnings.Where(w => w.Kind is AvroCompatibilityKind.LogicalTypeChanged or AvroCompatibilityKind.DecimalChanged).ToList();
+        if (meaning.Count > 0)
+        {
+            // The generic values of a logical type are its encoded numbers or bytes, so writing them in another logical
+            // type (or another decimal scale) would change the values, whatever the setting.
+            throw new InvalidOperationException(
+                $"The message would carry {name}, but {typeof(T).Name}'s schema has other logical types, which would " +
+                $"change the values written: {string.Join("; ", meaning)}. Use a type generated from that schema.");
+        }
+
+        if (!check.IsCompatible && (useSchemaId >= 0 ? _idStrict : _latestStrict))
+        {
+            throw new InvalidOperationException(
+                $"The message would carry {name}, which can't read {typeof(T).Name}'s schema: " +
+                $"{string.Join("; ", check.Incompatibilities)}. Use a type generated from that schema, or set " +
+                $"{strictKey} to false to write values whenever the schemas resolve.");
+        }
+
+        return new TargetWriter(GenericDatumReader.Create(_type.Schema, parsed), GenericDatumWriter.Create(parsed));
+    }
+
+    // How a value is written in a target schema: as it is (Same), or read back as a generic value of the target schema
+    // and written again.
+    private sealed class TargetWriter(GenericDatumReader? reader, GenericDatumWriter? writer)
+    {
+        public static readonly TargetWriter Same = new(null, null);
+
+        public GenericDatumReader? Reader { get; } = reader;
+
+        // The value in the target schema, after the same room for the header. Not the thread's buffer: it holds the
+        // value written with the type's schema.
+        public ArrayBufferWriter<byte> Transcode(ArrayBufferWriter<byte> written, int header, int size)
+        {
+            var input = new AvroReader(written.WrittenSpan[header..]);
+            var value = Reader!.Read(ref input);
+            var output = new ArrayBufferWriter<byte>(Math.Max(size, written.WrittenCount + 16));
+            output.GetSpan(header);
+            output.Advance(header);
+            var avroWriter = new AvroWriter(output);
+            writer!.Write(ref avroWriter, value);
+            avroWriter.Flush();
+            return output;
+        }
     }
 
     // The schema's ID in the subject: registered (or looked up, without auto-registration) once, then cached. A cached

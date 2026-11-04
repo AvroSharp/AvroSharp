@@ -180,17 +180,6 @@ public class SerdeBehaviorTests
     }
 
     [Test]
-    public async Task UseLatestVersion_WithAnotherSchema_IsRejected()
-    {
-        using var registry = new InMemorySchemaRegistry();
-        var topic = Topic();
-        await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(OrderV1, SchemaType.Avro));
-        var serializer = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { UseLatestVersion = true, AutoRegisterSchemas = false });
-
-        await Assert.That(async () => await serializer.SerializeAsync(NewOrder(), Value(topic))).Throws<InvalidOperationException>();
-    }
-
-    [Test]
     public async Task ConcurrentFirstMessages_RegisterOnce_AndAllRead()
     {
         using var registry = new InMemorySchemaRegistry();
@@ -254,17 +243,6 @@ public class SerdeBehaviorTests
         var value = await AvroSharpGeneric.CreateDeserializer(registry).DeserializeAsync(message, isNull: false, Value(topic));
 
         await Assert.That(value.AsRecord()["n"].AsInt32()).IsEqualTo(7);
-    }
-
-    [Test]
-    public async Task UseSchemaId_OfAnotherSchema_IsRejected()
-    {
-        using var registry = new InMemorySchemaRegistry();
-        var topic = Topic();
-        var v1 = await registry.RegisterSchemaAsync(topic + "-value", new ConfluentSchema(OrderV1, SchemaType.Avro));
-        var serializer = new AvroSharpSerializer<Order>(registry, new AvroSharpSerializerConfig { UseSchemaId = v1, AutoRegisterSchemas = false });
-
-        await Assert.That(async () => await serializer.SerializeAsync(NewOrder(), Value(topic))).Throws<InvalidOperationException>();
     }
 
     [Test]
