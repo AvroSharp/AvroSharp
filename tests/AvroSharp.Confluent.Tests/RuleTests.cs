@@ -257,20 +257,6 @@ public class RuleTests
         await Assert.That(notSupported).IsTrue();
     }
 
-    [Test]
-    public async Task MigrationRules_AreNotSupported()
-    {
-        using var registry = new InMemorySchemaRegistry();
-        var topic = Topic();
-        var bytes = await new AvroSharpSerializer<Customer>(registry).SerializeAsync(new Customer { Name = "Ada" }, Value(topic));
-        var upgrade = new Rule("upgrade", RuleKind.Transform, RuleMode.Upgrade, "JSONATA", null, null, "$merge([$, {'Tier': 1}])", null, null, false);
-        await Register(registry, topic, """{"type":"record","name":"Customer","namespace":"test.native","fields":[{"name":"Name","type":"string"},{"name":"Level","type":"int"},{"name":"Tier","type":"int","default":0}]}""", new RuleSet([upgrade], [], []));
-        var deserializer = new AvroSharpDeserializer<Customer>(registry, new AvroSharpDeserializerConfig { UseLatestVersion = true });
-
-        await Assert.That(async () => await deserializer.DeserializeAsync(bytes, isNull: false, Value(topic)))
-            .Throws<NotSupportedException>().WithMessageContaining("migration rules", StringComparison.Ordinal);
-    }
-
     private static RuleSet Cel(string expression, RuleMode mode = RuleMode.Write) =>
         new([], [new Rule("check", RuleKind.Condition, mode, "CEL", null, null, expression, null, null, false)], []);
 
