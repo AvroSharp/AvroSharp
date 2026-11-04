@@ -42,7 +42,7 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     // The writer schema of each subject and schema ID, and the pairs of writer schema ID and latest schema ID without
     // migrations between them, for the messages that can't take the path above.
     private readonly ConcurrentDictionary<(string? Subject, int? Id, Guid? Guid), (ConfluentSchema Json, AvroSchema Parsed)> _writers = new();
-    private readonly ConcurrentDictionary<(int? Id, Guid? Guid, int Latest), bool> _noMigrations = new();
+    private readonly ConcurrentDictionary<(int? Id, Guid? Guid, int Latest), IList<Migration>> _migrations = new();
 
     // The reader of each writer schema. Confluent's client caches a parsed schema per ID, so the instance is the key.
     private readonly ConditionalWeakTable<AvroSchema, AvroReadFunc<T>> _readers = new();
@@ -171,9 +171,12 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
             payload = decoded is byte[] bytes ? bytes : (ReadOnlyMemory<byte>)decoded!;
         }
 
-        if (latest is not null)
+        if (latest is not null && await MigrationsAsync(subject!, writerJson, latest, id).ConfigureAwait(false) is { Count: > 0 } migrations)
         {
-            await CheckNoMigrationsAsync(subject!, writerJson, latest, id).ConfigureAwait(false);
+            // From here on the message is the latest schema's: the value the migration rules made, encoded in it.
+            var latestSchema = await GetParsedSchema(latest).ConfigureAwait(false);
+            payload = await MigrateAsync(migrations, isKey, subject!, context, writerSchema, latestSchema, payload).ConfigureAwait(false);
+            (writerJson, writerSchema) = (latest, latestSchema);
         }
 
         var read = ReadAsLatest is not null && latest is not null
@@ -254,13 +257,14 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
         return false;
     }
 
-    // Migration rules between the writer's schema and the latest aren't run yet, so their reads fail. Looked up once per
-    // writer schema and latest schema: Confluent's lookup fetches the writer's version, and every version in between.
-    private async Task CheckNoMigrationsAsync(string subject, ConfluentSchema writerJson, RegisteredSchema latest, SchemaId id)
+    // The migration rules between the writer's schema and the latest, looked up once per writer schema and latest
+    // schema: Confluent's lookup fetches the writer's version, and every version in between, from the registry.
+    private async Task<IList<Migration>> MigrationsAsync(string subject, ConfluentSchema writerJson, RegisteredSchema latest, SchemaId id)
     {
-        if (_noMigrations.ContainsKey((id.Id, id.Guid, latest.Id)))
+        var key = (id.Id, id.Guid, latest.Id);
+        if (_migrations.TryGetValue(key, out var known))
         {
-            return;
+            return known;
         }
 
         IList<Migration> migrations;
@@ -269,12 +273,27 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
             migrations = await GetMigrations(subject, writerJson, latest).ConfigureAwait(false);
         }
 
-        if (migrations.Count > 0)
+        _migrations.TryAdd(key, migrations);
+        return migrations;
+    }
+
+    // Runs migration rules (UPGRADE or DOWNGRADE, such as JSONata) as Confluent's and Java's deserializers do: on the
+    // value as Avro JSON, read with the writer's schema; the JSON they return is a value of the latest schema, which is
+    // encoded for the read that follows.
+    private async Task<ReadOnlyMemory<byte>> MigrateAsync(IList<Migration> migrations, bool isKey, string subject, SerializationContext context, AvroSchema writerSchema, AvroSchema latestSchema, ReadOnlyMemory<byte> payload)
+    {
+        if (RegistrySchemas.IsRawBytes(writerSchema) || RegistrySchemas.IsRawBytes(latestSchema))
         {
-            throw new NotSupportedException($"The subject '{subject}' has migration rules between the writer's schema and the latest, which AvroSharp.Confluent doesn't run yet.");
+            throw new NotSupportedException($"The subject '{subject}' has migration rules for a top-level \"bytes\" schema, which AvroSharp.Confluent doesn't run.");
         }
 
-        _noMigrations.TryAdd((id.Id, id.Guid, latest.Id), true);
+        var value = GenericDatumReader.Create(writerSchema).Read(payload.Span);
+        var json = MigrationJson.Parse(GenericDatumJsonWriter.Create(writerSchema).WriteToString(value));
+        var migrated = await ExecuteMigrations(migrations, isKey, subject, context.Topic, context.Headers, json).ConfigureAwait(false);
+        var latest = GenericDatumJsonReader.Create(latestSchema).Read(MigrationJson.ToJson(migrated));
+        var encoded = new ArrayBufferWriter<byte>(payload.Length + 16);
+        GenericDatumWriter.Create(latestSchema).Write(encoded, latest);
+        return encoded.WrittenMemory;
     }
 
     // The writer's schema, as registered and parsed, by its ID: fetched once, rather than looked up through Confluent's
