@@ -89,6 +89,8 @@ A section's own entry has no value, and is left out.
 | `SubjectNameStrategy` | `avro.serializer.subject.name.strategy` | `Associated`: the topic's association, or else `Topic` |
 | `SchemaIdStrategy` | `avro.serializer.schema.id.strategy` | `Prefix` |
 | `BufferBytes` | `avro.serializer.buffer.bytes` | 1024 |
+| `RemoveJavaProperties` | `avro.serializer.remove.java.properties` | `false`; Java's `avro.remove.java.properties` |
+| `TombstoneBehavior` | `avro.serializer.tombstone.behavior` | `None`, Confluent's behavior; AvroSharp's own key |
 
 | Deserializer | Key | Default |
 |---|---|---|
@@ -96,6 +98,12 @@ A section's own entry has no value, and is left out.
 | `UseLatestWithMetadata` | `avro.deserializer.use.latest.with.metadata` | none |
 | `SubjectNameStrategy` | `avro.deserializer.subject.name.strategy` | `Associated` |
 | `SchemaIdStrategy` | `avro.deserializer.schema.id.strategy` | `Dual`: a header, or else the prefix |
+| `FailOnTrailingData` | `avro.deserializer.fail.on.trailing.data` | `false`; Java's `avro.fail.on.trailing.data` |
+| `TombstoneBehavior` | `avro.deserializer.tombstone.behavior` | `None`, Confluent's behavior; AvroSharp's own key |
+
+Two keys come from Java's serializers, which Confluent's .NET serializer doesn't have:
+- **`RemoveJavaProperties`** removes the property `avro.java.string` from the schema before it is registered or looked up, as Java's serializer does. Java's generated classes add it, so with the option on everywhere, the same `.avsc` registers as one version from Java and .NET.
+- **`FailOnTrailingData`** fails a message that has bytes left after the value, a sign of a wrong schema or a corrupt message. Without it, they are ignored, as Confluent's .NET deserializer does.
 
 ## Moving from Confluent's Avro serializer
 
@@ -134,6 +142,8 @@ Chr.Avro.Confluent maps your classes to schemas by reflection when the serialize
 
 - **Native AOT.** CI publishes an application that uses it with Native AOT and runs it ([the add-ons smoke test](https://github.com/AvroSharp/AvroSharp/tree/main/tests/AvroSharp.AotSmoke.Addons/Program.cs)). AvroSharp.Confluent has no trim or AOT warnings. Confluent's `CachedSchemaRegistryClient` reads the registry's REST API with Newtonsoft.Json, which has trim and AOT warnings of its own; they come from Confluent's client, not from the serializers.
 - **Tombstones.** A `null` value, or a null `AvroValue`, is written as a message with no body, which Kafka calls a tombstone. Reading one gives `null`, or a null `AvroValue`. A value type such as `int` can't be null, so reading a tombstone into one throws, as in Confluent's deserializer.
+  - **Confluent.Kafka's `Null`** has the schema `"null"`, as in Confluent's serializer: `AvroSharpSerializer<Null>` writes a message with the schema ID and an empty body, not a tombstone.
+  - **`TombstoneBehavior.Strict`**, as in Chr.Avro, makes sure a tombstone can't be mistaken for a value. The serializer or deserializer is refused when it's created if the type can't be null (a value type, rather than `int?`), or if the schema can hold null (`"null"`, or a union with `"null"`). The deserializer checks each writer's schema as it meets it. A key with no value throws, since keys have no tombstones.
 - **`use.latest.version`, `use.latest.with.metadata` and `use.schema.id`.** The message carries that schema's ID, but its bytes are written in your type's schema. So the serializer checks once that the two schemas encode alike (the same Parsing Canonical Form, and the same logical types), and throws when they don't. Otherwise readers would decode the message wrongly.
 - **Configuration keys.** A key the serializer doesn't know is an error, as in Confluent's serializers, so a misspelled key isn't ignored. Keys under `rules.` and `subject.name.strategy.` are passed through to Confluent's code.
 - **The `None` subject name strategy isn't supported,** with or without `use.schema.id`: Confluent's client needs a subject to look a schema ID up in, and Confluent's serializer fails the same way. The serializer says so.

@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using AvroSharp.Generic;
@@ -30,6 +31,8 @@ namespace AvroSharp.Confluent;
 public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>, IDeserializer<T>
 {
     private readonly AvroTypeInfo<T> _type;
+    private readonly bool _failOnTrailingData;
+    private readonly bool _strict;
 
     // The writer schema and reader of each schema ID, once known, when reading it depends on nothing else (no latest
     // schema, and no rules): the synchronous path reads with them.
@@ -49,10 +52,10 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     /// <param name="client">The schema registry.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
     /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
-    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the deserializer doesn't know.</exception>
-    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> is not registered in <see cref="AvroTypes"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the deserializer doesn't know, or sets <see cref="TombstoneBehavior.Strict"/> for a value type.</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> is not registered in <see cref="AvroTypes"/> (Confluent.Kafka's <c>Null</c> needn't be: its schema is <c>"null"</c>).</exception>
     public AvroSharpDeserializer(ISchemaRegistryClient client, AvroSharpDeserializerConfig? config = null, RuleRegistry? ruleRegistry = null)
-        : this(client, AvroTypes.Get<T>(), config, ruleRegistry)
+        : this(client, ConfluentTypes.Get<T>(), config, ruleRegistry)
     {
     }
 
@@ -61,14 +64,22 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     /// <param name="type">The type's schema and serializers.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
     /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
-    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the deserializer doesn't know.</exception>
+    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the deserializer doesn't know, or sets <see cref="TombstoneBehavior.Strict"/> for a value type.</exception>
     public AvroSharpDeserializer(ISchemaRegistryClient client, AvroTypeInfo<T> type, AvroSharpDeserializerConfig? config = null, RuleRegistry? ruleRegistry = null)
         : base(client, config, ruleRegistry ?? RuleRegistry.GlobalInstance)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(type);
         _type = type;
-        _createReader = schema => _type.ReadFor(schema);
+        _createReader = schema =>
+        {
+            if (_strict)
+            {
+                Tombstones.CheckSchema(schema, "AvroSharpDeserializer");
+            }
+
+            return _type.ReadFor(schema);
+        };
         subjectNameStrategy = (config?.SubjectNameStrategy ?? SubjectNameStrategy.Associated).ToAsyncDelegate(client, config);
         if (config is null)
         {
@@ -78,6 +89,18 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
         ConfigKeys.Check(config, ConfigKeys.Deserializer, "AvroSharpDeserializer");
         useLatestVersion = config.UseLatestVersion ?? useLatestVersion;
         useLatestWithMetadata = config.UseLatestWithMetadata ?? useLatestWithMetadata;
+        _failOnTrailingData = config.FailOnTrailingData ?? false;
+        if (config.TombstoneBehavior == TombstoneBehavior.Strict)
+        {
+            // The schemas are checked as they are met: each writer's schema (and the latest), which can differ.
+            if (!Tombstones.CanHoldNull<T>())
+            {
+                throw new ArgumentException(Tombstones.TypeMessage<T>("AvroSharpDeserializer"), nameof(config));
+            }
+
+            _strict = true;
+        }
+
         if (config.SchemaIdStrategy is { } strategy)
         {
             schemaIdDecoder = strategy.ToDeserializer();
@@ -92,7 +115,7 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     {
         if (isNull)
         {
-            return Tombstone();
+            return Tombstone(context);
         }
 
         var isKey = context.Component == MessageComponentType.Key;
@@ -158,7 +181,7 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     {
         if (isNull)
         {
-            return Tombstone();
+            return Tombstone(context);
         }
 
         var message = data.ToArray();
@@ -173,11 +196,18 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
 
     // A tombstone. A value type can't be null (a generic value can: AvroValue's default is null), as in Confluent's
-    // deserializer.
-    private static T Tombstone() =>
-        default(T) is null || typeof(T) == typeof(AvroValue)
+    // deserializer. With TombstoneBehavior.Strict a key has no tombstone.
+    private T Tombstone(SerializationContext context)
+    {
+        if (_strict && context.Component == MessageComponentType.Key)
+        {
+            throw Tombstones.NullKey("AvroSharpDeserializer");
+        }
+
+        return default(T) is null || typeof(T) == typeof(AvroValue)
             ? default!
             : throw new InvalidOperationException($"The message has no body (a tombstone), which can't be read as the value type {typeof(T).Name}.");
+    }
 
     /// <summary>
     /// Gets or sets how values are read when the subject has a latest schema (<c>use.latest.version</c> or
@@ -187,9 +217,18 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
     internal Func<AvroSchema, AvroSchema, AvroReadFunc<T>>? ReadAsLatest { get; init; }
 
     private AvroReadFunc<T> LatestReader(AvroSchema writerSchema, AvroSchema latestSchema) =>
-        _latestReaders.GetOrCreateValue(writerSchema).GetValue(latestSchema, latest => ReadAsLatest!(writerSchema, latest));
+        _latestReaders.GetOrCreateValue(writerSchema).GetValue(latestSchema, latest =>
+        {
+            if (_strict)
+            {
+                Tombstones.CheckSchema(writerSchema, "AvroSharpDeserializer");
+                Tombstones.CheckSchema(latest, "AvroSharpDeserializer");
+            }
 
-    private static T Read(AvroReadFunc<T> read, AvroSchema writerSchema, ReadOnlyMemory<byte> payload)
+            return ReadAsLatest!(writerSchema, latest);
+        });
+
+    private T Read(AvroReadFunc<T> read, AvroSchema writerSchema, ReadOnlyMemory<byte> payload)
     {
         if (RegistrySchemas.IsRawBytes(writerSchema))
         {
@@ -204,6 +243,14 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
         }
 
         var reader = new AvroReader(payload.Span);
-        return read(ref reader);
+        var value = read(ref reader);
+        if (_failOnTrailingData && reader.BytesConsumed != payload.Length)
+        {
+            throw new InvalidDataException(
+                $"The message has {payload.Length - reader.BytesConsumed} bytes after the value, of {payload.Length}: a sign of a wrong " +
+                "schema or a corrupt message (avro.deserializer.fail.on.trailing.data).");
+        }
+
+        return value;
     }
 }

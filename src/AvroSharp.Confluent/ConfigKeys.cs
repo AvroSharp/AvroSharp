@@ -16,6 +16,8 @@ internal static class ConfigKeys
         AvroSharpSerializerConfig.PropertyNames.UseLatestWithMetadata,
         AvroSharpSerializerConfig.PropertyNames.SubjectNameStrategy,
         AvroSharpSerializerConfig.PropertyNames.SchemaIdStrategy,
+        AvroSharpSerializerConfig.PropertyNames.RemoveJavaProperties,
+        AvroSharpSerializerConfig.PropertyNames.TombstoneBehavior,
     };
 
     public static readonly HashSet<string> Deserializer = new(StringComparer.Ordinal)
@@ -24,6 +26,8 @@ internal static class ConfigKeys
         AvroSharpDeserializerConfig.PropertyNames.UseLatestWithMetadata,
         AvroSharpDeserializerConfig.PropertyNames.SubjectNameStrategy,
         AvroSharpDeserializerConfig.PropertyNames.SchemaIdStrategy,
+        AvroSharpDeserializerConfig.PropertyNames.FailOnTrailingData,
+        AvroSharpDeserializerConfig.PropertyNames.TombstoneBehavior,
     };
 
     /// <summary>A copy of the pairs that have a value, so the settings never write into the caller's collection.</summary>

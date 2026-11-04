@@ -6,7 +6,7 @@ Confluent Schema Registry serializers and deserializers for [Confluent.Kafka](ht
   - types generated from `.avsc` files;
   - your own C# types marked `[AvroSerializable]`;
   - generic records (`AvroValue`);
-  - the primitives `string`, `int`, `long`, `float`, `double`, `bool` and `byte[]`, as in Confluent's serializers (not yet its `Null`).
+  - the primitives `string`, `int`, `long`, `float`, `double`, `bool` and `byte[]`, and Confluent.Kafka's `Null`, as in Confluent's serializers.
 - **Confluent's own code** for the registry: AvroSharp's serializers derive from Confluent's serializer base classes, so these work as in Confluent's serializer:
   - subject name strategies;
   - registration and `use.latest.version`;

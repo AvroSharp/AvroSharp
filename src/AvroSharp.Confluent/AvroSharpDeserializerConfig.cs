@@ -62,6 +62,27 @@ public sealed class AvroSharpDeserializerConfig : SerdeConfig
         set => SetObject(PropertyNames.SchemaIdStrategy, value);
     }
 
+    /// <summary>
+    /// Gets or sets whether a message with bytes left after the value fails to read
+    /// (<c>avro.deserializer.fail.on.trailing.data</c>), as Java's <c>avro.fail.on.trailing.data</c>. Such bytes are a
+    /// sign of a wrong schema or a corrupt message. The default is <see langword="false"/>: they are ignored.
+    /// </summary>
+    public bool? FailOnTrailingData
+    {
+        get => GetBool(PropertyNames.FailOnTrailingData);
+        set => SetObject(PropertyNames.FailOnTrailingData, value);
+    }
+
+    /// <summary>
+    /// Gets or sets how tombstones are treated (<c>avro.deserializer.tombstone.behavior</c>, AvroSharp's own key). The
+    /// default is <see cref="Confluent.TombstoneBehavior.None"/>, Confluent's behavior.
+    /// </summary>
+    public TombstoneBehavior? TombstoneBehavior
+    {
+        get => (TombstoneBehavior?)GetEnum(typeof(TombstoneBehavior), PropertyNames.TombstoneBehavior);
+        set => SetObject(PropertyNames.TombstoneBehavior, value);
+    }
+
     /// <summary>The configuration keys, as Confluent's <c>AvroDeserializerConfig.PropertyNames</c>.</summary>
     [SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "The shape of Confluent's config classes, which this one mirrors.")]
     public static class PropertyNames
@@ -77,5 +98,11 @@ public sealed class AvroSharpDeserializerConfig : SerdeConfig
 
         /// <summary>The schema ID strategy.</summary>
         public const string SchemaIdStrategy = "avro.deserializer.schema.id.strategy";
+
+        /// <summary>Whether bytes left after the value fail the read.</summary>
+        public const string FailOnTrailingData = "avro.deserializer.fail.on.trailing.data";
+
+        /// <summary>How tombstones are treated.</summary>
+        public const string TombstoneBehavior = "avro.deserializer.tombstone.behavior";
     }
 }

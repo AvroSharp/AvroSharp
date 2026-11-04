@@ -89,6 +89,27 @@ public sealed class AvroSharpSerializerConfig : SerdeConfig
         set => SetObject(PropertyNames.SchemaIdStrategy, value);
     }
 
+    /// <summary>
+    /// Gets or sets whether the property <c>avro.java.string</c> is removed from the schema before it is registered or
+    /// looked up (<c>avro.serializer.remove.java.properties</c>), as Java's <c>avro.remove.java.properties</c> does, so
+    /// the same <c>.avsc</c> registers as one version from Java and .NET. The default is <see langword="false"/>.
+    /// </summary>
+    public bool? RemoveJavaProperties
+    {
+        get => GetBool(PropertyNames.RemoveJavaProperties);
+        set => SetObject(PropertyNames.RemoveJavaProperties, value);
+    }
+
+    /// <summary>
+    /// Gets or sets how tombstones are treated (<c>avro.serializer.tombstone.behavior</c>, AvroSharp's own key). The
+    /// default is <see cref="Confluent.TombstoneBehavior.None"/>, Confluent's behavior.
+    /// </summary>
+    public TombstoneBehavior? TombstoneBehavior
+    {
+        get => (TombstoneBehavior?)GetEnum(typeof(TombstoneBehavior), PropertyNames.TombstoneBehavior);
+        set => SetObject(PropertyNames.TombstoneBehavior, value);
+    }
+
     /// <summary>The configuration keys, as Confluent's <c>AvroSerializerConfig.PropertyNames</c>.</summary>
     [SuppressMessage("Design", "CA1034:Nested types should not be visible", Justification = "The shape of Confluent's config classes, which this one mirrors.")]
     public static class PropertyNames
@@ -116,5 +137,11 @@ public sealed class AvroSharpSerializerConfig : SerdeConfig
 
         /// <summary>The schema ID strategy.</summary>
         public const string SchemaIdStrategy = "avro.serializer.schema.id.strategy";
+
+        /// <summary>Whether to remove <c>avro.java.string</c> from the registered schema.</summary>
+        public const string RemoveJavaProperties = "avro.serializer.remove.java.properties";
+
+        /// <summary>How tombstones are treated.</summary>
+        public const string TombstoneBehavior = "avro.serializer.tombstone.behavior";
     }
 }

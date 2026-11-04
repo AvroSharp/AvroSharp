@@ -22,13 +22,16 @@ public sealed class AvroSharpGenericRecordSerializer : IAsyncSerializer<AvroValu
 {
     private readonly ConditionalWeakTable<RecordSchema, AvroSharpSerializer<AvroValue>> _serializers = new();
     private readonly ConditionalWeakTable<RecordSchema, AvroSharpSerializer<AvroValue>>.CreateValueCallback _create;
+    private readonly bool _strictKeys;
 
     internal AvroSharpGenericRecordSerializer(ISchemaRegistryClient client, AvroSharpSerializerConfig? config, RuleRegistry? ruleRegistry)
     {
         ArgumentNullException.ThrowIfNull(client);
 
-        // The settings are checked now, not with the first record.
-        _ = AvroSharpGeneric.CreateSerializer(client, AvroSchema.Null, config, ruleRegistry);
+        // The settings are checked now, not with the first record: with a schema that passes TombstoneBehavior.Strict, as
+        // every record schema does.
+        _ = AvroSharpGeneric.CreateSerializer(client, AvroSchema.Boolean, config, ruleRegistry);
+        _strictKeys = config?.TombstoneBehavior == TombstoneBehavior.Strict;
         _create = schema => AvroSharpGeneric.CreateSerializer(client, schema, config, ruleRegistry);
     }
 
@@ -38,7 +41,7 @@ public sealed class AvroSharpGenericRecordSerializer : IAsyncSerializer<AvroValu
     /// <returns>The message body, or <see langword="null"/> for a tombstone.</returns>
     /// <exception cref="ArgumentException"><paramref name="data"/> is not a record.</exception>
     public Task<byte[]?> SerializeAsync(AvroValue data, SerializationContext context) =>
-        data.IsNull ? Task.FromResult<byte[]?>(null) : For(data).SerializeAsync(data, context);
+        data.IsNull ? Task.FromResult(Tombstone(context)) : For(data).SerializeAsync(data, context);
 
     /// <summary>Writes a record with its schema, without a task once its schema ID is known. A null value is a tombstone: no message body.</summary>
     /// <param name="data">The record.</param>
@@ -46,7 +49,10 @@ public sealed class AvroSharpGenericRecordSerializer : IAsyncSerializer<AvroValu
     /// <returns>The message body, or <see langword="null"/> for a tombstone.</returns>
     /// <exception cref="ArgumentException"><paramref name="data"/> is not a record.</exception>
     public byte[]? Serialize(AvroValue data, SerializationContext context) =>
-        data.IsNull ? null : For(data).Serialize(data, context);
+        data.IsNull ? Tombstone(context) : For(data).Serialize(data, context);
+
+    private byte[]? Tombstone(SerializationContext context) =>
+        _strictKeys && context.Component == MessageComponentType.Key ? throw Tombstones.NullKey("AvroSharpGenericRecordSerializer") : null;
 
     private AvroSharpSerializer<AvroValue> For(AvroValue data) =>
         data.Kind == AvroValueKind.Record

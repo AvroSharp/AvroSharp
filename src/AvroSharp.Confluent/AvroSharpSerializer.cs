@@ -35,6 +35,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     private readonly string _schemaJson;
     private readonly string? _recordName;
     private readonly bool _rawBytes;
+    private readonly bool _strict;
     private readonly ConcurrentDictionary<int, bool> _writesAs = new();
     private readonly ConcurrentDictionary<string, SchemaId> _registered = new(StringComparer.Ordinal);
 
@@ -50,10 +51,10 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     /// <param name="client">The schema registry.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
     /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
-    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> is not registered in <see cref="AvroTypes"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the serializer doesn't know, or enables both <c>use.latest.version</c> and <c>auto.register.schemas</c> (the default).</exception>
+    /// <exception cref="InvalidOperationException"><typeparamref name="T"/> is not registered in <see cref="AvroTypes"/> (Confluent.Kafka's <c>Null</c> needn't be: its schema is <c>"null"</c>), or its schema holds null with <see cref="TombstoneBehavior.Strict"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the serializer doesn't know, enables both <c>use.latest.version</c> and <c>auto.register.schemas</c> (the default), or sets <see cref="TombstoneBehavior.Strict"/> for a value type.</exception>
     public AvroSharpSerializer(ISchemaRegistryClient client, AvroSharpSerializerConfig? config = null, RuleRegistry? ruleRegistry = null)
-        : this(client, AvroTypes.Get<T>(), config, ruleRegistry)
+        : this(client, ConfluentTypes.Get<T>(), config, ruleRegistry)
     {
     }
 
@@ -62,7 +63,8 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     /// <param name="type">The type's schema and serializers.</param>
     /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
     /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
-    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the serializer doesn't know, or enables both <c>use.latest.version</c> and <c>auto.register.schemas</c> (the default).</exception>
+    /// <exception cref="ArgumentException"><paramref name="config"/> has a key the serializer doesn't know, enables both <c>use.latest.version</c> and <c>auto.register.schemas</c> (the default), or sets <see cref="TombstoneBehavior.Strict"/> for a value type.</exception>
+    /// <exception cref="InvalidOperationException">The type's schema holds null, with <see cref="TombstoneBehavior.Strict"/>.</exception>
     public AvroSharpSerializer(ISchemaRegistryClient client, AvroTypeInfo<T> type, AvroSharpSerializerConfig? config = null, RuleRegistry? ruleRegistry = null)
         : base(client, config, ruleRegistry ?? RuleRegistry.GlobalInstance)
     {
@@ -87,6 +89,22 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
         useLatestVersion = config.UseLatestVersion ?? useLatestVersion;
         useLatestWithMetadata = config.UseLatestWithMetadata ?? useLatestWithMetadata;
         initialBufferSize = config.BufferBytes ?? initialBufferSize;
+        if (config.RemoveJavaProperties == true)
+        {
+            _schemaJson = ConfluentTypes.RemoveJavaProperties(_schemaJson);
+        }
+
+        if (config.TombstoneBehavior == TombstoneBehavior.Strict)
+        {
+            if (!Tombstones.CanHoldNull<T>())
+            {
+                throw new ArgumentException(Tombstones.TypeMessage<T>("AvroSharpSerializer"), nameof(config));
+            }
+
+            Tombstones.CheckSchema(type.Schema, "AvroSharpSerializer");
+            _strict = true;
+        }
+
         if (config.SchemaIdStrategy is { } strategy)
         {
             schemaIdEncoder = strategy.ToEncoder();
@@ -104,7 +122,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     /// <returns>The message body, or <see langword="null"/> for a tombstone.</returns>
     public override async Task<byte[]?> SerializeAsync(T value, SerializationContext context)
     {
-        if (IsTombstone(value))
+        if (IsTombstone(value, context))
         {
             return null;
         }
@@ -184,7 +202,7 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's synchronous interface: it waits only until the topic's schema ID is known, or with settings whose rules can run asynchronously.")]
     public byte[]? Serialize(T data, SerializationContext context)
     {
-        if (IsTombstone(data))
+        if (IsTombstone(data, context))
         {
             return null;
         }
@@ -197,9 +215,18 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
 
-    // A null value is a tombstone: no message body. So is a null generic value, unless the schema is "null".
-    private bool IsTombstone(T value) =>
-        value is null || (value is AvroValue { IsNull: true } && _type.Schema.Type != AvroSchemaType.Null);
+    // A null value is a tombstone: no message body. So is a null generic value. Unless the schema is "null", as for
+    // Confluent.Kafka's Null: the value is then written, as Confluent's serde writes it. With TombstoneBehavior.Strict
+    // a key has no tombstone.
+    private bool IsTombstone(T value, SerializationContext context)
+    {
+        if ((value is not null && value is not AvroValue { IsNull: true }) || _type.Schema.Type == AvroSchemaType.Null)
+        {
+            return false;
+        }
+
+        return _strict && context.Component == MessageComponentType.Key ? throw Tombstones.NullKey("AvroSharpSerializer") : true;
+    }
 
     // The message: the schema ID, then the value's encoding (or the bytes alone, for the schema "bytes").
     private byte[] Encode(T value, ref SerializationContext context, SchemaId id)
