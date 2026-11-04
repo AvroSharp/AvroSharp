@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using AvroSharp.Generic;
 using AvroSharp.Schemas;
 using AvroSharp.Serialization;
@@ -38,6 +41,58 @@ public static class AvroSharpSerdeExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.SetValueSerializer((ISerializer<TValue>)new AvroSharpSerializer<TValue>(client, config, ruleRegistry));
+    }
+
+    /// <summary>
+    /// Writes keys with a version of a subject, pinned: an <see cref="AvroSharpSerializer{T}"/> with that version's
+    /// schema ID (<c>use.schema.id</c>), under that subject for every topic. A key type whose schema differs from the
+    /// version's is written in it, when the version can read the type's schema (<c>id.compatibility.strict</c>).
+    /// </summary>
+    /// <typeparam name="TKey">The key type.</typeparam>
+    /// <typeparam name="TValue">The value type.</typeparam>
+    /// <param name="builder">The producer builder.</param>
+    /// <param name="client">The schema registry, which is asked for the version once.</param>
+    /// <param name="subject">The subject.</param>
+    /// <param name="version">The version, from 1.</param>
+    /// <param name="config">Other settings, or <see langword="null"/> for the defaults; <c>use.schema.id</c> and <c>auto.register.schemas</c> are set.</param>
+    /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
+    public static async Task<ProducerBuilder<TKey, TValue>> SetAvroSharpKeySerializerAsync<TKey, TValue>(this ProducerBuilder<TKey, TValue> builder, ISchemaRegistryClient client, string subject, int version, AvroSharpSerializerConfig? config = null, RuleRegistry? ruleRegistry = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.SetKeySerializer((ISerializer<TKey>)await PinnedAsync<TKey>(client, subject, version, config, ruleRegistry).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Writes values with a version of a subject, pinned: an <see cref="AvroSharpSerializer{T}"/> with that version's
+    /// schema ID (<c>use.schema.id</c>), under that subject for every topic. A value type whose schema differs from the
+    /// version's is written in it, when the version can read the type's schema (<c>id.compatibility.strict</c>).
+    /// </summary>
+    /// <typeparam name="TKey">The key type.</typeparam>
+    /// <typeparam name="TValue">The value type.</typeparam>
+    /// <param name="builder">The producer builder.</param>
+    /// <param name="client">The schema registry, which is asked for the version once.</param>
+    /// <param name="subject">The subject.</param>
+    /// <param name="version">The version, from 1.</param>
+    /// <param name="config">Other settings, or <see langword="null"/> for the defaults; <c>use.schema.id</c> and <c>auto.register.schemas</c> are set.</param>
+    /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
+    public static async Task<ProducerBuilder<TKey, TValue>> SetAvroSharpValueSerializerAsync<TKey, TValue>(this ProducerBuilder<TKey, TValue> builder, ISchemaRegistryClient client, string subject, int version, AvroSharpSerializerConfig? config = null, RuleRegistry? ruleRegistry = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.SetValueSerializer((ISerializer<TValue>)await PinnedAsync<TValue>(client, subject, version, config, ruleRegistry).ConfigureAwait(false));
+    }
+
+    // A serializer of the version's schema ID, under the subject.
+    private static async Task<AvroSharpSerializer<T>> PinnedAsync<T>(ISchemaRegistryClient client, string subject, int version, AvroSharpSerializerConfig? config, RuleRegistry? ruleRegistry)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(subject);
+        var registered = await client.GetRegisteredSchemaAsync(subject, version, ignoreDeletedSchemas: true).ConfigureAwait(false);
+        var pinned = new AvroSharpSerializerConfig(config ?? Enumerable.Empty<KeyValuePair<string, string>>())
+        {
+            UseSchemaId = registered.Id,
+            AutoRegisterSchemas = false,
+        };
+        return new AvroSharpSerializer<T>(client, pinned, ruleRegistry) { CustomSubjectNameStrategy = (_, _) => Task.FromResult(subject) };
     }
 
     /// <summary>

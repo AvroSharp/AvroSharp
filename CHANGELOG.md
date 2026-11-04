@@ -12,6 +12,10 @@ All notable changes to this project are documented here. The format follows [Kee
   - `AvroSharpSerializerConfig.RemoveJavaProperties` (`avro.serializer.remove.java.properties`): `avro.java.string` is removed from the schema before it is registered, as with Java's `avro.remove.java.properties` (#202).
   - Metrics and traces for OpenTelemetry: a `Meter` and an `ActivitySource` named `AvroSharp.Confluent`, with the time of each message, errors, rule failures and registry calls (#200). Nothing is measured without a listener.
   - Benchmarks against Confluent's Avro serializer and Chr.Avro.Confluent: `bench/AvroSharp.Confluent.Benchmarks` (#197).
+  - Subjects and pinned schemas (#194):
+    - `CustomSubjectNameStrategy` on the serializer and the deserializer, a function for subject names the enum can't express, such as schema contexts;
+    - `SetAvroSharpKeySerializerAsync` and `SetAvroSharpValueSerializerAsync(client, subject, version)`, which write with that version of the subject for every topic;
+    - `AvroSharpSerializerConfig.UseSchemaGuid` (`avro.serializer.use.schema.guid`), the GUID form of `use.schema.id`.
 - **AvroSharp:** `AvroTypeInfo.ReadObjectFor(AvroSchema)`, the boxed reader of a writer schema, resolved once (#197).
 
 ### Changed

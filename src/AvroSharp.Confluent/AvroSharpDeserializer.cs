@@ -293,6 +293,21 @@ public sealed class AvroSharpDeserializer<T> : AsyncDeserializer<T, AvroSchema>,
         return writer;
     }
 
+    /// <summary>
+    /// Gets or sets how subjects are named, as a function (by default, the one of the configuration's
+    /// <c>subject.name.strategy</c>), for names that <see cref="global::Confluent.SchemaRegistry.SubjectNameStrategy"/>
+    /// can't express, such as a schema context (<c>:.context:orders-value</c>) or a team's prefix. It replaces the
+    /// configuration's <c>subject.name.strategy</c>. It is asked when a topic's schema is first read, and on every message
+    /// whose settings need the subject (<c>use.latest.version</c> and the others), so it should give the same subject
+    /// for the same topic and component.
+    /// </summary>
+    /// <example><c>new AvroSharpDeserializer&lt;Order&gt;(registry) { CustomSubjectNameStrategy = (context, recordType) =&gt; Task.FromResult("billing." + context.Topic) }</c></example>
+    public AsyncSubjectNameStrategyDelegate CustomSubjectNameStrategy
+    {
+        get => subjectNameStrategy;
+        init => subjectNameStrategy = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
 
