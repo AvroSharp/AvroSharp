@@ -58,6 +58,7 @@ using var consumer = new ConsumerBuilder<string, Order>(new ConsumerConfig { Boo
 
 The [guide](https://avrosharp.github.io/AvroSharp/docs/confluent.html) has:
 - generic records;
+- several record types on one topic;
 - .NET Standard;
 - the settings and their Confluent keys;
 - moving from Confluent's Avro serializer and from Chr.Avro;

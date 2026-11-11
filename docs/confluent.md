@@ -66,6 +66,17 @@ var asV2 = AvroSharpGeneric.CreateDeserializer(registry, readerSchema: v2);   //
 
 On Confluent.Kafka's builders, `SetAvroSharpGenericValueSerializer` and `SetAvroSharpGenericValueDeserializer` set them, with or without a schema.
 
+**Several record types on one topic.** A topic that carries several record types, with the `TopicRecord` or `Record` subject name strategy, or a top-level union of records under one subject, takes one serializer and one deserializer of all of them. `T` is `object`, or a base type or interface the types share:
+
+```csharp
+Type[] events = [typeof(OrderPlaced), typeof(OrderShipped)];
+var serializer = new AvroSharpSerializer<object>(registry, events, new AvroSharpSerializerConfig { SubjectNameStrategy = SubjectNameStrategy.TopicRecord });
+var deserializer = new AvroSharpDeserializer<object>(registry, events);
+```
+
+- **Writing:** each value is written as its own type, with its own record's schema, under its own subject (`orders-shop.OrderPlaced`, `orders-shop.OrderShipped`). Confluent's `AvroSerializer<ISpecificRecord>` writes the same bytes. A value of a type that isn't listed fails.
+- **Reading:** each message is read as the type of its writer's record, by the record's full name or one of the type's aliases, and resolved to that type's schema as usual. For a union, it is read as the type of the branch the message holds. A record no type has fails.
+
 **.NET Standard and .NET Framework.** On .NET 5 and later, a generated type registers itself in [`AvroTypes`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.AvroTypes.html) when its assembly loads, and the constructors above find it. On other targets, either:
 - call `AvroTypes.Register(Order.AvroTypeInfo)` once at startup;
 - or pass the type's info: `new AvroSharpSerializer<Order>(registry, Order.AvroTypeInfo)`.

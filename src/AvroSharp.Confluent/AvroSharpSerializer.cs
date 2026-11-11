@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -34,6 +35,9 @@ namespace AvroSharp.Confluent;
 public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISerializer<T>
 {
     private readonly AvroTypeInfo<T> _type;
+
+    // With several record types: a serializer of each, which writes the values of its type.
+    private readonly Types? _types;
     private readonly string _schemaJson;
     private readonly string? _recordName;
     private readonly bool _rawBytes;
@@ -72,6 +76,32 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     public AvroSharpSerializer(ISchemaRegistryClient client, AvroSharpSerializerConfig? config = null, RuleRegistry? ruleRegistry = null)
         : this(client, ConfluentTypes.Get<T>(), config, ruleRegistry)
     {
+    }
+
+    /// <summary>
+    /// Creates a serializer of several record types, for a topic that carries them all: each value is written as its
+    /// own type, with its own record's schema, registered under its own subject with the <c>TopicRecord</c> or
+    /// <c>Record</c> subject name strategy. Confluent's serializer of <c>ISpecificRecord</c> writes the same.
+    /// </summary>
+    /// <param name="client">The schema registry.</param>
+    /// <param name="types">The record types: types <see cref="AvroTypes"/> knows, each a <typeparamref name="T"/>, of record schemas.</param>
+    /// <param name="config">The settings, or <see langword="null"/> for the defaults.</param>
+    /// <param name="ruleRegistry">The data contract rules, or <see langword="null"/> for <see cref="RuleRegistry.GlobalInstance"/>.</param>
+    /// <exception cref="ArgumentException">
+    /// No types are given, a type isn't a <typeparamref name="T"/> or its schema isn't a record, two types have records of the
+    /// same name or alias, or <paramref name="config"/> is one the other constructors reject.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">A type is not one <see cref="AvroTypes"/> knows.</exception>
+    /// <example><c>new AvroSharpSerializer&lt;object&gt;(registry, [typeof(OrderPlaced), typeof(OrderShipped)], new() { SubjectNameStrategy = SubjectNameStrategy.TopicRecord })</c></example>
+    public AvroSharpSerializer(ISchemaRegistryClient client, IEnumerable<Type> types, AvroSharpSerializerConfig? config = null, RuleRegistry? ruleRegistry = null)
+        : this(client, new RecordTypes<T>(types, nameof(types)), config, ruleRegistry)
+    {
+    }
+
+    private AvroSharpSerializer(ISchemaRegistryClient client, RecordTypes<T> types, AvroSharpSerializerConfig? config, RuleRegistry? ruleRegistry)
+        : this(client, types.Info, config, ruleRegistry)
+    {
+        _types = new Types(types, client, config, ruleRegistry);
     }
 
     /// <summary>Creates a serializer of the type that <paramref name="type"/> reads and writes.</summary>
@@ -147,6 +177,11 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Every exception goes into the returned task, as an async method's does.")]
     public override Task<byte[]?> SerializeAsync(T value, SerializationContext context)
     {
+        if (_types is not null && value is not null)
+        {
+            return _types.SerializeAsync(value, context, this);
+        }
+
         var start = Telemetry.Measuring ? Telemetry.Timestamp() : 0;
         try
         {
@@ -260,6 +295,11 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Confluent.Kafka's synchronous interface: it waits only until the topic's schema ID is known, or with settings whose rules can run asynchronously.")]
     public byte[]? Serialize(T data, SerializationContext context)
     {
+        if (_types is not null && data is not null)
+        {
+            return _types.For(data, this).Serialize(data, context);
+        }
+
         var start = Telemetry.Measuring ? Telemetry.Timestamp() : 0;
         try
         {
@@ -310,6 +350,38 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
 
     /// <inheritdoc/>
     protected override Task<AvroSchema> ParseSchema(ConfluentSchema schema) => RegistrySchemas.ParseAsync(schema, ResolveReferences);
+
+    // The serializers of several record types, each made when its first value is written (after the init properties
+    // are set, which they share).
+    private sealed class Types(RecordTypes<T> types, ISchemaRegistryClient client, AvroSharpSerializerConfig? config, RuleRegistry? ruleRegistry)
+    {
+        private readonly ConcurrentDictionary<Type, AvroSharpSerializer<object>> _serializers = new();
+
+        [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Every exception goes into the returned task, as an async method's does.")]
+        public Task<byte[]?> SerializeAsync(T value, SerializationContext context, AvroSharpSerializer<T> outer)
+        {
+            try
+            {
+                return For(value, outer).SerializeAsync(value!, context);
+            }
+            catch (Exception e)
+            {
+                return Task.FromException<byte[]?>(e);
+            }
+        }
+
+        public AvroSharpSerializer<object> For(T value, AvroSharpSerializer<T> outer)
+        {
+            var type = value!.GetType();
+            return _serializers.TryGetValue(type, out var serializer)
+                ? serializer
+                : _serializers.GetOrAdd(type, t => new AvroSharpSerializer<object>(
+                    client,
+                    types.AsObject(t) ?? throw new InvalidOperationException($"{t} is not one of the serializer's record types ({types.Names})."),
+                    config,
+                    ruleRegistry) { CustomSubjectNameStrategy = outer.CustomSubjectNameStrategy });
+        }
+    }
 
     // Field rules on the value itself: it is walked as a value of the latest schema, written as the message is. One per
     // schema, so messages whose rules aren't field rules don't allocate one each.
