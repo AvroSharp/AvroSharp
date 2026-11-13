@@ -33,12 +33,9 @@ public sealed class GenericRecord : IEquatable<GenericRecord>
     {
         ArgumentNullException.ThrowIfNull(schema);
         var record = new GenericRecord(schema);
-        foreach (var field in schema.Fields)
+        foreach (var field in schema.Fields.Where(f => f.HasDefaultValue))
         {
-            if (field.DefaultValue is { } defaultValue)
-            {
-                record._values[field.Position] = GenericDatumJsonReader.ReadDefault(field.Schema, defaultValue);
-            }
+            record._values[field.Position] = GenericDatumJsonReader.ReadDefault(field.Schema, field.DefaultValue!.Value);
         }
 
         return record;

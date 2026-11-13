@@ -65,13 +65,15 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
     /// <exception cref="AvroException">Two maps are compared.</exception>
     public int Compare(ReadOnlySpan<byte> x, ReadOnlySpan<byte> y)
     {
-        var left = new AvroReader(x);
-        var right = new AvroReader(y);
-
         // Every compared or skipped item takes at least one byte, but for zero-size items: so the input's size, and the
         // limit on those, bound the work a block count can ask for.
-        var state = new State { ItemsLeft = (long)x.Length + y.Length + _maxZeroSizeItems, MaxDepth = _maxDepth };
-        return _root.Compare(ref left, ref right, ref state);
+        var inputs = new Inputs
+        {
+            X = new AvroReader(x),
+            Y = new AvroReader(y),
+            State = new State { ItemsLeft = (long)x.Length + y.Length + _maxZeroSizeItems, MaxDepth = _maxDepth },
+        };
+        return _root.Compare(ref inputs);
     }
 
     /// <summary>Compares two values encoded with <see cref="Schema"/>; <see langword="null"/> sorts first.</summary>
@@ -85,6 +87,14 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
         (_, null) => 1,
         _ => Compare(x, y),
     };
+
+    // The two encodings, read side by side, and the limits they share.
+    private ref struct Inputs
+    {
+        public AvroReader X;
+        public AvroReader Y;
+        public State State;
+    }
 
     [StructLayout(LayoutKind.Auto)]
     private struct State
@@ -104,7 +114,7 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
     private abstract class Node
     {
-        public abstract int Compare(ref AvroReader x, ref AvroReader y, ref State state);
+        public abstract int Compare(ref Inputs inputs);
 
         public abstract void Skip(ref AvroReader reader, ref State state);
     }
@@ -142,26 +152,26 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
     private sealed class PrimitiveNode(AvroSchemaType type) : Node
     {
-        public override int Compare(ref AvroReader x, ref AvroReader y, ref State state)
+        public override int Compare(ref Inputs inputs)
         {
             switch (type)
             {
                 case AvroSchemaType.Null:
                     return 0;
                 case AvroSchemaType.Boolean:
-                    return x.ReadBoolean().CompareTo(y.ReadBoolean());
+                    return inputs.X.ReadBoolean().CompareTo(inputs.Y.ReadBoolean());
                 case AvroSchemaType.Int:
-                    return Math.Sign(x.ReadInt().CompareTo(y.ReadInt()));
+                    return Math.Sign(inputs.X.ReadInt().CompareTo(inputs.Y.ReadInt()));
                 case AvroSchemaType.Long:
-                    return Math.Sign(x.ReadLong().CompareTo(y.ReadLong()));
+                    return Math.Sign(inputs.X.ReadLong().CompareTo(inputs.Y.ReadLong()));
                 case AvroSchemaType.Float:
-                    return SortOrder.CompareSingle(x.ReadFloat(), y.ReadFloat());
+                    return SortOrder.CompareSingle(inputs.X.ReadFloat(), inputs.Y.ReadFloat());
                 case AvroSchemaType.Double:
-                    return SortOrder.CompareDouble(x.ReadDouble(), y.ReadDouble());
+                    return SortOrder.CompareDouble(inputs.X.ReadDouble(), inputs.Y.ReadDouble());
                 default:
                     // bytes and string: both compare their bytes, UTF-8 for a string.
-                    var left = x.ReadBytesSpan();
-                    var right = y.ReadBytesSpan();
+                    var left = inputs.X.ReadBytesSpan();
+                    var right = inputs.Y.ReadBytesSpan();
                     return SortOrder.CompareBytes(left, right);
             }
         }
@@ -197,20 +207,20 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
         public Node[] Fields { get; set; } = [];
 
-        public override int Compare(ref AvroReader x, ref AvroReader y, ref State state)
+        public override int Compare(ref Inputs inputs)
         {
-            Enter(ref state);
+            Enter(ref inputs.State);
             var fields = Fields;
             for (var i = 0; i < fields.Length; i++)
             {
                 switch (_orders[i])
                 {
                     case FieldOrder.Ignore:
-                        fields[i].Skip(ref x, ref state);
-                        fields[i].Skip(ref y, ref state);
+                        fields[i].Skip(ref inputs.X, ref inputs.State);
+                        fields[i].Skip(ref inputs.Y, ref inputs.State);
                         continue;
                     case var order:
-                        var result = fields[i].Compare(ref x, ref y, ref state);
+                        var result = fields[i].Compare(ref inputs);
                         if (result != 0)
                         {
                             return order == FieldOrder.Descending ? -result : result;
@@ -220,7 +230,7 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
                 }
             }
 
-            state.Depth--;
+            inputs.State.Depth--;
             return 0;
         }
 
@@ -246,18 +256,18 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
     private sealed class EnumNode : Node
     {
-        public override int Compare(ref AvroReader x, ref AvroReader y, ref State state) =>
-            Math.Sign(x.ReadEnum().CompareTo(y.ReadEnum()));
+        public override int Compare(ref Inputs inputs) =>
+            Math.Sign(inputs.X.ReadEnum().CompareTo(inputs.Y.ReadEnum()));
 
         public override void Skip(ref AvroReader reader, ref State state) => reader.SkipVarint();
     }
 
     private sealed class FixedNode(int size) : Node
     {
-        public override int Compare(ref AvroReader x, ref AvroReader y, ref State state)
+        public override int Compare(ref Inputs inputs)
         {
-            var left = x.ReadFixedSpan(size);
-            var right = y.ReadFixedSpan(size);
+            var left = inputs.X.ReadFixedSpan(size);
+            var right = inputs.Y.ReadFixedSpan(size);
             return SortOrder.CompareBytes(left, right);
         }
 
@@ -266,14 +276,14 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
     private sealed class ArrayNode(Node items) : Node
     {
-        public override int Compare(ref AvroReader x, ref AvroReader y, ref State state)
+        public override int Compare(ref Inputs inputs)
         {
-            var left = x.ReadBlockCount(out _);
-            var right = y.ReadBlockCount(out _);
+            var left = inputs.X.ReadBlockCount(out _);
+            var right = inputs.Y.ReadBlockCount(out _);
             while (left != 0 && right != 0)
             {
-                state.TakeItem();
-                var result = items.Compare(ref x, ref y, ref state);
+                inputs.State.TakeItem();
+                var result = items.Compare(ref inputs);
                 if (result != 0)
                 {
                     return result;
@@ -281,12 +291,12 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
                 if (--left == 0)
                 {
-                    left = x.ReadBlockCount(out _);
+                    left = inputs.X.ReadBlockCount(out _);
                 }
 
                 if (--right == 0)
                 {
-                    right = y.ReadBlockCount(out _);
+                    right = inputs.Y.ReadBlockCount(out _);
                 }
             }
 
@@ -315,7 +325,7 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
     private sealed class MapNode(Node values) : Node
     {
-        public override int Compare(ref AvroReader x, ref AvroReader y, ref State state) => throw new AvroException(SortOrder.MapsMessage);
+        public override int Compare(ref Inputs inputs) => throw new AvroException(SortOrder.MapsMessage);
 
         public override void Skip(ref AvroReader reader, ref State state)
         {
@@ -339,11 +349,11 @@ public sealed class AvroBinaryComparer : IComparer<byte[]?>
 
     private sealed class UnionNode(Node[] branches) : Node
     {
-        public override int Compare(ref AvroReader x, ref AvroReader y, ref State state)
+        public override int Compare(ref Inputs inputs)
         {
-            var left = Index(ref x);
-            var right = Index(ref y);
-            return left == right ? branches[left].Compare(ref x, ref y, ref state) : Math.Sign(left.CompareTo(right));
+            var left = Index(ref inputs.X);
+            var right = Index(ref inputs.Y);
+            return left == right ? branches[left].Compare(ref inputs) : Math.Sign(left.CompareTo(right));
         }
 
         public override void Skip(ref AvroReader reader, ref State state) => branches[Index(ref reader)].Skip(ref reader, ref state);

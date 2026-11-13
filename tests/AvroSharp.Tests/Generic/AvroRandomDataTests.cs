@@ -156,6 +156,26 @@ public class AvroRandomDataTests
     }
 
     [Test]
+    public async Task RecordsThatBranchOut_StaySmall()
+    {
+        // Two arrays and two unions of itself per record: below MaxDepth alone, a value could hold millions of records
+        // (a 69 MB value failed CI). Past 10,000 values, the generator ends the value as below MaxDepth.
+        var schema = AvroSchema.Parse("""
+            {"type":"record","name":"Tree","fields":[
+              {"name":"left","type":{"type":"array","items":"Tree"}},
+              {"name":"right","type":{"type":"array","items":"Tree"}},
+              {"name":"first","type":["null","Tree"]},
+              {"name":"second","type":["Tree","null"]}]}
+            """);
+        var options = new AvroRandomDataOptions { MaxCollectionLength = 5, NullBranchProbability = 0 };
+
+        foreach (var value in AvroRandomData.Generate(schema, seed: 8, options).Take(10))
+        {
+            await Assert.That(Count(value)).IsLessThan(20_000);
+        }
+    }
+
+    [Test]
     public async Task ASchemaWithNoFiniteValue_IsRejected()
     {
         var schema = AvroSchema.Parse("""{"type":"record","name":"Loop","fields":[{"name":"self","type":"Loop"}]}""");
@@ -225,6 +245,14 @@ public class AvroRandomDataTests
         Array.Reverse(reversed);
         return BigInteger.Abs(new BigInteger(reversed)).ToString(CultureInfo.InvariantCulture).Length;
     }
+
+    // The values a value holds, counting itself.
+    private static int Count(AvroValue value) => 1 + value.Kind switch
+    {
+        AvroValueKind.Record => value.AsRecord().Values.Sum(Count),
+        AvroValueKind.Array => value.AsArray().Sum(Count),
+        _ => 0,
+    };
 
     // Records nested in the value, counting the value itself.
     private static int Depth(AvroValue value) => value.Kind switch

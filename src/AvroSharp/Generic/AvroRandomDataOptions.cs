@@ -62,7 +62,8 @@ public sealed class AvroRandomDataOptions
 
     /// <summary>
     /// Gets how deep records nest before the generator ends the recursion, at least 1: below it, arrays and maps are
-    /// empty and unions take the branch that ends soonest. The default is 6.
+    /// empty and unions take the branch that ends soonest. A value that holds 10,000 values ends the same way
+    /// sooner. The default is 6.
     /// </summary>
     public int MaxDepth
     {

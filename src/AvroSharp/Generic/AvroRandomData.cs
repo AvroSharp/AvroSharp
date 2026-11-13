@@ -22,8 +22,9 @@ namespace AvroSharp.Generic;
 /// Multilingual Plane).
 /// </para>
 /// <para>
-/// A recursive schema ends at <see cref="AvroRandomDataOptions.MaxDepth"/>. A schema with no finite value, such as a
-/// record that contains itself outside a union, array or map, is an error.
+/// A recursive schema ends at <see cref="AvroRandomDataOptions.MaxDepth"/>, or sooner once a value holds 10,000 values,
+/// so a schema whose records branch out stays small. A schema with no finite value, such as a record that contains
+/// itself outside a union, array or map, is an error.
 /// </para>
 /// <para>An instance is not thread-safe.</para>
 /// </remarks>
@@ -41,6 +42,10 @@ public sealed class AvroRandomData
     private const int Infinite = int.MaxValue;
     private const int MaxMapKeyLength = 8;
 
+    // Values one generated value holds before the generator ends it as below MaxDepth. Several recursive fields per
+    // record, or arrays of records, would otherwise grow a value exponentially before it reaches MaxDepth.
+    private const int MaxValuesPerValue = 10_000;
+
     // DateTime's range: 0001-01-01T00:00:00 to 9999-12-31T23:59:59.999.
     private const long MinMilliseconds = -62_135_596_800_000;
     private const long MaxMilliseconds = 253_402_300_799_999;
@@ -52,6 +57,9 @@ public sealed class AvroRandomData
 
     // The fewest records a value of each record schema nests, by reference (Infinite: it has no finite value).
     private readonly Dictionary<RecordSchema, int> _heights = [];
+
+    // The values the current top-level value holds so far.
+    private int _created;
 
     /// <summary>Initializes a generator.</summary>
     /// <param name="seed">The seed: the same seed gives the same values.</param>
@@ -83,6 +91,7 @@ public sealed class AvroRandomData
     {
         ArgumentNullException.ThrowIfNull(schema);
         EnsureFinite(schema);
+        _created = 0;
         return Create(schema, 0);
     }
 
@@ -90,6 +99,7 @@ public sealed class AvroRandomData
     {
         while (true)
         {
+            _created = 0;
             yield return Create(schema, 0);
         }
     }
@@ -105,6 +115,7 @@ public sealed class AvroRandomData
     // depth: the number of records around the value.
     private AvroValue Create(AvroSchema schema, int depth)
     {
+        _created++;
         switch (schema)
         {
             case RecordSchema record:
@@ -142,33 +153,39 @@ public sealed class AvroRandomData
             case { LogicalType: { } logical } when LogicalValue(schema.Type, logical) is { } logicalValue:
                 return logicalValue;
             default:
-                return schema.Type switch
-                {
-                    AvroSchemaType.Null => AvroValue.Null,
-                    AvroSchemaType.Boolean => _random.Next(2) == 1,
-                    AvroSchemaType.Int => _random.Next(3) switch
-                    {
-                        0 => _random.Next(-64, 64),
-                        1 => _random.Next(-100_000, 100_000),
-                        _ => (int)NextInt64(int.MinValue, (long)int.MaxValue + 1),
-                    },
-                    AvroSchemaType.Long => _random.Next(3) switch
-                    {
-                        0 => (long)_random.Next(-64, 64),
-                        1 => (long)_random.Next(),
-                        _ => NextInt64(long.MinValue, long.MaxValue),
-                    },
-                    AvroSchemaType.Float => (float)((_random.NextDouble() * 2e6) - 1e6),
-                    AvroSchemaType.Double => (_random.NextDouble() * 2e12) - 1e12,
-                    AvroSchemaType.Bytes => Bytes(_random.Next(_options.MaxStringLength + 1)),
-                    _ => Text(_random.Next(_options.MaxStringLength + 1)),
-                };
+                return Primitive(schema.Type);
         }
     }
 
-    // Empty below MaxDepth, and when the items have no finite value.
+    // Numbers mix small and large magnitudes.
+    private AvroValue Primitive(AvroSchemaType type) => type switch
+    {
+        AvroSchemaType.Null => AvroValue.Null,
+        AvroSchemaType.Boolean => _random.Next(2) == 1,
+        AvroSchemaType.Int => _random.Next(3) switch
+        {
+            0 => _random.Next(-64, 64),
+            1 => _random.Next(-100_000, 100_000),
+            _ => (int)NextInt64(int.MinValue, (long)int.MaxValue + 1),
+        },
+        AvroSchemaType.Long => _random.Next(3) switch
+        {
+            0 => (long)_random.Next(-64, 64),
+            1 => (long)_random.Next(),
+            _ => NextInt64(long.MinValue, long.MaxValue),
+        },
+        AvroSchemaType.Float => (float)((_random.NextDouble() * 2e6) - 1e6),
+        AvroSchemaType.Double => (_random.NextDouble() * 2e12) - 1e12,
+        AvroSchemaType.Bytes => Bytes(_random.Next(_options.MaxStringLength + 1)),
+        _ => Text(_random.Next(_options.MaxStringLength + 1)),
+    };
+
+    // Empty when the value is ending, and when the items have no finite value.
     private int CollectionLength(AvroSchema items, int depth) =>
-        depth >= _options.MaxDepth || Height(items) == Infinite ? 0 : _random.Next(_options.MaxCollectionLength + 1);
+        Ending(depth) || Height(items) == Infinite ? 0 : _random.Next(_options.MaxCollectionLength + 1);
+
+    // Below MaxDepth, or past the size limit: collections are empty and unions take the branch that ends soonest.
+    private bool Ending(int depth) => depth >= _options.MaxDepth || _created >= MaxValuesPerValue;
 
     /// <summary>
     /// A branch with a finite value. Below <see cref="AvroRandomDataOptions.MaxDepth"/>, one of the branches that nest
@@ -177,7 +194,7 @@ public sealed class AvroRandomData
     private AvroSchema Branch(UnionSchema union, int depth)
     {
         var branches = union.Branches;
-        var deep = depth >= _options.MaxDepth;
+        var deep = Ending(depth);
         var limit = Infinite - 1;
         if (deep)
         {
