@@ -341,4 +341,20 @@ public class GenCommandTests
         await Assert.That(tooOld.ExitCode).IsEqualTo(2);
         await Assert.That(tooOld.Error).Contains("--type-kind record needs --language-version 9 or later.");
     }
+
+    /// <summary>--accessibility internal and --unsealed (#18).</summary>
+    [Test]
+    public async Task Gen_InternalAndUnsealedTypes()
+    {
+        using var tool = new ToolRunner();
+        var schema = tool.Write("order.avsc", """{"type":"record","name":"Order","namespace":"shop","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["NEW"]}}]}""");
+
+        var result = ToolRunner.Run("gen", schema, "-o", tool.PathOf("out"), "--accessibility", "internal", "--unsealed");
+        var wrong = ToolRunner.Run("gen", schema, "-o", tool.PathOf("other"), "--accessibility", "private");
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(File.ReadAllText(tool.PathOf("out/shop/Order.g.cs"))).Contains("internal partial class Order");
+        await Assert.That(File.ReadAllText(tool.PathOf("out/shop/Status.g.cs"))).Contains("internal enum Status");
+        await Assert.That(wrong.ExitCode).IsEqualTo(2);
+    }
 }

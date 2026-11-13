@@ -157,6 +157,12 @@ internal sealed class CSharpNames(CodeGenOptions options)
         yield return line.ToString();
     }
 
+    /// <summary>
+    /// Gets or sets each type's namespace for types without an Avro namespace, when its options are its own (per file);
+    /// <see langword="null"/> from it, or no function, means <see cref="CodeGenOptions.Namespace"/>.
+    /// </summary>
+    public Func<NamedSchema, string?>? DefaultNamespace { get; set; }
+
     /// <summary>Gets the C# namespace for a named type, or <see langword="null"/> for the global namespace.</summary>
     public string? Namespace(NamedSchema schema)
     {
@@ -165,7 +171,7 @@ internal sealed class CSharpNames(CodeGenOptions options)
             return declared;
         }
 
-        var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? options.Namespace : Map(schema.Name.Namespace!);
+        var ns = string.IsNullOrEmpty(schema.Name.Namespace) ? (DefaultNamespace?.Invoke(schema) ?? options.Namespace) : Map(schema.Name.Namespace!);
         return string.IsNullOrEmpty(ns) ? null : string.Join(".", ns!.Split('.').Select(Identifier));
     }
 

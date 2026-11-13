@@ -57,7 +57,7 @@ internal static class ApacheSupport
     /// </summary>
     public static void EmitFixed(CodeWriter w, FixedSchema schema, string name, TypeMapper types, Action<FixedSchema> emitSchemaMembers)
     {
-        w.Open($"public sealed partial class {name} : global::Avro.Specific.SpecificFixed");
+        w.Open($"{types.ClassModifiers} partial class {name} : global::Avro.Specific.SpecificFixed");
         w.Line("/// <summary>The number of bytes in a value.</summary>");
         w.Line($"public const int Size = {schema.Size.ToString(CultureInfo.InvariantCulture)};");
         w.Line();

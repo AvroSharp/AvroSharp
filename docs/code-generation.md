@@ -103,6 +103,8 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
 | `AvroSharpApacheCompatible` | `true`, `false` | `true` turns on the [Apache.Avro compatibility mode](#migrating-from-avrogen-the-apacheavro-compatibility-mode). |
 | `AvroSharpRequiredMembers` | `true`, `false` | `true` makes fields without a schema default `required` members, so `new Order { ... }` that leaves one unset doesn't compile (`--required-members`). Only on .NET 7 and later with C# 11 or later; elsewhere they stay plain properties, so the same code compiles for every target. Readers set them through a constructor of their own. |
 | `AvroSharpTypeKind` | `class`, `record` | `record` makes records C# `record class`es (`--type-kind`): value equality and `with`, member by member, so lists, dictionaries and byte arrays compare by reference. Needs C# 9. |
+| `AvroSharpAccessibility` | `public`, `internal` | `internal` makes the generated types internal (`--accessibility`), for a library that keeps its Avro types to itself. A public type with a field of an internal type is an error (AVROGEN003) that names both. |
+| `AvroSharpSealedTypes` | `true`, `false` | `false` leaves records and fixed types unsealed (`--unsealed`), so you can derive from them. Readers still create the generated type, and writers write only its fields. |
 
 ```xml
 <PropertyGroup>
@@ -110,6 +112,15 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
   <AvroSharpNamespaceMap>com.acme.events:Acme.Events;com.acme.common:Acme.Common</AvroSharpNamespaceMap>
   <AvroSharpPropertyNames>avro</AvroSharpPropertyNames>
 </PropertyGroup>
+```
+
+**Per file:** `AvroSharpNamespace`, `AvroSharpLogicalTypes`, `AvroSharpPropertyNames`, `AvroSharpApacheCompatible`, `AvroSharpRequiredMembers`, `AvroSharpTypeKind`, `AvroSharpAccessibility` and `AvroSharpSealedTypes` can also be set on schema files, as `AdditionalFiles` metadata. A file's setting overrides the project's for the types that file defines. Types from different files still refer to each other by their own C# names. A value the generator doesn't recognize is a warning (AVROGEN006) that names the file. The namespace map, the C# version and nullable annotations stay the project's.
+
+```xml
+<ItemGroup>
+  <AdditionalFiles Include="Schemas/**/*.avsc" />
+  <AdditionalFiles Update="Schemas/legacy/*.avsc" AvroSharpNamespace="Acme.Legacy" AvroSharpApacheCompatible="true" />
+</ItemGroup>
 ```
 
 The C# version and the target framework come from the project: with C# 7.3 (netstandard2.0 and .NET Framework projects) the code has no nullable annotations, and on targets without `DateOnly`/`TimeOnly` it uses `DateTime` and `TimeSpan`. The generated code needs C# 7.2 or later: with C# 7.0 or 7.1 the generator reports AVROGEN003 and generates nothing.

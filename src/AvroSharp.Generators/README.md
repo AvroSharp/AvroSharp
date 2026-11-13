@@ -35,7 +35,11 @@ var upgraded = shop.Order.FromAvroBytes(oldBytes, writerSchema);   // schema evo
 | `AvroSharpLogicalTypes` | `native`, `raw` | `raw` keeps logical types as their underlying types instead of `DateOnly`, `Guid`, `decimal`, … |
 | `AvroSharpRequiredMembers` | `true`, `false` | `true` makes fields without a schema default `required` members (.NET 7+, C# 11+) |
 | `AvroSharpTypeKind` | `class`, `record` | `record` generates C# record classes, with value equality |
+| `AvroSharpAccessibility` | `public`, `internal` | `internal` makes the generated types internal |
+| `AvroSharpSealedTypes` | `true`, `false` | `false` leaves records and fixed types unsealed |
 | `AvroSharpApacheCompatible` | `true`, `false` | With `true`, generated types also implement Apache.Avro's `ISpecificRecord` and have avrogen's `_SCHEMA` and instance `Schema`; AvroSharp's schema is then `AvroSharpSchema` (requires a reference to Apache.Avro) |
+
+All but `AvroSharpNamespaceMap` can also be set per schema file, as `AdditionalFiles` metadata that overrides the project's: `<AdditionalFiles Update="Schemas/legacy/*.avsc" AvroSharpNamespace="Acme.Legacy" />`.
 
 Values are case-insensitive. An unrecognized value is warning AVROGEN006, and the default is used.
 
