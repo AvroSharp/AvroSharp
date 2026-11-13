@@ -357,4 +357,20 @@ public class GenCommandTests
         await Assert.That(File.ReadAllText(tool.PathOf("out/shop/Status.g.cs"))).Contains("internal enum Status");
         await Assert.That(wrong.ExitCode).IsEqualTo(2);
     }
+
+    /// <summary>--collection-type (#18), and its conflict with --apache-compatible.</summary>
+    [Test]
+    public async Task Gen_CollectionType()
+    {
+        using var tool = new ToolRunner();
+        var schema = tool.Write("bag.avsc", """{"type":"record","name":"Bag","namespace":"coll","fields":[{"name":"xs","type":{"type":"array","items":"long"}}]}""");
+
+        var result = ToolRunner.Run("gen", schema, "-o", tool.PathOf("out"), "--collection-type", "array");
+        var apache = ToolRunner.Run("gen", schema, "-o", tool.PathOf("apache"), "--collection-type", "readonlylist", "--apache-compatible");
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(File.ReadAllText(tool.PathOf("out/coll/Bag.g.cs"))).Contains("public long[] Xs { get; set; }");
+        await Assert.That(apache.ExitCode).IsEqualTo(2);
+        await Assert.That(apache.Error).Contains("cannot be combined with --apache-compatible");
+    }
 }

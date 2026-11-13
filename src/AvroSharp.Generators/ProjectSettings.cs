@@ -20,8 +20,9 @@ namespace AvroSharp.Generators;
 /// <remarks>Compared by value, so the incremental pipeline reuses its output while the properties are unchanged.</remarks>
 internal sealed class ProjectSettings : IEquatable<ProjectSettings>
 {
-    private ProjectSettings(string? ns, EquatableArray<string> namespaceMap, bool raw, bool apache, PropertyNaming? propertyNames, bool requiredMembers, bool recordTypes, bool internalTypes, bool sealedTypes, EquatableArray<string> warnings)
+    private ProjectSettings(string? ns, EquatableArray<string> namespaceMap, bool raw, bool apache, PropertyNaming? propertyNames, bool requiredMembers, bool recordTypes, bool internalTypes, bool sealedTypes, CodeGenCollectionType collections, EquatableArray<string> warnings)
     {
+        Collections = collections;
         InternalTypes = internalTypes;
         SealedTypes = sealedTypes;
         Namespace = ns;
@@ -53,6 +54,8 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
 
     public bool SealedTypes { get; }
 
+    public CodeGenCollectionType Collections { get; }
+
     public EquatableArray<string> Warnings { get; }
 
     public IReadOnlyDictionary<string, string>? NamespaceMap =>
@@ -80,8 +83,17 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
         var record = string.Equals(Choice(options, "AvroSharpTypeKind", ["class", "record"], "class", warnings), "record", StringComparison.Ordinal);
         var internalTypes = string.Equals(Choice(options, "AvroSharpAccessibility", ["public", "internal"], "public", warnings), "internal", StringComparison.Ordinal);
         var sealedTypes = string.Equals(Choice(options, "AvroSharpSealedTypes", ["true", "false"], "true", warnings), "true", StringComparison.Ordinal);
-        return new ProjectSettings(ns, NamespaceMapOf(map, warnings), raw, apache, naming, required, record, internalTypes, sealedTypes, new EquatableArray<string>(warnings));
+        var collections = CollectionTypeOf(Choice(options, "AvroSharpCollectionType", ["list", "array", "readonlylist"], "list", warnings)) ?? CodeGenCollectionType.List;
+        return new ProjectSettings(ns, NamespaceMapOf(map, warnings), raw, apache, naming, required, record, internalTypes, sealedTypes, collections, new EquatableArray<string>(warnings));
     }
+
+    internal static CodeGenCollectionType? CollectionTypeOf(string? value) => value switch
+    {
+        "list" => CodeGenCollectionType.List,
+        "array" => CodeGenCollectionType.Array,
+        "readonlylist" => CodeGenCollectionType.ReadOnlyList,
+        _ => null,
+    };
 
     public bool Equals(ProjectSettings? other) =>
         other is not null
@@ -94,6 +106,7 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
         && RecordTypes == other.RecordTypes
         && InternalTypes == other.InternalTypes
         && SealedTypes == other.SealedTypes
+        && Collections == other.Collections
         && Warnings.Equals(other.Warnings);
 
     public override bool Equals(object? obj) => obj is ProjectSettings other && Equals(other);

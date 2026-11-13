@@ -123,6 +123,11 @@ public static class CSharpCodeGenerator
     // One set of options, and that it agrees with the project's in the settings that are the project's.
     private static void Validate(CodeGenOptions each, CodeGenOptions project)
     {
+        if (each.ApacheCompatible && each.CollectionType != CodeGenCollectionType.List)
+        {
+            throw new ArgumentException("The Apache.Avro compatibility mode needs List<T> arrays: Apache.Avro's readers put lists into the fields.", nameof(project));
+        }
+
         ValidateNamespaceMapping(each);
         ValidateDefaultNamespace(each);
         ValidateLanguage(each);

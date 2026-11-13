@@ -34,6 +34,12 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// <summary>Gets whether a field is a <c>required</c> member (<see cref="CodeGenOptions.RequiredMembers"/>): it has no schema default.</summary>
     public bool IsRequired(RecordField field) => options.RequiredMembers && options.LanguageVersion >= 11 && !field.HasDefaultValue;
 
+    /// <summary>Gets the C# type of Avro arrays (<see cref="CodeGenOptions.CollectionType"/>).</summary>
+    public CodeGenCollectionType Collections => options.CollectionType;
+
+    /// <summary>The array a reader built, as the property's type: a <c>T[]</c> copies it.</summary>
+    public string FromList(string list) => options.CollectionType == CodeGenCollectionType.Array ? list + ".ToArray()" : list;
+
     /// <summary>Gets the accessibility keyword of generated types (<see cref="CodeGenOptions.Accessibility"/>).</summary>
     public string Accessibility => options.Accessibility == CodeGenAccessibility.Internal ? "internal" : "public";
 
@@ -247,9 +253,7 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
             case ArraySchema array when json.ValueKind == System.Text.Json.JsonValueKind.Array:
                 {
                     var items = json.EnumerateArray().Select(item => Literal(array.Items, item)).ToList();
-                    return items.Any(item => item is null)
-                        ? null
-                        : items.Count == 0 ? $"new {TypeOf(schema)}()" : $"new {TypeOf(schema)} {{ {string.Join(", ", items)} }}";
+                    return items.Any(item => item is null) ? null : ArrayLiteral(array, items);
                 }
 
             case MapSchema map when json.ValueKind == System.Text.Json.JsonValueKind.Object:
@@ -348,7 +352,8 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// </summary>
     public string? Initializer(AvroSchema schema) => Logical(schema) is not null ? null : schema switch
     {
-        ArraySchema or MapSchema => $"new {TypeOf(schema)}()",
+        ArraySchema array => ArrayLiteral(array, []),
+        MapSchema => $"new {TypeOf(schema)}()",
         RecordSchema or FixedSchema => "null" + NullForgiving,
         UnionSchema union when Classify(union) is { NullIndex: < 0, Others.Count: 1 } single => Initializer(union.Branches[single.Others[0]]),
         _ => schema.Type switch
@@ -359,10 +364,28 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
         },
     };
 
+    // An array of these items, as the property's type takes it: a list, or a C# array (empty: Array.Empty).
+    private string ArrayLiteral(ArraySchema array, List<string?> items)
+    {
+        var itemType = TypeOf(array.Items);
+        return (options.CollectionType, items.Count) switch
+        {
+            (CodeGenCollectionType.List, 0) => $"new {ListType}<{itemType}>()",
+            (CodeGenCollectionType.List or CodeGenCollectionType.ReadOnlyList, _) => $"new {ListType}<{itemType}> {{ {string.Join(", ", items)} }}",
+            (_, 0) => $"global::System.Array.Empty<{itemType}>()",
+            _ => $"new {itemType}[] {{ {string.Join(", ", items)} }}",
+        };
+    }
+
     private string UnderlyingType(AvroSchema schema) => schema switch
     {
         NamedSchema named => names.TypeName(named),
-        ArraySchema array => $"{ListType}<{TypeOf(array.Items)}>",
+        ArraySchema array => options.CollectionType switch
+        {
+            CodeGenCollectionType.Array => TypeOf(array.Items) + "[]",
+            CodeGenCollectionType.ReadOnlyList => $"global::System.Collections.Generic.IReadOnlyList<{TypeOf(array.Items)}>",
+            _ => $"{ListType}<{TypeOf(array.Items)}>",
+        },
         MapSchema map => $"{DictionaryType}<string, {TypeOf(map.Values)}>",
         UnionSchema union => UnionType(union),
         _ => schema.Type switch
