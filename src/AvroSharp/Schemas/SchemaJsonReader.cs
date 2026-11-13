@@ -35,7 +35,8 @@ internal sealed class SchemaJsonReader
         // A repeated definition must describe the same type; compared once the whole schema exists.
         foreach (var (definition, existing, path) in _redefinitions)
         {
-            if (!string.Equals(definition.CanonicalForm, existing.CanonicalForm, StringComparison.Ordinal))
+            // By name: in files that refer to each other (#16), the definitions' references are other instances of the same types.
+            if (!string.Equals(CanonicalFormWriter.WriteByName(definition), CanonicalFormWriter.WriteByName(existing), StringComparison.Ordinal))
             {
                 throw new ParseError(
                     $"The name '{definition.FullName}' is already defined differently: {existing.CanonicalForm}, not {definition.CanonicalForm}.",

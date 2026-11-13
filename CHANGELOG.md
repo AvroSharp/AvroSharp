@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-13
+
 ### Added
 - **AvroSharp.Confluent:**
   - `AvroSharpDeserializerConfig.FailOnTrailingData` (`avro.deserializer.fail.on.trailing.data`): a message with bytes left after the value fails, as with Java's `avro.fail.on.trailing.data` (#196).
@@ -29,22 +31,26 @@ All notable changes to this project are documented here. The format follows [Kee
     - `AvroFileReader<T>.TryReadBlock` reads a block as stored, as an `AvroFileBlock`.
     - `AvroFileWriter<T>.WriteBlock` writes a block to another file without decoding its objects: byte for byte when the codecs match, recompressed when they don't.
     - `AvroFile.Concat` concatenates files of one schema.
-    - `AvroFileWriter.OpenAppend`, `OpenAppendGeneric` and their async forms append to an existing file, checking its schema and codec.
-    - `AvroFileWriter<T>.Sync` returns the position of the next block, as Java's `sync()`.
-    - `SyncMarker` on the reader and the writer.
+    - `AvroFileWriter.OpenAppend`, `OpenAppendGeneric` and their async forms append to an existing file, checking its schema and codec, and that it ends at a block boundary: a file cut off while a block was written is refused, since the appended blocks would be unreadable.
+    - `AvroFileWriter<T>.Sync` and `SyncAsync` return the position of the next block, as Java's `sync()`; `WriteBlockAsync` writes a block asynchronously.
+    - `SyncMarker` on the reader and the writer, and `Codec` on the writer.
 - **AvroSharp.Generators and AvroSharp.Tool:**
   - Generated types have the Avro JSON encoding (#19): `ToAvroJson()`, `WriteAvroJson(Utf8JsonWriter)` and `FromAvroJson(string or UTF-8 bytes)`. The JSON is exactly the generic `GenericDatumJsonWriter`'s, and Apache.Avro's `JsonDecoder` reads it. A field named `ToAvroJson`, `WriteAvroJson` or `FromAvroJson` now gets another property name, as `ToAvroBytes` does.
   - Required members and record classes (#15), both opt-in: `AvroSharpRequiredMembers` (`--required-members`, `CodeGenOptions.RequiredMembers`) makes fields without a schema default `required`, on .NET 7 and later with C# 11 or later, and plain properties elsewhere; `AvroSharpTypeKind=record` (`--type-kind record`, `CodeGenOptions.TypeKind`) generates `record class`es.
   - Collection types (#18): `AvroSharpCollectionType` (`--collection-type`, `CodeGenOptions.CollectionType`) makes Avro arrays `T[]` or `IReadOnlyList<T>` instead of `List<T>`, nested ones too, per project or per file. Writers take arrays and other lists through new `IReadOnlyList<T>` overloads of the generated-code helpers; not with the Apache.Avro compatibility mode.
   - Internal and unsealed types (#18): `AvroSharpAccessibility=internal` (`--accessibility internal`, `CodeGenOptions.Accessibility`) and `AvroSharpSealedTypes=false` (`--unsealed`, `CodeGenOptions.SealedTypes`). A public type with a field of an internal one is reported when generating (AVROGEN003), not by the compiler.
-  - Settings per schema file (#18): `AvroSharpNamespace`, `AvroSharpLogicalTypes`, `AvroSharpPropertyNames`, `AvroSharpApacheCompatible`, `AvroSharpRequiredMembers`, `AvroSharpTypeKind`, `AvroSharpAccessibility` and `AvroSharpSealedTypes` as `AdditionalFiles` metadata, which overrides the project's for the types a file defines. Types in the Apache.Avro compatibility mode and native ones can be in one project. `CSharpCodeGenerator.Generate` takes options per named type.
-  - Hooks (#119): generated records declare `partial void OnCreated()`, `OnSerializing()` and `OnDeserialized()`, which the user's part of the type may implement; unimplemented, they compile to nothing. A field named `OnCreated`, `OnSerializing` or `OnDeserialized` now gets another property name.
+  - Settings per schema file (#18): `AvroSharpNamespace`, `AvroSharpLogicalTypes`, `AvroSharpPropertyNames`, `AvroSharpApacheCompatible`, `AvroSharpRequiredMembers`, `AvroSharpTypeKind`, `AvroSharpAccessibility`, `AvroSharpSealedTypes` and `AvroSharpCollectionType` as `AdditionalFiles` metadata, which overrides the project's for the types a file defines. Types in the Apache.Avro compatibility mode and native ones can be in one project. `CSharpCodeGenerator.Generate` takes options per named type.
+  - Hooks (#119): records generated from schema files declare `partial void OnCreated()`, `OnSerializing()` and `OnDeserialized()`, which the user's part of the type may implement; unimplemented, they compile to nothing. AvroSharp's readers and writers call them, Apache.Avro's don't. A field named `OnCreated`, `OnSerializing` or `OnDeserialized` now gets another property name. `[AvroSerializable]` types don't get hooks, and may have methods of these names.
   - Schema files that need each other's types generate (#16): each is parsed with the definitions it needs from the others inlined, so cycles across two or more files work, with names resolved as in their own files. They used to fail with AVROGEN001 in both files.
-- **AvroSharp.Tool:** `avrosharp file`, avro-tools' commands for container files (#172): `tojson`, `fromjson`, `getschema`, `getmeta`, `count`, `cat`, `concat`, `recodec`, `random` and `repair`. They read and write every codec, and `-` is standard input or output. Java's avro-tools reads the files they write, and `tojson` prints what avro-tools prints.
+- **AvroSharp.Tool:** `avrosharp file`, avro-tools' commands for container files (#172): `tojson`, `fromjson`, `getschema`, `getmeta`, `count`, `cat`, `concat`, `recodec`, `random` and `repair`. They read and write every codec, and `-` is standard input or output. Java's avro-tools reads the files they write, and `tojson` prints what avro-tools prints. A file is written beside its target and moved into place only when the command succeeds, so a failed command leaves an existing output as it was. The tool package now carries AvroSharp.Codecs and its compression libraries.
 
 ### Changed
-- **The Parsing Canonical Form writes a named type in full once per name,** as Java's `SchemaNormalization` does; it used to track the schema instance (#16). A schema from one parse is unchanged; two instances of one name meet only when a type's redefinition in another file is compared with it.
-- **Targets: net11.0 in place of net9.0** (#222). The packages target `net11.0`, `net10.0`, `net8.0` and .NET Standard (the add-ons as before: no netstandard2.1, and no .NET Standard for AvroSharp.KafkaFlow). .NET 9 reached its end of support on 2026-11-10; on .NET 9 the netstandard2.1 build of AvroSharp is used (netstandard2.0 for the add-ons). The repository builds with the .NET 11 SDK and C# 15. The source generator still needs only the .NET 10 SDK or Visual Studio 2026.
+- **Code generated again may differ from 1.0's in names**, because the generated types have new members (#19, #119):
+  - a record field named `ToAvroJson`, `WriteAvroJson`, `FromAvroJson`, `OnCreated`, `OnSerializing` or `OnDeserialized` gets another property name, as a field named `ToAvroBytes` does;
+  - a method of the user's part of a schema-file type named `OnCreated`, `OnSerializing` or `OnDeserialized` must become the `partial void` implementation of the hook;
+  - an `[AvroSerializable]` type that declares `ToAvroJson`, `WriteAvroJson` or `FromAvroJson` is reported (ReservedName);
+  - an extension method `ToAvroJson(this T)` on a generated type is now hidden by the instance member.
+- **Targets: net11.0 in place of net9.0** (#222). The packages target `net11.0`, `net10.0`, `net8.0` and .NET Standard (the add-ons as before: no netstandard2.1, and no .NET Standard for AvroSharp.KafkaFlow). .NET 9 reached its end of support on 2026-11-10; a .NET 9 project now gets the net8.0 build of each package. The repository builds with the .NET 11 SDK and C# 15. The source generator still needs only the .NET 10 SDK or Visual Studio 2026.
 - **AvroSharp.Confluent writes with the target schema** (#188). With `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, a type whose schema differs from that version's is now written in that schema, after a compatibility check, as Java's serializer and Confluent's generic serializer write it; it used to throw. `LatestCompatibilityStrict` and `IdCompatibilityStrict` (`avro.serializer.latest.compatibility.strict`, `avro.serializer.id.compatibility.strict`, both `true` by default, as in Java) can turn the check off. Other logical types or decimal scales are still refused.
 - **AvroSharp.Confluent is faster per message** (#197):
   - after the first message, the asynchronous serializer and deserializer skip the async state machine and Confluent's per-message lookups, as the synchronous ones already did;
@@ -52,6 +58,7 @@ All notable changes to this project are documented here. The format follows [Kee
   - with `use.latest.version`, the writer's schema and the check for migrations are looked up once per schema, not per message;
   - a top-level `bytes` value is read straight from the message.
 - **AvroSharp.KafkaFlow** resolves a writer schema once, not on every message (#197).
+- **AvroSharp.Confluent** depends on `System.Diagnostics.DiagnosticSource` 8.0.1 on .NET Standard 2.0, for its metrics and traces (#200).
 
 ## [1.0.1] - 2026-10-09
 
@@ -422,7 +429,8 @@ Packages: `AvroSharp`, `AvroSharp.Codecs`, `AvroSharp.CodeGen` and `AvroSharp.Ge
 - Generated code needed C# 9 (`new()` initializers, `??=`, `is { }` and `is not` patterns), so it failed to compile in netstandard2.0 and .NET Framework projects, which default to C# 7.3. It now uses constructs every version accepts, and emits nullable annotations only for C# 8 and later.
 - Invalid UTF-8 inside a JSON string (schema JSON or JSON data) raised `InvalidOperationException` instead of `AvroSchemaException`/`AvroDataException`. Found by the fuzz smoke test.
 
-[Unreleased]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/AvroSharp/AvroSharp/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/AvroSharp/AvroSharp/compare/v1.0.0-rc.1...v1.0.0
 [1.0.0-rc.1]: https://github.com/AvroSharp/AvroSharp/compare/v0.2.0...v1.0.0-rc.1

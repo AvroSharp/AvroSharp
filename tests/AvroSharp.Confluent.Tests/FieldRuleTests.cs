@@ -110,6 +110,29 @@ public class FieldRuleTests
         await Assert.That(async () => await serializer.SerializeAsync(new Customer { Name = "Ada", Level = -1 }, Value(topic))).ThrowsException();
     }
 
+    /// <summary>A null tagged field is not given to the rule, as in Confluent's serde, where size(value) of null would fail.</summary>
+    [Test]
+    public async Task CelField_SkipsNullFields_AsConfluentDoes()
+    {
+        const string Owned = """{"type":"record","name":"Account","namespace":"test.native","fields":[{"name":"owner","type":["null","string"],"confluent:tags":["PII"]}]}""";
+        using var cel = new CelFieldExecutor();
+        using var registry = new InMemorySchemaRegistry();
+        var topic = Topic();
+        var notEmpty = new Rule("not-empty", RuleKind.Condition, RuleMode.Write, "CEL_FIELD", new HashSet<string>(StringComparer.Ordinal) { "PII" }, null, "size(value) > 0", null, null, false);
+        await Register(registry, topic, Owned, new RuleSet([], [notEmpty], []));
+        var schema = (RecordSchema)AvroSchema.Parse(Owned);
+
+        var serializer = AvroSharpGeneric.CreateSerializer(registry, schema, Latest(), Rules(cel));
+        var withNull = await serializer.SerializeAsync(AvroValue.FromRecord(new GenericRecord(schema) { ["owner"] = AvroValue.Null }), Value(topic));
+        var apacheSchema = (Avro.RecordSchema)Avro.Schema.Parse(Owned);
+        var record = new ApacheGenericRecord(apacheSchema);
+        record.Add("owner", null);
+        var theirs = await new AvroSerializer<ApacheGenericRecord>(registry, ConfluentLatest(), Rules(cel)).SerializeAsync(record, Value(topic));
+
+        await Assert.That(withNull).IsEquivalentTo(theirs, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(async () => await serializer.SerializeAsync(AvroValue.FromRecord(new GenericRecord(schema) { ["owner"] = string.Empty }), Value(topic))).ThrowsException();
+    }
+
     [Test]
     public async Task ARuleWithoutTags_AppliesToEveryField()
     {

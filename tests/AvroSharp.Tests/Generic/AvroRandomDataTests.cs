@@ -230,6 +230,9 @@ public class AvroRandomDataTests
         Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { MaxCollectionLength = -1 });
         Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { MaxStringLength = -1 });
         Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { MaxDepth = 0 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { MaxDepth = 129 });
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { MaxStringLength = int.MaxValue });
+        Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { MaxCollectionLength = AvroRandomDataOptions.MaxLength + 1 });
         Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { NullBranchProbability = 1.5 });
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => _ = new AvroRandomDataOptions { NullBranchProbability = double.NaN });
 

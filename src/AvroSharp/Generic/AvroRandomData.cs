@@ -22,8 +22,9 @@ namespace AvroSharp.Generic;
 /// Multilingual Plane).
 /// </para>
 /// <para>
-/// A recursive schema ends at <see cref="AvroRandomDataOptions.MaxDepth"/>, or sooner once a value holds 10,000 values,
-/// so a schema whose records branch out stays small. A schema with no finite value, such as a record that contains
+/// A recursive schema ends at <see cref="AvroRandomDataOptions.MaxDepth"/>. Once a value holds 10,000 values, the
+/// arrays and maps it starts after that are empty and its unions end as soon as they can, so a schema whose records
+/// branch out stays small. A schema with no finite value, such as a record that contains
 /// itself outside a union, array or map, is an error.
 /// </para>
 /// <para>An instance is not thread-safe.</para>

@@ -105,4 +105,21 @@ public class SchemaConstructionTests
     {
         await Assert.That(AvroNames.IsValidNamespace(value.AsSpan())).IsEqualTo(valid);
     }
+
+    /// <summary>
+    /// Two different types that share a name, as a schema built in code can have, are both written in full: their
+    /// canonical form and fingerprint differ from a schema that has one of them twice (review before 1.1.0).
+    /// </summary>
+    [Test]
+    public async Task CanonicalForm_TellsApartDifferentTypesThatShareAName()
+    {
+        var withInt = new RecordSchema(new SchemaName("X"), [new RecordField("i", AvroSchema.Int)]);
+        var withString = new RecordSchema(new SchemaName("X"), [new RecordField("s", AvroSchema.String)]);
+        var both = new RecordSchema(new SchemaName("R"), [new RecordField("a", withInt), new RecordField("b", withString)]);
+        var same = new RecordSchema(new SchemaName("R"), [new RecordField("a", withInt), new RecordField("b", withInt)]);
+
+        await Assert.That(both.CanonicalForm).IsNotEqualTo(same.CanonicalForm);
+        await Assert.That(both.Fingerprint64).IsNotEqualTo(same.Fingerprint64);
+        await Assert.That(same.CanonicalForm).IsEqualTo("""{"name":"R","type":"record","fields":[{"name":"a","type":{"name":"X","type":"record","fields":[{"name":"i","type":"int"}]}},{"name":"b","type":"X"}]}""");
+    }
 }

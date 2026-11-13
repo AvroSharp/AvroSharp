@@ -229,6 +229,7 @@ Rules run in Confluent's executors (Confluent.SchemaRegistry.Rules and Confluent
 - **A condition that passes** writes the value's own encoding, so the bytes are the same as without the rule.
 - **A transform** returns the value to write (or, on reads, to read): a record of the subject's schema in Apache.Avro's generic model. A rule that returns anything else, such as a CEL map literal, fails with `InvalidOperationException`.
 - **Other domain rules,** with no CEL rule among them, get your value itself.
+
 **Field rules** run as in Confluent's serde, on the fields whose tags the rule names (every field, for a rule without tags): a field's tags are its `confluent:tags` property and the schema metadata's tags for its path.
 - **Fields are found by walking the value in the rules' schema,** the latest one (or the writer's, on reads): records, arrays, maps and union branches, as Confluent's `AvroUtils` walks them. Messages written with field-level encryption by Confluent's .NET serde read here, and it reads what AvroSharp writes (tested with the same registry and keys).
 - **The transform gets the field's .NET value:** a `string`, a `byte[]` for bytes and fixed, a number, a `bool`, an enum's symbol, or `null`. Field-level encryption takes strings and bytes, as in Confluent's serde.

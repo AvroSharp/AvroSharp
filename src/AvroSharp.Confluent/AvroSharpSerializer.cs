@@ -386,14 +386,19 @@ public sealed class AvroSharpSerializer<T> : AsyncSerializer<T, AvroSchema>, ISe
     // Field rules on the value itself: it is walked as a value of the latest schema, written as the message is. One per
     // schema, so messages whose rules aren't field rules don't allocate one each.
     private FieldTransformer FieldsOf(AvroSchema schema, int header, TargetWriter target) =>
-        _fieldTransformers.GetValue(schema, _ => FieldTransforms.For(
-            schema,
-            message => FieldTransforms.Decode(schema, Write((T)message, header, target).WrittenSpan[header..]),
-            value =>
-            {
-                var reader = new AvroReader(FieldTransforms.Encode(schema, value));
-                return _type.ReadFor(schema)(ref reader)!;
-            }));
+        _fieldTransformers.GetValue(schema, _ =>
+        {
+            // Resolved once per schema, not per message.
+            var read = _type.ReadFor(schema);
+            return FieldTransforms.For(
+                schema,
+                message => FieldTransforms.Decode(schema, Write((T)message, header, target).WrittenSpan[header..]),
+                value =>
+                {
+                    var reader = new AvroReader(FieldTransforms.Encode(schema, value));
+                    return read(ref reader)!;
+                });
+        });
 
     private readonly ConditionalWeakTable<AvroSchema, FieldTransformer> _fieldTransformers = new();
 

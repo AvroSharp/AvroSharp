@@ -332,6 +332,7 @@ public class GenCommandTests
 
         var result = ToolRunner.Run("gen", schema, "-o", tool.PathOf("out"), "--required-members", "--type-kind", "record");
         var tooOld = ToolRunner.Run("gen", schema, "-o", tool.PathOf("old"), "--type-kind", "record", "--language-version", "8");
+        var requiredTooOld = ToolRunner.Run("gen", schema, "-o", tool.PathOf("old2"), "--required-members", "--language-version", "10");
 
         var code = File.ReadAllText(tool.PathOf("out/shop/Order.g.cs"));
         await Assert.That(result.ExitCode).IsEqualTo(0);
@@ -340,6 +341,8 @@ public class GenCommandTests
         await Assert.That(code).Contains("public string Note { get; set; }");
         await Assert.That(tooOld.ExitCode).IsEqualTo(2);
         await Assert.That(tooOld.Error).Contains("--type-kind record needs --language-version 9 or later.");
+        await Assert.That(requiredTooOld.ExitCode).IsEqualTo(2);
+        await Assert.That(requiredTooOld.Error).Contains("--required-members needs --language-version 11 or later.");
     }
 
     /// <summary>--accessibility internal and --unsealed (#18).</summary>

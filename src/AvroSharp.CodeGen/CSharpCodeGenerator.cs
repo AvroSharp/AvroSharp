@@ -46,8 +46,11 @@ public static class CSharpCodeGenerator
     /// A named type's own options, or <see langword="null"/> for <paramref name="options"/>. They may differ in
     /// <see cref="CodeGenOptions.Namespace"/>, <see cref="CodeGenOptions.LogicalTypes"/>,
     /// <see cref="CodeGenOptions.ApacheCompatible"/>, <see cref="CodeGenOptions.PropertyNames"/>,
-    /// <see cref="CodeGenOptions.RequiredMembers"/> and <see cref="CodeGenOptions.TypeKind"/>; the others are the
-    /// project's and must be <paramref name="options"/>'.
+    /// <see cref="CodeGenOptions.RequiredMembers"/>, <see cref="CodeGenOptions.TypeKind"/>,
+    /// <see cref="CodeGenOptions.Accessibility"/>, <see cref="CodeGenOptions.SealedTypes"/> and
+    /// <see cref="CodeGenOptions.CollectionType"/>; the others (<see cref="CodeGenOptions.LanguageVersion"/>,
+    /// <see cref="CodeGenOptions.NullableAnnotations"/>, <see cref="CodeGenOptions.TargetHasDateOnly"/> and
+    /// <see cref="CodeGenOptions.NamespaceMap"/>) are the project's and must be <paramref name="options"/>'.
     /// </param>
     /// <exception cref="ArgumentException">Options are invalid, or a type's differ from <paramref name="options"/> in a project-wide setting.</exception>
     public static IReadOnlyList<GeneratedSource> Generate(IEnumerable<AvroSchema> schemas, CodeGenOptions? options, Func<NamedSchema, CodeGenOptions?>? typeOptions)
@@ -120,6 +123,11 @@ public static class CSharpCodeGenerator
         _ => [],
     };
 
+    private static bool SameMap(IReadOnlyDictionary<string, string>? a, IReadOnlyDictionary<string, string>? b) =>
+        ReferenceEquals(a, b)
+        || ((a?.Count ?? 0) == (b?.Count ?? 0)
+            && (a is null || a.All(entry => b!.TryGetValue(entry.Key, out var value) && string.Equals(value, entry.Value, StringComparison.Ordinal))));
+
     // One set of options, and that it agrees with the project's in the settings that are the project's.
     private static void Validate(CodeGenOptions each, CodeGenOptions project)
     {
@@ -132,7 +140,7 @@ public static class CSharpCodeGenerator
         ValidateDefaultNamespace(each);
         ValidateLanguage(each);
         if (each.LanguageVersion != project.LanguageVersion || each.NullableAnnotations != project.NullableAnnotations
-            || each.TargetHasDateOnly != project.TargetHasDateOnly || !ReferenceEquals(each.NamespaceMap, project.NamespaceMap))
+            || each.TargetHasDateOnly != project.TargetHasDateOnly || !SameMap(each.NamespaceMap, project.NamespaceMap))
         {
             throw new ArgumentException("A type's options differ from the project's in LanguageVersion, NullableAnnotations, TargetHasDateOnly or NamespaceMap, which are the project's.", nameof(project));
         }
@@ -195,10 +203,11 @@ public static class CSharpCodeGenerator
 
     /// <summary>
     /// The members the generator adds to a declared record, which the type may not have itself: a record's members
-    /// without the Apache.Avro compatibility mode's, since declared types never use that mode.
+    /// without the Apache.Avro compatibility mode's, since declared types never use that mode, and without the hooks,
+    /// which only types generated from schema files get.
     /// </summary>
     internal static IReadOnlyList<string> DeclaredRecordMembers { get; } =
-        [.. s_recordMembers.Except(["AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_apacheSchema"], StringComparer.Ordinal)];
+        [.. s_recordMembers.Except(["AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_apacheSchema", "OnCreated", "OnSerializing", "OnDeserialized"], StringComparer.Ordinal)];
 
     private static readonly string[] s_fixedMembers =
     [
@@ -506,7 +515,7 @@ public static class CSharpCodeGenerator
 
     private static void EmitRecord(CodeWriter w, RecordSchema record, string name, CSharpNames names, TypeMapper types, bool apache, List<string> notes, DeclaredRecord? declared)
     {
-        var properties = declared is null ? PropertyNames(record, name, types.Naming, notes) : [.. declared.Members];
+        var properties = declared is null ? PropertyNames(record, name, types.Naming, types.RecordTypes, notes) : [.. declared.Members];
 
         // Apache's ISpecificRecord has an instance Schema (and avrogen a static _SCHEMA), so AvroSharp's static schema
         // is AvroSharpSchema in that mode, as on fixed types.
@@ -518,7 +527,7 @@ public static class CSharpCodeGenerator
 
         // A declared type's other parts give its accessibility and modifiers, and a record class must say so here too.
         var declaration = declared is not null ? (declared.IsRecordClass ? "partial record" : "partial class")
-            : types.RecordTypes ? $"{types.ClassModifiers} partial record class" : $"{types.ClassModifiers} partial class";
+            : types.RecordTypes ? $"{types.ClassModifiers} partial {(types.LanguageVersion >= 10 ? "record class" : "record")}" : $"{types.ClassModifiers} partial class";
         w.Line($"{declaration} {name} : {Serialization}.IAvroSpecificRecord, {Serialization}.IAvroWritable, {Serialization}.IAvroReadable{(apache ? ", " + ApacheSupport.SpecificRecord : string.Empty)}");
         if (types.Modern)
         {
@@ -1097,10 +1106,10 @@ public static class CSharpCodeGenerator
         w.Line("/// <summary>Called at the end of the public constructor, once the fields have their schema defaults. Implement it in your part of the type.</summary>");
         w.Line("partial void OnCreated();");
         w.Line();
-        w.Line("/// <summary>Called before this value is written, by every writer, binary or JSON. Implement it in your part of the type.</summary>");
+        w.Line("/// <summary>Called before this value is written, by AvroSharp's writers, binary or JSON (not by Apache.Avro's, which use Get). Implement it in your part of the type.</summary>");
         w.Line("partial void OnSerializing();");
         w.Line();
-        w.Line("/// <summary>Called after a value is read, by every reader, also of another schema version, before it is returned. Implement it in your part of the type.</summary>");
+        w.Line("/// <summary>Called after a value is read by AvroSharp's readers, also of another schema version, before it is returned (not by Apache.Avro's, which use Put). Implement it in your part of the type.</summary>");
         w.Line("partial void OnDeserialized();");
     }
 
@@ -1523,7 +1532,7 @@ public static class CSharpCodeGenerator
     /// PascalCase property names, made unique: a name may not repeat the type's name (CS0542), a generated member, or
     /// another field's name after case conversion.
     /// </summary>
-    private static string[] PropertyNames(RecordSchema record, string typeName, PropertyNaming naming, List<string> notes)
+    private static string[] PropertyNames(RecordSchema record, string typeName, PropertyNaming naming, bool recordTypes, List<string> notes)
     {
         var used = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -1532,6 +1541,12 @@ public static class CSharpCodeGenerator
             "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo", "ReadFrom", "FromAvroBytes", "ToAvroJson", "WriteAvroJson",
             "FromAvroJson", "OnCreated", "OnSerializing", "OnDeserialized", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
         };
+        if (recordTypes)
+        {
+            // Members a C# record class declares itself (CS0102).
+            used.Add("EqualityContract");
+            used.Add("PrintMembers");
+        }
         for (var k = 0; k < Chunks(record.Fields.Count).Count; k++)
         {
             used.Add("WriteFields" + Int(k));

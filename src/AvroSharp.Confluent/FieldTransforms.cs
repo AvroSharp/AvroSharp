@@ -51,6 +51,13 @@ internal static class FieldTransforms
 
     private static async Task<AvroValue> WalkAsync(RuleContext context, AvroSchema schema, AvroValue value, IFieldTransform transform)
     {
+        // A null value is left as it is, before any rule sees it, as Confluent's AvroUtils.Transform does: a CEL_FIELD
+        // rule never runs on a null field.
+        if (value.IsNull)
+        {
+            return value;
+        }
+
         var field = context.CurrentField();
         if (field is not null)
         {

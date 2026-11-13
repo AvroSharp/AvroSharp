@@ -46,7 +46,7 @@ internal sealed class FileActions(ToolConsole console)
         ReadOnlySpan<byte> data = json.AsSpan(json.AsSpan().StartsWith("﻿"u8) ? 3 : 0);
         for (var number = 1; SkipWhitespace(ref data); number++)
         {
-            var reader = new Utf8JsonReader(data);
+            var reader = new Utf8JsonReader(data, new JsonReaderOptions { MaxDepth = (8 * GenericDatumReaderOptions.DefaultMaxDepth) + 64 });
             try
             {
                 writer.Write(jsonReader.Read(ref reader));
@@ -136,7 +136,7 @@ internal sealed class FileActions(ToolConsole console)
             for (var i = 0; i < files.Length && left > 0; i++)
             {
                 RequireSameSchema(readers.Items[i].WriterSchema, writer.Schema, files[i]);
-                foreach (var value in readers.Items[i].ReadAll().TakeWhile(_ => left > 0))
+                foreach (var value in readers.Items[i].ReadAll())
                 {
                     if (skip > 0)
                     {
@@ -145,7 +145,10 @@ internal sealed class FileActions(ToolConsole console)
                     }
 
                     writer.Write(value);
-                    left--;
+                    if (--left == 0)
+                    {
+                        break;
+                    }
                 }
             }
         });
@@ -172,7 +175,13 @@ internal sealed class FileActions(ToolConsole console)
     public int Random(string schemaPath, int count, int? seed, string outputPath, AvroCodec codec) => Run(() =>
     {
         var schema = ReadSchema(schemaPath);
-        var values = AvroRandomData.Generate(schema, seed ?? System.Security.Cryptography.RandomNumberGenerator.GetInt32(int.MaxValue));
+        if (seed is null)
+        {
+            seed = System.Security.Cryptography.RandomNumberGenerator.GetInt32(int.MaxValue);
+            console.Error.WriteLine($"Seed: {seed.Value.ToString(CultureInfo.InvariantCulture)} (--seed repeats this file)");
+        }
+
+        var values = AvroRandomData.Generate(schema, seed.Value);
         using var output = OpenOutput(outputPath);
         using var writer = AvroFileWriter.CreateGeneric(output, schema, new AvroFileWriterOptions { Codec = codec, LeaveOpen = true });
         foreach (var value in values.Take(count))
@@ -252,6 +261,7 @@ internal sealed class FileActions(ToolConsole console)
         try
         {
             action();
+            CommitOutputs();
             return Cli.Success;
         }
         catch (AvroSchemaException ex)
@@ -263,7 +273,39 @@ internal sealed class FileActions(ToolConsole console)
             Diagnostics.Error(console.Error, ex.Message);
         }
 
+        DiscardOutputs();
         return Cli.Failure;
+    }
+
+    // The files a command writes, each first as a temporary file beside it: an existing file, or the input itself
+    // (repair x.avro -o x.avro), is replaced only when the command succeeds.
+    private readonly List<(string Temporary, string Path)> _outputs = [];
+
+    private void CommitOutputs()
+    {
+        foreach (var (temporary, path) in _outputs)
+        {
+            File.Move(temporary, path, overwrite: true);
+        }
+
+        _outputs.Clear();
+    }
+
+    private void DiscardOutputs()
+    {
+        foreach (var (temporary, _) in _outputs)
+        {
+            try
+            {
+                File.Delete(temporary);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Left behind; the error already reported is the command's.
+            }
+        }
+
+        _outputs.Clear();
     }
 
     // Standard input is read whole, so readers that seek work on it.
@@ -294,6 +336,10 @@ internal sealed class FileActions(ToolConsole console)
             return console.OpenStandardOutput();
         }
 
-        return File.Create(path);
+        var full = Path.GetFullPath(path);
+        var temporary = Path.Combine(Path.GetDirectoryName(full)!, $".{Path.GetFileName(full)}.{Guid.NewGuid():N}.tmp");
+        var stream = File.Create(temporary);
+        _outputs.Add((temporary, full));
+        return stream;
     }
 }

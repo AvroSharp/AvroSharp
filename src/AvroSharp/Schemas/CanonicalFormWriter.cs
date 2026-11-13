@@ -16,22 +16,32 @@ internal sealed class CanonicalFormWriter
 {
     private readonly PooledBufferWriter _output;
 
-    // By full name, as Java's SchemaNormalization: a type is written in full once, then by name. Within one schema a
-    // name has one definition; two instances of a name meet only when a definition is compared with its redefinition
-    // in another file (#16), where they must print alike.
-    private readonly HashSet<string> _defined = new(StringComparer.Ordinal);
+    // The types written in full so far: by instance, so two different definitions that share a name (a schema built
+    // in code can have them) both appear in full and the form tells them apart; or by full name, as Java's
+    // SchemaNormalization, to compare a definition with its redefinition in another file (#16), whose types are other
+    // instances of the same names.
+    private readonly HashSet<NamedSchema> _definedInstances = [];
+    private readonly HashSet<string>? _definedNames;
 
-    private CanonicalFormWriter(PooledBufferWriter output)
+    private CanonicalFormWriter(PooledBufferWriter output, bool byName)
     {
         _output = output;
+        _definedNames = byName ? new HashSet<string>(StringComparer.Ordinal) : null;
     }
 
-    public static byte[] Write(AvroSchema schema)
+    public static byte[] Write(AvroSchema schema) => Write(schema, byName: false);
+
+    /// <summary>The canonical form with each named type written in full once per name, for comparing redefinitions.</summary>
+    public static string WriteByName(AvroSchema schema) => Encoding.UTF8.GetString(Write(schema, byName: true));
+
+    private static byte[] Write(AvroSchema schema, bool byName)
     {
         using var output = new PooledBufferWriter();
-        new CanonicalFormWriter(output).WriteSchema(schema);
+        new CanonicalFormWriter(output, byName).WriteSchema(schema);
         return output.ToArray();
     }
+
+    private bool Defined(NamedSchema named) => _definedNames is { } names ? !names.Add(named.FullName) : !_definedInstances.Add(named);
 
     private void WriteSchema(AvroSchema schema)
     {
@@ -40,7 +50,7 @@ internal sealed class CanonicalFormWriter
             case PrimitiveSchema primitive:
                 WriteString(primitive.TypeName);
                 break;
-            case NamedSchema named when !_defined.Add(named.FullName):
+            case NamedSchema named when Defined(named):
                 WriteString(named.FullName);
                 break;
             case RecordSchema record:

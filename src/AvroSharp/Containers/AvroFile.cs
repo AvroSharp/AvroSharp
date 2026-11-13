@@ -15,6 +15,8 @@ public static class AvroFile
     /// Concatenates container files of one schema into one file, block by block, without decoding their objects, as
     /// Apache Avro Java's <c>avro-tools concat</c> does. The output has the first input's codec and metadata; blocks of
     /// that codec are copied byte for byte, and blocks of any other codec are recompressed. The streams are left open.
+    /// When an input fails, the output holds the header and the blocks copied before it: write to a temporary file and
+    /// keep it only on success.
     /// </summary>
     /// <param name="output">The destination.</param>
     /// <param name="inputs">The files, at least one.</param>
@@ -69,7 +71,7 @@ public static class AvroFile
         });
         try
         {
-            CopyBlocks(reader, writer);
+            CopyBlocks(reader, writer, readerOptions);
             return writer;
         }
         catch
@@ -87,14 +89,14 @@ public static class AvroFile
             throw new AvroException($"Input {index}'s schema is {reader.WriterSchema.CanonicalForm}, not the first input's {writer.Schema.CanonicalForm}.");
         }
 
-        CopyBlocks(reader, writer);
+        CopyBlocks(reader, writer, readerOptions);
     }
 
-    private static void CopyBlocks(AvroFileReader<AvroValue> reader, AvroFileWriter<AvroValue> writer)
+    private static void CopyBlocks(AvroFileReader<AvroValue> reader, AvroFileWriter<AvroValue> writer, AvroFileReaderOptions readerOptions)
     {
         while (reader.TryReadBlock(out var block))
         {
-            writer.WriteBlock(block);
+            writer.WriteBlockWithLimit(block, recompress: false, readerOptions.MaxBlockLength);
         }
     }
 

@@ -215,6 +215,44 @@ public class ContainerBlockTests
         Assert.Throws<ArgumentException>(() => AvroFileWriter.OpenAppendGeneric(new MemoryStream()));
     }
 
+    /// <summary>A file cut off in a block (a writer that crashed) is refused: appended blocks would be unreadable.</summary>
+    [Test]
+    public async Task Append_ToAFileCutOffInABlock_IsRefused()
+    {
+        var whole = ContainerFileTests.WriteFile(ContainerFileTests.Rows(20), NullCodec);
+        var file = new MemoryStream();
+        Fill(file, whole.AsSpan(0, whole.Length - 5).ToArray());
+
+        var ex = Assert.Throws<AvroDataException>(() => AvroFileWriter.OpenAppendGeneric(file, options: new AvroFileWriterOptions { LeaveOpen = true }));
+
+        await Assert.That(ex.Message).Contains("block boundary");
+        await Assert.That(file.Length).IsEqualTo(whole.Length - 5);
+    }
+
+    [Test]
+    public async Task Sync_AfterAppend_CountsFromTheEndOfTheFile()
+    {
+        var rows = ContainerFileTests.Rows(10);
+        var file = new MemoryStream();
+        Fill(file, ContainerFileTests.WriteFile(rows.Take(5), NullCodec));
+        var start = file.Length;
+        long position;
+        using (var writer = AvroFileWriter.OpenAppendGeneric(file, options: new AvroFileWriterOptions { LeaveOpen = true }))
+        {
+            writer.Write(rows[5]);
+            position = writer.Sync();
+            foreach (var row in rows.Skip(6))
+            {
+                writer.Write(row);
+            }
+        }
+
+        using var reader = AvroFileReader.OpenGeneric(new MemoryStream(file.ToArray()));
+        reader.Seek(position);
+        await Assert.That(position).IsGreaterThan(start);
+        await Assert.That(reader.ReadAll().SequenceEqual(rows.Skip(6))).IsTrue();
+    }
+
     [Test]
     public async Task Append_KeepsTheFilesSyncMarker()
     {

@@ -124,6 +124,11 @@ internal sealed class GenOptions
             }
 
             // In a validator, an option not on the command line reads as null, not as its default.
+            if (result.GetValue(_requiredMembers) && result.GetValue(_languageVersion) is > 0 and < 11)
+            {
+                result.AddError("--required-members needs --language-version 11 or later.");
+            }
+
             if (string.Equals(result.GetValue(_typeKind), "record", StringComparison.Ordinal) && result.GetValue(_languageVersion) is > 0 and < 9)
             {
                 result.AddError("--type-kind record needs --language-version 9 or later.");

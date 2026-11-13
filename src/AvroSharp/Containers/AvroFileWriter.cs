@@ -147,10 +147,21 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     /// <param name="block">The block.</param>
     /// <param name="recompress">Whether to decompress and compress the block even when the codecs are the same.</param>
     /// <exception cref="ArgumentException">The block's schema is not this file's: their canonical forms differ.</exception>
-    /// <exception cref="AvroDataException">The block cannot be decompressed.</exception>
+    /// <exception cref="AvroDataException">
+    /// The block cannot be decompressed, or decompresses to more than <see cref="AvroFileReaderOptions.DefaultMaxBlockLength"/>
+    /// (64 MiB), a reader's default limit.
+    /// </exception>
     public void WriteBlock(AvroFileBlock block, bool recompress = false)
     {
-        var frame = FrameForeignBlock(block, recompress);
+        var frame = FrameForeignBlock(block, recompress, AvroFileReaderOptions.DefaultMaxBlockLength);
+        FlushBlock();
+        WriteToStream(new ArraySegment<byte>(frame));
+    }
+
+    // WriteBlock with the limit of the reader the block came from (AvroFile.Concat).
+    internal void WriteBlockWithLimit(AvroFileBlock block, bool recompress, int maxBlockLength)
+    {
+        var frame = FrameForeignBlock(block, recompress, maxBlockLength);
         FlushBlock();
         WriteToStream(new ArraySegment<byte>(frame));
     }
@@ -160,10 +171,12 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     /// <param name="recompress">Whether to decompress and compress the block even when the codecs are the same.</param>
     /// <param name="cancellationToken">Cancels the writes.</param>
     /// <exception cref="ArgumentException">The block's schema is not this file's: their canonical forms differ.</exception>
-    /// <exception cref="AvroDataException">The block cannot be decompressed.</exception>
+    /// <exception cref="AvroDataException">
+    /// The block cannot be decompressed, or decompresses to more than <see cref="AvroFileReaderOptions.DefaultMaxBlockLength"/>.
+    /// </exception>
     public async ValueTask WriteBlockAsync(AvroFileBlock block, bool recompress = false, CancellationToken cancellationToken = default)
     {
-        var frame = FrameForeignBlock(block, recompress);
+        var frame = FrameForeignBlock(block, recompress, AvroFileReaderOptions.DefaultMaxBlockLength);
         await FlushBlockAsync(cancellationToken).ConfigureAwait(false);
         await WriteToStreamAsync(new ArraySegment<byte>(frame), cancellationToken).ConfigureAwait(false);
     }
@@ -304,7 +317,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     }
 
     // The whole block as written: its count, size, data in this file's codec, and this file's sync marker.
-    private byte[] FrameForeignBlock(AvroFileBlock block, bool recompress)
+    private byte[] FrameForeignBlock(AvroFileBlock block, bool recompress, int maxBlockLength)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(block);
@@ -315,7 +328,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         }
 
         using var recoded = recompress || !string.Equals(block.Codec.Name, _codec.Name, StringComparison.Ordinal)
-            ? Recompress(block)
+            ? Recompress(block, maxBlockLength)
             : null;
         var data = recoded is null ? block.Data.Span : recoded.WrittenSpan;
         using var frame = new PooledBufferWriter(data.Length + PrefixRoom + AvroContainerFormat.SyncSize);
@@ -330,12 +343,13 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
 
     // The block's objects, decompressed with its codec (at most a reader's default block limit) and compressed with
     // this file's codec.
-    private PooledBufferWriter Recompress(AvroFileBlock block)
+    private PooledBufferWriter Recompress(AvroFileBlock block, int maxBlockLength)
     {
-        using var objects = new PooledBufferWriter(Math.Max(block.Data.Length * 4, 256));
+        // A guess at the decompressed size, never more than the limit: a hostile block can't reserve more.
+        using var objects = new PooledBufferWriter((int)Math.Min(Math.Max(block.Data.Length * 4L, 256), maxBlockLength));
         try
         {
-            block.Codec.Decompress(block.Data, new LimitedBufferWriter(objects, AvroFileReaderOptions.DefaultMaxBlockLength));
+            block.Codec.Decompress(block.Data, new LimitedBufferWriter(objects, maxBlockLength));
         }
         catch (InvalidDataException ex)
         {

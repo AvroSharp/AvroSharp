@@ -26,7 +26,7 @@ public static partial class AvroFileWriter
     /// </param>
     /// <exception cref="ArgumentException">The stream can't be read, written and seeked, or the options have metadata.</exception>
     /// <exception cref="AvroException">The file's schema or codec is not the writer's.</exception>
-    /// <exception cref="AvroDataException">The file's header is malformed.</exception>
+    /// <exception cref="AvroDataException">The file's header is malformed, or the file does not end at a block boundary.</exception>
     public static AvroFileWriter<T> OpenAppend<T>(Stream stream, AvroSchema schema, AvroWriteAction<T> write, AvroFileWriterOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(schema);
@@ -182,6 +182,23 @@ public static partial class AvroFileWriter
             : ReferenceEquals(options.Codec, AvroCodec.Null) && AvroFileReader<AvroValue>.FindCodec(header.CodecName, []) is { } builtIn
                 ? builtIn
                 : throw new AvroException($"The file is compressed with the '{header.CodecName}' codec, not the writer's '{options.Codec.Name}'; set AvroFileWriterOptions.Codec to the file's codec.");
+
+        // Every whole file ends with its sync marker, after the header or the last block. A file cut off mid-block
+        // (a writer that crashed) would make the appended blocks unreadable: refused, as the stream can't be repaired here.
+        var tail = new byte[header.Sync.Length];
+        stream.Seek(-tail.Length, SeekOrigin.End);
+        for (int read, offset = 0; offset < tail.Length; offset += read)
+        {
+            if ((read = stream.Read(tail, offset, tail.Length - offset)) == 0)
+            {
+                throw new AvroDataException("The file ends before its sync marker.");
+            }
+        }
+
+        if (!tail.AsSpan().SequenceEqual(header.Sync))
+        {
+            throw new AvroDataException("The file does not end at a block boundary (it may have been cut off while a block was written); appending would make the new blocks unreadable. Repair it first, for example with 'avrosharp file repair'.");
+        }
 
         stream.Seek(0, SeekOrigin.End);
         return new AvroFileWriter<T>(stream, schema, write, options, codec, header.Sync);

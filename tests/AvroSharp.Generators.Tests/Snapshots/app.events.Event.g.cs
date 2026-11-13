@@ -45,10 +45,10 @@ namespace app.events
         /// <summary>Called at the end of the public constructor, once the fields have their schema defaults. Implement it in your part of the type.</summary>
         partial void OnCreated();
 
-        /// <summary>Called before this value is written, by every writer, binary or JSON. Implement it in your part of the type.</summary>
+        /// <summary>Called before this value is written, by AvroSharp's writers, binary or JSON (not by Apache.Avro's, which use Get). Implement it in your part of the type.</summary>
         partial void OnSerializing();
 
-        /// <summary>Called after a value is read, by every reader, also of another schema version, before it is returned. Implement it in your part of the type.</summary>
+        /// <summary>Called after a value is read by AvroSharp's readers, also of another schema version, before it is returned (not by Apache.Avro's, which use Put). Implement it in your part of the type.</summary>
         partial void OnDeserialized();
 
         /// <summary>Creates a value in which every field with a default in the schema has it.</summary>
