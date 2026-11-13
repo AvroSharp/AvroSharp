@@ -59,8 +59,20 @@ internal sealed class GenOptions
         DefaultValueFactory = _ => CodeGenOptions.Default.LanguageVersion,
     };
 
+    private readonly Option<bool> _requiredMembers = new("--required-members")
+    {
+        Description = "Make record fields without a schema default 'required' members, on .NET 7 and later with C# 11 or later, so the compiler checks that new sets them.",
+    };
+
+    private readonly Option<string> _typeKind = new("--type-kind")
+    {
+        Description = "What records become: class (default), or record, a C# record class with value equality (C# 9 or later).",
+        DefaultValueFactory = _ => "class",
+    };
+
     public GenOptions()
     {
+        _typeKind.AcceptOnlyFromAmong("class", "record");
         _logicalTypes.AcceptOnlyFromAmong(Native, Raw);
         _propertyNames.AcceptOnlyFromAmong(Pascal, Avro);
         _languageVersion.Validators.Add(result =>
@@ -75,7 +87,7 @@ internal sealed class GenOptions
 
     public void AddTo(Command command)
     {
-        foreach (var option in new Option[] { _namespace, _namespaceMap, _logicalTypes, _propertyNames, _apache, _noNullable, _noDateOnly, _languageVersion })
+        foreach (var option in new Option[] { _namespace, _namespaceMap, _logicalTypes, _propertyNames, _apache, _noNullable, _noDateOnly, _languageVersion, _requiredMembers, _typeKind })
         {
             command.Options.Add(option);
         }
@@ -90,6 +102,12 @@ internal sealed class GenOptions
             {
                 // "My Models" or "1abc" gave exit code 0 and code that did not compile (#131).
                 result.AddError($"--namespace '{other}' is not a C# namespace (names of letters, digits and underscores, separated by dots).");
+            }
+
+            // In a validator, an option not on the command line reads as null, not as its default.
+            if (string.Equals(result.GetValue(_typeKind), "record", StringComparison.Ordinal) && result.GetValue(_languageVersion) is > 0 and < 9)
+            {
+                result.AddError("--type-kind record needs --language-version 9 or later.");
             }
 
             if (result.GetValue(_namespaceMap) is { Length: > 0 } && result.GetValue(_apache))
@@ -130,6 +148,8 @@ internal sealed class GenOptions
         NullableAnnotations = !result.GetValue(_noNullable) && result.GetValue(_languageVersion) >= 8,
         TargetHasDateOnly = !result.GetValue(_noDateOnly),
         LanguageVersion = result.GetValue(_languageVersion),
+        RequiredMembers = result.GetValue(_requiredMembers),
+        TypeKind = string.Equals(result.GetValue(_typeKind), "record", StringComparison.Ordinal) ? CodeGenTypeKind.Record : CodeGenTypeKind.Class,
     };
 
     private static Dictionary<string, string>? NamespaceMap(string[]? values)

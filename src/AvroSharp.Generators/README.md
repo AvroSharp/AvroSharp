@@ -33,6 +33,8 @@ var upgraded = shop.Order.FromAvroBytes(oldBytes, writerSchema);   // schema evo
 | `AvroSharpNamespaceMap` | `avro.ns:CSharp.Ns`, separated by `;` or `,` | Maps Avro namespaces (and those under them) to C# namespaces, as avrogen's `--namespace` does |
 | `AvroSharpPropertyNames` | `avro`, `pascal` | `avro` keeps the Avro field names, as Apache's `avrogen` does; `pascal` converts them to PascalCase. Defaults to PascalCase, or to the Avro names with `AvroSharpApacheCompatible` |
 | `AvroSharpLogicalTypes` | `native`, `raw` | `raw` keeps logical types as their underlying types instead of `DateOnly`, `Guid`, `decimal`, … |
+| `AvroSharpRequiredMembers` | `true`, `false` | `true` makes fields without a schema default `required` members (.NET 7+, C# 11+) |
+| `AvroSharpTypeKind` | `class`, `record` | `record` generates C# record classes, with value equality |
 | `AvroSharpApacheCompatible` | `true`, `false` | With `true`, generated types also implement Apache.Avro's `ISpecificRecord` and have avrogen's `_SCHEMA` and instance `Schema`; AvroSharp's schema is then `AvroSharpSchema` (requires a reference to Apache.Avro) |
 
 Values are case-insensitive. An unrecognized value is warning AVROGEN006, and the default is used.

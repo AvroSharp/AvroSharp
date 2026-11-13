@@ -31,6 +31,12 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// <summary>Gets the major C# version the generated code may use.</summary>
     public int LanguageVersion => options.LanguageVersion;
 
+    /// <summary>Gets whether a field is a <c>required</c> member (<see cref="CodeGenOptions.RequiredMembers"/>): it has no schema default.</summary>
+    public bool IsRequired(RecordField field) => options.RequiredMembers && options.LanguageVersion >= 11 && !field.HasDefaultValue;
+
+    /// <summary>Gets whether records become C# record classes (<see cref="CodeGenOptions.TypeKind"/>).</summary>
+    public bool RecordTypes => options.TypeKind == CodeGenTypeKind.Record;
+
     /// <summary>
     /// Gets the struct codec type for values of <paramref name="schema"/>, used by the collection and union helpers,
     /// or <see langword="null"/> when there is none (logical types, enums, fixed, collections and unions stay inline).
