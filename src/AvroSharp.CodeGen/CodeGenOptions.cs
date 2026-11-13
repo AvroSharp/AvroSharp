@@ -79,6 +79,12 @@ public sealed class CodeGenOptions
     /// </summary>
     public CodeGenTypeKind TypeKind { get; init; }
 
+    /// <summary>
+    /// Gets the C# type of Avro arrays in generated records, nested arrays included. Defaults to
+    /// <see cref="CodeGenCollectionType.List"/>, which the Apache.Avro compatibility mode requires.
+    /// </summary>
+    public CodeGenCollectionType CollectionType { get; init; }
+
     /// <summary>Gets the accessibility of generated types. Defaults to <see cref="CodeGenAccessibility.Public"/>.</summary>
     public CodeGenAccessibility Accessibility { get; init; }
 

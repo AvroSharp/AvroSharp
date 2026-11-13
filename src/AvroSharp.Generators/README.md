@@ -37,6 +37,7 @@ var upgraded = shop.Order.FromAvroBytes(oldBytes, writerSchema);   // schema evo
 | `AvroSharpTypeKind` | `class`, `record` | `record` generates C# record classes, with value equality |
 | `AvroSharpAccessibility` | `public`, `internal` | `internal` makes the generated types internal |
 | `AvroSharpSealedTypes` | `true`, `false` | `false` leaves records and fixed types unsealed |
+| `AvroSharpCollectionType` | `list`, `array`, `readonlylist` | Avro arrays as `List<T>` (default), `T[]` or `IReadOnlyList<T>` |
 | `AvroSharpApacheCompatible` | `true`, `false` | With `true`, generated types also implement Apache.Avro's `ISpecificRecord` and have avrogen's `_SCHEMA` and instance `Schema`; AvroSharp's schema is then `AvroSharpSchema` (requires a reference to Apache.Avro) |
 
 All but `AvroSharpNamespaceMap` can also be set per schema file, as `AdditionalFiles` metadata that overrides the project's: `<AdditionalFiles Update="Schemas/legacy/*.avsc" AvroSharpNamespace="Acme.Legacy" />`.

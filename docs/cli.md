@@ -77,6 +77,7 @@ With `--flat`, all files go into the output folder, named by full name (`Generat
 | `--type-kind class\|record` | `class` (default), or `record`: C# record classes, with value equality (C# 9 or later). |
 | `--accessibility public\|internal` | `public` (default), or `internal` types. A public type may not have a field of an internal one. |
 | `--unsealed` | Records and fixed types are not `sealed`, so they can be derived from. |
+| `--collection-type list\|array\|readonlylist` | Avro arrays as `List<T>` (default), `T[]` or `IReadOnlyList<T>`. Not with `--apache-compatible`. |
 | `--language-version <n>` | The major C# version the code may use (7 or later, default 14). 7 means C# 7.2 or later, and implies `--no-nullable`. With 11 or later, .NET 8+ targets also get [`IAvroSerializable<T>`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSerializable-1.html). |
 
 Examples:

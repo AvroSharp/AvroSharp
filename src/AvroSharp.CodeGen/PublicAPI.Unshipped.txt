@@ -2,8 +2,14 @@
 AvroSharp.CodeGen.CodeGenAccessibility
 AvroSharp.CodeGen.CodeGenAccessibility.Internal = 1 -> AvroSharp.CodeGen.CodeGenAccessibility
 AvroSharp.CodeGen.CodeGenAccessibility.Public = 0 -> AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenCollectionType.Array = 1 -> AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenCollectionType.List = 0 -> AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenCollectionType.ReadOnlyList = 2 -> AvroSharp.CodeGen.CodeGenCollectionType
 AvroSharp.CodeGen.CodeGenOptions.Accessibility.get -> AvroSharp.CodeGen.CodeGenAccessibility
 AvroSharp.CodeGen.CodeGenOptions.Accessibility.init -> void
+AvroSharp.CodeGen.CodeGenOptions.CollectionType.get -> AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenOptions.CollectionType.init -> void
 AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.init -> void
 AvroSharp.CodeGen.CodeGenOptions.SealedTypes.get -> bool

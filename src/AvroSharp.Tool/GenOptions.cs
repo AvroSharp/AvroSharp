@@ -81,9 +81,16 @@ internal sealed class GenOptions
         Description = "Don't seal the generated records and fixed types, so they can be derived from.",
     };
 
+    private readonly Option<string> _collectionType = new("--collection-type")
+    {
+        Description = "The C# type of Avro arrays: list (List<T>, default), array (T[]) or readonlylist (IReadOnlyList<T>). Not array or readonlylist with --apache-compatible.",
+        DefaultValueFactory = _ => "list",
+    };
+
     public GenOptions()
     {
         _typeKind.AcceptOnlyFromAmong("class", "record");
+        _collectionType.AcceptOnlyFromAmong("list", "array", "readonlylist");
         _accessibility.AcceptOnlyFromAmong("public", "internal");
         _logicalTypes.AcceptOnlyFromAmong(Native, Raw);
         _propertyNames.AcceptOnlyFromAmong(Pascal, Avro);
@@ -99,7 +106,7 @@ internal sealed class GenOptions
 
     public void AddTo(Command command)
     {
-        foreach (var option in new Option[] { _namespace, _namespaceMap, _logicalTypes, _propertyNames, _apache, _noNullable, _noDateOnly, _languageVersion, _requiredMembers, _typeKind, _accessibility, _unsealed })
+        foreach (var option in new Option[] { _namespace, _namespaceMap, _logicalTypes, _propertyNames, _apache, _noNullable, _noDateOnly, _languageVersion, _requiredMembers, _typeKind, _accessibility, _unsealed, _collectionType })
         {
             command.Options.Add(option);
         }
@@ -120,6 +127,11 @@ internal sealed class GenOptions
             if (string.Equals(result.GetValue(_typeKind), "record", StringComparison.Ordinal) && result.GetValue(_languageVersion) is > 0 and < 9)
             {
                 result.AddError("--type-kind record needs --language-version 9 or later.");
+            }
+
+            if (result.GetValue(_collectionType) is "array" or "readonlylist" && result.GetValue(_apache))
+            {
+                result.AddError("--collection-type array or readonlylist cannot be combined with --apache-compatible: Apache.Avro's readers put lists into the fields.");
             }
 
             if (result.GetValue(_namespaceMap) is { Length: > 0 } && result.GetValue(_apache))
@@ -164,6 +176,12 @@ internal sealed class GenOptions
         TypeKind = string.Equals(result.GetValue(_typeKind), "record", StringComparison.Ordinal) ? CodeGenTypeKind.Record : CodeGenTypeKind.Class,
         Accessibility = string.Equals(result.GetValue(_accessibility), "internal", StringComparison.Ordinal) ? CodeGenAccessibility.Internal : CodeGenAccessibility.Public,
         SealedTypes = !result.GetValue(_unsealed),
+        CollectionType = result.GetValue(_collectionType) switch
+        {
+            "array" => CodeGenCollectionType.Array,
+            "readonlylist" => CodeGenCollectionType.ReadOnlyList,
+            _ => CodeGenCollectionType.List,
+        },
     };
 
     private static Dictionary<string, string>? NamespaceMap(string[]? values)

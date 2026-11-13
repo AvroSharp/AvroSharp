@@ -68,7 +68,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         w.Line($"items{n}.Add({read});");
         w.Close();
         w.Close();
-        w.Line($"{target} = items{n};");
+        w.Line($"{target} = {types.FromList($"items{n}")};");
         w.Close();
     }
 
@@ -236,13 +236,18 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
         var n = _next++;
         w.Open();
-        w.Line($"var items{n} = {NotNull(expression, field, notNull)};");
+
+        // An array or another list is read through IReadOnlyList<T>, which has Count; only a List<T> has a span.
+        var asList = types.Collections == CodeGenCollectionType.List;
+        w.Line(asList
+            ? $"var items{n} = {NotNull(expression, field, notNull)};"
+            : $"global::System.Collections.Generic.IReadOnlyList<{types.TypeOf(array.Items)}> items{n} = {NotNull(expression, field, notNull)};");
         w.Open($"if (items{n}.Count > 0)");
         w.Line($"writer.WriteBlockCount(items{n}.Count);");
 
         // Over the list's span on .NET 8+, which needs C# 13 there: .NET 9 and 10 declare the span's enumerator with
         // ref struct interfaces, so a project pinned to C# 12 or earlier could not compile the loop (CS9202, #131).
-        if (types.LanguageVersion >= 13)
+        if (asList && types.LanguageVersion >= 13)
         {
             w.Directive("#if NET8_0_OR_GREATER");
             w.Line($"foreach (var item{n} in {CollectionsMarshal}.AsSpan(items{n}))");
@@ -356,16 +361,17 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
 
     private void ReadArray(CodeWriter w, ArraySchema array, string target, bool reuse)
     {
-        var existing = reuse ? target : "null";
+        // Only a List<T> is reused; arrays of another type are read into a new list, then converted.
+        var existing = reuse && types.Collections == CodeGenCollectionType.List ? target : "null";
         if (PrimitiveList(array.Items) is { } list)
         {
-            w.Line($"{target} = {Support}.Read{list}(ref reader, {existing});");
+            w.Line($"{target} = {types.FromList($"{Support}.Read{list}(ref reader, {existing})")};");
             return;
         }
 
         if (types.Serializer(array.Items) is { } codec)
         {
-            w.Line($"{target} = {Support}.ReadList<{types.TypeOf(array.Items)}, {codec}>(ref reader, {existing}, {Int(TypeMapper.MinimumSize(array.Items))}, depth + 1);");
+            w.Line($"{target} = {types.FromList($"{Support}.ReadList<{types.TypeOf(array.Items)}, {codec}>(ref reader, {existing}, {Int(TypeMapper.MinimumSize(array.Items))}, depth + 1)")};");
             return;
         }
 
@@ -384,7 +390,7 @@ internal sealed class SerializerEmitter(CSharpNames names, TypeMapper types)
         w.Line($"items{n}.Add(item{n});");
         w.Close();
         w.Close();
-        w.Line($"{target} = items{n};");
+        w.Line($"{target} = {types.FromList($"items{n}")};");
         w.Close();
     }
 

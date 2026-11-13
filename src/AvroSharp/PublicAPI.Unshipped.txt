@@ -65,4 +65,10 @@ static AvroSharp.Generic.GenericRecord.CreateWithDefaults(AvroSharp.Schemas.Reco
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.DeserializeFromJson<T>(System.ReadOnlySpan<byte> utf8Json, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroReadFunc<T>! read) -> T
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.DeserializeFromJson<T>(string! json, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroReadFunc<T>! read) -> T
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.SerializeToJson<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Schemas.AvroSchema! schema, bool indented) -> string!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteBooleanList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.IReadOnlyList<bool>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteDoubleList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.IReadOnlyList<double>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteFloatList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.IReadOnlyList<float>? items, string! field) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteIntList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.IReadOnlyList<int>? items, string! field) -> void
 static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteJson<T>(System.Text.Json.Utf8JsonWriter! writer, T value, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Schemas.AvroSchema! schema) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteList<T, TSerializer>(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.IReadOnlyList<T>? items, string! field, int depth) -> void
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteLongList(ref AvroSharp.IO.AvroWriter writer, System.Collections.Generic.IReadOnlyList<long>? items, string! field) -> void

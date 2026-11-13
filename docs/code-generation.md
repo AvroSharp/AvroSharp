@@ -104,6 +104,7 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
 | `AvroSharpRequiredMembers` | `true`, `false` | `true` makes fields without a schema default `required` members, so `new Order { ... }` that leaves one unset doesn't compile (`--required-members`). Only on .NET 7 and later with C# 11 or later; elsewhere they stay plain properties, so the same code compiles for every target. Readers set them through a constructor of their own. |
 | `AvroSharpTypeKind` | `class`, `record` | `record` makes records C# `record class`es (`--type-kind`): value equality and `with`, member by member, so lists, dictionaries and byte arrays compare by reference. Needs C# 9. |
 | `AvroSharpAccessibility` | `public`, `internal` | `internal` makes the generated types internal (`--accessibility`), for a library that keeps its Avro types to itself. A public type with a field of an internal type is an error (AVROGEN003) that names both. |
+| `AvroSharpCollectionType` | `list`, `array`, `readonlylist` | The C# type of Avro arrays, nested ones too (`--collection-type`): `List<T>` (the default), `T[]` or `IReadOnlyList<T>`. Readers fill a list and copy it to an array once complete, and only reuse a record's `List<T>` (`ReadFrom`). Writers take a `List<T>` or an array from its memory. Not with `AvroSharpApacheCompatible`, whose readers put lists into the fields. |
 | `AvroSharpSealedTypes` | `true`, `false` | `false` leaves records and fixed types unsealed (`--unsealed`), so you can derive from them. Readers still create the generated type, and writers write only its fields. |
 
 ```xml
@@ -114,7 +115,7 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
 </PropertyGroup>
 ```
 
-**Per file:** `AvroSharpNamespace`, `AvroSharpLogicalTypes`, `AvroSharpPropertyNames`, `AvroSharpApacheCompatible`, `AvroSharpRequiredMembers`, `AvroSharpTypeKind`, `AvroSharpAccessibility` and `AvroSharpSealedTypes` can also be set on schema files, as `AdditionalFiles` metadata. A file's setting overrides the project's for the types that file defines. Types from different files still refer to each other by their own C# names. A value the generator doesn't recognize is a warning (AVROGEN006) that names the file. The namespace map, the C# version and nullable annotations stay the project's.
+**Per file:** `AvroSharpNamespace`, `AvroSharpLogicalTypes`, `AvroSharpPropertyNames`, `AvroSharpApacheCompatible`, `AvroSharpRequiredMembers`, `AvroSharpTypeKind`, `AvroSharpAccessibility`, `AvroSharpSealedTypes` and `AvroSharpCollectionType` can also be set on schema files, as `AdditionalFiles` metadata. A file's setting overrides the project's for the types that file defines. Types from different files still refer to each other by their own C# names. A value the generator doesn't recognize is a warning (AVROGEN006) that names the file. The namespace map, the C# version and nullable annotations stay the project's.
 
 ```xml
 <ItemGroup>

@@ -39,6 +39,7 @@ It writes one `.g.cs` file per named type, in folders for its namespace (`Genera
   | `--type-kind class\|record` | Classes (default), or C# record classes with value equality. |
   | `--accessibility public\|internal` | Public (default) or internal types. |
   | `--unsealed` | Records and fixed types are not sealed. |
+  | `--collection-type list\|array\|readonlylist` | Avro arrays as `List<T>` (default), `T[]` or `IReadOnlyList<T>`. |
   | `--language-version <n>` | The C# version the code may use (default 14). |
 
 - **Nothing is written if any schema is invalid.** Each problem is reported as `path(line,column): error AVROGEN001: message`, the compiler's format.

@@ -100,29 +100,30 @@ internal static class SchemaFileCycles
         var ns = FullNameOf(schema, enclosingNamespace) is { } fullName ? NamespaceOf(fullName) : enclosingNamespace;
         foreach (var key in new[] { "type", "items", "values" })
         {
-            if (schema[key] is { } child)
-            {
-                var replaced = Visit(child, ns, typePosition: true, context);
-                if (!ReferenceEquals(replaced, child))
-                {
-                    schema[key] = replaced;
-                }
-            }
+            ReplaceChild(schema, key, ns, context);
         }
 
         if (schema["fields"] is JsonArray fields)
         {
             foreach (var field in fields.OfType<JsonObject>())
             {
-                if (field["type"] is { } type)
-                {
-                    var replaced = Visit(type, ns, typePosition: true, context);
-                    if (!ReferenceEquals(replaced, type))
-                    {
-                        field["type"] = replaced;
-                    }
-                }
+                ReplaceChild(field, "type", ns, context);
             }
+        }
+    }
+
+    // Visits the schema at a property, a type position, and puts back what replaces it.
+    private static void ReplaceChild(JsonObject parent, string key, string? ns, Context context)
+    {
+        if (parent[key] is not { } child)
+        {
+            return;
+        }
+
+        var replaced = Visit(child, ns, typePosition: true, context);
+        if (!ReferenceEquals(replaced, child))
+        {
+            parent[key] = replaced;
         }
     }
 
