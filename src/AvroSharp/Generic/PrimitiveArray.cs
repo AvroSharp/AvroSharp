@@ -19,6 +19,9 @@ internal abstract class PrimitiveArray : IReadOnlyList<AvroValue>
     /// <summary>Compares the items with another typed array of the same element type, by bit pattern (as <see cref="AvroValue.Equals(AvroValue)"/> does).</summary>
     public abstract bool? ItemsEqual(PrimitiveArray other);
 
+    /// <summary>Copies the items into a new array of the same type.</summary>
+    public abstract PrimitiveArray Copy();
+
     public IEnumerator<AvroValue> GetEnumerator()
     {
         for (var i = 0; i < Count; i++)
@@ -44,30 +47,44 @@ internal abstract class PrimitiveArray<T>(ReadOnlyMemory<T> items) : PrimitiveAr
         ? MemoryMarshal.AsBytes(Items.Span).SequenceEqual(MemoryMarshal.AsBytes(typed.Items.Span))
         : null;
 
+    public override PrimitiveArray Copy() => Create(Items.ToArray());
+
     protected abstract AvroValue ToValue(T value);
+
+    protected abstract PrimitiveArray<T> Create(ReadOnlyMemory<T> items);
 }
 
 internal sealed class BooleanArray(ReadOnlyMemory<bool> items) : PrimitiveArray<bool>(items)
 {
     protected override AvroValue ToValue(bool value) => value;
+
+    protected override PrimitiveArray<bool> Create(ReadOnlyMemory<bool> items) => new BooleanArray(items);
 }
 
 internal sealed class Int32Array(ReadOnlyMemory<int> items) : PrimitiveArray<int>(items)
 {
     protected override AvroValue ToValue(int value) => value;
+
+    protected override PrimitiveArray<int> Create(ReadOnlyMemory<int> items) => new Int32Array(items);
 }
 
 internal sealed class Int64Array(ReadOnlyMemory<long> items) : PrimitiveArray<long>(items)
 {
     protected override AvroValue ToValue(long value) => value;
+
+    protected override PrimitiveArray<long> Create(ReadOnlyMemory<long> items) => new Int64Array(items);
 }
 
 internal sealed class SingleArray(ReadOnlyMemory<float> items) : PrimitiveArray<float>(items)
 {
     protected override AvroValue ToValue(float value) => value;
+
+    protected override PrimitiveArray<float> Create(ReadOnlyMemory<float> items) => new SingleArray(items);
 }
 
 internal sealed class DoubleArray(ReadOnlyMemory<double> items) : PrimitiveArray<double>(items)
 {
     protected override AvroValue ToValue(double value) => value;
+
+    protected override PrimitiveArray<double> Create(ReadOnlyMemory<double> items) => new DoubleArray(items);
 }

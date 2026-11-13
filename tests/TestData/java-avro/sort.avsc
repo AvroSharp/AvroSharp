@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "Sorted",
+  "namespace": "org.avrosharp.sort",
+  "fields": [
+    {"name": "flag", "type": "boolean"},
+    {"name": "small", "type": "int", "order": "descending"},
+    {"name": "tags", "type": {"type": "map", "values": "string"}, "order": "ignore"},
+    {"name": "kind", "type": {"type": "enum", "name": "Kind", "symbols": ["B", "A", "C"]}},
+    {"name": "name", "type": "string"},
+    {"name": "count", "type": "long"},
+    {"name": "ratio", "type": "float"},
+    {"name": "score", "type": "double", "order": "descending"},
+    {"name": "data", "type": "bytes"},
+    {"name": "id", "type": {"type": "fixed", "name": "Id", "size": 2}},
+    {"name": "choice", "type": ["null", "int", "string", {
+      "type": "record",
+      "name": "Inner",
+      "fields": [
+        {"name": "a", "type": "int"},
+        {"name": "b", "type": "string", "order": "descending"},
+        {"name": "skip", "type": "double", "order": "ignore"}
+      ]
+    }]},
+    {"name": "list", "type": {"type": "array", "items": "int"}},
+    {"name": "nested", "type": "Inner"},
+    {"name": "note", "type": "string", "order": "ignore"}
+  ]
+}

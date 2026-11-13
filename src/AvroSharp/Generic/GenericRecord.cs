@@ -21,6 +21,29 @@ public sealed class GenericRecord : IEquatable<GenericRecord>
         _values = schema.Fields.Count == 0 ? [] : new AvroValue[schema.Fields.Count];
     }
 
+    /// <summary>
+    /// Creates a record whose fields hold their schema defaults; a field without a default is <c>null</c>. Each call
+    /// converts the defaults again, so records never share an array, map or record from a default.
+    /// </summary>
+    /// <param name="schema">The record schema.</param>
+    /// <exception cref="AvroDataException">A default does not match its field's schema.</exception>
+    /// <seealso cref="GenericRecordBuilder"/>
+    /// <seealso cref="GenericDatumJsonReader.ReadDefault(AvroSchema, System.Text.Json.JsonElement)"/>
+    public static GenericRecord CreateWithDefaults(RecordSchema schema)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        var record = new GenericRecord(schema);
+        foreach (var field in schema.Fields)
+        {
+            if (field.DefaultValue is { } defaultValue)
+            {
+                record._values[field.Position] = GenericDatumJsonReader.ReadDefault(field.Schema, defaultValue);
+            }
+        }
+
+        return record;
+    }
+
     // For the reader: the field count is cached in the compiled plan, avoiding an interface call per record.
     internal GenericRecord(RecordSchema schema, int fieldCount)
     {

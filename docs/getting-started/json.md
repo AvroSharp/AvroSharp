@@ -33,7 +33,7 @@ Console.WriteLine(json);
 {"id":1042,"customer":"Grace Hopper","status":"SHIPPED","coupon":null,"note":{"string":"Leave at the door"},"items":{"SKU-1001":2,"SKU-2040":1},"clientIp":"\u00C0\u00A8\u0001\u0014"}
 ```
 
-The only formatting option is indentation. [`WriteToUtf8Bytes`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumJsonWriter.WriteToUtf8Bytes.html) gives the same JSON as UTF-8, and [`Write`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumJsonWriter.Write.html) writes to a `Utf8JsonWriter`, which can write to a stream and has its own options:
+The formatting options are indentation and, through [`GenericDatumWriterOptions.JsonUnionBranchNames`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumWriterOptions.JsonUnionBranchNames.html), how union branches are labelled (below). [`WriteToUtf8Bytes`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumJsonWriter.WriteToUtf8Bytes.html) gives the same JSON as UTF-8, and [`Write`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumJsonWriter.Write.html) writes to a `Utf8JsonWriter`, which can write to a stream and has its own options:
 
 ```csharp
 string indented = orderJson.WriteToString(order, indented: true);
@@ -56,7 +56,7 @@ Record fields may come in any order. A field missing from the JSON takes its def
 
 The encoding is JSON, but the schema decides how each value looks. In the output above:
 
-- **Unions:** a value other than `null` is wrapped in an object whose one property names its branch: `"note":{"string":"Leave at the door"}`. A named type's branch is its full name, such as `{"shop.Order":{...}}`. `null` is not wrapped: `"coupon":null`.
+- **Unions:** a value other than `null` is wrapped in an object whose one property names its branch: `"note":{"string":"Leave at the door"}`. A named type's branch is its full name, such as `{"shop.Order":{...}}`, or its simple name, `{"Order":{...}}`, when the writer's options set `JsonUnionBranchNames.Simple`, as Java's `JsonEncoder.setIncludeNamespace(false)` does. A branch whose simple name another branch shares keeps its full name. The reader reads both forms; Java's `JsonDecoder` and Apache.Avro read only full names. `null` is not wrapped: `"coupon":null`.
 - **Bytes and fixed:** a string whose code points 0-255 are the bytes. The address 192.168.1.20 is `"\u00C0\u00A8\u0001\u0014"`: the JSON writer escapes the code points outside printable ASCII, so the text stays ASCII.
 - **Enums:** the symbol as a string: `"status":"SHIPPED"`.
 - **Maps:** an object, one property per key: `"items":{"SKU-1001":2,"SKU-2040":1}`.
