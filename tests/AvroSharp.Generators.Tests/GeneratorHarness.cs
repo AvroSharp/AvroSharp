@@ -43,8 +43,17 @@ internal static class GeneratorHarness
             "Consumer",
             sources.Select(s => CSharpSyntaxTree.ParseText(s, new CSharpParseOptions(languageVersion, preprocessorSymbols: preprocessorSymbols))),
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: languageVersion >= LanguageVersion.CSharp8 ? NullableContextOptions.Enable : NullableContextOptions.Disable));
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: languageVersion >= LanguageVersion.CSharp8 ? NullableContextOptions.Enable : NullableContextOptions.Disable)
+                .WithSpecificDiagnosticOptions(s_msbuildNoWarn));
     }
+
+    // MSBuild's default NoWarn: the assembly-version unification warnings, which a project never sees. The generated
+    // JSON members name System.Text.Json's Utf8JsonWriter, whose version AvroSharp's build and the test's runtime differ in.
+    private static readonly Dictionary<string, ReportDiagnostic> s_msbuildNoWarn = new(StringComparer.Ordinal)
+    {
+        ["CS1701"] = ReportDiagnostic.Suppress,
+        ["CS1702"] = ReportDiagnostic.Suppress,
+    };
 
     public static GeneratorDriver CreateDriver(IEnumerable<(string Path, string Text)> files, string? avroSharpNamespace = null, string? logicalTypes = null, bool apacheCompatible = false, LanguageVersion languageVersion = LanguageVersion.Latest, string? propertyNames = null, string[]? preprocessorSymbols = null) =>
         CSharpGeneratorDriver.Create(

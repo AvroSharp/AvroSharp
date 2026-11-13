@@ -16,8 +16,10 @@ internal sealed class CanonicalFormWriter
 {
     private readonly PooledBufferWriter _output;
 
-    // Schemas use reference equality, so this tracks schema instances.
-    private readonly HashSet<NamedSchema> _defined = [];
+    // By full name, as Java's SchemaNormalization: a type is written in full once, then by name. Within one schema a
+    // name has one definition; two instances of a name meet only when a definition is compared with its redefinition
+    // in another file (#16), where they must print alike.
+    private readonly HashSet<string> _defined = new(StringComparer.Ordinal);
 
     private CanonicalFormWriter(PooledBufferWriter output)
     {
@@ -38,7 +40,7 @@ internal sealed class CanonicalFormWriter
             case PrimitiveSchema primitive:
                 WriteString(primitive.TypeName);
                 break;
-            case NamedSchema named when !_defined.Add(named):
+            case NamedSchema named when !_defined.Add(named.FullName):
                 WriteString(named.FullName);
                 break;
             case RecordSchema record:

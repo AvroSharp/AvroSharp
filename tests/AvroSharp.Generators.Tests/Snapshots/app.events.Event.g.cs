@@ -135,6 +135,19 @@ namespace app.events
             return ReadCore(ref reader, null, 0);
         }
 
+        /// <summary>Writes this value in the Avro JSON encoding, as <c>GenericDatumJsonWriter</c> writes it.</summary>
+        /// <param name="indented">Whether to indent the JSON.</param>
+        public string ToAvroJson(bool indented = false) => global::AvroSharp.Serialization.Generated.AvroGeneratedCode.SerializeToJson(this, Write, Schema, indented);
+
+        /// <summary>Writes this value in the Avro JSON encoding to <paramref name="writer"/>, as one JSON value.</summary>
+        public void WriteAvroJson(global::System.Text.Json.Utf8JsonWriter writer) => global::AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteJson(writer, this, Write, Schema);
+
+        /// <summary>Reads a value from the Avro JSON encoding of this type's schema.</summary>
+        public static Event FromAvroJson(string json) => global::AvroSharp.Serialization.Generated.AvroGeneratedCode.DeserializeFromJson(json, Schema, Read);
+
+        /// <summary>Reads a value from the Avro JSON encoding of this type's schema, as UTF-8.</summary>
+        public static Event FromAvroJson(global::System.ReadOnlySpan<byte> utf8Json) => global::AvroSharp.Serialization.Generated.AvroGeneratedCode.DeserializeFromJson(utf8Json, Schema, Read);
+
         private static global::AvroSharp.Serialization.AvroTypeInfo<Event>? s_typeInfo;
 
         /// <summary>Gets this type's schema and serializers, as <c>AvroTypes</c> finds them by type.</summary>

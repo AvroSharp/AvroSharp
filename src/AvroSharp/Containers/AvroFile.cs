@@ -45,47 +45,57 @@ public static class AvroFile
             LeaveOpen = true,
         };
 
-        AvroFileWriter<AvroValue>? writer = null;
-        try
+        if (streams.IndexOf(null!) is var missing and >= 0)
         {
-            for (var i = 0; i < streams.Count; i++)
-            {
-                var input = streams[i] ?? throw new ArgumentException($"Input {i} is null.", nameof(inputs));
-                writer = CopyBlocks(input, i, output, readerOptions, writer);
-            }
+            throw new ArgumentException($"Input {missing} is null.", nameof(inputs));
         }
-        finally
+
+        using var writer = CreateFromFirst(streams[0], output, readerOptions);
+        for (var i = 1; i < streams.Count; i++)
         {
-            writer?.Dispose();
+            CopyBlocks(streams[i], i, readerOptions, writer);
         }
     }
 
-    // Copies one input's blocks; the first input creates the writer, with its schema, codec and metadata.
-    private static AvroFileWriter<AvroValue> CopyBlocks(Stream input, int index, Stream output, AvroFileReaderOptions readerOptions, AvroFileWriter<AvroValue>? writer)
+    // A writer with the first input's schema, codec and metadata, holding its blocks.
+    private static AvroFileWriter<AvroValue> CreateFromFirst(Stream input, Stream output, AvroFileReaderOptions readerOptions)
     {
-        using (var reader = AvroFileReader.OpenGeneric(input, options: readerOptions))
+        using var reader = AvroFileReader.OpenGeneric(input, options: readerOptions);
+        var writer = AvroFileWriter.CreateGeneric(output, reader.WriterSchema, new AvroFileWriterOptions
         {
-            if (writer is null)
-            {
-                writer = AvroFileWriter.CreateGeneric(output, reader.WriterSchema, new AvroFileWriterOptions
-                {
-                    Codec = reader.Codec,
-                    Metadata = UserMetadata(reader.Metadata),
-                    LeaveOpen = true,
-                });
-            }
-            else if (!string.Equals(reader.WriterSchema.CanonicalForm, writer.Schema.CanonicalForm, StringComparison.Ordinal))
-            {
-                throw new AvroException($"Input {index}'s schema is {reader.WriterSchema.CanonicalForm}, not the first input's {writer.Schema.CanonicalForm}.");
-            }
+            Codec = reader.Codec,
+            Metadata = UserMetadata(reader.Metadata),
+            LeaveOpen = true,
+        });
+        try
+        {
+            CopyBlocks(reader, writer);
+            return writer;
+        }
+        catch
+        {
+            writer.Dispose();
+            throw;
+        }
+    }
 
-            while (reader.TryReadBlock(out var block))
-            {
-                writer.WriteBlock(block);
-            }
+    private static void CopyBlocks(Stream input, int index, AvroFileReaderOptions readerOptions, AvroFileWriter<AvroValue> writer)
+    {
+        using var reader = AvroFileReader.OpenGeneric(input, options: readerOptions);
+        if (!string.Equals(reader.WriterSchema.CanonicalForm, writer.Schema.CanonicalForm, StringComparison.Ordinal))
+        {
+            throw new AvroException($"Input {index}'s schema is {reader.WriterSchema.CanonicalForm}, not the first input's {writer.Schema.CanonicalForm}.");
         }
 
-        return writer;
+        CopyBlocks(reader, writer);
+    }
+
+    private static void CopyBlocks(AvroFileReader<AvroValue> reader, AvroFileWriter<AvroValue> writer)
+    {
+        while (reader.TryReadBlock(out var block))
+        {
+            writer.WriteBlock(block);
+        }
     }
 
     // The entries an application added: the avro.* ones belong to the writer.

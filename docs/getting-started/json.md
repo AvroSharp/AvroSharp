@@ -74,6 +74,8 @@ Console.WriteLine(bytesJson);
 
 Records are objects and arrays are arrays, as in plain JSON. `float` and `double` NaN and infinities, which JSON numbers can't express, are the strings `"NaN"`, `"Infinity"` and `"-Infinity"`. Reading also accepts `"INF"` and `"-INF"`, and a whole number written as `1.0` or `1e2` for an `int` or `long`, as Java's `JsonDecoder` does.
 
+Types generated from schemas have the same encoding as `ToAvroJson()`, `WriteAvroJson(Utf8JsonWriter)` and `FromAvroJson(...)`: their JSON is exactly the generic writer's for the same value ([code generation](../code-generation.md)).
+
 ## Convert binary Avro to JSON and back
 
 To inspect binary data, or to return it from a REST API, read it with [`GenericDatumReader`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericDatumReader.html) and write the value with the JSON writer. `Write` puts it inside a larger document:
