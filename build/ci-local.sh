@@ -18,7 +18,7 @@ esac
 step() { echo; echo "==> $*"; }
 
 # Results of an earlier run would be counted by the coverage check.
-rm -rf TestResults artifacts/bin/*/*/TestResults artifacts/coverage
+rm -rf TestResults artifacts/test artifacts/bin/*/*/TestResults artifacts/coverage
 
 step Restore
 dotnet restore AvroSharp.slnx

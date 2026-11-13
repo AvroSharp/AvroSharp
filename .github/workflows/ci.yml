@@ -158,6 +158,7 @@ jobs:
         with:
           name: results-${{ matrix.os }}
           path: |
+            artifacts/test/**
             artifacts/bin/**/TestResults/**
             TestResults/**
           if-no-files-found: ignore
