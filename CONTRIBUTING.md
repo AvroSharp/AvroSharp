@@ -110,6 +110,6 @@ Versions come from git tags through MinVer: `v1.2.3`, or `v1.2.3-alpha.1` for a 
 The push uses nuget.org's [trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing), so no API key is stored. It needs, once:
 
 - **on nuget.org:** a trusted publishing policy for the nuget.org account that owns the `AvroSharp*` packages (`zcsizmadia`). The policy names repository owner `AvroSharp` (the organization; the repository moved there from `zcsizmadia` on 2026-09-30), repository `AvroSharp`, workflow file `release.yml` and environment `nuget`.
-- **on GitHub:** an environment named `nuget` (Settings → Environments; add required reviewers there to approve each publish), and a repository variable `NUGET_USER` holding that nuget.org account or organization name.
+- **on GitHub:** an environment named `nuget` (Settings → Environments; add required reviewers there to approve each publish). The nuget.org account that owns the policy, `zcsizmadia`, is the `user` of the login step in `release.yml`.
 
 The workflow asks GitHub for an OIDC token, and `NuGet/login` exchanges it for a key that is valid for about an hour.
