@@ -39,6 +39,6 @@ Values are case-insensitive. An unrecognized value is warning AVROGEN006, and th
 
 ## Requirements
 
-The generator needs the .NET 10 SDK or Visual Studio 2026, because it runs AvroSharp inside the compiler (see [#20](https://github.com/AvroSharp/AvroSharp/issues/20)). The generated code works on every target AvroSharp supports: .NET 8, 9 and 10, .NET Standard 2.0 and 2.1, and .NET Framework.
+The generator needs the .NET 10 SDK or Visual Studio 2026, because it runs AvroSharp inside the compiler (see [#20](https://github.com/AvroSharp/AvroSharp/issues/20)). The generated code works on every target AvroSharp supports: .NET 8, 10 and 11, .NET Standard 2.0 and 2.1, and .NET Framework.
 
 See the [code generation guide](https://avrosharp.github.io/AvroSharp/docs/code-generation.html) for unions, logical types and the Apache.Avro compatibility mode.

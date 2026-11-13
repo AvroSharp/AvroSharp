@@ -22,6 +22,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - **AvroSharp:** `AvroTypeInfo.ReadObjectFor(AvroSchema)`, the boxed reader of a writer schema, resolved once (#197).
 
 ### Changed
+- **Targets: net11.0 in place of net9.0** (#222). The packages target `net11.0`, `net10.0`, `net8.0` and .NET Standard (the add-ons as before: no netstandard2.1, and no .NET Standard for AvroSharp.KafkaFlow). .NET 9 reached its end of support on 2026-11-10; on .NET 9 the netstandard2.1 build of AvroSharp is used (netstandard2.0 for the add-ons). The repository builds with the .NET 11 SDK and C# 15. The source generator still needs only the .NET 10 SDK or Visual Studio 2026.
 - **AvroSharp.Confluent writes with the target schema** (#188). With `use.latest.version`, `use.latest.with.metadata` or `use.schema.id`, a type whose schema differs from that version's is now written in that schema, after a compatibility check, as Java's serializer and Confluent's generic serializer write it; it used to throw. `LatestCompatibilityStrict` and `IdCompatibilityStrict` (`avro.serializer.latest.compatibility.strict`, `avro.serializer.id.compatibility.strict`, both `true` by default, as in Java) can turn the check off. Other logical types or decimal scales are still refused.
 - **AvroSharp.Confluent is faster per message** (#197):
   - after the first message, the asynchronous serializer and deserializer skip the async state machine and Confluent's per-message lookups, as the synchronous ones already did;

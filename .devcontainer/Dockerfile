@@ -1,4 +1,4 @@
-# The .NET 10 SDK on Ubuntu 24.04, as on the ubuntu-latest runners, with the .NET 8 and 9 SDKs beside it, as CI's
+# The .NET 10 SDK on Ubuntu 24.04, as on the ubuntu-latest runners, with the .NET 8 and 11 SDKs beside it, as CI's
 # setup-dotnet installs them. clang and zlib1g-dev are the Native AOT prerequisites (the AotSmoke publish).
 FROM mcr.microsoft.com/devcontainers/dotnet:10.0-noble
 
@@ -8,5 +8,5 @@ RUN apt-get update \
 
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
     && bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /usr/share/dotnet \
-    && bash /tmp/dotnet-install.sh --channel 9.0 --install-dir /usr/share/dotnet \
+    && bash /tmp/dotnet-install.sh --channel 11.0 --install-dir /usr/share/dotnet \
     && rm /tmp/dotnet-install.sh

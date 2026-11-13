@@ -4,7 +4,7 @@
 [![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Favrosharp.github.io%2FAvroSharp%2Fcoverage.json)](https://github.com/AvroSharp/AvroSharp/actions/workflows/ci.yml?query=branch%3Amain)
 [![NuGet](https://img.shields.io/nuget/v/AvroSharp?logo=nuget&label=NuGet)](https://www.nuget.org/packages/AvroSharp)
 [![Downloads](https://img.shields.io/nuget/dt/AvroSharp?logo=nuget&label=Downloads)](https://www.nuget.org/packages/AvroSharp)
-[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0%20%7C%20netstandard2.0%20%7C%20netstandard2.1-512BD4?logo=dotnet)](#goals)
+[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%2010.0%20%7C%2011.0%20%7C%20netstandard2.0%20%7C%20netstandard2.1-512BD4?logo=dotnet)](#goals)
 [![License](https://img.shields.io/github/license/AvroSharp/AvroSharp)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-avrosharp.github.io%2FAvroSharp-blue)](https://avrosharp.github.io/AvroSharp/)
 
@@ -50,7 +50,7 @@ All of them are built from this repository and released together, at the same ve
 - Serialization code produced by source generators: no reflection, Native AOT and trimming compatible.
 - Async-first, low-allocation I/O over `Span<T>`, `IBufferWriter<byte>`, `ReadOnlySequence<byte>` and streams.
 - Every codec in the specification (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`), implemented with fully managed libraries.
-- Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
+- Targets `net11.0`, `net10.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
 - Releases on its own schedule. Apache.Avro, the C# library of the Apache Avro project, ships with the whole project through the Apache release process, which gives every language the same careful, voted releases, a few times a year. As a standalone .NET library, AvroSharp can ship features and fixes as soon as they are ready, and take up users' feature requests quickly. [Feature requests](https://github.com/AvroSharp/AvroSharp/issues) are welcome.
 
 ## Getting started

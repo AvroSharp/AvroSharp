@@ -78,7 +78,7 @@ dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filte
 dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*GenericRecordBenchmarks.AvroSharp_Read'
 
 # Several runtimes in one run
-dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory
+dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net10.0 --memory
 ```
 
 The arguments after `--` are [BenchmarkDotNet's](https://benchmarkdotnet.org/articles/guides/console-args.html): `--list flat` lists the benchmarks, `--affinity 1` pins the run to one core for steadier numbers, and `--job short` gives a quick, rough answer. Reports go to `BenchmarkDotNet.Artifacts/results`.
@@ -86,7 +86,7 @@ The arguments after `--` are [BenchmarkDotNet's](https://benchmarkdotnet.org/art
 ## The performance gate
 
 ```shell
-dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory --gate
+dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net10.0 --memory --gate
 ```
 
 With `--gate`, the process exits non-zero unless, in every group (class, category, parameters and runtime), each `AvroSharp_*` benchmark is faster than the Apache.Avro baseline **and** allocates no more. A release needs the gate to pass.

@@ -216,7 +216,7 @@ public class AvroSharpSchemaRegistrySerializer
         if (plus < 0
             || !string.Equals(contentType![..plus], AvroMimeType, StringComparison.Ordinal)
             || plus == contentType.Length - 1
-            || contentType.IndexOf('+', plus + 1) >= 0)
+            || contentType.AsSpan(plus + 1).IndexOf('+') >= 0)
         {
             throw new FormatException($"The content type '{contentType}' is not avro/binary+<schema ID>, where the schema ID is the Schema Registry's.");
         }

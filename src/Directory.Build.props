@@ -18,6 +18,12 @@
     <PolyUseEmbeddedAttribute>true</PolyUseEmbeddedAttribute>
   </PropertyGroup>
 
+  <!-- 1.0.0 shipped net9.0, which net11.0 replaced (#222); .NET 9 now gets the net8.0 build. The two have the same
+       AvroSharp API, and differ only in the polyfills embedded in each, which validation would report as breaks. -->
+  <ItemGroup>
+    <PackageValidationBaselineFrameworkToIgnore Include="net9.0" />
+  </ItemGroup>
+
   <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>

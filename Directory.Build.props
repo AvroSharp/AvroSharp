@@ -2,7 +2,7 @@
 
   <!-- Shared settings for every project in the repository. -->
   <PropertyGroup>
-    <LangVersion>14</LangVersion>
+    <LangVersion>15</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

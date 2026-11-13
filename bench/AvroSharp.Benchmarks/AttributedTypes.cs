@@ -27,7 +27,7 @@ public sealed partial class AttributedOrder
 
     public List<long> Counters { get; set; } = [];
 
-    public Dictionary<string, string> Tags { get; set; } = [];
+    public Dictionary<string, string> Tags { get; set; } = new(System.StringComparer.Ordinal);
 }
 
 [AvroSerializable(FieldNames = AvroNaming.CamelCase)]

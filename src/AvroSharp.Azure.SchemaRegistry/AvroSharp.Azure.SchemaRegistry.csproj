@@ -3,7 +3,7 @@
   <!-- An Azure Schema Registry serializer for Event Hubs and Service Bus messages (MessageContent): a replacement for
        Microsoft.Azure.Data.SchemaRegistry.ApacheAvro, without Apache.Avro. -->
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net9.0;net8.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net11.0;net10.0;net8.0;netstandard2.0</TargetFrameworks>
     <RootNamespace>AvroSharp.Azure.SchemaRegistry</RootNamespace>
     <PackageId>AvroSharp.Azure.SchemaRegistry</PackageId>
     <Description>An Azure Schema Registry serializer on AvroSharp for Event Hubs and Service Bus messages (MessageContent): generated and [AvroSerializable] types and generic records, with the content type and bytes of Microsoft's Avro serializer. No Apache.Avro.</Description>

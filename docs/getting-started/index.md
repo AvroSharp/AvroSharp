@@ -16,7 +16,7 @@ For C# types generated from your `.avsc` files as the project builds (it brings 
 dotnet add package AvroSharp.Generators
 ```
 
-The snappy, zstandard, bzip2 and xz codecs for container files are in `AvroSharp.Codecs`. The packages support .NET 8, 9 and 10, .NET Standard 2.0 and 2.1, and .NET Framework. The source generator needs the .NET 10 SDK or Visual Studio 2026 to build, and the code it generates runs on all of them.
+The snappy, zstandard, bzip2 and xz codecs for container files are in `AvroSharp.Codecs`. The packages support .NET 8, 10 and 11, .NET Standard 2.0 and 2.1, and .NET Framework. The source generator needs the .NET 10 SDK or Visual Studio 2026 to build, and the code it generates runs on all of them.
 
 ## A first program
 
