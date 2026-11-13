@@ -1,0 +1,5 @@
+{"type": "record", "name": "Left", "namespace": "cycle", "doc": "Needs Right, from cycle-right.avsc, which needs Left (#16).", "fields": [
+  {"name": "id", "type": "int"},
+  {"name": "right", "type": ["null", "Right"], "default": null},
+  {"name": "rights", "type": {"type": "array", "items": "Right"}, "default": []}
+]}

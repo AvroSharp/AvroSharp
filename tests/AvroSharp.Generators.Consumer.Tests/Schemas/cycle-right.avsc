@@ -1,0 +1,5 @@
+{"type": "record", "name": "Right", "namespace": "cycle", "doc": "Needs Left, from cycle-left.avsc, which needs Right (#16).", "fields": [
+  {"name": "label", "type": "string"},
+  {"name": "left", "type": ["null", "Left"], "default": null},
+  {"name": "kind", "type": {"type": "enum", "name": "Kind", "symbols": ["UP", "DOWN"]}}
+]}

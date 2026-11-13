@@ -12,8 +12,9 @@ namespace AvroSharp.CodeGen;
 /// </summary>
 /// <remarks>
 /// Files are parsed in ordinal path order with one parser; a file whose references are not defined yet is retried
-/// after the others, until no more files can be parsed. A type repeated identically in several files (as schema sets
-/// written for Apache.Avro's one-file-at-a-time tooling often do) is accepted once.
+/// after the others, until no more files can be parsed. Files that need each other's types are parsed by inlining
+/// the definitions one needs from the others at their first use (#16). A type repeated identically in several files
+/// (as schema sets written for Apache.Avro's one-file-at-a-time tooling often do) is accepted once.
 /// </remarks>
 /// <seealso cref="CSharpCodeGenerator"/>
 public sealed class SchemaFileSet
@@ -66,7 +67,7 @@ public sealed class SchemaFileSet
             // The other file failed too. If it needs one of this file's types, neither can be parsed first.
             var neededBack = Errors.TryGetValue(other, out var otherError) ? Undefined(otherError.Message) : null;
             return neededBack is not null && _declaredInFailed.TryGetValue(neededBack, out var back) && string.Equals(back, path, StringComparison.Ordinal)
-                ? message + $" It is defined in {other}, which itself needs '{neededBack}' from this file: circular references between files are not supported. Define the types that refer to each other in one file."
+                ? message + $" It is defined in {other}, which itself needs '{neededBack}' from this file. Files that need each other's types are parsed together, but these two have another error between them: check both."
                 : message + $" It is defined in {other}, which could not be parsed either.";
         }
 
@@ -143,42 +144,21 @@ public sealed class SchemaFileSet
     public static SchemaFileSet Parse(IEnumerable<(string Path, string Json)> files, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(files);
-
-        var parser = new AvroSchemaParser(new AvroSchemaParseOptions { AllowIdenticalRedefinitions = true });
-        var schemas = new List<AvroSchema>();
-        var schemasByPath = new Dictionary<string, AvroSchema>(StringComparer.Ordinal);
-        var errors = new Dictionary<string, AvroSchemaException>(StringComparer.Ordinal);
-        var definedIn = new Dictionary<string, string>(StringComparer.Ordinal);
-        var pending = files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
-        for (var progress = true; progress && pending.Count > 0;)
+        var parsing = new Parsing(files.OrderBy(f => f.Path, StringComparer.Ordinal).ToList(), cancellationToken);
+        while (parsing.Pending.Count > 0)
         {
-            progress = false;
-            foreach (var file in pending.ToList())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                try
-                {
-                    var schema = parser.Parse(file.Json);
-                    schemas.Add(schema);
-                    schemasByPath[file.Path] = schema;
-                    foreach (var name in parser.NamedSchemas.Keys.Where(name => !definedIn.ContainsKey(name)).ToList())
-                    {
-                        definedIn[name] = file.Path;
-                    }
+            parsing.RetryPending();
 
-                    pending.Remove(file);
-                    errors.Remove(file.Path);
-                    progress = true;
-                }
-                catch (AvroSchemaException ex)
-                {
-                    errors[file.Path] = ex;
-                }
+            // Files left need each other's types (#16): parse one with the definitions it needs from the others
+            // inlined, after which the others parse on their own.
+            if (!parsing.TryInlineOne())
+            {
+                break;
             }
         }
 
         var declaredInFailed = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var file in pending)
+        foreach (var file in parsing.Pending)
         {
             foreach (var name in Declared(file.Json))
             {
@@ -186,6 +166,81 @@ public sealed class SchemaFileSet
             }
         }
 
-        return new SchemaFileSet(schemas, schemasByPath, errors, definedIn, declaredInFailed);
+        return new SchemaFileSet(parsing.Schemas, parsing.SchemasByPath, parsing.Errors, parsing.DefinedIn, declaredInFailed);
+    }
+
+    /// <summary>The state of one <see cref="Parse"/>: one parser for every file, and what each file gave.</summary>
+    private sealed class Parsing(List<(string Path, string Json)> pending, CancellationToken cancellationToken)
+    {
+        private readonly AvroSchemaParser _parser = new(new AvroSchemaParseOptions { AllowIdenticalRedefinitions = true });
+
+        public List<(string Path, string Json)> Pending { get; } = pending;
+
+        public List<AvroSchema> Schemas { get; } = [];
+
+        public Dictionary<string, AvroSchema> SchemasByPath { get; } = new(StringComparer.Ordinal);
+
+        public Dictionary<string, AvroSchemaException> Errors { get; } = new(StringComparer.Ordinal);
+
+        public Dictionary<string, string> DefinedIn { get; } = new(StringComparer.Ordinal);
+
+        // Parses the pending files, again and again while any parses: a file may need a type a later file defines.
+        public void RetryPending()
+        {
+            for (var progress = true; progress && Pending.Count > 0;)
+            {
+                progress = false;
+                foreach (var file in Pending.ToList())
+                {
+                    progress |= TryParse(file, file.Json, inlinedFrom: null);
+                }
+            }
+        }
+
+        // Parses the first pending file that does with the other files' definitions it needs inlined.
+        public bool TryInlineOne()
+        {
+            var definitions = SchemaFileCycles.Definitions(Pending);
+            foreach (var file in Pending.ToList())
+            {
+                if (SchemaFileCycles.Inline(file.Json, file.Path, definitions, _parser.NamedSchemas.ContainsKey, []) is { } json
+                    && TryParse(file, json, definitions))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Parses a file, or its JSON with other files' definitions inlined; records what it defined, and in which file.
+        private bool TryParse((string Path, string Json) file, string json, Dictionary<string, (string Path, System.Text.Json.Nodes.JsonObject Definition)>? inlinedFrom)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var schema = _parser.Parse(json);
+                Schemas.Add(schema);
+                SchemasByPath[file.Path] = schema;
+                foreach (var name in _parser.NamedSchemas.Keys.Where(name => !DefinedIn.ContainsKey(name)).ToList())
+                {
+                    DefinedIn[name] = inlinedFrom is not null && inlinedFrom.TryGetValue(name, out var source) ? source.Path : file.Path;
+                }
+
+                Pending.Remove(file);
+                Errors.Remove(file.Path);
+                return true;
+            }
+            catch (AvroSchemaException ex)
+            {
+                // A file parsed with inlined definitions keeps the error of its own text.
+                if (inlinedFrom is null)
+                {
+                    Errors[file.Path] = ex;
+                }
+
+                return false;
+            }
+        }
     }
 }

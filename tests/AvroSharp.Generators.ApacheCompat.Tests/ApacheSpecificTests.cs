@@ -53,6 +53,20 @@ public class ApacheSpecificTests
         await Assert.That(Convert.ToHexString(read.ToAvroBytes())).IsEqualTo(Convert.ToHexString(bytes));
     }
 
+    [Test]
+    public async Task ApacheJsonDecoder_ReadsGeneratedJson()
+    {
+        // #19: the generated JSON is the specification's, which Apache's JsonDecoder reads into the same type.
+        var order = CompatTestData.CreateOrder();
+        var schema = new shop.Order().Schema;
+
+        var json = order.ToAvroJson();
+        var read = new SpecificDatumReader<shop.Order>(schema, schema).Read(null!, new Avro.IO.JsonDecoder(schema, json));
+
+        await Assert.That(Convert.ToHexString(read.ToAvroBytes())).IsEqualTo(Convert.ToHexString(order.ToAvroBytes()));
+        await Assert.That(Convert.ToHexString(shop.Order.FromAvroJson(json).ToAvroBytes())).IsEqualTo(Convert.ToHexString(order.ToAvroBytes()));
+    }
+
     public static IEnumerable<string> GeneratedTypes() => ["shop.Order", "graph.Node", "crm.Customer", "Unnamespaced", "logical.Moments"];
 
     [Test]

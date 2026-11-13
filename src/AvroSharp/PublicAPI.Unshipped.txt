@@ -62,3 +62,7 @@ static AvroSharp.Generic.AvroRandomData.Generate(AvroSharp.Schemas.AvroSchema! s
 static AvroSharp.Generic.AvroRandomDataOptions.Default.get -> AvroSharp.Generic.AvroRandomDataOptions!
 static AvroSharp.Generic.AvroValueComparer.Create(AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Generic.AvroValueComparer!
 static AvroSharp.Generic.GenericRecord.CreateWithDefaults(AvroSharp.Schemas.RecordSchema! schema) -> AvroSharp.Generic.GenericRecord!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.DeserializeFromJson<T>(System.ReadOnlySpan<byte> utf8Json, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroReadFunc<T>! read) -> T
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.DeserializeFromJson<T>(string! json, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroReadFunc<T>! read) -> T
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.SerializeToJson<T>(T value, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Schemas.AvroSchema! schema, bool indented) -> string!
+static AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteJson<T>(System.Text.Json.Utf8JsonWriter! writer, T value, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Schemas.AvroSchema! schema) -> void

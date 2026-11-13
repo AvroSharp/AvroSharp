@@ -47,7 +47,26 @@ jobs:
         with:
           fetch-depth: 0 # MinVer needs tags and history
 
-      - uses: actions/setup-dotnet@v6
+      # On windows-11-arm, the PowerShell that runs the .NET install script now and then crashes ("Internal CLR error.
+      # (0x80131506)") before it does anything (actions/setup-dotnet#793, actions/runner-images#15107). The runner-images
+      # maintainers saw no crash with a 64 MiB gen0 budget (DOTNET_GCgen0size, in hex), set on these steps only; a failed
+      # install there still gets one more try. As in zcsizmadia/SshSharp. Remove both once a PowerShell 7.6 release with
+      # PowerShell/PowerShell#28186 is on the image.
+      - id: install-dotnet
+        uses: actions/setup-dotnet@v6
+        continue-on-error: ${{ matrix.os == 'windows-11-arm' }}
+        env:
+          DOTNET_GCgen0size: '4000000'
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+            11.0.x
+
+      - if: steps.install-dotnet.outcome == 'failure'
+        uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_GCgen0size: '4000000'
         with:
           dotnet-version: |
             8.0.x

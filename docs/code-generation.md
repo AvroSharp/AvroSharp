@@ -28,7 +28,7 @@ Reference the package, and pass your schema files to the compiler as `Additional
 
 That is all. The package brings in the [AvroSharp](https://www.nuget.org/packages/AvroSharp) runtime package. The types appear as you edit the schemas; no build step or checked-in code is needed. See [the GeneratorPackage sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratorPackage) for a complete project with every setting, and [GeneratedTypes](https://github.com/AvroSharp/AvroSharp/tree/main/samples/GeneratedTypes) for container files and schema evolution.
 
-Schema files may refer to named types that other files define, in any order. A type defined identically in several files, as schema sets written for Apache's tooling often are, is generated once.
+Schema files may refer to named types that other files define, in any order, and two files may need each other's types: each is parsed with the definitions it needs from the other. A type defined identically in several files, as schema sets written for Apache's tooling often are, is generated once.
 
 ## What is generated
 
@@ -47,6 +47,7 @@ Each record gets:
 - `ToAvroBytes()`, `FromAvroBytes(...)`, `TryWriteAvroBytes(Span<byte>, out int)` and `WriteAvroBytes(IBufferWriter<byte>)`;
 - `ReadFrom(ref AvroReader)`, which fills an existing instance and reuses its lists, dictionaries and records;
 - `FromAvroBytes(bytes, writerSchema)`, which reads data written with another version of the schema;
+- `ToAvroJson()`, `WriteAvroJson(Utf8JsonWriter)` and `FromAvroJson(...)`: the [Avro JSON encoding](getting-started/json.md), exactly as the generic `GenericDatumJsonWriter` writes it and `GenericDatumJsonReader` reads it. It goes through the binary encoding, so it costs more than `ToAvroBytes`;
 - a static `Schema`, and the interfaces [`IAvroSpecificRecord`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSpecificRecord.html), [`IAvroWritable`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroWritable.html) and [`IAvroReadable`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroReadable.html). On .NET 8 and later, with C# 11 or later, also [`IAvroSerializable<T>`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSerializable-1.html).
 
 `new Order()` gives every field that has a schema default its default, as reading data that lacks the field would. A union field's default is a value of the first branch it fits, which need not be the union's first branch, as Avro 1.12 says.
@@ -170,6 +171,7 @@ public partial class Order
 **What the type gets:** the members a type generated from a `.avsc` file has:
 - `Schema` and `SchemaJson`;
 - `ToAvroBytes`, `FromAvroBytes` (also from another version of the schema), `Write` and `Read`;
+- `ToAvroJson`, `WriteAvroJson` and `FromAvroJson`;
 - `IAvroWritable`, `IAvroReadable`, and `IAvroSerializable<T>` on .NET 8 and later.
 
 So [`AvroSerializer`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.AvroSerializer.html), container files, single-object messages and the registry readers take it as they take generated types. The serializers are the same code as the `.avsc` path's, so they're as fast, with no reflection.

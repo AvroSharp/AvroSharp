@@ -293,18 +293,33 @@ public class GenCommandTests
         await Assert.That(Directory.Exists(tool.PathOf("out"))).IsFalse();
     }
 
-    /// <summary>Two files that need each other's types can't be parsed in any order; the error now says so.</summary>
+    /// <summary>Two files that need each other's types are parsed together (#16).</summary>
     [Test]
-    public async Task Gen_FilesThatNeedEachOthersTypes_NameTheCycle()
+    public async Task Gen_FilesThatNeedEachOthersTypes_Generate()
     {
         using var tool = new ToolRunner();
         var a = tool.Write("a.avsc", """{"type":"record","name":"A","namespace":"x.y","fields":[{"name":"b","type":["null","x.z.B"]}]}""");
         var b = tool.Write("b.avsc", """{"type":"record","name":"B","namespace":"x.z","fields":[{"name":"a","type":["null","x.y.A"]}]}""");
 
+        var result = ToolRunner.Run("gen", a, b, "-o", tool.PathOf("out"), "--flat");
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(File.Exists(tool.PathOf("out/x.y.A.g.cs"))).IsTrue();
+        await Assert.That(File.Exists(tool.PathOf("out/x.z.B.g.cs"))).IsTrue();
+    }
+
+    /// <summary>When files that need each other's types still fail together, the error names the cycle.</summary>
+    [Test]
+    public async Task Gen_FilesThatNeedEachOthersTypes_WithAnotherError_NameTheCycle()
+    {
+        using var tool = new ToolRunner();
+        var a = tool.Write("a.avsc", """{"type":"record","name":"A","namespace":"x.y","fields":[{"name":"b","type":["null","x.z.B"]}]}""");
+        var b = tool.Write("b.avsc", """{"type":"record","name":"B","namespace":"x.z","fields":[{"name":"a","type":["null","x.y.A"]},{"name":"c","type":"x.z.Missing"}]}""");
+
         var result = ToolRunner.Run("gen", a, b, "-o", tool.PathOf("out"));
 
         await Assert.That(result.ExitCode).IsEqualTo(1);
         await Assert.That(result.Error).Contains("'x.z.B' is not a defined type.");
-        await Assert.That(result.Error).Contains($"It is defined in {b}, which itself needs 'x.y.A' from this file: circular references between files are not supported. Define the types that refer to each other in one file.");
+        await Assert.That(result.Error).Contains($"It is defined in {b}, which itself needs 'x.y.A' from this file. Files that need each other's types are parsed together, but these two have another error between them: check both.");
     }
 }

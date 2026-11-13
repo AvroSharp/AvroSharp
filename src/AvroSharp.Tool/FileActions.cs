@@ -107,16 +107,9 @@ internal sealed class FileActions(ToolConsole console)
 
     public int Concat(string[] files, string outputPath) => Run(() =>
     {
-        var inputs = files.Select(OpenInput).ToList();
-        try
-        {
-            using var output = OpenOutput(outputPath);
-            AvroFile.Concat(output, inputs, s_readerOptions);
-        }
-        finally
-        {
-            inputs.ForEach(input => input.Dispose());
-        }
+        using var inputs = new DisposableList<Stream>(files.Select(OpenInput));
+        using var output = OpenOutput(outputPath);
+        AvroFile.Concat(output, inputs.Items, s_readerOptions);
     });
 
     public int Cat(string[] files, long offset, long? limit, string outputPath, AvroCodec? codec)
@@ -128,39 +121,32 @@ internal sealed class FileActions(ToolConsole console)
 
         return Run(() =>
         {
+            using var inputs = new DisposableList<Stream>(files.Select(OpenInput));
+            using var readers = new DisposableList<AvroFileReader<AvroValue>>(inputs.Items.Select(input => AvroFileReader.OpenGeneric(input, options: s_readerOptions)));
+            var first = readers.Items[0];
             using var output = OpenOutput(outputPath);
-            AvroFileWriter<AvroValue>? writer = null;
-            try
+            using var writer = AvroFileWriter.CreateGeneric(output, first.WriterSchema, new AvroFileWriterOptions
             {
-                var skip = offset;
-                var left = limit ?? long.MaxValue;
-                for (var i = 0; i < files.Length && left > 0; i++)
+                Codec = codec ?? first.Codec,
+                Metadata = UserMetadata(first.Metadata),
+                LeaveOpen = true,
+            });
+            var skip = offset;
+            var left = limit ?? long.MaxValue;
+            for (var i = 0; i < files.Length && left > 0; i++)
+            {
+                RequireSameSchema(readers.Items[i].WriterSchema, writer.Schema, files[i]);
+                foreach (var value in readers.Items[i].ReadAll().TakeWhile(_ => left > 0))
                 {
-                    using var input = OpenInput(files[i]);
-                    using var reader = AvroFileReader.OpenGeneric(input, options: s_readerOptions);
-                    writer ??= AvroFileWriter.CreateGeneric(output, reader.WriterSchema, new AvroFileWriterOptions
+                    if (skip > 0)
                     {
-                        Codec = codec ?? reader.Codec,
-                        Metadata = UserMetadata(reader.Metadata),
-                        LeaveOpen = true,
-                    });
-                    RequireSameSchema(reader.WriterSchema, writer.Schema, files[i]);
-                    foreach (var value in reader.ReadAll().TakeWhile(_ => left > 0))
-                    {
-                        if (skip > 0)
-                        {
-                            skip--;
-                            continue;
-                        }
-
-                        writer.Write(value);
-                        left--;
+                        skip--;
+                        continue;
                     }
+
+                    writer.Write(value);
+                    left--;
                 }
-            }
-            finally
-            {
-                writer?.Dispose();
             }
         });
     }
@@ -202,6 +188,31 @@ internal sealed class FileActions(ToolConsole console)
         var report = FileRepair.Repair(data, output, s_readerOptions);
         console.Error.WriteLine(report);
     });
+
+    /// <summary>Disposes the items it holds, all of them, in order.</summary>
+    private sealed class DisposableList<T> : IDisposable
+        where T : IDisposable
+    {
+        public DisposableList(IEnumerable<T> items)
+        {
+            try
+            {
+                foreach (var item in items)
+                {
+                    Items.Add(item);
+                }
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        public List<T> Items { get; } = [];
+
+        public void Dispose() => Items.ForEach(item => item.Dispose());
+    }
 
     /// <summary>The entries an application added: the avro.* ones belong to the writer.</summary>
     internal static Dictionary<string, ReadOnlyMemory<byte>>? UserMetadata(IReadOnlyDictionary<string, ReadOnlyMemory<byte>> metadata)

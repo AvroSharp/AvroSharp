@@ -122,7 +122,7 @@ public static class CSharpCodeGenerator
     [
         "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema", "s_apacheSchema", "s_plan",
         "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes", "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo",
-        "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "AvroTypeInfo",
+        "ReadFrom", "FromAvroBytes", "ToAvroJson", "WriteAvroJson", "FromAvroJson", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "AvroTypeInfo",
         "s_typeInfo", "RegisterAvroType",
     ];
 
@@ -274,7 +274,7 @@ public static class CSharpCodeGenerator
         "System.Diagnostics.DebuggerNonUserCode", "System.Guid", "System.IEquatable", "System.MemoryExtensions",
         "System.Numerics.BigInteger", "System.ReadOnlySpan", "System.Runtime.CompilerServices.MethodImpl", "System.Runtime.CompilerServices.ModuleInitializer",
         "System.Runtime.CompilerServices.MethodImplOptions", "System.Runtime.InteropServices.CollectionsMarshal",
-        "System.Span", "System.StringComparer", "System.TimeOnly", "System.TimeSpan",
+        "System.Span", "System.StringComparer", "System.Text.Json.Utf8JsonWriter", "System.TimeOnly", "System.TimeSpan",
     ];
 
     // Nullable annotations need C# 8: a contradiction is an error rather than code that does not compile.
@@ -468,6 +468,7 @@ public static class CSharpCodeGenerator
 
         EmitConstructors(w, record, name, properties, types, declared);
         EmitRecordApi(w, name);
+        EmitJsonApi(w, name, schemaProperty);
         EmitTypeInfo(w, name, schemaProperty, types);
         EmitResolvingApi(w, name, schemaProperty, types);
         if (types.Modern && apache)
@@ -708,6 +709,30 @@ public static class CSharpCodeGenerator
 
         EmitMemoryApi(w);
         EmitFromBytes(w, name);
+    }
+
+    /// <summary>
+    /// The Avro JSON encoding (#19), through the library: the binary encoding and the generic model, so the JSON is
+    /// exactly the generic writer's. Uses only C# 7.3 syntax.
+    /// </summary>
+    private static void EmitJsonApi(CodeWriter w, string name, string schemaProperty)
+    {
+        w.Line();
+        w.Line("/// <summary>Writes this value in the Avro JSON encoding, as <c>GenericDatumJsonWriter</c> writes it.</summary>");
+        w.Line("/// <param name=\"indented\">Whether to indent the JSON.</param>");
+        w.Line($"public string ToAvroJson(bool indented = false) => {Support}.SerializeToJson(this, Write, {schemaProperty}, indented);");
+
+        w.Line();
+        w.Line("/// <summary>Writes this value in the Avro JSON encoding to <paramref name=\"writer\"/>, as one JSON value.</summary>");
+        w.Line($"public void WriteAvroJson(global::System.Text.Json.Utf8JsonWriter writer) => {Support}.WriteJson(writer, this, Write, {schemaProperty});");
+
+        w.Line();
+        w.Line("/// <summary>Reads a value from the Avro JSON encoding of this type's schema.</summary>");
+        w.Line($"public static {name} FromAvroJson(string json) => {Support}.DeserializeFromJson(json, {schemaProperty}, Read);");
+
+        w.Line();
+        w.Line("/// <summary>Reads a value from the Avro JSON encoding of this type's schema, as UTF-8.</summary>");
+        w.Line($"public static {name} FromAvroJson(global::System.ReadOnlySpan<byte> utf8Json) => {Support}.DeserializeFromJson(utf8Json, {schemaProperty}, Read);");
     }
 
     /// <summary>Writing into caller memory and reuse of instances (<c>IAvroWritable</c>, <c>IAvroReadable</c>).</summary>
@@ -1355,8 +1380,8 @@ public static class CSharpCodeGenerator
         {
             typeName.TrimStart('@'), "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA",
             "s_schema", "s_apacheSchema", "s_plan", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
-            "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo", "ReadFrom", "FromAvroBytes", "ReadResolved", "ReadField",
-            "ReadPromoted", "ValueSerializer", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
+            "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo", "ReadFrom", "FromAvroBytes", "ToAvroJson", "WriteAvroJson",
+            "FromAvroJson", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
         };
         for (var k = 0; k < Chunks(record.Fields.Count).Count; k++)
         {
