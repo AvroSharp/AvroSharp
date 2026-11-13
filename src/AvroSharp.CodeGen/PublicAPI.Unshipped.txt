@@ -1,1 +1,8 @@
 #nullable enable
+AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.get -> bool
+AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.init -> void
+AvroSharp.CodeGen.CodeGenOptions.TypeKind.get -> AvroSharp.CodeGen.CodeGenTypeKind
+AvroSharp.CodeGen.CodeGenOptions.TypeKind.init -> void
+AvroSharp.CodeGen.CodeGenTypeKind
+AvroSharp.CodeGen.CodeGenTypeKind.Class = 0 -> AvroSharp.CodeGen.CodeGenTypeKind
+AvroSharp.CodeGen.CodeGenTypeKind.Record = 1 -> AvroSharp.CodeGen.CodeGenTypeKind

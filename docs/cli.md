@@ -73,6 +73,8 @@ With `--flat`, all files go into the output folder, named by full name (`Generat
 | `--apache-compatible` | The types also work with Apache.Avro's `SpecificDatumWriter`/`Reader` and with code written for avrogen classes. The project then needs Apache.Avro. See the [compatibility mode](code-generation.md#migrating-from-avrogen-the-apacheavro-compatibility-mode). |
 | `--no-nullable` | No nullable reference type annotations, so the code compiles as C# 7.3 (netstandard2.0 and .NET Framework projects). |
 | `--no-date-only` | For targets without `DateOnly` and `TimeOnly`: `date` becomes `DateTime`, and `time-*` `TimeSpan`. |
+| `--required-members` | Fields without a schema default become `required` members, on .NET 7 and later with C# 11 or later. |
+| `--type-kind class\|record` | `class` (default), or `record`: C# record classes, with value equality (C# 9 or later). |
 | `--language-version <n>` | The major C# version the code may use (7 or later, default 14). 7 means C# 7.2 or later, and implies `--no-nullable`. With 11 or later, .NET 8+ targets also get [`IAvroSerializable<T>`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Serialization.IAvroSerializable-1.html). |
 
 Examples:

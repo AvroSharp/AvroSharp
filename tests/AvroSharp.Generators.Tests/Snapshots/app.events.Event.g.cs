@@ -42,12 +42,22 @@ namespace app.events
 
         public object? Payload { get; set; }
 
+        /// <summary>Called at the end of the public constructor, once the fields have their schema defaults. Implement it in your part of the type.</summary>
+        partial void OnCreated();
+
+        /// <summary>Called before this value is written, by every writer, binary or JSON. Implement it in your part of the type.</summary>
+        partial void OnSerializing();
+
+        /// <summary>Called after a value is read, by every reader, also of another schema version, before it is returned. Implement it in your part of the type.</summary>
+        partial void OnDeserialized();
+
         /// <summary>Creates a value in which every field with a default in the schema has it.</summary>
         public Event()
         {
             Hash = null!;
             Tags = new global::System.Collections.Generic.List<string>();
             Scores = new global::System.Collections.Generic.Dictionary<string, double>();
+            OnCreated();
         }
 
 #pragma warning disable CS8618 // Readers set every field.
@@ -265,6 +275,7 @@ namespace app.events
             {
                 throw global::AvroSharp.Serialization.Generated.AvroGeneratedCode.WriteTooDeep();
             }
+            value.OnSerializing();
 
             writer.WriteLong(value.Id);
 
@@ -327,6 +338,7 @@ namespace app.events
                 default:
                     throw global::AvroSharp.Serialization.Generated.AvroGeneratedCode.InvalidUnionIndex(index1, 3);
             }
+            value.OnDeserialized();
             return value;
         }
 
@@ -363,6 +375,7 @@ namespace app.events
                 ReadField(ref field, value, plan.DefaultTarget(index), depth);
             }
 
+            value.OnDeserialized();
             return value;
         }
 
