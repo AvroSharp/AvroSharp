@@ -112,6 +112,15 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
 </PropertyGroup>
 ```
 
+**Per file:** `AvroSharpNamespace`, `AvroSharpLogicalTypes`, `AvroSharpPropertyNames`, `AvroSharpApacheCompatible`, `AvroSharpRequiredMembers` and `AvroSharpTypeKind` can also be set on schema files, as `AdditionalFiles` metadata. A file's setting overrides the project's for the types that file defines. Types from different files still refer to each other by their own C# names. A value the generator doesn't recognize is a warning (AVROGEN006) that names the file. The namespace map, the C# version and nullable annotations stay the project's.
+
+```xml
+<ItemGroup>
+  <AdditionalFiles Include="Schemas/**/*.avsc" />
+  <AdditionalFiles Update="Schemas/legacy/*.avsc" AvroSharpNamespace="Acme.Legacy" AvroSharpApacheCompatible="true" />
+</ItemGroup>
+```
+
 The C# version and the target framework come from the project: with C# 7.3 (netstandard2.0 and .NET Framework projects) the code has no nullable annotations, and on targets without `DateOnly`/`TimeOnly` it uses `DateTime` and `TimeSpan`. The generated code needs C# 7.2 or later: with C# 7.0 or 7.1 the generator reports AVROGEN003 and generates nothing.
 
 ## Type mapping

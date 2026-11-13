@@ -75,15 +75,27 @@ internal static class GeneratorHarness
 
     /// <summary>Runs the generator with these MSBuild properties (names without <c>build_property.</c>), as a project sets them.</summary>
     public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
-        RunWithProperties(IEnumerable<(string Path, string Text)> files, IReadOnlyDictionary<string, string> msbuildProperties)
+        RunWithProperties(IEnumerable<(string Path, string Text)> files, IReadOnlyDictionary<string, string> msbuildProperties) =>
+        RunWithProperties(files, msbuildProperties, new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal));
+
+    /// <summary>
+    /// Runs the schema-file generator with MSBuild properties, and AdditionalFiles metadata per file path (#18), as the
+    /// compiler receives them through CompilerVisibleItemMetadata.
+    /// </summary>
+    public static (ImmutableArray<GeneratedSourceResult> Sources, ImmutableArray<Diagnostic> GeneratorDiagnostics, ImmutableArray<Diagnostic> CompileDiagnostics)
+        RunWithProperties(IEnumerable<(string Path, string Text)> files, IReadOnlyDictionary<string, string> msbuildProperties, IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> fileMetadata, string[]? preprocessorSymbols = null)
     {
-        var compilation = CreateCompilation(true, "internal static class Placeholder { }");
+        var compilation = CreateCompilation(true, false, LanguageVersion.Latest, preprocessorSymbols ?? [], "internal static class Placeholder { }");
         var properties = msbuildProperties.ToDictionary(p => "build_property." + p.Key, p => p.Value, StringComparer.Ordinal);
+        var metadata = fileMetadata.ToDictionary(
+            f => f.Key,
+            f => f.Value.ToDictionary(m => "build_metadata.AdditionalFiles." + m.Key, m => m.Value, StringComparer.Ordinal),
+            StringComparer.Ordinal);
         var driver = CSharpGeneratorDriver.Create(
                 [new SchemaFileGenerator().AsSourceGenerator()],
                 files.Select(f => (AdditionalText)new InMemoryText(f.Path, f.Text)),
-                new CSharpParseOptions(LanguageVersion.Latest),
-                new Options(properties))
+                new CSharpParseOptions(LanguageVersion.Latest, preprocessorSymbols: preprocessorSymbols),
+                new Options(properties, metadata))
             .RunGeneratorsAndUpdateCompilation(compilation, out var output, out var generatorDiagnostics);
         return (driver.GetRunResult().Results.Single().GeneratedSources, generatorDiagnostics, output.GetDiagnostics());
     }
@@ -177,13 +189,14 @@ internal static class GeneratorHarness
         public override SourceText GetText(CancellationToken cancellationToken = default) => SourceText.From(text);
     }
 
-    private sealed class Options(Dictionary<string, string> properties) : AnalyzerConfigOptionsProvider
+    private sealed class Options(Dictionary<string, string> properties, Dictionary<string, Dictionary<string, string>>? metadata = null) : AnalyzerConfigOptionsProvider
     {
         public override AnalyzerConfigOptions GlobalOptions { get; } = new Values(properties);
 
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => Values.Empty;
 
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => Values.Empty;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) =>
+            metadata is not null && metadata.TryGetValue(textFile.Path, out var values) ? new Values(values) : Values.Empty;
 
         private sealed class Values(Dictionary<string, string> properties) : AnalyzerConfigOptions
         {

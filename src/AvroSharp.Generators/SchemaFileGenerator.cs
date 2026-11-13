@@ -54,9 +54,14 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // Each file with its own settings (#18): AdditionalFiles metadata named like the MSBuild properties.
         var files = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".avsc", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) => new SchemaFile(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+            .Combine(context.AnalyzerConfigOptionsProvider)
+            .Select(static (input, cancellationToken) => new SchemaFile(
+                input.Left.Path,
+                input.Left.GetText(cancellationToken)?.ToString() ?? string.Empty,
+                FileSettings.Read(input.Right.GetOptions(input.Left), input.Left.Path)))
             .Collect();
 
         var properties = context.AnalyzerConfigOptionsProvider.Select(static (options, _) => ProjectSettings.Read(options.GlobalOptions));
@@ -79,23 +84,14 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         var results = files.Combine(properties).Combine(target).Combine(language)
             .Select(static (input, cancellationToken) => Generate(
                 input.Left.Left.Left,
-                new CodeGenOptions
-                {
-                    Namespace = input.Left.Left.Right.Namespace,
-                    NamespaceMap = input.Left.Left.Right.NamespaceMap,
-                    LogicalTypes = input.Left.Left.Right.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
-                    TargetHasDateOnly = input.Left.Right.HasDateOnly,
-                    ApacheCompatible = input.Left.Left.Right.Apache && input.Left.Right.HasApache,
-                    NullableAnnotations = input.Right >= 8,
-                    LanguageVersion = input.Right,
-                    PropertyNames = input.Left.Left.Right.PropertyNames,
-                    RequiredMembers = input.Left.Left.Right.RequiredMembers,
-                    TypeKind = input.Left.Left.Right.RecordTypes ? CodeGenTypeKind.Record : CodeGenTypeKind.Class,
-                },
+                input.Left.Right.HasApache,
+                ProjectOptions(input.Left.Left.Right, input.Left.Right.HasDateOnly, input.Left.Right.HasApache, input.Right),
                 cancellationToken))
             .WithTrackingName("Generate");
 
-        var apacheMissing = properties.Combine(target).Select(static (input, _) => input.Left.Apache && !input.Right.HasApache);
+        // The project or a file asks for the compatibility mode without Apache.Avro.
+        var apacheMissing = properties.Combine(files).Combine(target).Select(static (input, _) =>
+            !input.Right.HasApache && (input.Left.Left.Apache || input.Left.Right.Any(file => file.Settings.Apache == true)));
 
         context.RegisterSourceOutput(results.Combine(hasRuntime).Combine(apacheMissing), static (output, input) => AddOutput(output, input.Left.Left, input.Left.Right, input.Right));
         context.RegisterSourceOutput(properties, static (output, settings) =>
@@ -105,7 +101,29 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                 output.ReportDiagnostic(Diagnostic.Create(s_invalidSetting, Location.None, warning));
             }
         });
+        context.RegisterSourceOutput(files, static (output, schemaFiles) =>
+        {
+            foreach (var warning in schemaFiles.SelectMany(file => file.Settings.Warnings))
+            {
+                output.ReportDiagnostic(Diagnostic.Create(s_invalidSetting, Location.None, warning));
+            }
+        });
     }
+
+    // The options of the project's types: its MSBuild properties, its C# version and what its target framework has.
+    private static CodeGenOptions ProjectOptions(ProjectSettings settings, bool hasDateOnly, bool hasApache, int language) => new()
+    {
+        Namespace = settings.Namespace,
+        NamespaceMap = settings.NamespaceMap,
+        LogicalTypes = settings.Raw ? LogicalTypeMapping.Raw : LogicalTypeMapping.Native,
+        TargetHasDateOnly = hasDateOnly,
+        ApacheCompatible = settings.Apache && hasApache,
+        NullableAnnotations = language >= 8,
+        LanguageVersion = language,
+        PropertyNames = settings.PropertyNames,
+        RequiredMembers = settings.RequiredMembers,
+        TypeKind = settings.RecordTypes ? CodeGenTypeKind.Record : CodeGenTypeKind.Class,
+    };
 
     /// <summary>Reports the diagnostics and, when the project can compile it, adds the generated code.</summary>
     private static void AddOutput(SourceProductionContext output, GenerationResult result, bool runtime, bool missingApache)
@@ -151,7 +169,7 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
     /// <summary>Parses every file together (see <see cref="SchemaFileSet"/>), then generates code for all of them.</summary>
     private static int MajorVersion(LanguageVersion version) => version < LanguageVersion.CSharp7_2 ? 0 : (int)version / 100;
 
-    private static GenerationResult Generate(ImmutableArray<SchemaFile> files, CodeGenOptions options, CancellationToken cancellationToken)
+    private static GenerationResult Generate(ImmutableArray<SchemaFile> files, bool hasApache, CodeGenOptions options, CancellationToken cancellationToken)
     {
         if (options.LanguageVersion == 0)
         {
@@ -166,7 +184,12 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         IReadOnlyList<GeneratedSource> sources = [];
         try
         {
-            sources = CSharpCodeGenerator.Generate(parsed, options);
+            // A type has the options of the file that defines it.
+            var perFile = files.Where(file => !file.Settings.IsEmpty).ToDictionary(file => file.Path, file => file.Settings.Apply(options, hasApache), StringComparer.Ordinal);
+            sources = perFile.Count == 0
+                ? CSharpCodeGenerator.Generate(parsed, options)
+                : CSharpCodeGenerator.Generate(parsed, options, schema =>
+                    definedIn.TryGetValue(schema.FullName, out var path) && perFile.TryGetValue(path, out var own) ? own : null);
 
             // Notes about the generated code (renamed properties) are reported at the file that defines the type.
             foreach (var source in sources)
@@ -184,14 +207,17 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         return new GenerationResult(new EquatableArray<GeneratedSource>(sources), new EquatableArray<DiagnosticInfo>(diagnostics));
     }
 
-    private sealed class SchemaFile(string path, string text) : IEquatable<SchemaFile>
+    private sealed class SchemaFile(string path, string text, FileSettings settings) : IEquatable<SchemaFile>
     {
         public string Path { get; } = path;
 
         public string Text { get; } = text;
 
+        public FileSettings Settings { get; } = settings;
+
         public bool Equals(SchemaFile? other) =>
-            other is not null && string.Equals(Path, other.Path, StringComparison.Ordinal) && string.Equals(Text, other.Text, StringComparison.Ordinal);
+            other is not null && string.Equals(Path, other.Path, StringComparison.Ordinal) && string.Equals(Text, other.Text, StringComparison.Ordinal)
+            && Settings.Equals(other.Settings);
 
         public override bool Equals(object? obj) => obj is SchemaFile other && Equals(other);
 

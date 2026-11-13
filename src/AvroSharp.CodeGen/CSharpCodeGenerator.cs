@@ -33,25 +33,45 @@ public static class CSharpCodeGenerator
     /// <summary>Generates one source file per named type reachable from <paramref name="schemas"/>.</summary>
     /// <param name="schemas">The schemas. A named type reachable from several of them is generated once.</param>
     /// <param name="options">Options, or <see langword="null"/> for <see cref="CodeGenOptions.Default"/>.</param>
-    public static IReadOnlyList<GeneratedSource> Generate(IEnumerable<AvroSchema> schemas, CodeGenOptions? options = null)
+    public static IReadOnlyList<GeneratedSource> Generate(IEnumerable<AvroSchema> schemas, CodeGenOptions? options = null) =>
+        Generate(schemas, options, typeOptions: null);
+
+    /// <summary>
+    /// Generates one source file per named type reachable from <paramref name="schemas"/>, each with its own options:
+    /// for example those of the file that defines it (the source generator's <c>AdditionalFiles</c> metadata, #18).
+    /// </summary>
+    /// <param name="schemas">The schemas. A named type reachable from several of them is generated once.</param>
+    /// <param name="options">The options of types <paramref name="typeOptions"/> gives none for, or <see langword="null"/> for <see cref="CodeGenOptions.Default"/>.</param>
+    /// <param name="typeOptions">
+    /// A named type's own options, or <see langword="null"/> for <paramref name="options"/>. They may differ in
+    /// <see cref="CodeGenOptions.Namespace"/>, <see cref="CodeGenOptions.LogicalTypes"/>,
+    /// <see cref="CodeGenOptions.ApacheCompatible"/>, <see cref="CodeGenOptions.PropertyNames"/>,
+    /// <see cref="CodeGenOptions.RequiredMembers"/> and <see cref="CodeGenOptions.TypeKind"/>; the others are the
+    /// project's and must be <paramref name="options"/>'.
+    /// </param>
+    /// <exception cref="ArgumentException">Options are invalid, or a type's differ from <paramref name="options"/> in a project-wide setting.</exception>
+    public static IReadOnlyList<GeneratedSource> Generate(IEnumerable<AvroSchema> schemas, CodeGenOptions? options, Func<NamedSchema, CodeGenOptions?>? typeOptions)
     {
         ArgumentNullException.ThrowIfNull(schemas);
         options ??= CodeGenOptions.Default;
-        ValidateNamespaceMapping(options);
-        ValidateDefaultNamespace(options);
-        ValidateLanguage(options);
-        var names = new CSharpNames(options);
-        var types = new TypeMapper(names, options);
-
         var named = new SortedDictionary<string, NamedSchema>(StringComparer.Ordinal);
         foreach (var schema in schemas)
         {
             Collect(schema, named);
         }
 
+        var optionsOf = named.Values.ToDictionary(schema => schema.FullName, schema => typeOptions?.Invoke(schema) ?? options, StringComparer.Ordinal);
+        foreach (var each in optionsOf.Values.Prepend(options).Distinct())
+        {
+            Validate(each, options);
+        }
+
+        var names = new CSharpNames(options) { DefaultNamespace = schema => optionsOf.TryGetValue(schema.FullName, out var own) ? own.Namespace : null };
+        var mappers = new Dictionary<CodeGenOptions, TypeMapper>();
+        TypeMapper TypesOf(CodeGenOptions each) => mappers.TryGetValue(each, out var mapper) ? mapper : mappers[each] = new TypeMapper(names, each);
+
         var version = Version();
-        var apache = options.ApacheCompatible;
-        var renamed = AssignTypeNames(named.Values, names, apache);
+        var renamed = AssignTypeNames(named.Values, names, schema => optionsOf[schema.FullName].ApacheCompatible);
         CheckCSharpNames(named.Values, names);
         var sources = named.Values.Select(schema =>
         {
@@ -61,14 +81,28 @@ public static class CSharpCodeGenerator
                 notes.Add(note);
             }
 
-            return new GeneratedSource(schema.FullName + ".g.cs", Emit(schema, names, types, version, apache, notes), notes) { Namespace = names.Namespace(schema) };
+            var own = optionsOf[schema.FullName];
+            return new GeneratedSource(schema.FullName + ".g.cs", Emit(schema, names, TypesOf(own), version, own.ApacheCompatible, notes), notes) { Namespace = names.Namespace(schema) };
         }).ToList();
-        if (apache)
+        if (optionsOf.Values.Any(each => each.ApacheCompatible))
         {
             sources.Add(new GeneratedSource(ApacheSupport.HintName, ApacheSupport.Source(version, options.NullableAnnotations)) { Namespace = ApacheSupport.Namespace });
         }
 
         return sources;
+    }
+
+    // One set of options, and that it agrees with the project's in the settings that are the project's.
+    private static void Validate(CodeGenOptions each, CodeGenOptions project)
+    {
+        ValidateNamespaceMapping(each);
+        ValidateDefaultNamespace(each);
+        ValidateLanguage(each);
+        if (each.LanguageVersion != project.LanguageVersion || each.NullableAnnotations != project.NullableAnnotations
+            || each.TargetHasDateOnly != project.TargetHasDateOnly || !ReferenceEquals(each.NamespaceMap, project.NamespaceMap))
+        {
+            throw new ArgumentException("A type's options differ from the project's in LanguageVersion, NullableAnnotations, TargetHasDateOnly or NamespaceMap, which are the project's.", nameof(project));
+        }
     }
 
     /// <summary>
@@ -144,7 +178,7 @@ public static class CSharpCodeGenerator
     /// a note for the type's source. In the Apache.Avro compatibility mode that is an error instead: Apache.Avro finds
     /// generated types by the schema's full name.
     /// </summary>
-    private static Dictionary<string, string> AssignTypeNames(IEnumerable<NamedSchema> schemas, CSharpNames names, bool apache)
+    private static Dictionary<string, string> AssignTypeNames(IEnumerable<NamedSchema> schemas, CSharpNames names, Func<NamedSchema, bool> apache)
     {
         var notes = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var schema in schemas)
@@ -160,7 +194,7 @@ public static class CSharpCodeGenerator
             var why = string.Equals(name, "var", StringComparison.Ordinal)
                 ? "C# would read the generated code's implicitly typed locals as that type"
                 : "C# does not allow a member named like its type, and " + name + " is " + (schema is EnumSchema ? "a symbol of the enum" : "a member the generator adds to it");
-            if (apache)
+            if (apache(schema))
             {
                 throw new InvalidOperationException(
                     $"The type '{schema.FullName}' cannot be generated in the Apache.Avro compatibility mode: {why}. Rename the type in the schema.");

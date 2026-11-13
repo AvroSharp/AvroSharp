@@ -6,3 +6,4 @@ AvroSharp.CodeGen.CodeGenOptions.TypeKind.init -> void
 AvroSharp.CodeGen.CodeGenTypeKind
 AvroSharp.CodeGen.CodeGenTypeKind.Class = 0 -> AvroSharp.CodeGen.CodeGenTypeKind
 AvroSharp.CodeGen.CodeGenTypeKind.Record = 1 -> AvroSharp.CodeGen.CodeGenTypeKind
+static AvroSharp.CodeGen.CSharpCodeGenerator.Generate(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! schemas, AvroSharp.CodeGen.CodeGenOptions? options, System.Func<AvroSharp.Schemas.NamedSchema!, AvroSharp.CodeGen.CodeGenOptions?>? typeOptions) -> System.Collections.Generic.IReadOnlyList<AvroSharp.CodeGen.GeneratedSource!>!

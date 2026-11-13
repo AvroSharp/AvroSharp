@@ -12,4 +12,14 @@
     <CompilerVisibleProperty Include="AvroSharpTypeKind" />
   </ItemGroup>
 
+  <!-- The same settings per schema file, as AdditionalFiles metadata, which override the project's (#18). -->
+  <ItemGroup>
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AvroSharpNamespace" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AvroSharpLogicalTypes" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AvroSharpPropertyNames" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AvroSharpApacheCompatible" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AvroSharpRequiredMembers" />
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="AvroSharpTypeKind" />
+  </ItemGroup>
+
 </Project>

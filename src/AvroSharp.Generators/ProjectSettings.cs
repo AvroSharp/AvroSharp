@@ -89,13 +89,18 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
 
     public override int GetHashCode() => NamespaceMapEntries.GetHashCode() ^ (Namespace is null ? 0 : StringComparer.Ordinal.GetHashCode(Namespace));
 
-    private static string? Get(AnalyzerConfigOptions options, string property) =>
-        options.TryGetValue("build_property." + property, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
+    private static string? Get(AnalyzerConfigOptions options, string property) => GetKey(options, "build_property." + property);
+
+    internal static string? GetKey(AnalyzerConfigOptions options, string key) =>
+        options.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
+
+    private static string? Choice(AnalyzerConfigOptions options, string property, string[] choices, string? fallback, List<string> warnings) =>
+        Choice(GetKey(options, "build_property." + property), property, choices, fallback, warnings);
 
     // The choice the value names (case is ignored); otherwise a warning and the default.
-    private static string? Choice(AnalyzerConfigOptions options, string property, string[] choices, string? fallback, List<string> warnings)
+    internal static string? Choice(string? value, string property, string[] choices, string? fallback, List<string> warnings)
     {
-        if (Get(options, property) is not { } value)
+        if (value is null)
         {
             return fallback;
         }
