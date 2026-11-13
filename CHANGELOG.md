@@ -25,6 +25,14 @@ All notable changes to this project are documented here. The format follows [Kee
   - `AvroRandomData` (#177): random values of a schema, with sizes, the share of null branches and the range of logical values as options (`AvroRandomDataOptions`). The same seed gives the same values on every target framework. Values are valid for every logical type, and recursive schemas end at a set depth. The tests now use it in place of their own generator.
   - Generic record helpers (#176): `GenericRecord.CreateWithDefaults`, which fills each field from its default; `GenericRecordBuilder`, which throws on a field with neither a value nor a default and names it; `GenericDatumWriter.Validate` and `TryValidate`, which check a value against the schema without writing it; and `AvroValue.DeepCopy`.
   - `GenericDatumWriterOptions.JsonUnionBranchNames` (#178): with `Simple`, the JSON writer labels a union's named branch by its simple name, `{"Card": {...}}`, as Java's `JsonEncoder.setIncludeNamespace(false)` does. A branch keeps its full name when its simple name is ambiguous. AvroSharp's JSON reader reads both forms; Java's `JsonDecoder` reads only full names.
+  - Container files by the block (#173):
+    - `AvroFileReader<T>.TryReadBlock` reads a block as stored, as an `AvroFileBlock`.
+    - `AvroFileWriter<T>.WriteBlock` writes a block to another file without decoding its objects: byte for byte when the codecs match, recompressed when they don't.
+    - `AvroFile.Concat` concatenates files of one schema.
+    - `AvroFileWriter.OpenAppend`, `OpenAppendGeneric` and their async forms append to an existing file, checking its schema and codec.
+    - `AvroFileWriter<T>.Sync` returns the position of the next block, as Java's `sync()`.
+    - `SyncMarker` on the reader and the writer.
+- **AvroSharp.Tool:** `avrosharp file`, avro-tools' commands for container files (#172): `tojson`, `fromjson`, `getschema`, `getmeta`, `count`, `cat`, `concat`, `recodec`, `random` and `repair`. They read and write every codec, and `-` is standard input or output. Java's avro-tools reads the files they write, and `tojson` prints what avro-tools prints.
 
 ### Changed
 - **Targets: net11.0 in place of net9.0** (#222). The packages target `net11.0`, `net10.0`, `net8.0` and .NET Standard (the add-ons as before: no netstandard2.1, and no .NET Standard for AvroSharp.KafkaFlow). .NET 9 reached its end of support on 2026-11-10; on .NET 9 the netstandard2.1 build of AvroSharp is used (netstandard2.0 for the add-ons). The repository builds with the .NET 11 SDK and C# 15. The source generator still needs only the .NET 10 SDK or Visual Studio 2026.

@@ -1,4 +1,19 @@
 #nullable enable
+AvroSharp.Containers.AvroFile
+AvroSharp.Containers.AvroFileBlock
+AvroSharp.Containers.AvroFileBlock.AvroFileBlock(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Containers.AvroCodec! codec, long count, System.ReadOnlyMemory<byte> data) -> void
+AvroSharp.Containers.AvroFileBlock.Codec.get -> AvroSharp.Containers.AvroCodec!
+AvroSharp.Containers.AvroFileBlock.Count.get -> long
+AvroSharp.Containers.AvroFileBlock.Data.get -> System.ReadOnlyMemory<byte>
+AvroSharp.Containers.AvroFileBlock.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Containers.AvroFileReader<T>.SyncMarker.get -> System.ReadOnlyMemory<byte>
+AvroSharp.Containers.AvroFileReader<T>.TryReadBlock(out AvroSharp.Containers.AvroFileBlock? block) -> bool
+AvroSharp.Containers.AvroFileWriter<T>.Codec.get -> AvroSharp.Containers.AvroCodec!
+AvroSharp.Containers.AvroFileWriter<T>.Sync() -> long
+AvroSharp.Containers.AvroFileWriter<T>.SyncAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
+AvroSharp.Containers.AvroFileWriter<T>.SyncMarker.get -> System.ReadOnlyMemory<byte>
+AvroSharp.Containers.AvroFileWriter<T>.WriteBlock(AvroSharp.Containers.AvroFileBlock! block, bool recompress = false) -> void
+AvroSharp.Containers.AvroFileWriter<T>.WriteBlockAsync(AvroSharp.Containers.AvroFileBlock! block, bool recompress = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 AvroSharp.Generic.AvroBinaryComparer
 AvroSharp.Generic.AvroBinaryComparer.Compare(System.ReadOnlySpan<byte> x, System.ReadOnlySpan<byte> y) -> int
 AvroSharp.Generic.AvroBinaryComparer.Schema.get -> AvroSharp.Schemas.AvroSchema!
@@ -37,6 +52,11 @@ AvroSharp.Generic.JsonUnionBranchNames.Full = 0 -> AvroSharp.Generic.JsonUnionBr
 AvroSharp.Generic.JsonUnionBranchNames.Simple = 1 -> AvroSharp.Generic.JsonUnionBranchNames
 abstract AvroSharp.Serialization.AvroTypeInfo.ReadObjectFor(AvroSharp.Schemas.AvroSchema! writerSchema) -> AvroSharp.Serialization.AvroReadFunc<object?>!
 override AvroSharp.Serialization.AvroTypeInfo<T>.ReadObjectFor(AvroSharp.Schemas.AvroSchema! writerSchema) -> AvroSharp.Serialization.AvroReadFunc<object?>!
+static AvroSharp.Containers.AvroFile.Concat(System.IO.Stream! output, System.Collections.Generic.IEnumerable<System.IO.Stream!>! inputs, AvroSharp.Containers.AvroFileReaderOptions? options = null) -> void
+static AvroSharp.Containers.AvroFileWriter.OpenAppend<T>(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Containers.AvroFileWriterOptions? options = null) -> AvroSharp.Containers.AvroFileWriter<T>!
+static AvroSharp.Containers.AvroFileWriter.OpenAppendAsync<T>(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Serialization.AvroWriteAction<T>! write, AvroSharp.Containers.AvroFileWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Containers.AvroFileWriter<T>!>
+static AvroSharp.Containers.AvroFileWriter.OpenAppendGeneric(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema? schema = null, AvroSharp.Containers.AvroFileWriterOptions? options = null, AvroSharp.Generic.GenericDatumWriterOptions? writerOptions = null) -> AvroSharp.Containers.AvroFileWriter<AvroSharp.Generic.AvroValue>!
+static AvroSharp.Containers.AvroFileWriter.OpenAppendGenericAsync(System.IO.Stream! stream, AvroSharp.Schemas.AvroSchema? schema = null, AvroSharp.Containers.AvroFileWriterOptions? options = null, AvroSharp.Generic.GenericDatumWriterOptions? writerOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Containers.AvroFileWriter<AvroSharp.Generic.AvroValue>!>
 static AvroSharp.Generic.AvroBinaryComparer.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.AvroBinaryComparer!
 static AvroSharp.Generic.AvroRandomData.Generate(AvroSharp.Schemas.AvroSchema! schema, int seed, AvroSharp.Generic.AvroRandomDataOptions? options = null) -> System.Collections.Generic.IEnumerable<AvroSharp.Generic.AvroValue>!
 static AvroSharp.Generic.AvroRandomDataOptions.Default.get -> AvroSharp.Generic.AvroRandomDataOptions!

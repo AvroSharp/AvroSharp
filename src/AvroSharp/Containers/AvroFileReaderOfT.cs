@@ -68,8 +68,12 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
     private bool _blockIsAtEnd;
     private bool _disposed;
 
-    internal AvroFileReader(Stream stream, AvroFileReaderOptions options)
+    // False only to read a header whose codec need not be available (appending checks the codec itself).
+    private readonly bool _requireCodec;
+
+    internal AvroFileReader(Stream stream, AvroFileReaderOptions options, bool requireCodec = true)
     {
+        _requireCodec = requireCodec;
         _stream = stream;
         _leaveOpen = options.LeaveOpen;
         _maxBlockLength = options.MaxBlockLength;
@@ -87,6 +91,12 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
     /// <summary>Gets the codec the blocks are compressed with; its <see cref="AvroCodec.Name"/> is the header's <c>avro.codec</c>.</summary>
     public AvroCodec Codec => _codec;
+
+    /// <summary>Gets the file's sync marker, the 16 bytes from the header that follow every block.</summary>
+    public ReadOnlyMemory<byte> SyncMarker => _sync;
+
+    // The header's avro.codec (null when it has none), whether or not a codec of that name is available.
+    internal string CodecName { get; private set; } = AvroCodecNames.Null;
 
     private int Buffered => _inputEnd - _inputStart;
 
@@ -119,6 +129,36 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
         value = DecodeNext();
         return true;
+    }
+
+    /// <summary>
+    /// Reads the next block as stored, without decompressing or decoding it, for <see cref="AvroFileWriter{T}.WriteBlock"/>.
+    /// Blocks of no objects are skipped. Reading objects and blocks can be mixed, a whole block at a time.
+    /// </summary>
+    /// <param name="block">The block, when one was read.</param>
+    /// <returns><see langword="false"/> at the end of the file.</returns>
+    /// <exception cref="InvalidOperationException">Objects of the current block are still unread.</exception>
+    /// <exception cref="AvroDataException">A block is malformed or truncated.</exception>
+    public bool TryReadBlock([NotNullWhen(true)] out AvroFileBlock? block)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_objectsLeft > 0)
+        {
+            throw new InvalidOperationException("Objects of the current block are still unread; a block is read whole, from its start.");
+        }
+
+        while (ReadRawBlock(out var count, out var size))
+        {
+            ConsumeSyncMarker();
+            if (count > 0)
+            {
+                block = new AvroFileBlock(WriterSchema, _codec, count, _raw.AsSpan(0, size).ToArray());
+                return true;
+            }
+        }
+
+        block = null;
+        return false;
     }
 
     /// <summary>Reads the remaining objects.</summary>
@@ -209,15 +249,27 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
 
     private bool ReadBlock()
     {
+        if (!ReadRawBlock(out var count, out var size))
+        {
+            return false;
+        }
+
+        FinishBlock(count, size);
+        return true;
+    }
+
+    // Reads the next block's count, size and data (into _raw[0..size]) and buffers its sync marker, unchecked.
+    private bool ReadRawBlock(out long count, out int size)
+    {
         MarkBlockStart();
-        long count;
-        long size;
-        while (!TryParseBlockPrefix(out count, out size))
+        long blockSize;
+        while (!TryParseBlockPrefix(out count, out blockSize))
         {
             if (!FillAtLeast(Buffered + 1))
             {
                 if (Buffered == 0)
                 {
+                    size = 0;
                     return false;
                 }
 
@@ -225,8 +277,9 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
             }
         }
 
-        var copied = StartBlock(count, size);
-        if (!ReadDirect(_raw, copied, (int)size - copied))
+        var copied = StartBlock(count, blockSize);
+        size = (int)blockSize;
+        if (!ReadDirect(_raw, copied, size - copied))
         {
             throw Truncated("block");
         }
@@ -236,7 +289,6 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
             throw Truncated("sync marker");
         }
 
-        FinishBlock(count, (int)size);
         return true;
     }
 

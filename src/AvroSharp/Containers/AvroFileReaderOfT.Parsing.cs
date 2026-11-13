@@ -166,7 +166,8 @@ public sealed partial class AvroFileReader<T>
 
         Metadata = metadata;
         var codecName = TryGetMetadataString(AvroContainerFormat.CodecKey, out var named) ? named : AvroCodecNames.Null;
-        _codec = FindCodec(codecName, _codecs) ?? throw CodecNotAvailable(codecName);
+        CodecName = codecName;
+        _codec = FindCodec(codecName, _codecs) ?? (_requireCodec ? throw CodecNotAvailable(codecName) : AvroCodec.Null);
     }
 
     private static AvroException CodecNotAvailable(string name) => AvroCodecNames.IsStandard(name)
@@ -291,7 +292,7 @@ public sealed partial class AvroFileReader<T>
         }
     }
 
-    private static AvroCodec? FindCodec(string name, IReadOnlyList<AvroCodec> extra)
+    internal static AvroCodec? FindCodec(string name, IReadOnlyList<AvroCodec> extra)
     {
         foreach (var codec in extra)
         {

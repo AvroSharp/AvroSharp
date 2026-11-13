@@ -1,6 +1,6 @@
 # AvroSharp.Tool
 
-`avrosharp`, the command-line tool of [AvroSharp](https://github.com/AvroSharp/AvroSharp): C# types and serializers from Apache Avro™ schema files (`.avsc`), the canonical form and fingerprints of schemas, and schema compatibility checks. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
+`avrosharp`, the command-line tool of [AvroSharp](https://github.com/AvroSharp/AvroSharp): C# types and serializers from Apache Avro™ schema files (`.avsc`), the canonical form and fingerprints of schemas, schema compatibility checks, and avro-tools' commands for container files (`file tojson`, `fromjson`, `getschema`, `getmeta`, `count`, `cat`, `concat`, `recodec`, `random`, `repair`). It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
 
 > **Status:** stable. It follows [semantic versioning](https://semver.org/).
 
@@ -63,6 +63,19 @@ It prints the verdict and every issue, each with its path into the data. The che
 - `--level` takes Confluent Schema Registry's levels: `backward`, `forward` and `full`, each with a `-transitive` version.
 - `--warnings-as-errors` (or `--strict`) fails on warnings, such as a changed decimal scale.
 - `--allow-partial` passes when only some values can't be read.
+
+## file: container files
+
+```shell
+avrosharp file tojson events.avro                                    # one JSON value per line, as avro-tools prints them
+avrosharp file fromjson events.json --schema event.avsc -o events.avro
+avrosharp file concat 2026-11-*.avro -o november.avro                # block by block, without decoding
+avrosharp file recodec events.avro --codec zstandard -o events.zst.avro
+avrosharp file random --schema event.avsc --count 1000 --seed 1 -o sample.avro
+avrosharp file repair damaged.avro -o repaired.avro
+```
+
+Also `getschema`, `getmeta`, `count` and `cat` (with `--offset` and `--limit`). Every codec of the specification is read and written; `-` is standard input, and `-o -` standard output.
 
 ## Exit codes
 

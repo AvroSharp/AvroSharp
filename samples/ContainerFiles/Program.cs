@@ -98,6 +98,23 @@ await using (var reader = await AvroFileReader.OpenGenericAsync(new MemoryStream
 
 Console.WriteLine($"Total time on page: {TimeSpan.FromMilliseconds(totalDuration).TotalHours:F1} hours");
 
+// Append to the file, then concatenate it with the deflate file, without decoding either.
+var log = new MemoryStream();
+log.Write(uncompressed);
+using (var writer = AvroFileWriter.OpenAppendGeneric(log, options: new AvroFileWriterOptions { LeaveOpen = true }))
+{
+    writer.Write(pageViews[0]);
+}
+
+var combined = new MemoryStream();
+AvroFile.Concat(combined, [new MemoryStream(log.ToArray()), new MemoryStream(deflated)]);
+long combinedCount;
+using (var reader = AvroFileReader.OpenGeneric(new MemoryStream(combined.ToArray())))
+{
+    combinedCount = reader.ReadAll().LongCount();
+    Console.WriteLine($"Appended and concatenated: {combinedCount:N0} page views, codec {reader.Codec.Name}");
+}
+
 // Read the file as version 2 of the schema, which drops the referrer and adds a device field with a default.
 var schemaV2 = AvroSchema.Parse("""
     {"type":"record","name":"PageView","namespace":"analytics","fields":[
@@ -121,7 +138,8 @@ var ok = read.SequenceEqual(pageViews)
     && string.Equals(source, "web-frontend", StringComparison.Ordinal)
     && totalDuration == pageViews.Sum(pageView => (long)pageView["duration_ms"].AsInt32())
     && string.Equals(first["device"].AsString(), "unknown", StringComparison.Ordinal)
-    && !first.TryGetValue("referrer", out _);
+    && !first.TryGetValue("referrer", out _)
+    && combinedCount == (2 * pageViews.Count) + 1;
 Console.WriteLine(ok ? "OK" : "FAILED");
 return ok ? 0 : 1;
 
