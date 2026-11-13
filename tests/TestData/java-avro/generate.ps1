@@ -60,6 +60,10 @@ Push-Location $here
 try {
     & $Java -cp $AvroTools LogicalTypes.java logical.avsc logical.avro
     if ($LASTEXITCODE -ne 0) { throw "LogicalTypes.java failed with exit code $LASTEXITCODE" }
+
+    # Records of sort.avsc and Java's order of every pair of them (BinaryData.compare).
+    & $Java -cp $AvroTools SortOrder.java sort.avsc sort.avro sort-order.txt
+    if ($LASTEXITCODE -ne 0) { throw "SortOrder.java failed with exit code $LASTEXITCODE" }
 }
 finally {
     Pop-Location

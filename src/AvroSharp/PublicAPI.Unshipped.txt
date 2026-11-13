@@ -1,3 +1,44 @@
 #nullable enable
+AvroSharp.Generic.AvroBinaryComparer
+AvroSharp.Generic.AvroBinaryComparer.Compare(System.ReadOnlySpan<byte> x, System.ReadOnlySpan<byte> y) -> int
+AvroSharp.Generic.AvroBinaryComparer.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.AvroRandomData
+AvroSharp.Generic.AvroRandomData.AvroRandomData(int seed, AvroSharp.Generic.AvroRandomDataOptions? options = null) -> void
+AvroSharp.Generic.AvroRandomData.Next(AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.AvroRandomDataOptions
+AvroSharp.Generic.AvroRandomDataOptions.AvroRandomDataOptions() -> void
+AvroSharp.Generic.AvroRandomDataOptions.LogicalValuesInDotNetRange.get -> bool
+AvroSharp.Generic.AvroRandomDataOptions.LogicalValuesInDotNetRange.init -> void
+AvroSharp.Generic.AvroRandomDataOptions.MaxCollectionLength.get -> int
+AvroSharp.Generic.AvroRandomDataOptions.MaxCollectionLength.init -> void
+AvroSharp.Generic.AvroRandomDataOptions.MaxDepth.get -> int
+AvroSharp.Generic.AvroRandomDataOptions.MaxDepth.init -> void
+AvroSharp.Generic.AvroRandomDataOptions.MaxStringLength.get -> int
+AvroSharp.Generic.AvroRandomDataOptions.MaxStringLength.init -> void
+AvroSharp.Generic.AvroRandomDataOptions.NullBranchProbability.get -> double?
+AvroSharp.Generic.AvroRandomDataOptions.NullBranchProbability.init -> void
+AvroSharp.Generic.AvroValue.DeepCopy() -> AvroSharp.Generic.AvroValue
+AvroSharp.Generic.AvroValueComparer
+AvroSharp.Generic.AvroValueComparer.Compare(AvroSharp.Generic.AvroValue x, AvroSharp.Generic.AvroValue y) -> int
+AvroSharp.Generic.AvroValueComparer.Schema.get -> AvroSharp.Schemas.AvroSchema!
+AvroSharp.Generic.GenericDatumWriter.TryValidate(in AvroSharp.Generic.AvroValue value, out string? error) -> bool
+AvroSharp.Generic.GenericDatumWriter.Validate(in AvroSharp.Generic.AvroValue value) -> void
+AvroSharp.Generic.GenericDatumWriterOptions.JsonUnionBranchNames.get -> AvroSharp.Generic.JsonUnionBranchNames
+AvroSharp.Generic.GenericDatumWriterOptions.JsonUnionBranchNames.init -> void
+AvroSharp.Generic.GenericRecordBuilder
+AvroSharp.Generic.GenericRecordBuilder.Build() -> AvroSharp.Generic.GenericRecord!
+AvroSharp.Generic.GenericRecordBuilder.GenericRecordBuilder(AvroSharp.Schemas.RecordSchema! schema) -> void
+AvroSharp.Generic.GenericRecordBuilder.IsSet(string! name) -> bool
+AvroSharp.Generic.GenericRecordBuilder.Schema.get -> AvroSharp.Schemas.RecordSchema!
+AvroSharp.Generic.GenericRecordBuilder.Set(int position, AvroSharp.Generic.AvroValue value) -> AvroSharp.Generic.GenericRecordBuilder!
+AvroSharp.Generic.GenericRecordBuilder.Set(string! name, AvroSharp.Generic.AvroValue value) -> AvroSharp.Generic.GenericRecordBuilder!
+AvroSharp.Generic.JsonUnionBranchNames
+AvroSharp.Generic.JsonUnionBranchNames.Full = 0 -> AvroSharp.Generic.JsonUnionBranchNames
+AvroSharp.Generic.JsonUnionBranchNames.Simple = 1 -> AvroSharp.Generic.JsonUnionBranchNames
 abstract AvroSharp.Serialization.AvroTypeInfo.ReadObjectFor(AvroSharp.Schemas.AvroSchema! writerSchema) -> AvroSharp.Serialization.AvroReadFunc<object?>!
 override AvroSharp.Serialization.AvroTypeInfo<T>.ReadObjectFor(AvroSharp.Schemas.AvroSchema! writerSchema) -> AvroSharp.Serialization.AvroReadFunc<object?>!
+static AvroSharp.Generic.AvroBinaryComparer.Create(AvroSharp.Schemas.AvroSchema! schema, AvroSharp.Generic.GenericDatumReaderOptions? options = null) -> AvroSharp.Generic.AvroBinaryComparer!
+static AvroSharp.Generic.AvroRandomData.Generate(AvroSharp.Schemas.AvroSchema! schema, int seed, AvroSharp.Generic.AvroRandomDataOptions? options = null) -> System.Collections.Generic.IEnumerable<AvroSharp.Generic.AvroValue>!
+static AvroSharp.Generic.AvroRandomDataOptions.Default.get -> AvroSharp.Generic.AvroRandomDataOptions!
+static AvroSharp.Generic.AvroValueComparer.Create(AvroSharp.Schemas.AvroSchema! schema) -> AvroSharp.Generic.AvroValueComparer!
+static AvroSharp.Generic.GenericRecord.CreateWithDefaults(AvroSharp.Schemas.RecordSchema! schema) -> AvroSharp.Generic.GenericRecord!

@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 #if NET8_0_OR_GREATER
 using System.Runtime.InteropServices;
@@ -83,6 +84,37 @@ public sealed class GenericDatumWriter
         using var output = new PooledBufferWriter();
         Write(output, value);
         return output.ToArray();
+    }
+
+    /// <summary>
+    /// Checks that a value can be written with <see cref="Schema"/>, by writing it to an output that discards it: the
+    /// checks are the writer's own, and nothing is kept.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    /// <exception cref="AvroException">The value does not match the schema; the message names the field.</exception>
+    public void Validate(in AvroValue value)
+    {
+        var writer = new AvroWriter(DiscardBufferWriter.Instance);
+        Write(ref writer, value);
+    }
+
+    /// <summary>Checks that a value can be written with <see cref="Schema"/>, as <see cref="Validate"/> does, without throwing.</summary>
+    /// <param name="value">The value.</param>
+    /// <param name="error">Why the value can't be written, naming the field, when this method returns <see langword="false"/>.</param>
+    /// <returns>Whether the value can be written.</returns>
+    public bool TryValidate(in AvroValue value, [NotNullWhen(false)] out string? error)
+    {
+        try
+        {
+            Validate(value);
+            error = null;
+            return true;
+        }
+        catch (AvroException ex)
+        {
+            error = ex.Message;
+            return false;
+        }
     }
 
     private static AvroException Mismatch(AvroSchema schema, in AvroValue value) =>

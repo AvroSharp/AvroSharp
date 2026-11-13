@@ -2,7 +2,7 @@ using System;
 
 namespace AvroSharp.Generic;
 
-/// <summary>Limits for <see cref="GenericDatumWriter"/>.</summary>
+/// <summary>Limits for <see cref="GenericDatumWriter"/> and <see cref="GenericDatumJsonWriter"/>, and the JSON writer's labels.</summary>
 /// <seealso cref="GenericDatumJsonWriter"/>
 public sealed class GenericDatumWriterOptions
 {
@@ -26,4 +26,22 @@ public sealed class GenericDatumWriterOptions
             field = value;
         }
     } = DefaultMaxDepth;
+
+    /// <summary>
+    /// Gets how <see cref="GenericDatumJsonWriter"/> labels the branch of a union value that has a named type. The
+    /// default is <see cref="JsonUnionBranchNames.Full"/>, as the specification says. The binary writer ignores it.
+    /// </summary>
+    public JsonUnionBranchNames JsonUnionBranchNames
+    {
+        get;
+        init
+        {
+            if (value is not (JsonUnionBranchNames.Full or JsonUnionBranchNames.Simple))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Not a JsonUnionBranchNames value.");
+            }
+
+            field = value;
+        }
+    }
 }

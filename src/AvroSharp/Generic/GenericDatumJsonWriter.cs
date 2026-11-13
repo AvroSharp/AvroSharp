@@ -14,7 +14,8 @@ namespace AvroSharp.Generic;
 /// <remarks>
 /// <para>
 /// The encoding follows the specification: a union value other than <c>null</c> is wrapped in an object whose only
-/// property names the branch (<c>{"string": "a"}</c>, <c>{"com.example.User": {...}}</c>); <c>bytes</c> and
+/// property names the branch (<c>{"string": "a"}</c>, <c>{"com.example.User": {...}}</c>, or <c>{"User": {...}}</c> with
+/// <see cref="GenericDatumWriterOptions.JsonUnionBranchNames"/>); <c>bytes</c> and
 /// <c>fixed</c> are strings whose code points 0-255 each stand for one byte; enums are their symbol.
 /// </para>
 /// <para>
@@ -34,7 +35,7 @@ public sealed class GenericDatumJsonWriter
     private GenericDatumJsonWriter(AvroSchema schema, GenericDatumWriterOptions options)
     {
         Schema = schema;
-        _root = new Builder(options.MaxDepth).Build(schema);
+        _root = new Builder(options.MaxDepth, options.JsonUnionBranchNames).Build(schema);
     }
 
     /// <summary>Gets the schema values are written with.</summary>
@@ -45,7 +46,7 @@ public sealed class GenericDatumJsonWriter
     /// cached per schema; writers with custom options are created each time, so keep and reuse them.
     /// </summary>
     /// <param name="schema">The schema to write with.</param>
-    /// <param name="options">Limits, or <see langword="null"/> for <see cref="GenericDatumWriterOptions.Default"/>.</param>
+    /// <param name="options">Limits and labels, or <see langword="null"/> for <see cref="GenericDatumWriterOptions.Default"/>.</param>
     public static GenericDatumJsonWriter Create(AvroSchema schema, GenericDatumWriterOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(schema);
@@ -108,7 +109,7 @@ public sealed class GenericDatumJsonWriter
         public abstract void Write(Utf8JsonWriter writer, in AvroValue value, int depth);
     }
 
-    private sealed class Builder(int maxDepth)
+    private sealed class Builder(int maxDepth, JsonUnionBranchNames branchNames)
     {
         // Schemas compare by reference.
         private readonly Dictionary<RecordSchema, RecordNode> _records = [];
@@ -120,7 +121,7 @@ public sealed class GenericDatumJsonWriter
             FixedSchema fixedSchema => new FixedNode(fixedSchema),
             ArraySchema array => new ArrayNode(Build(array.Items)),
             MapSchema map => new MapNode(Build(map.Values)),
-            UnionSchema union => new UnionNode(union, union.Branches.ConvertAll(Build)),
+            UnionSchema union => new UnionNode(union, union.Branches.ConvertAll(Build), branchNames),
             _ => new PrimitiveNode(schema),
         };
 
@@ -286,12 +287,49 @@ public sealed class GenericDatumJsonWriter
         private readonly UnionBranchSelector _selector;
         private readonly JsonEncodedText[] _names;
 
-        public UnionNode(UnionSchema schema, WriterNode[] branches)
+        public UnionNode(UnionSchema schema, WriterNode[] branches, JsonUnionBranchNames branchNames)
         {
             _schema = schema;
             _branches = branches;
             _selector = new UnionBranchSelector(schema);
-            _names = schema.Branches.ConvertAll(b => JsonEncodedText.Encode(AvroJsonConventions.BranchName(b)));
+            _names = BranchLabels(schema, branchNames).ConvertAll(label => JsonEncodedText.Encode(label));
+        }
+
+        // With simple names, a named branch keeps its full name when its simple name would not identify it: another
+        // branch has the same simple name, or another branch's label is that name (a type named "array", say). This is
+        // the rule GenericDatumJsonReader reads simple names by, so whatever is written reads back as the same branch.
+        private static string[] BranchLabels(UnionSchema schema, JsonUnionBranchNames branchNames)
+        {
+            var full = schema.Branches.ConvertAll(AvroJsonConventions.BranchName);
+            if (branchNames == JsonUnionBranchNames.Full)
+            {
+                return full;
+            }
+
+            var labels = (string[])full.Clone();
+            for (var i = 0; i < labels.Length; i++)
+            {
+                if (schema.Branches[i] is not NamedSchema named)
+                {
+                    continue;
+                }
+
+                var simple = named.Name.Name;
+                var unique = true;
+                for (var j = 0; j < labels.Length && unique; j++)
+                {
+                    unique = j == i
+                        || !(string.Equals(full[j], simple, StringComparison.Ordinal)
+                            || (schema.Branches[j] is NamedSchema other && string.Equals(other.Name.Name, simple, StringComparison.Ordinal)));
+                }
+
+                if (unique)
+                {
+                    labels[i] = simple;
+                }
+            }
+
+            return labels;
         }
 
         public override void Write(Utf8JsonWriter writer, in AvroValue value, int depth)

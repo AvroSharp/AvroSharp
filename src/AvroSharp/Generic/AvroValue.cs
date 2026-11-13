@@ -355,6 +355,14 @@ public readonly struct AvroValue : IEquatable<AvroValue>
         _ => _bits.GetHashCode(),
     };
 
+    /// <summary>
+    /// Copies the value and everything it holds: records, arrays, maps, bytes and fixed values are new instances, so
+    /// changing the copy never changes the original. Strings, which can't change, are shared. An array stored as
+    /// primitives (see <see cref="TryGetInt64Array"/>) stays one.
+    /// </summary>
+    /// <exception cref="AvroException">The value is nested more than 512 levels deep, as a value that contains itself is.</exception>
+    public AvroValue DeepCopy() => DeepCopy(this, 0);
+
     /// <summary>Returns the value boxed as a CLR object: <see langword="null"/>, a primitive, or the referenced object.</summary>
     public object? ToObject() => Kind switch
     {
@@ -435,6 +443,51 @@ public readonly struct AvroValue : IEquatable<AvroValue>
         }
 
         return true;
+    }
+
+    private static AvroValue DeepCopy(in AvroValue value, int depth)
+    {
+        const int MaxNesting = 4 * GenericDatumWriterOptions.DefaultMaxDepth;
+        if (depth > MaxNesting)
+        {
+            throw new AvroException($"The value is nested more than {MaxNesting} levels deep; it may contain itself.");
+        }
+
+        switch (value._reference)
+        {
+            case byte[] bytes:
+                return new(0, bytes.AsSpan().ToArray());
+            case GenericFixed fixedValue:
+                return new(0, new GenericFixed(fixedValue.Schema, fixedValue.Bytes.ToArray()));
+            case GenericRecord record:
+                var copy = new GenericRecord(record.Schema, record.FieldCount);
+                for (var i = 0; i < record.FieldCount; i++)
+                {
+                    copy.ValueAt(i) = DeepCopy(record.ValueAt(i), depth + 1);
+                }
+
+                return new(0, copy);
+            case PrimitiveArray primitives:
+                return new(0, primitives.Copy());
+            case IReadOnlyDictionary<string, AvroValue> map:
+                var entries = new Dictionary<string, AvroValue>(map.Count, (map as Dictionary<string, AvroValue>)?.Comparer ?? StringComparer.Ordinal);
+                foreach (var entry in map)
+                {
+                    entries.Add(entry.Key, DeepCopy(entry.Value, depth + 1));
+                }
+
+                return new(0, entries);
+            case IReadOnlyList<AvroValue> list:
+                var items = new List<AvroValue>(list.Count);
+                for (var i = 0; i < list.Count; i++)
+                {
+                    items.Add(DeepCopy(list[i], depth + 1));
+                }
+
+                return new(0, items);
+            default:
+                return value;
+        }
     }
 
     private InvalidOperationException WrongKind(AvroValueKind expected) =>

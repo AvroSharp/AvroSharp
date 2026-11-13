@@ -97,7 +97,7 @@ public class GeneratedCodeTests
             checkedSamples++;
         }
 
-        // RandomValues gives up on many deep recursive values (graph.Node), so not every seed yields a sample.
+        // RandomValues has no value for a schema with no finite value, so a seed may yield no sample.
         await Assert.That(checkedSamples).IsGreaterThanOrEqualTo(20);
     }
 
