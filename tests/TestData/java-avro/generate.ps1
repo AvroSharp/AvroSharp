@@ -68,4 +68,7 @@ try {
 finally {
     Pop-Location
 }
+
+# Java's tojson of logical.avro, which `avrosharp file tojson` is checked against.
+Invoke-AvroTools @('tojson', '-') (Join-Path $here 'logical.avro') (Join-Path $here 'logical.json')
 & $Java -jar $AvroTools 2>&1 | Select-Object -First 1

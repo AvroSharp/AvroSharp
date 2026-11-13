@@ -1,6 +1,6 @@
 # The avrosharp command-line tool
 
-`avrosharp` ([AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool)) generates C# from Avro schema files, prints schemas' canonical forms and fingerprints, and checks schema compatibility. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
+`avrosharp` ([AvroSharp.Tool](https://www.nuget.org/packages/AvroSharp.Tool)) generates C# from Avro schema files, prints schemas' canonical forms and fingerprints, checks schema compatibility, and works with container files: JSON to and from Avro, concatenation, recompression, random data and repair. It is a `dotnet tool`, like Apache.Avro's `avrogen`, and runs on .NET 8 or later.
 
 On this page:
 - [Install](#install)
@@ -8,6 +8,7 @@ On this page:
 - [schema canonical](#schema-canonical)
 - [schema fingerprint](#schema-fingerprint)
 - [schema compat](#schema-compat)
+- [file: container files](#file-container-files)
 - [Errors and exit codes](#errors-and-exit-codes)
 - [In a build or CI](#in-a-build-or-ci)
 - [Coming from avrogen](#coming-from-avrogen)
@@ -155,6 +156,34 @@ The JSON output, for scripts:
 - Two schemas give `writer`, `reader`, `verdict` (`compatible`, `partial` or `incompatible`), `compatible` (whether the check passes, after the options), `incompatibilities` and `warnings`.
 - Each issue has `kind` (camelCase, such as `missingDefault` or `decimalChanged`), `path`, `message`, and `otherPaths` when the same issue is at other paths too.
 - With `--level`, there are `level`, `schema` (the new version), `verdict`, `compatible`, and `checks`. Each check has `previous` (the earlier version's file), `index` (its position, from 0), `direction` (`backward` or `forward`) and that pair's result.
+
+## file: container files
+
+The `file` commands work with Avro object container files (`.avro`), as Apache Avro Java's avro-tools does. They read every codec of the specification, and `-` as a file means standard input; `-o -` writes to standard output.
+
+| Command | What it does |
+|---|---|
+| `file tojson <file>` | Prints the values in the Avro JSON encoding, one per line, as avro-tools prints them. `--pretty` indents each value; `--reader-schema s.avsc` resolves them to another schema version. |
+| `file fromjson <json> -s s.avsc -o out.avro` | Writes JSON values (as `tojson` prints them, one after another) to a file. |
+| `file getschema <file>` | Prints the file's schema. |
+| `file getmeta <file>` | Prints the header metadata, one `key<TAB>value` line per entry; `--key k` prints one value. |
+| `file count <file>...` | Prints the number of objects, from the blocks' counts, without decoding them. |
+| `file cat <file>... -o out.avro` | Writes the files' objects to one file. `--offset n` skips objects first, and `--limit n` stops after that many. |
+| `file concat <file>... -o out.avro` | Concatenates files of one schema block by block, without decoding: blocks of the first file's codec are copied byte for byte, and other blocks are recompressed. The output has the first file's codec and metadata. |
+| `file recodec <file> -c zstandard -o out.avro` | Writes the blocks with another codec, keeping the metadata. |
+| `file random -s s.avsc -n 1000 -o out.avro` | Writes random objects of a schema ([`AvroRandomData`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.AvroRandomData.html)); `--seed` repeats them. |
+| `file repair <file> -o out.avro` | Copies the blocks of a damaged file that read whole, skipping the rest up to the next sync marker, and reports what it kept and skipped. |
+
+The commands that write files take `-c`/`--codec` (`null`, `deflate`, `snappy`, `zstandard` or `zstd`, `bzip2`, `xz`) and `-l`/`--level`. `fromjson`, `recodec` and `random` write `null` by default, and `cat` the first file's codec. Each codec has its own default level; unlike avro-tools, `xz` needs no `--level`.
+
+```shell
+avrosharp file tojson events.avro | head
+avrosharp file recodec events.avro --codec zstandard -o events.zst.avro
+avrosharp file concat 2026-11-*.avro -o november.avro
+avrosharp file random --schema order.avsc --count 10000 --seed 1 -o orders.avro
+```
+
+The files `fromjson`, `cat`, `concat`, `recodec`, `random` and `repair` write are read by Java's avro-tools 1.12.2. Its `tojson` prints the same text as `file tojson`, but for bytes and fixed values: Java writes their characters as they are, and AvroSharp escapes those outside ASCII (`ÿ`). Both read back as the same values.
 
 ## Errors and exit codes
 

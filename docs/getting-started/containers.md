@@ -1,6 +1,6 @@
 # Container files
 
-An Avro object container file (`.avro`) holds many records of one schema, in compressed blocks, with the schema in its header. On this page you write page-view events to a file, read them back without knowing the schema, compress the file, and store your own metadata in its header. The examples use the generic data model, so they need no code generation; the full program is the [ContainerFiles sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/ContainerFiles).
+An Avro object container file (`.avro`) holds many records of one schema, in compressed blocks, with the schema in its header. On this page you write page-view events to a file, read them back without knowing the schema, compress the file, store your own metadata in its header, and append to and concatenate files. The examples use the generic data model, so they need no code generation; the full program is the [ContainerFiles sample](https://github.com/AvroSharp/AvroSharp/tree/main/samples/ContainerFiles).
 
 The types are in the [`AvroSharp.Containers`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.html) namespace. The records are [`GenericRecord`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Generic.GenericRecord.html) values of a `PageView` schema with a timestamp, a user ID, a URL, an optional referrer, a country and a duration. The sample makes 5,000 of them.
 
@@ -94,6 +94,30 @@ await using (var reader = await AvroFileReader.OpenGenericAsync(new MemoryStream
     }
 }
 ```
+
+## Append and concatenate
+
+[`AvroFileWriter.OpenAppendGeneric`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter.OpenAppendGeneric.html) opens an existing file to add records at its end, as log files grow: it reads the header for the schema, the codec and the sync marker, and the file reads as one afterwards. The stream must be readable, writable and seekable. [`AvroFile.Concat`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFile.Concat.html) joins files of one schema block by block, without decoding the records: blocks of the first file's codec are copied as they are, and the others recompressed, so the uncompressed file and the deflate one here become one uncompressed file:
+
+```csharp
+var log = new MemoryStream();
+log.Write(uncompressed);
+using (var writer = AvroFileWriter.OpenAppendGeneric(log, options: new AvroFileWriterOptions { LeaveOpen = true }))
+{
+    writer.Write(pageViews[0]);
+}
+
+var combined = new MemoryStream();
+AvroFile.Concat(combined, [new MemoryStream(log.ToArray()), new MemoryStream(deflated)]);
+long combinedCount;
+using (var reader = AvroFileReader.OpenGeneric(new MemoryStream(combined.ToArray())))
+{
+    combinedCount = reader.ReadAll().LongCount();
+    Console.WriteLine($"Appended and concatenated: {combinedCount:N0} page views, codec {reader.Codec.Name}");
+}
+```
+
+Both are built on blocks as stored: [`TryReadBlock`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileReader-1.TryReadBlock.html) reads one, and [`WriteBlock`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.Containers.AvroFileWriter-1.WriteBlock.html) writes it to another file, recompressing it when the codecs differ. The [`avrosharp` tool](../cli.md#file-container-files) does the same from the command line, with `file concat` and `file recodec`.
 
 ## Read as a newer schema version
 

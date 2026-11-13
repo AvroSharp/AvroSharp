@@ -171,6 +171,41 @@ public class ApacheAvroContainerInteropTests
         await Assert.That(oursBytes.SequenceEqual(apacheBytes)).IsTrue();
     }
 
+    [Test]
+    public async Task ConcatenatedAndAppendedFiles_AreReadByApache()
+    {
+        // Apache's weather file (null codec) and Java's deflate copy of it, concatenated: the deflate blocks are
+        // recompressed. Then appended to.
+        var plain = ReadTestFile("weather.avro");
+        var deflated = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "TestData", "java-avro", "weather-deflate.avro"));
+        var file = new MemoryStream();
+        AvroFile.Concat(file, [new MemoryStream(plain), new MemoryStream(deflated)]);
+
+        using var source = AvroFileReader.OpenGeneric(new MemoryStream(plain));
+        var weather = source.ReadAll().ToList();
+        using (var writer = AvroFileWriter.OpenAppendGeneric(file, options: new AvroFileWriterOptions { LeaveOpen = true }))
+        {
+            foreach (var value in weather)
+            {
+                writer.Write(value);
+            }
+        }
+
+        using var apache = ApacheFileReader.OpenReader(new MemoryStream(file.ToArray()));
+        var apacheWriter = new ApacheWriter(apache.GetSchema());
+        var ourWriter = GenericDatumWriter.Create(source.WriterSchema);
+        var expected = weather.Concat(weather).Concat(weather).Select(v => Convert.ToHexString(ourWriter.WriteToArray(v))).ToList();
+        var read = new List<string>();
+        while (apache.HasNext())
+        {
+            using var output = new MemoryStream();
+            apacheWriter.Write(apache.Next(), new Avro.IO.BinaryEncoder(output));
+            read.Add(Convert.ToHexString(output.ToArray()));
+        }
+
+        await Assert.That(read).IsEquivalentTo(expected, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
     private static byte[] ReadTestFile(string file) =>
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "TestData", "apache-avro", file));
 

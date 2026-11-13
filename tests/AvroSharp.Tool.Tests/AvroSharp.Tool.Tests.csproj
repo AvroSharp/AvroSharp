@@ -15,4 +15,10 @@
     <ProjectReference Include="..\..\src\AvroSharp.Tool\AvroSharp.Tool.csproj" />
   </ItemGroup>
 
+  <!-- Container files written by Apache's and Java's tools, for the file commands. -->
+  <ItemGroup>
+    <None Include="..\TestData\apache-avro\weather*" LinkBase="TestData\apache-avro" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\TestData\java-avro\*" LinkBase="TestData\java-avro" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -15,7 +15,7 @@ namespace AvroSharp.Containers;
 /// <seealso cref="AvroFileWriterOptions"/>
 /// <seealso cref="AvroFileReader"/>
 /// <seealso cref="AvroCodec"/>
-public static class AvroFileWriter
+public static partial class AvroFileWriter
 {
     /// <summary>Creates a writer. The header is written with the first block, or when the writer is flushed or disposed.</summary>
     /// <typeparam name="T">The type of the objects.</typeparam>
@@ -98,15 +98,31 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     private long _blockCount;
     private bool _disposed;
 
-    internal AvroFileWriter(Stream stream, AvroSchema schema, AvroWriteAction<T> write, AvroFileWriterOptions options)
+    // Sync's position: the stream's position when the writer was created (0 when it can't seek), and the bytes since.
+    private readonly long _origin;
+    private long _written;
+
+    // The canonical form of Schema, computed when a block from another schema object is checked.
+    private string? _canonicalForm;
+
+    // appendSync: the sync marker of the file being appended to, whose header is already written; null for a new file.
+    internal AvroFileWriter(Stream stream, AvroSchema schema, AvroWriteAction<T> write, AvroFileWriterOptions options, AvroCodec? codec = null, byte[]? appendSync = null)
     {
         _stream = stream;
         Schema = schema;
         _write = write;
-        _codec = options.Codec ?? AvroCodec.Null;
+        _codec = codec ?? options.Codec ?? AvroCodec.Null;
         _syncInterval = options.SyncInterval;
         _leaveOpen = options.LeaveOpen;
-        _pendingHeader = BuildHeader(options);
+        _origin = stream.CanSeek ? stream.Position : 0;
+        if (appendSync is null)
+        {
+            _pendingHeader = BuildHeader(options);
+        }
+        else
+        {
+            appendSync.CopyTo(_sync, 0);
+        }
 
         // Sized for a whole block at the sync interval (up to 1 MiB), so a typical block needs no growth.
         _block = new PooledBufferWriter(PrefixRoom + Math.Min(_syncInterval, 1024 * 1024) + 1024);
@@ -116,6 +132,64 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     /// <summary>Gets the schema of the objects.</summary>
     public AvroSchema Schema { get; }
 
+    /// <summary>Gets the codec that compresses each block.</summary>
+    public AvroCodec Codec => _codec;
+
+    /// <summary>Gets the file's sync marker, the 16 bytes that follow every block: random for a new file, the file's own when appending.</summary>
+    public ReadOnlyMemory<byte> SyncMarker => _sync;
+
+    /// <summary>
+    /// Writes a block read from another file (<see cref="AvroFileReader{T}.TryReadBlock"/>) after the objects written so
+    /// far, without decoding its objects. A block compressed with this file's codec is copied byte for byte, unless
+    /// <paramref name="recompress"/> is set; any other block is decompressed with its codec and compressed with this
+    /// file's.
+    /// </summary>
+    /// <param name="block">The block.</param>
+    /// <param name="recompress">Whether to decompress and compress the block even when the codecs are the same.</param>
+    /// <exception cref="ArgumentException">The block's schema is not this file's: their canonical forms differ.</exception>
+    /// <exception cref="AvroDataException">The block cannot be decompressed.</exception>
+    public void WriteBlock(AvroFileBlock block, bool recompress = false)
+    {
+        var frame = FrameForeignBlock(block, recompress);
+        FlushBlock();
+        WriteToStream(new ArraySegment<byte>(frame));
+    }
+
+    /// <summary>Writes a block read from another file, as <see cref="WriteBlock"/> does, asynchronously.</summary>
+    /// <param name="block">The block.</param>
+    /// <param name="recompress">Whether to decompress and compress the block even when the codecs are the same.</param>
+    /// <param name="cancellationToken">Cancels the writes.</param>
+    /// <exception cref="ArgumentException">The block's schema is not this file's: their canonical forms differ.</exception>
+    /// <exception cref="AvroDataException">The block cannot be decompressed.</exception>
+    public async ValueTask WriteBlockAsync(AvroFileBlock block, bool recompress = false, CancellationToken cancellationToken = default)
+    {
+        var frame = FrameForeignBlock(block, recompress);
+        await FlushBlockAsync(cancellationToken).ConfigureAwait(false);
+        await WriteToStreamAsync(new ArraySegment<byte>(frame), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Writes the buffered objects as a block, if there are any, and returns the position after it: where the next block
+    /// starts, which <see cref="AvroFileReader{T}.Seek"/> accepts, as Apache Avro Java's <c>DataFileWriter.sync()</c>
+    /// returns. The position counts from where the stream was when the writer was created (from 0 when the stream can't
+    /// seek). The stream itself is not flushed.
+    /// </summary>
+    public long Sync()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        FlushBlock();
+        return _origin + _written;
+    }
+
+    /// <summary>Writes the buffered objects as a block, as <see cref="Sync"/> does, asynchronously, and returns the position after it.</summary>
+    /// <param name="cancellationToken">Cancels the writes.</param>
+    public async ValueTask<long> SyncAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        await FlushBlockAsync(cancellationToken).ConfigureAwait(false);
+        return _origin + _written;
+    }
+
     /// <summary>Appends one object, writing a block when the buffered objects reach the sync interval.</summary>
     /// <param name="value">The object.</param>
     /// <remarks>If writing the object throws, nothing of it is kept and the writer stays usable.</remarks>
@@ -123,7 +197,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     {
         if (Append(value))
         {
-            WriteBlock();
+            FlushBlock();
         }
     }
 
@@ -135,13 +209,13 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     /// <param name="cancellationToken">Cancels writing a block.</param>
     /// <remarks>If encoding the object throws, nothing of it is kept and the writer stays usable.</remarks>
     public ValueTask WriteAsync(T value, CancellationToken cancellationToken = default) =>
-        Append(value) ? WriteBlockAsync(cancellationToken) : default;
+        Append(value) ? FlushBlockAsync(cancellationToken) : default;
 
     /// <summary>Writes the buffered objects as a block, if there are any, and flushes the stream.</summary>
     public void Flush()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        WriteBlock();
+        FlushBlock();
         _stream.Flush();
     }
 
@@ -150,7 +224,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
     public async ValueTask FlushAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        await WriteBlockAsync(cancellationToken).ConfigureAwait(false);
+        await FlushBlockAsync(cancellationToken).ConfigureAwait(false);
         await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -164,7 +238,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
 
         try
         {
-            WriteBlock();
+            FlushBlock();
             _stream.Flush();
         }
         finally
@@ -190,7 +264,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
 
         try
         {
-            await WriteBlockAsync(CancellationToken.None).ConfigureAwait(false);
+            await FlushBlockAsync(CancellationToken.None).ConfigureAwait(false);
             await _stream.FlushAsync().ConfigureAwait(false);
         }
         finally
@@ -227,6 +301,58 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         // The object limit keeps blocks of zero-size objects (nulls, empty records) readable by readers that bound them.
         _blockCount++;
         return _block.WrittenCount - PrefixRoom >= _syncInterval || _blockCount >= MaxObjectsPerBlock;
+    }
+
+    // The whole block as written: its count, size, data in this file's codec, and this file's sync marker.
+    private byte[] FrameForeignBlock(AvroFileBlock block, bool recompress)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(block);
+        if (!ReferenceEquals(block.Schema, Schema)
+            && !string.Equals(block.Schema.CanonicalForm, _canonicalForm ??= Schema.CanonicalForm, StringComparison.Ordinal))
+        {
+            throw new ArgumentException($"The block's schema is not the file's: {block.Schema.CanonicalForm} is not {_canonicalForm}.", nameof(block));
+        }
+
+        using var recoded = recompress || !string.Equals(block.Codec.Name, _codec.Name, StringComparison.Ordinal)
+            ? Recompress(block)
+            : null;
+        var data = recoded is null ? block.Data.Span : recoded.WrittenSpan;
+        using var frame = new PooledBufferWriter(data.Length + PrefixRoom + AvroContainerFormat.SyncSize);
+        var writer = new AvroWriter(frame);
+        writer.WriteLong(block.Count);
+        writer.WriteLong(data.Length);
+        writer.WriteRaw(data);
+        writer.WriteRaw(_sync);
+        writer.Flush();
+        return frame.ToArray();
+    }
+
+    // The block's objects, decompressed with its codec (at most a reader's default block limit) and compressed with
+    // this file's codec.
+    private PooledBufferWriter Recompress(AvroFileBlock block)
+    {
+        using var objects = new PooledBufferWriter(Math.Max(block.Data.Length * 4, 256));
+        try
+        {
+            block.Codec.Decompress(block.Data, new LimitedBufferWriter(objects, AvroFileReaderOptions.DefaultMaxBlockLength));
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new AvroDataException($"A block cannot be decompressed with the '{block.Codec.Name}' codec: {ex.Message}", ex);
+        }
+
+        var compressed = new PooledBufferWriter(objects.WrittenCount + 64);
+        try
+        {
+            _codec.Compress(objects.WrittenMemory, compressed);
+            return compressed;
+        }
+        catch
+        {
+            compressed.Dispose();
+            throw;
+        }
     }
 
     private void ReleaseBuffers()
@@ -275,11 +401,11 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         return header.ToArray();
     }
 
-    private void WriteBlock()
+    private void FlushBlock()
     {
         if (_pendingHeader is { } header)
         {
-            _stream.Write(header, 0, header.Length);
+            WriteToStream(new ArraySegment<byte>(header));
             _pendingHeader = null;
         }
 
@@ -291,7 +417,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         var output = FrameBlock(out var block);
         try
         {
-            _stream.Write(block.Array!, block.Offset, block.Count);
+            WriteToStream(block);
         }
         finally
         {
@@ -301,7 +427,7 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         ClearBlock();
     }
 
-    private async ValueTask WriteBlockAsync(CancellationToken cancellationToken)
+    private async ValueTask FlushBlockAsync(CancellationToken cancellationToken)
     {
         if (_pendingHeader is { } header)
         {
@@ -327,12 +453,22 @@ public sealed class AvroFileWriter<T> : IDisposable, IAsyncDisposable
         ClearBlock();
     }
 
-    private ValueTask WriteToStreamAsync(ArraySegment<byte> data, CancellationToken cancellationToken) =>
+    // Every write to the stream goes through these two, which count the bytes for Sync.
+    private void WriteToStream(ArraySegment<byte> data)
+    {
+        _stream.Write(data.Array!, data.Offset, data.Count);
+        _written += data.Count;
+    }
+
+    private async ValueTask WriteToStreamAsync(ArraySegment<byte> data, CancellationToken cancellationToken)
+    {
 #if NETSTANDARD2_0
-        new(_stream.WriteAsync(data.Array!, data.Offset, data.Count, cancellationToken));
+        await _stream.WriteAsync(data.Array!, data.Offset, data.Count, cancellationToken).ConfigureAwait(false);
 #else
-        _stream.WriteAsync(data.AsMemory(), cancellationToken);
+        await _stream.WriteAsync(data.AsMemory(), cancellationToken).ConfigureAwait(false);
 #endif
+        _written += data.Count;
+    }
 
     // Compresses the buffered objects when the codec is not null, then frames them in place: the count and size
     // right-aligned into the room before the data, and the sync marker after it. Returns the buffer that holds the

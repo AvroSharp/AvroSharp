@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The avrosharp command-line tool (dotnet tool): C# code generation from .avsc files, and schema canonical forms
-       and fingerprints. -->
+  <!-- The avrosharp command-line tool (dotnet tool): C# code generation from .avsc files, schema canonical forms
+       and fingerprints, and container file commands. -->
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <RollForward>Major</RollForward>
     <OutputType>Exe</OutputType>
     <RootNamespace>AvroSharp.Tool</RootNamespace>
     <PackageId>AvroSharp.Tool</PackageId>
-    <Description>The avrosharp command-line tool: C# types and serializers from Apache Avro™ schema files (.avsc), and schema canonical forms and fingerprints.</Description>
+    <Description>The avrosharp command-line tool: C# types and serializers from Apache Avro™ schema files (.avsc), schema canonical forms and fingerprints, and container file commands (tojson, fromjson, concat, recodec, random, repair and more).</Description>
     <PackageTags>$(PackageTags);codegen;cli;tool</PackageTags>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>avrosharp</ToolCommandName>
@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AvroSharp.CodeGen\AvroSharp.CodeGen.csproj" />
+    <ProjectReference Include="..\AvroSharp.Codecs\AvroSharp.Codecs.csproj" />
   </ItemGroup>
 
   <ItemGroup>
