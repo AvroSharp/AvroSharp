@@ -322,4 +322,23 @@ public class GenCommandTests
         await Assert.That(result.Error).Contains("'x.z.B' is not a defined type.");
         await Assert.That(result.Error).Contains($"It is defined in {b}, which itself needs 'x.y.A' from this file. Files that need each other's types are parsed together, but these two have another error between them: check both.");
     }
+
+    /// <summary>--required-members and --type-kind record (#15).</summary>
+    [Test]
+    public async Task Gen_RequiredMembersAndRecords()
+    {
+        using var tool = new ToolRunner();
+        var schema = tool.Write("order.avsc", """{"type":"record","name":"Order","namespace":"shop","fields":[{"name":"id","type":"long"},{"name":"note","type":"string","default":""}]}""");
+
+        var result = ToolRunner.Run("gen", schema, "-o", tool.PathOf("out"), "--required-members", "--type-kind", "record");
+        var tooOld = ToolRunner.Run("gen", schema, "-o", tool.PathOf("old"), "--type-kind", "record", "--language-version", "8");
+
+        var code = File.ReadAllText(tool.PathOf("out/shop/Order.g.cs"));
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(code).Contains("public sealed partial record class Order");
+        await Assert.That(code).Contains("public required long Id { get; set; }");
+        await Assert.That(code).Contains("public string Note { get; set; }");
+        await Assert.That(tooOld.ExitCode).IsEqualTo(2);
+        await Assert.That(tooOld.Error).Contains("--type-kind record needs --language-version 9 or later.");
+    }
 }

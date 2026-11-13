@@ -8,6 +8,8 @@
     <CompilerVisibleProperty Include="AvroSharpLogicalTypes" />
     <CompilerVisibleProperty Include="AvroSharpApacheCompatible" />
     <CompilerVisibleProperty Include="AvroSharpPropertyNames" />
+    <CompilerVisibleProperty Include="AvroSharpRequiredMembers" />
+    <CompilerVisibleProperty Include="AvroSharpTypeKind" />
   </ItemGroup>
 
 </Project>

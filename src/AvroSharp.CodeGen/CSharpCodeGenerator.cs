@@ -122,7 +122,7 @@ public static class CSharpCodeGenerator
     [
         "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA", "s_schema", "s_apacheSchema", "s_plan",
         "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes", "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo",
-        "ReadFrom", "FromAvroBytes", "ToAvroJson", "WriteAvroJson", "FromAvroJson", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "AvroTypeInfo",
+        "ReadFrom", "FromAvroBytes", "ToAvroJson", "WriteAvroJson", "FromAvroJson", "OnCreated", "OnSerializing", "OnDeserialized", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "AvroTypeInfo",
         "s_typeInfo", "RegisterAvroType",
     ];
 
@@ -271,7 +271,7 @@ public static class CSharpCodeGenerator
         "System.Collections.Generic.Dictionary", "System.Collections.Generic.List",
         "System.ComponentModel.EditorBrowsable", "System.ComponentModel.EditorBrowsableState",
         "System.DateOnly", "System.DateTime", "System.DateTimeOffset", "System.Diagnostics.DebuggerDisplay",
-        "System.Diagnostics.DebuggerNonUserCode", "System.Guid", "System.IEquatable", "System.MemoryExtensions",
+        "System.Diagnostics.CodeAnalysis.SetsRequiredMembers", "System.Diagnostics.DebuggerNonUserCode", "System.Guid", "System.IEquatable", "System.MemoryExtensions",
         "System.Numerics.BigInteger", "System.ReadOnlySpan", "System.Runtime.CompilerServices.MethodImpl", "System.Runtime.CompilerServices.ModuleInitializer",
         "System.Runtime.CompilerServices.MethodImplOptions", "System.Runtime.InteropServices.CollectionsMarshal",
         "System.Span", "System.StringComparer", "System.Text.Json.Utf8JsonWriter", "System.TimeOnly", "System.TimeSpan",
@@ -283,6 +283,11 @@ public static class CSharpCodeGenerator
         if (options.LanguageVersion < 7)
         {
             throw new ArgumentException($"The language version {options.LanguageVersion.ToString(CultureInfo.InvariantCulture)} is below the lowest supported, C# 7 (7.2 or later: the generated code has readonly structs).", nameof(options));
+        }
+
+        if (options.TypeKind == CodeGenTypeKind.Record && options.LanguageVersion < 9)
+        {
+            throw new ArgumentException($"Record types need C# 9 or later, and the language version is {options.LanguageVersion.ToString(CultureInfo.InvariantCulture)}.", nameof(options));
         }
 
         if (options.NullableAnnotations && options.LanguageVersion < 8)
@@ -445,7 +450,8 @@ public static class CSharpCodeGenerator
         }
 
         // A declared type's other parts give its accessibility and modifiers, and a record class must say so here too.
-        var declaration = declared is null ? "public sealed partial class" : declared.IsRecordClass ? "partial record" : "partial class";
+        var declaration = declared is not null ? (declared.IsRecordClass ? "partial record" : "partial class")
+            : types.RecordTypes ? "public sealed partial record class" : "public sealed partial class";
         w.Line($"{declaration} {name} : {Serialization}.IAvroSpecificRecord, {Serialization}.IAvroWritable, {Serialization}.IAvroReadable{(apache ? ", " + ApacheSupport.SpecificRecord : string.Empty)}");
         if (types.Modern)
         {
@@ -464,6 +470,7 @@ public static class CSharpCodeGenerator
         if (declared is null)
         {
             EmitProperties(w, record, properties, types);
+            EmitHooks(w);
         }
 
         EmitConstructors(w, record, name, properties, types, declared);
@@ -486,7 +493,7 @@ public static class CSharpCodeGenerator
         }
 
         EmitCodec(w, name);
-        EmitRecordCore(w, record, name, properties, new SerializerEmitter(names, types), types);
+        EmitRecordCore(w, record, name, properties, new SerializerEmitter(names, types), types, hooks: declared is null);
         w.Close();
     }
 
@@ -501,7 +508,20 @@ public static class CSharpCodeGenerator
                 w.Line($"/// <remarks>{CSharpNames.Xml(remarks)}</remarks>");
             }
 
-            w.Line($"public {types.TypeOf(record.Fields[i].Schema)} {properties[i]} {{ get; set; }}");
+            var property = $"{types.TypeOf(record.Fields[i].Schema)} {properties[i]} {{ get; set; }}";
+            if (types.IsRequired(record.Fields[i]))
+            {
+                // Required members need .NET 7's attributes; older targets get the plain property and its initializer.
+                w.Directive("#if NET7_0_OR_GREATER");
+                w.Line($"public required {property}");
+                w.Directive("#else");
+                w.Line($"public {property}");
+                w.Directive("#endif");
+            }
+            else
+            {
+                w.Line($"public {property}");
+            }
         }
     }
 
@@ -587,12 +607,28 @@ public static class CSharpCodeGenerator
             }
             else if (types.Initializer(field.Schema) is { } initializer)
             {
+                // A required member is set by whoever creates the value, where required members exist.
+                if (types.IsRequired(field))
+                {
+                    w.Directive("#if !NET7_0_OR_GREATER");
+                }
+
                 w.Line($"{properties[i]} = {initializer};");
+                if (types.IsRequired(field))
+                {
+                    w.Directive("#endif");
+                }
             }
         }
 
-        // Defaults with no C# literal (records, fixed values, logical types, collections of them) are decoded from
-        // their Avro encoding by the field's reader, as reading data without the field does.
+        EmitEncodedDefaults(w, record, types);
+        EmitUninitializedConstructor(w, name, types, record.Fields.Any(types.IsRequired));
+    }
+
+    // Defaults with no C# literal (records, fixed values, logical types, collections of them) are decoded from their
+    // Avro encoding by the field's reader, as reading data without the field does. Ends the constructor's body.
+    private static void EmitEncodedDefaults(CodeWriter w, RecordSchema record, TypeMapper types)
+    {
         var encoded = new List<(int Index, byte[] Bytes)>();
         for (var i = 0; i < record.Fields.Count; i++)
         {
@@ -610,6 +646,7 @@ public static class CSharpCodeGenerator
             w.Close();
         }
 
+        w.Line("OnCreated();");
         w.Close();
 
         foreach (var (index, bytes) in encoded)
@@ -618,8 +655,6 @@ public static class CSharpCodeGenerator
             w.Line($"// The Avro encoding of {CSharpNames.Literal(record.Fields[index].Name)}'s default.");
             w.Line($"private static global::System.ReadOnlySpan<byte> s_default{Int(index)} => new byte[] {{ {string.Join(", ", bytes.Select(b => "0x" + b.ToString("X2", System.Globalization.CultureInfo.InvariantCulture)))} }};");
         }
-
-        EmitUninitializedConstructor(w, name, types);
     }
 
     // The user's type has its own constructors and initializers. Declaring the readers' constructor takes away the
@@ -634,13 +669,23 @@ public static class CSharpCodeGenerator
             w.Close();
         }
 
-        EmitUninitializedConstructor(w, name, types);
+        EmitUninitializedConstructor(w, name, types, setsRequired: false);
     }
 
-    /// <summary>The constructor readers use: it sets nothing, since they set every field.</summary>
-    private static void EmitUninitializedConstructor(CodeWriter w, string name, TypeMapper types)
+    /// <summary>
+    /// The constructor readers use: it sets nothing, since they set every field. With required members, it says it sets
+    /// them, so readers need not.
+    /// </summary>
+    private static void EmitUninitializedConstructor(CodeWriter w, string name, TypeMapper types, bool setsRequired)
     {
         w.Line();
+        if (setsRequired)
+        {
+            w.Directive("#if NET7_0_OR_GREATER");
+            w.Line("[global::System.Diagnostics.CodeAnalysis.SetsRequiredMembers]");
+            w.Directive("#endif");
+        }
+
         if (types.Annotations)
         {
             w.Directive("#pragma warning disable CS8618 // Readers set every field.");
@@ -967,15 +1012,32 @@ public static class CSharpCodeGenerator
     /// The serializers: each field in schema order, with the record depth checked on entry. Records with more than
     /// <see cref="FieldsPerMethod"/> fields are split into chunk methods.
     /// </summary>
-    private static void EmitRecordCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, TypeMapper types)
+    private static void EmitRecordCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, TypeMapper types, bool hooks)
     {
         var chunks = Chunks(record.Fields.Count);
-        EmitWriteCore(w, record, name, properties, emitter, chunks);
-        EmitReadCore(w, record, name, properties, emitter, types, chunks);
-        EmitReadResolved(w, record, name, properties, emitter, chunks);
+        EmitWriteCore(w, record, name, properties, emitter, chunks, hooks);
+        EmitReadCore(w, record, name, properties, emitter, types, chunks, hooks);
+        EmitReadResolved(w, record, name, properties, emitter, chunks, hooks);
     }
 
-    private static void EmitWriteCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Start, int End)> chunks)
+    /// <summary>
+    /// Partial methods the user's part of the type may implement (#119). One that isn't implemented compiles to nothing,
+    /// calls included, so they cost nothing unless used. Uses only C# 3 syntax.
+    /// </summary>
+    private static void EmitHooks(CodeWriter w)
+    {
+        w.Line();
+        w.Line("/// <summary>Called at the end of the public constructor, once the fields have their schema defaults. Implement it in your part of the type.</summary>");
+        w.Line("partial void OnCreated();");
+        w.Line();
+        w.Line("/// <summary>Called before this value is written, by every writer, binary or JSON. Implement it in your part of the type.</summary>");
+        w.Line("partial void OnSerializing();");
+        w.Line();
+        w.Line("/// <summary>Called after a value is read, by every reader, also of another schema version, before it is returned. Implement it in your part of the type.</summary>");
+        w.Line("partial void OnDeserialized();");
+    }
+
+    private static void EmitWriteCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Start, int End)> chunks, bool hooks)
     {
         w.Line();
         w.Line(NonUserCode);
@@ -983,6 +1045,11 @@ public static class CSharpCodeGenerator
         w.Open($"if (depth > {Support}.MaxDepth)");
         w.Line($"throw {Support}.WriteTooDeep();");
         w.Close();
+        if (hooks)
+        {
+            w.Line("value.OnSerializing();");
+        }
+
         if (chunks.Count == 1)
         {
             WriteFields(w, record, properties, emitter, 0, record.Fields.Count);
@@ -1008,7 +1075,7 @@ public static class CSharpCodeGenerator
         }
     }
 
-    private static void EmitReadCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, TypeMapper types, List<(int Start, int End)> chunks)
+    private static void EmitReadCore(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, TypeMapper types, List<(int Start, int End)> chunks, bool hooks)
     {
         w.Line();
         w.Line("/// <summary>Reads a value into <paramref name=\"reuse\"/> (its collections and records are filled again), or into a new instance.</summary>");
@@ -1029,6 +1096,11 @@ public static class CSharpCodeGenerator
             {
                 w.Line($"ReadFields{Int(k)}(ref reader, value, depth);");
             }
+        }
+
+        if (hooks)
+        {
+            w.Line("value.OnDeserialized();");
         }
 
         w.Line("return value;");
@@ -1079,7 +1151,7 @@ public static class CSharpCodeGenerator
     /// reader property directly (<c>ReadField</c>), promoted or remapped (<c>ReadPromoted</c>) or, for other
     /// differences, transcoded and then read; the reader fields the writer lacks take their defaults.
     /// </summary>
-    private static void EmitReadResolved(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Start, int End)> chunks)
+    private static void EmitReadResolved(CodeWriter w, RecordSchema record, string name, string[] properties, SerializerEmitter emitter, List<(int Start, int End)> chunks, bool hooks)
     {
         var promotions = Enumerable.Range(0, record.Fields.Count)
             .Select(i => (Field: i, Conversions: emitter.ResolvedConversions(record.Fields[i].Schema)))
@@ -1101,6 +1173,11 @@ public static class CSharpCodeGenerator
             w.Line("plan.Skip(step, ref reader);");
             w.Close();
             w.Line();
+            if (hooks)
+            {
+                w.Line("value.OnDeserialized();");
+            }
+
             w.Line("return value;");
             w.Close();
             return;
@@ -1114,6 +1191,11 @@ public static class CSharpCodeGenerator
         w.Line("ReadField(ref field, value, plan.DefaultTarget(index), depth);");
         w.Close();
         w.Line();
+        if (hooks)
+        {
+            w.Line("value.OnDeserialized();");
+        }
+
         w.Line("return value;");
         w.Close();
 
@@ -1381,7 +1463,7 @@ public static class CSharpCodeGenerator
             typeName.TrimStart('@'), "SchemaJson", "Schema", "AvroSharpSchema", "ApacheSchemaJson", "_SCHEMA",
             "s_schema", "s_apacheSchema", "s_plan", "Write", "Read", "WriteCore", "ReadCore", "ToAvroBytes",
             "TryWriteAvroBytes", "WriteAvroBytes", "WriteTo", "ReadFrom", "FromAvroBytes", "ToAvroJson", "WriteAvroJson",
-            "FromAvroJson", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
+            "FromAvroJson", "OnCreated", "OnSerializing", "OnDeserialized", "ReadResolved", "ReadField", "ReadPromoted", "ValueSerializer", "Get", "Put", "Equals", "GetHashCode", "ToString", "GetType", "MemberwiseClone", "Finalize",
         };
         for (var k = 0; k < Chunks(record.Fields.Count).Count; k++)
         {

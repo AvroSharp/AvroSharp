@@ -66,6 +66,20 @@ public sealed class CodeGenOptions
     public int LanguageVersion { get; init; } = 14;
 
     /// <summary>
+    /// Gets whether record fields without a schema default are <c>required</c> members (#15), so the compiler checks that
+    /// <c>new</c> sets them. They are only on targets that support them, .NET 7 and later, and with C# 11 or later
+    /// (<see cref="LanguageVersion"/>); elsewhere they stay plain properties, so the code compiles for every target.
+    /// Readers create values through a constructor that sets the members. Defaults to <see langword="false"/>.
+    /// </summary>
+    public bool RequiredMembers { get; init; }
+
+    /// <summary>
+    /// Gets what kind of C# type records become. Defaults to <see cref="CodeGenTypeKind.Class"/>;
+    /// <see cref="CodeGenTypeKind.Record"/> needs C# 9 or later.
+    /// </summary>
+    public CodeGenTypeKind TypeKind { get; init; }
+
+    /// <summary>
     /// Gets the full names of the <c>fixed</c> types that are <c>byte[]</c> members of C# types the user declared (the
     /// attribute-driven generator's <c>[AvroFixed]</c>), rather than generated wrapper types.
     /// </summary>

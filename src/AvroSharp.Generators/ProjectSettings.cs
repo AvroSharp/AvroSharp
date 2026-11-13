@@ -11,20 +11,23 @@ namespace AvroSharp.Generators;
 /// The MSBuild properties that configure the generator, as the <see cref="CodeGenOptions"/> they set and the CLI's
 /// options name them: <c>AvroSharpNamespace</c> (<c>--namespace</c>), <c>AvroSharpNamespaceMap</c>
 /// (<c>--namespace-map</c>, entries separated by <c>;</c>), <c>AvroSharpLogicalTypes</c> (<c>native</c> or <c>raw</c>),
-/// <c>AvroSharpPropertyNames</c> (<c>pascal</c> or <c>avro</c>) and <c>AvroSharpApacheCompatible</c> (<c>true</c> or
-/// <c>false</c>). A value that is not recognized is reported (AVROGEN006) and the default is used, instead of a typo
+/// <c>AvroSharpPropertyNames</c> (<c>pascal</c> or <c>avro</c>), <c>AvroSharpApacheCompatible</c> (<c>true</c> or
+/// <c>false</c>), <c>AvroSharpRequiredMembers</c> (<c>true</c> or <c>false</c>) and <c>AvroSharpTypeKind</c> (<c>class</c>
+/// or <c>record</c>). A value that is not recognized is reported (AVROGEN006) and the default is used, instead of a typo
 /// passing silently. The C# version, nullable annotations and <c>DateOnly</c> come from the project.
 /// </summary>
 /// <remarks>Compared by value, so the incremental pipeline reuses its output while the properties are unchanged.</remarks>
 internal sealed class ProjectSettings : IEquatable<ProjectSettings>
 {
-    private ProjectSettings(string? ns, EquatableArray<string> namespaceMap, bool raw, bool apache, PropertyNaming? propertyNames, EquatableArray<string> warnings)
+    private ProjectSettings(string? ns, EquatableArray<string> namespaceMap, bool raw, bool apache, PropertyNaming? propertyNames, bool requiredMembers, bool recordTypes, EquatableArray<string> warnings)
     {
         Namespace = ns;
         NamespaceMapEntries = namespaceMap;
         Raw = raw;
         Apache = apache;
         PropertyNames = propertyNames;
+        RequiredMembers = requiredMembers;
+        RecordTypes = recordTypes;
         Warnings = warnings;
     }
 
@@ -38,6 +41,10 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
     public bool Apache { get; }
 
     public PropertyNaming? PropertyNames { get; }
+
+    public bool RequiredMembers { get; }
+
+    public bool RecordTypes { get; }
 
     public EquatableArray<string> Warnings { get; }
 
@@ -62,7 +69,9 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
         // build/AvroSharp.Generators.targets passes the map on as _AvroSharpNamespaceMap, with ',' for ';' and line breaks;
         // a project that makes AvroSharpNamespaceMap visible to the compiler itself, without the .targets, has only that.
         var map = Get(options, "_AvroSharpNamespaceMap") ?? Get(options, "AvroSharpNamespaceMap");
-        return new ProjectSettings(ns, NamespaceMapOf(map, warnings), raw, apache, naming, new EquatableArray<string>(warnings));
+        var required = string.Equals(Choice(options, "AvroSharpRequiredMembers", ["true", "false"], "false", warnings), "true", StringComparison.Ordinal);
+        var record = string.Equals(Choice(options, "AvroSharpTypeKind", ["class", "record"], "class", warnings), "record", StringComparison.Ordinal);
+        return new ProjectSettings(ns, NamespaceMapOf(map, warnings), raw, apache, naming, required, record, new EquatableArray<string>(warnings));
     }
 
     public bool Equals(ProjectSettings? other) =>
@@ -72,6 +81,8 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
         && Raw == other.Raw
         && Apache == other.Apache
         && PropertyNames == other.PropertyNames
+        && RequiredMembers == other.RequiredMembers
+        && RecordTypes == other.RecordTypes
         && Warnings.Equals(other.Warnings);
 
     public override bool Equals(object? obj) => obj is ProjectSettings other && Equals(other);
