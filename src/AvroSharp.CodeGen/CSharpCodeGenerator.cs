@@ -66,6 +66,7 @@ public static class CSharpCodeGenerator
             Validate(each, options);
         }
 
+        CheckAccessibility(named.Values, schema => optionsOf[schema.FullName].Accessibility, nameof(typeOptions));
         var names = new CSharpNames(options) { DefaultNamespace = schema => optionsOf.TryGetValue(schema.FullName, out var own) ? own.Namespace : null };
         var mappers = new Dictionary<CodeGenOptions, TypeMapper>();
         TypeMapper TypesOf(CodeGenOptions each) => mappers.TryGetValue(each, out var mapper) ? mapper : mappers[each] = new TypeMapper(names, each);
@@ -91,6 +92,33 @@ public static class CSharpCodeGenerator
 
         return sources;
     }
+
+    // A public record's properties may not have internal types (CS0053): reported here, naming both types.
+    private static void CheckAccessibility(IEnumerable<NamedSchema> schemas, Func<NamedSchema, CodeGenAccessibility> accessibility, string paramName)
+    {
+        foreach (var record in schemas.OfType<RecordSchema>().Where(r => accessibility(r) == CodeGenAccessibility.Public))
+        {
+            foreach (var field in record.Fields)
+            {
+                if (UsedTypes(field.Schema).FirstOrDefault(used => accessibility(used) == CodeGenAccessibility.Internal) is { } hidden)
+                {
+                    throw new ArgumentException(
+                        $"The public type '{record.FullName}' has the field '{field.Name}' of the internal type '{hidden.FullName}': make both public or both internal.",
+                        paramName);
+                }
+            }
+        }
+    }
+
+    // The named types a field's schema uses directly: through arrays, maps and unions, but not inside other named types.
+    private static IEnumerable<NamedSchema> UsedTypes(AvroSchema schema) => schema switch
+    {
+        NamedSchema named => [named],
+        ArraySchema array => UsedTypes(array.Items),
+        MapSchema map => UsedTypes(map.Values),
+        UnionSchema union => union.Branches.SelectMany(UsedTypes),
+        _ => [],
+    };
 
     // One set of options, and that it agrees with the project's in the settings that are the project's.
     private static void Validate(CodeGenOptions each, CodeGenOptions project)
@@ -447,7 +475,7 @@ public static class CSharpCodeGenerator
                 EmitRecord(w, record, name, names, types, apache, notes, declared);
                 break;
             case EnumSchema enumSchema:
-                EmitEnum(w, enumSchema, name);
+                EmitEnum(w, enumSchema, name, types);
                 break;
             case FixedSchema fixedSchema:
                 EmitFixed(w, fixedSchema, name, apache, types);
@@ -485,7 +513,7 @@ public static class CSharpCodeGenerator
 
         // A declared type's other parts give its accessibility and modifiers, and a record class must say so here too.
         var declaration = declared is not null ? (declared.IsRecordClass ? "partial record" : "partial class")
-            : types.RecordTypes ? "public sealed partial record class" : "public sealed partial class";
+            : types.RecordTypes ? $"{types.ClassModifiers} partial record class" : $"{types.ClassModifiers} partial class";
         w.Line($"{declaration} {name} : {Serialization}.IAvroSpecificRecord, {Serialization}.IAvroWritable, {Serialization}.IAvroReadable{(apache ? ", " + ApacheSupport.SpecificRecord : string.Empty)}");
         if (types.Modern)
         {
@@ -1347,9 +1375,9 @@ public static class CSharpCodeGenerator
 
     private static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
 
-    private static void EmitEnum(CodeWriter w, EnumSchema schema, string name)
+    private static void EmitEnum(CodeWriter w, EnumSchema schema, string name, TypeMapper types)
     {
-        w.Open($"public enum {name}");
+        w.Open($"{types.Accessibility} enum {name}");
         for (var i = 0; i < schema.Symbols.Count; i++)
         {
             w.Line($"{CSharpNames.Identifier(schema.Symbols[i])} = {i.ToString(CultureInfo.InvariantCulture)},");
@@ -1366,7 +1394,7 @@ public static class CSharpCodeGenerator
             return;
         }
 
-        w.Open($"public sealed partial class {name} : global::System.IEquatable<{name}>");
+        w.Open($"{types.ClassModifiers} partial class {name} : global::System.IEquatable<{name}>");
         w.Line("/// <summary>The number of bytes in a value.</summary>");
         w.Line($"public const int Size = {schema.Size.ToString(CultureInfo.InvariantCulture)};");
         w.Line();

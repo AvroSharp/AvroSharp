@@ -79,6 +79,16 @@ public sealed class CodeGenOptions
     /// </summary>
     public CodeGenTypeKind TypeKind { get; init; }
 
+    /// <summary>Gets the accessibility of generated types. Defaults to <see cref="CodeGenAccessibility.Public"/>.</summary>
+    public CodeGenAccessibility Accessibility { get; init; }
+
+    /// <summary>
+    /// Gets whether generated records and fixed types are <c>sealed</c>. Defaults to <see langword="true"/>; with
+    /// <see langword="false"/>, the user may derive from them. Readers always create the generated type itself, and the
+    /// writers write only its fields.
+    /// </summary>
+    public bool SealedTypes { get; init; } = true;
+
     /// <summary>
     /// Gets the full names of the <c>fixed</c> types that are <c>byte[]</c> members of C# types the user declared (the
     /// attribute-driven generator's <c>[AvroFixed]</c>), rather than generated wrapper types.

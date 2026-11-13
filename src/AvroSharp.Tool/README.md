@@ -37,6 +37,8 @@ It writes one `.g.cs` file per named type, in folders for its namespace (`Genera
   | `--no-date-only` | For targets without `DateOnly`/`TimeOnly`: `DateTime` and `TimeSpan` instead. |
   | `--required-members` | Fields without a schema default become `required` members (.NET 7+, C# 11+). |
   | `--type-kind class\|record` | Classes (default), or C# record classes with value equality. |
+  | `--accessibility public\|internal` | Public (default) or internal types. |
+  | `--unsealed` | Records and fixed types are not sealed. |
   | `--language-version <n>` | The C# version the code may use (default 14). |
 
 - **Nothing is written if any schema is invalid.** Each problem is reported as `path(line,column): error AVROGEN001: message`, the compiler's format.

@@ -1,6 +1,13 @@
 #nullable enable
+AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenAccessibility.Internal = 1 -> AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenAccessibility.Public = 0 -> AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenOptions.Accessibility.get -> AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenOptions.Accessibility.init -> void
 AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.init -> void
+AvroSharp.CodeGen.CodeGenOptions.SealedTypes.get -> bool
+AvroSharp.CodeGen.CodeGenOptions.SealedTypes.init -> void
 AvroSharp.CodeGen.CodeGenOptions.TypeKind.get -> AvroSharp.CodeGen.CodeGenTypeKind
 AvroSharp.CodeGen.CodeGenOptions.TypeKind.init -> void
 AvroSharp.CodeGen.CodeGenTypeKind

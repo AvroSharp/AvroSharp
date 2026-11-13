@@ -123,6 +123,8 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
         PropertyNames = settings.PropertyNames,
         RequiredMembers = settings.RequiredMembers,
         TypeKind = settings.RecordTypes ? CodeGenTypeKind.Record : CodeGenTypeKind.Class,
+        Accessibility = settings.InternalTypes ? CodeGenAccessibility.Internal : CodeGenAccessibility.Public,
+        SealedTypes = settings.SealedTypes,
     };
 
     /// <summary>Reports the diagnostics and, when the project can compile it, adds the generated code.</summary>

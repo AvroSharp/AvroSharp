@@ -8,8 +8,8 @@ namespace AvroSharp.Generators;
 /// <summary>
 /// One schema file's own settings (#18): <c>AdditionalFiles</c> metadata with the names of the MSBuild properties, which
 /// overrides the project's for the types the file defines. <c>AvroSharpNamespace</c>, <c>AvroSharpLogicalTypes</c>,
-/// <c>AvroSharpPropertyNames</c>, <c>AvroSharpApacheCompatible</c>, <c>AvroSharpRequiredMembers</c> and
-/// <c>AvroSharpTypeKind</c> can be set per file; the namespace map, the C# version and nullable annotations are the
+/// <c>AvroSharpPropertyNames</c>, <c>AvroSharpApacheCompatible</c>, <c>AvroSharpRequiredMembers</c>,
+/// <c>AvroSharpTypeKind</c>, <c>AvroSharpAccessibility</c> and <c>AvroSharpSealedTypes</c> can be set per file; the namespace map, the C# version and nullable annotations are the
 /// project's.
 /// </summary>
 /// <example>
@@ -22,8 +22,10 @@ internal sealed class FileSettings : IEquatable<FileSettings>
 {
     private const string Prefix = "build_metadata.AdditionalFiles.";
 
-    private FileSettings(string? ns, bool? raw, bool? apache, PropertyNaming? propertyNames, bool? requiredMembers, bool? recordTypes, EquatableArray<string> warnings)
+    private FileSettings(string? ns, bool? raw, bool? apache, PropertyNaming? propertyNames, bool? requiredMembers, bool? recordTypes, bool? internalTypes, bool? sealedTypes, EquatableArray<string> warnings)
     {
+        InternalTypes = internalTypes;
+        SealedTypes = sealedTypes;
         Namespace = ns;
         Raw = raw;
         Apache = apache;
@@ -33,7 +35,7 @@ internal sealed class FileSettings : IEquatable<FileSettings>
         Warnings = warnings;
     }
 
-    public static FileSettings None { get; } = new(null, null, null, null, null, null, new EquatableArray<string>([]));
+    public static FileSettings None { get; } = new(null, null, null, null, null, null, null, null, new EquatableArray<string>([]));
 
     public string? Namespace { get; }
 
@@ -47,10 +49,15 @@ internal sealed class FileSettings : IEquatable<FileSettings>
 
     public bool? RecordTypes { get; }
 
+    public bool? InternalTypes { get; }
+
+    public bool? SealedTypes { get; }
+
     public EquatableArray<string> Warnings { get; }
 
     /// <summary>Whether the file sets anything of its own.</summary>
-    public bool IsEmpty => Namespace is null && Raw is null && Apache is null && PropertyNames is null && RequiredMembers is null && RecordTypes is null;
+    public bool IsEmpty => Namespace is null && Raw is null && Apache is null && PropertyNames is null && RequiredMembers is null && RecordTypes is null
+        && InternalTypes is null && SealedTypes is null;
 
     public static FileSettings Read(AnalyzerConfigOptions options, string path)
     {
@@ -76,7 +83,9 @@ internal sealed class FileSettings : IEquatable<FileSettings>
         };
         var required = Choice("AvroSharpRequiredMembers", ["true", "false"]) is { } r ? string.Equals(r, "true", StringComparison.Ordinal) : (bool?)null;
         var record = Choice("AvroSharpTypeKind", ["class", "record"]) is { } k ? string.Equals(k, "record", StringComparison.Ordinal) : (bool?)null;
-        return new FileSettings(ns, raw, apache, naming, required, record, new EquatableArray<string>(warnings));
+        var internalTypes = Choice("AvroSharpAccessibility", ["public", "internal"]) is { } access ? string.Equals(access, "internal", StringComparison.Ordinal) : (bool?)null;
+        var sealedTypes = Choice("AvroSharpSealedTypes", ["true", "false"]) is { } s ? string.Equals(s, "true", StringComparison.Ordinal) : (bool?)null;
+        return new FileSettings(ns, raw, apache, naming, required, record, internalTypes, sealedTypes, new EquatableArray<string>(warnings));
     }
 
     /// <summary>The project's options, with this file's settings in their place.</summary>
@@ -92,6 +101,8 @@ internal sealed class FileSettings : IEquatable<FileSettings>
         PropertyNames = PropertyNames ?? project.PropertyNames,
         RequiredMembers = RequiredMembers ?? project.RequiredMembers,
         TypeKind = RecordTypes is { } recordTypes ? (recordTypes ? CodeGenTypeKind.Record : CodeGenTypeKind.Class) : project.TypeKind,
+        Accessibility = InternalTypes is { } internalTypes ? (internalTypes ? CodeGenAccessibility.Internal : CodeGenAccessibility.Public) : project.Accessibility,
+        SealedTypes = SealedTypes ?? project.SealedTypes,
     };
 
     public bool Equals(FileSettings? other) =>
@@ -102,6 +113,8 @@ internal sealed class FileSettings : IEquatable<FileSettings>
         && PropertyNames == other.PropertyNames
         && RequiredMembers == other.RequiredMembers
         && RecordTypes == other.RecordTypes
+        && InternalTypes == other.InternalTypes
+        && SealedTypes == other.SealedTypes
         && Warnings.Equals(other.Warnings);
 
     public override bool Equals(object? obj) => obj is FileSettings other && Equals(other);

@@ -70,9 +70,21 @@ internal sealed class GenOptions
         DefaultValueFactory = _ => "class",
     };
 
+    private readonly Option<string> _accessibility = new("--accessibility")
+    {
+        Description = "The accessibility of the generated types: public (default) or internal.",
+        DefaultValueFactory = _ => "public",
+    };
+
+    private readonly Option<bool> _unsealed = new("--unsealed")
+    {
+        Description = "Don't seal the generated records and fixed types, so they can be derived from.",
+    };
+
     public GenOptions()
     {
         _typeKind.AcceptOnlyFromAmong("class", "record");
+        _accessibility.AcceptOnlyFromAmong("public", "internal");
         _logicalTypes.AcceptOnlyFromAmong(Native, Raw);
         _propertyNames.AcceptOnlyFromAmong(Pascal, Avro);
         _languageVersion.Validators.Add(result =>
@@ -87,7 +99,7 @@ internal sealed class GenOptions
 
     public void AddTo(Command command)
     {
-        foreach (var option in new Option[] { _namespace, _namespaceMap, _logicalTypes, _propertyNames, _apache, _noNullable, _noDateOnly, _languageVersion, _requiredMembers, _typeKind })
+        foreach (var option in new Option[] { _namespace, _namespaceMap, _logicalTypes, _propertyNames, _apache, _noNullable, _noDateOnly, _languageVersion, _requiredMembers, _typeKind, _accessibility, _unsealed })
         {
             command.Options.Add(option);
         }
@@ -150,6 +162,8 @@ internal sealed class GenOptions
         LanguageVersion = result.GetValue(_languageVersion),
         RequiredMembers = result.GetValue(_requiredMembers),
         TypeKind = string.Equals(result.GetValue(_typeKind), "record", StringComparison.Ordinal) ? CodeGenTypeKind.Record : CodeGenTypeKind.Class,
+        Accessibility = string.Equals(result.GetValue(_accessibility), "internal", StringComparison.Ordinal) ? CodeGenAccessibility.Internal : CodeGenAccessibility.Public,
+        SealedTypes = !result.GetValue(_unsealed),
     };
 
     private static Dictionary<string, string>? NamespaceMap(string[]? values)

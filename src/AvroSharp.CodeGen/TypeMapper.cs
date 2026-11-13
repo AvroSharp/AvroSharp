@@ -34,6 +34,12 @@ internal sealed class TypeMapper(CSharpNames names, CodeGenOptions options)
     /// <summary>Gets whether a field is a <c>required</c> member (<see cref="CodeGenOptions.RequiredMembers"/>): it has no schema default.</summary>
     public bool IsRequired(RecordField field) => options.RequiredMembers && options.LanguageVersion >= 11 && !field.HasDefaultValue;
 
+    /// <summary>Gets the accessibility keyword of generated types (<see cref="CodeGenOptions.Accessibility"/>).</summary>
+    public string Accessibility => options.Accessibility == CodeGenAccessibility.Internal ? "internal" : "public";
+
+    /// <summary>Gets the modifiers of a generated record or fixed type: its accessibility, and <c>sealed</c> unless <see cref="CodeGenOptions.SealedTypes"/> is off.</summary>
+    public string ClassModifiers => options.SealedTypes ? Accessibility + " sealed" : Accessibility;
+
     /// <summary>Gets whether records become C# record classes (<see cref="CodeGenOptions.TypeKind"/>).</summary>
     public bool RecordTypes => options.TypeKind == CodeGenTypeKind.Record;
 

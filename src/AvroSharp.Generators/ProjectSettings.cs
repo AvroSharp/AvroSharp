@@ -12,15 +12,18 @@ namespace AvroSharp.Generators;
 /// options name them: <c>AvroSharpNamespace</c> (<c>--namespace</c>), <c>AvroSharpNamespaceMap</c>
 /// (<c>--namespace-map</c>, entries separated by <c>;</c>), <c>AvroSharpLogicalTypes</c> (<c>native</c> or <c>raw</c>),
 /// <c>AvroSharpPropertyNames</c> (<c>pascal</c> or <c>avro</c>), <c>AvroSharpApacheCompatible</c> (<c>true</c> or
-/// <c>false</c>), <c>AvroSharpRequiredMembers</c> (<c>true</c> or <c>false</c>) and <c>AvroSharpTypeKind</c> (<c>class</c>
-/// or <c>record</c>). A value that is not recognized is reported (AVROGEN006) and the default is used, instead of a typo
+/// <c>false</c>), <c>AvroSharpRequiredMembers</c> (<c>true</c> or <c>false</c>), <c>AvroSharpTypeKind</c> (<c>class</c>
+/// or <c>record</c>), <c>AvroSharpAccessibility</c> (<c>public</c> or <c>internal</c>) and <c>AvroSharpSealedTypes</c>
+/// (<c>true</c> or <c>false</c>). A value that is not recognized is reported (AVROGEN006) and the default is used, instead of a typo
 /// passing silently. The C# version, nullable annotations and <c>DateOnly</c> come from the project.
 /// </summary>
 /// <remarks>Compared by value, so the incremental pipeline reuses its output while the properties are unchanged.</remarks>
 internal sealed class ProjectSettings : IEquatable<ProjectSettings>
 {
-    private ProjectSettings(string? ns, EquatableArray<string> namespaceMap, bool raw, bool apache, PropertyNaming? propertyNames, bool requiredMembers, bool recordTypes, EquatableArray<string> warnings)
+    private ProjectSettings(string? ns, EquatableArray<string> namespaceMap, bool raw, bool apache, PropertyNaming? propertyNames, bool requiredMembers, bool recordTypes, bool internalTypes, bool sealedTypes, EquatableArray<string> warnings)
     {
+        InternalTypes = internalTypes;
+        SealedTypes = sealedTypes;
         Namespace = ns;
         NamespaceMapEntries = namespaceMap;
         Raw = raw;
@@ -45,6 +48,10 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
     public bool RequiredMembers { get; }
 
     public bool RecordTypes { get; }
+
+    public bool InternalTypes { get; }
+
+    public bool SealedTypes { get; }
 
     public EquatableArray<string> Warnings { get; }
 
@@ -71,7 +78,9 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
         var map = Get(options, "_AvroSharpNamespaceMap") ?? Get(options, "AvroSharpNamespaceMap");
         var required = string.Equals(Choice(options, "AvroSharpRequiredMembers", ["true", "false"], "false", warnings), "true", StringComparison.Ordinal);
         var record = string.Equals(Choice(options, "AvroSharpTypeKind", ["class", "record"], "class", warnings), "record", StringComparison.Ordinal);
-        return new ProjectSettings(ns, NamespaceMapOf(map, warnings), raw, apache, naming, required, record, new EquatableArray<string>(warnings));
+        var internalTypes = string.Equals(Choice(options, "AvroSharpAccessibility", ["public", "internal"], "public", warnings), "internal", StringComparison.Ordinal);
+        var sealedTypes = string.Equals(Choice(options, "AvroSharpSealedTypes", ["true", "false"], "true", warnings), "true", StringComparison.Ordinal);
+        return new ProjectSettings(ns, NamespaceMapOf(map, warnings), raw, apache, naming, required, record, internalTypes, sealedTypes, new EquatableArray<string>(warnings));
     }
 
     public bool Equals(ProjectSettings? other) =>
@@ -83,6 +92,8 @@ internal sealed class ProjectSettings : IEquatable<ProjectSettings>
         && PropertyNames == other.PropertyNames
         && RequiredMembers == other.RequiredMembers
         && RecordTypes == other.RecordTypes
+        && InternalTypes == other.InternalTypes
+        && SealedTypes == other.SealedTypes
         && Warnings.Equals(other.Warnings);
 
     public override bool Equals(object? obj) => obj is ProjectSettings other && Equals(other);
