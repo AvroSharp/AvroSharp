@@ -337,7 +337,7 @@ internal sealed class FileActions(ToolConsole console)
         }
 
         var full = Path.GetFullPath(path);
-        var temporary = Path.Combine(Path.GetDirectoryName(full)!, $".{Path.GetFileName(full)}.{Guid.NewGuid():N}.tmp");
+        var temporary = Path.Join(Path.GetDirectoryName(full)!, $".{Path.GetFileName(full)}.{Guid.NewGuid():N}.tmp");
         var stream = File.Create(temporary);
         _outputs.Add((temporary, full));
         return stream;
