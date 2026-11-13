@@ -7,7 +7,7 @@
 - **Performance is a feature.** AvroSharp must be faster than Apache.Avro, and allocate no more, on every scenario in the [benchmark suite](docs/benchmarks.md). The one exception, single-value writes on Zen+ CPUs, is in [design.md §11](docs/design.md#11-phased-roadmap-each-milestone-ends-with-a-tagged-pre-release). Benchmarks run locally only, on request, on an idle machine (never in CI):
 
   ```shell
-  dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net9.0 net10.0 --memory --gate
+  dotnet run -c Release --project bench/AvroSharp.Benchmarks -f net10.0 -- --filter '*' --runtimes net8.0 net10.0 --memory --gate
   ```
 - **Codecs use fully managed libraries only.** No native binaries and no P/Invoke.
 - **Tests must exercise the product path.** Write the test, revert the fix, and confirm the test fails.
@@ -19,7 +19,7 @@ dotnet build -c Release
 dotnet test --solution AvroSharp.slnx -c Release -f net10.0
 ```
 
-Locally, net10.0 is enough while working. CI runs net8.0, net9.0 and net10.0 on Linux and Windows, x64 and Arm64, and on Windows also net481, which tests the `netstandard2.0` builds on .NET Framework (the add-ons too, except AvroSharp.KafkaFlow, which has no .NET Framework build; their test projects register the generated types first, as a .NET Framework application does). Run `-f net481` locally too when a change touches the netstandard code paths.
+Locally, net10.0 is enough while working. CI runs net8.0, net10.0 and net11.0 on Linux and Windows, x64 and Arm64, and on Windows also net481, which tests the `netstandard2.0` builds on .NET Framework (the add-ons too, except AvroSharp.KafkaFlow, which has no .NET Framework build; their test projects register the generated types first, as a .NET Framework application does). Run `-f net481` locally too when a change touches the netstandard code paths.
 
 AvroSharp.Confluent's, AvroSharp.KafkaFlow's and AvroSharp.Aws.Glue's tests need more:
 - **Redpanda:** the tests against a real broker and registry need Docker with Linux containers. They are `[Explicit]`, so they run only when a filter names them: `dotnet test --project tests/AvroSharp.Confluent.Tests --treenode-filter "/*/*/RedpandaTests/*"`, and AvroSharp.KafkaFlow's with `--project tests/AvroSharp.KafkaFlow.Tests --treenode-filter "/*/*/KafkaFlowRedpandaTests/*"`. Otherwise they are neither run nor listed.
@@ -53,7 +53,7 @@ dotnet tool run docfx docfx.json --serve   # http://localhost:8080
 ### Dev container
 
 `.devcontainer/` builds and tests as the Linux CI job does, with no local .NET setup. It has:
-- **SDKs:** Ubuntu 24.04 (as `ubuntu-latest`) with the .NET 8, 9 and 10 SDKs;
+- **SDKs:** Ubuntu 24.04 (as `ubuntu-latest`) with the .NET 8, 10 and 11 SDKs;
 - **Native AOT:** its prerequisites;
 - **Tools:** the repository's local tools (DocFX, ReportGenerator);
 - **Environment:** CI's variables;
@@ -67,7 +67,7 @@ build/ci-local.sh
 
 It runs, in CI's order:
 - restore and build;
-- the tests on net8.0, net9.0 and net10.0 with coverage;
+- the tests on net8.0, net10.0 and net11.0 with coverage;
 - the Redpanda and moto tests, when Docker is available (the dev container has no Docker inside it, so there they are left out);
 - the add-ons' tests against the lowest versions of their dependencies (Confluent 2.14.0, KafkaFlow 4.0.0, Azure.Data.SchemaRegistry 1.2.0, AWSSDK.Glue 4.0.0);
 - the tests without hardware intrinsics;

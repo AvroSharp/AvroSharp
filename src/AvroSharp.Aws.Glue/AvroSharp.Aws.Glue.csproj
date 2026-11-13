@@ -3,7 +3,7 @@
   <!-- A managed AWS Glue Schema Registry serializer: a replacement for AWS's AWS.Glue.SchemaRegistry, a native build
        for Linux only, without Apache.Avro. Its Confluent.Kafka serializers are in AvroSharp.Aws.Glue.Kafka. -->
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net9.0;net8.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net11.0;net10.0;net8.0;netstandard2.0</TargetFrameworks>
     <RootNamespace>AvroSharp.Aws.Glue</RootNamespace>
     <PackageId>AvroSharp.Aws.Glue</PackageId>
     <Description>A managed AWS Glue Schema Registry serializer on AvroSharp, for every platform: generated and [AvroSerializable] types and generic records, and zlib compression, in AWS's wire format, for Kinesis, Kafka and any transport. No Apache.Avro, no native library. Confluent.Kafka serializers are in AvroSharp.Aws.Glue.Kafka.</Description>

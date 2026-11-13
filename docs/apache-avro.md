@@ -26,7 +26,7 @@ On this page:
 | Schema registries | Confluent, Confluent GUID, Apicurio and AWS Glue framing, with no client dependency; serializers for Confluent.Kafka, KafkaFlow, Azure Schema Registry and AWS Glue in add-on packages, new in 1.0.0 ([integrations](integrations.md)) | not included; Confluent's and Microsoft's Avro serializers are built on it |
 | Specification | follows it where Apache.Avro 1.12.2 deviates ([details](#following-the-specification)) | five deviations pinned by AvroSharp's tests |
 | Hostile input | bounded memory and nesting for malformed or hostile data and schemas; fuzzed nightly | — |
-| Targets | .NET 8, 9 and 10, .NET Standard 2.0 and 2.1 (so .NET Framework) | .NET Standard 2.0 and 2.1 |
+| Targets | .NET 8, 10 and 11, .NET Standard 2.0 and 2.1 (so .NET Framework) | .NET Standard 2.0 and 2.1 |
 | License | MIT | Apache 2.0 |
 | Maturity | 1.0: stable, following semantic versioning | the long-standing reference implementation |
 

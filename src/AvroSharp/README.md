@@ -6,7 +6,7 @@ A high-performance .NET implementation of the [Apache Avro™](https://avro.apac
 
 **[Documentation](https://avrosharp.github.io/AvroSharp/)** · [API reference](https://avrosharp.github.io/AvroSharp/docs/api/index.html) · [Code generation](https://avrosharp.github.io/AvroSharp/docs/code-generation.html) · [Benchmarks](https://avrosharp.github.io/AvroSharp/docs/benchmarks.html) · [Compared with Apache.Avro](https://avrosharp.github.io/AvroSharp/docs/apache-avro.html)
 
-Targets `net10.0`, `net9.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
+Targets `net11.0`, `net10.0`, `net8.0`, `netstandard2.1` and `netstandard2.0`.
 
 ## Getting started
 

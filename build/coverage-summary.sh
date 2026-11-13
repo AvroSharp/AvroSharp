@@ -9,7 +9,7 @@ assemblies=(AvroSharp AvroSharp.Aws.Glue AvroSharp.Aws.Glue.Kafka AvroSharp.Azur
 
 # Every report must have data, and together they must cover each shipped assembly: collection that silently records
 # nothing would otherwise shrink the summary without failing anything (#133).
-reports=$(find artifacts/bin TestResults -name '*.cobertura.xml' 2>/dev/null || true)
+reports=$(find artifacts/bin artifacts/test TestResults -name '*.cobertura.xml' 2>/dev/null || true)
 empty=$(for f in $reports; do grep -q '<package ' "$f" || echo "$f"; done)
 if [ -z "$reports" ] || [ -n "$empty" ]; then
   echo "::error::Coverage reports with no data: ${empty:-no reports at all}"
@@ -26,7 +26,7 @@ done
 
 filters=$(printf '+%s;' "${assemblies[@]}")
 dotnet tool restore > /dev/null
-dotnet tool run reportgenerator "-reports:artifacts/bin/**/TestResults/**/*.cobertura.xml;TestResults/**/*.cobertura.xml" \
+dotnet tool run reportgenerator "-reports:artifacts/test/**/*.cobertura.xml;artifacts/bin/**/TestResults/**/*.cobertura.xml;TestResults/**/*.cobertura.xml" \
   -targetdir:artifacts/coverage "-reporttypes:MarkdownSummaryGithub;JsonSummary" "-assemblyfilters:${filters%;}"
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then

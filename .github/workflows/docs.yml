@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 11.0.x
 
       # Broken links and bookmarks fail the build. Other warnings don't: on Linux the metadata step reports the
       # AvroSharp project reference as unmatched, although the API pages come out complete.

@@ -43,8 +43,8 @@ jobs:
         with:
           dotnet-version: |
             8.0.x
-            9.0.x
             10.0.x
+            11.0.x
 
       - run: dotnet build AvroSharp.slnx -c Release
       - run: dotnet test --solution AvroSharp.slnx -c Release --no-build
@@ -65,6 +65,7 @@ jobs:
           dotnet-version: |
             8.0.x
             10.0.x
+            11.0.x
 
       # Built first and packed without building, as CI does: a pack that also builds once hit a SourceLink file lock
       # on AvroSharp.Generators, which is built both as a project and as an analyzer reference (#136).

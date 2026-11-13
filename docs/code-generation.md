@@ -254,7 +254,7 @@ The `[AvroSerializable]` generator reports these at the code. On an error, the t
 ## Requirements
 
 - **To build:** the generator needs the .NET 10 SDK, or Visual Studio 2026 or later, because it runs AvroSharp inside the compiler ([#20](https://github.com/AvroSharp/AvroSharp/issues/20)). Older SDKs cannot load it; [the design notes](design.md) record what fails.
-- **To run:** the generated code works on every target AvroSharp supports: .NET 8, 9 and 10, .NET Standard 2.0 and 2.1, and so .NET Framework.
+- **To run:** the generated code works on every target AvroSharp supports: .NET 8, 10 and 11, .NET Standard 2.0 and 2.1, and so .NET Framework.
 - **C# version:** the generated code needs C# 7.2 or later. The generator reports AVROGEN003 for a project on C# 7.0 or 7.1. For the [command-line tool's](cli.md) `--language-version` and [`CodeGenOptions.LanguageVersion`](https://avrosharp.github.io/AvroSharp/docs/api/AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.html), 7 means C# 7.2 or later.
 
 A build with an older SDK can use the [command-line tool](cli.md) instead, and compile the generated files as ordinary sources.

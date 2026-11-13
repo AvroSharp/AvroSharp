@@ -3,7 +3,7 @@
   <!-- Confluent Schema Registry serializers for Confluent.Kafka. Only the Avro encoding is AvroSharp's: the registry
        protocol, subjects, references and rules are Confluent's own code, through its serializer base classes. -->
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net9.0;net8.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net11.0;net10.0;net8.0;netstandard2.0</TargetFrameworks>
     <RootNamespace>AvroSharp.Confluent</RootNamespace>
     <PackageId>AvroSharp.Confluent</PackageId>
     <Description>Confluent Schema Registry serializers and deserializers for Confluent.Kafka on AvroSharp: generated types, your own [AvroSerializable] types, generic records and primitives, with the registry's framing, subject name strategies, references and rules. No Apache.Avro.</Description>

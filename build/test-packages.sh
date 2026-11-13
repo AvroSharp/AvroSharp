@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Uses the packed packages the way a user does (#136): restores tests/PackageConsumers from artifacts/package/release
 # only, into an empty package cache, then builds and runs each consumer, and installs and runs the tool. CI runs it
-# after packing; locally, run `dotnet pack AvroSharp.slnx -c Release` first. Needs the .NET 8, 9 and 10 runtimes.
+# after packing; locally, run `dotnet pack AvroSharp.slnx -c Release` first. Needs the .NET 8, 10 and 11 runtimes.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)

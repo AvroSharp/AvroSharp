@@ -6,7 +6,7 @@
     <!-- No netstandard2.0: every KafkaFlow 4.x is built against System.Threading.Tasks.Extensions' assembly 4.2.2.0,
          and the 4.6.3 package that AvroSharp's netstandard2.0 dependencies require has assembly 4.2.1.0, so a
          netstandard2.0 build fails (CS1705). On .NET 8 and later the assembly is part of the runtime. -->
-    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>net11.0;net10.0;net8.0</TargetFrameworks>
     <RootNamespace>AvroSharp.KafkaFlow</RootNamespace>
     <PackageId>AvroSharp.KafkaFlow</PackageId>
     <Description>KafkaFlow serializers and deserializers for Confluent Schema Registry on AvroSharp: generated and [AvroSerializable] types, several types per topic, the same bytes as KafkaFlow's Confluent Avro serializer. No Apache.Avro.</Description>
