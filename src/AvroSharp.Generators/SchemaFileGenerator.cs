@@ -89,6 +89,8 @@ public sealed class SchemaFileGenerator : IIncrementalGenerator
                     NullableAnnotations = input.Right >= 8,
                     LanguageVersion = input.Right,
                     PropertyNames = input.Left.Left.Right.PropertyNames,
+                    RequiredMembers = input.Left.Left.Right.RequiredMembers,
+                    TypeKind = input.Left.Left.Right.RecordTypes ? CodeGenTypeKind.Record : CodeGenTypeKind.Class,
                 },
                 cancellationToken))
             .WithTrackingName("Generate");

@@ -52,6 +52,13 @@ Each record gets:
 
 `new Order()` gives every field that has a schema default its default, as reading data that lacks the field would. A union field's default is a value of the first branch it fits, which need not be the union's first branch, as Avro 1.12 says.
 
+**Hooks:** each record declares three `partial` methods that your part of the type may implement. One you don't implement compiles to nothing, calls included:
+- `OnCreated()`, at the end of `new Order()`, once the fields have their defaults;
+- `OnSerializing()`, before the value is written, binary or JSON;
+- `OnDeserialized()`, after a value is read, also from another version of the schema, before it is returned. Readers don't run `OnCreated()`.
+
+Apache.Avro's own `SpecificDatumReader`, in the compatibility mode, sets fields through `Put` and runs none of them.
+
 ## Using the generated types
 
 ```csharp
@@ -94,6 +101,8 @@ Set these in the project file (or a `Directory.Build.props`). Each one has the s
 | `AvroSharpPropertyNames` | `pascal`, `avro` | `pascal` (the default) converts field names to PascalCase: `customer_name` becomes `CustomerName`, `USER_ID` becomes `UserId`. `avro` keeps the field names as written, as Apache's `avrogen` does, escaping C# keywords (`@class`). |
 | `AvroSharpLogicalTypes` | `native`, `raw` | `native` (the default) maps logical types to .NET types. `raw` keeps logical types as their underlying types (`int`, `long`, `string`, `byte[]`) instead of `DateOnly`, `Guid`, `decimal` and the others. For one schema, set `"avrosharp.logicalType"` on it instead (see below). |
 | `AvroSharpApacheCompatible` | `true`, `false` | `true` turns on the [Apache.Avro compatibility mode](#migrating-from-avrogen-the-apacheavro-compatibility-mode). |
+| `AvroSharpRequiredMembers` | `true`, `false` | `true` makes fields without a schema default `required` members, so `new Order { ... }` that leaves one unset doesn't compile (`--required-members`). Only on .NET 7 and later with C# 11 or later; elsewhere they stay plain properties, so the same code compiles for every target. Readers set them through a constructor of their own. |
+| `AvroSharpTypeKind` | `class`, `record` | `record` makes records C# `record class`es (`--type-kind`): value equality and `with`, member by member, so lists, dictionaries and byte arrays compare by reference. Needs C# 9. |
 
 ```xml
 <PropertyGroup>
