@@ -5,22 +5,27 @@ namespace AvroSharp.Generic;
 /// <summary>The shape of the values <see cref="AvroRandomData"/> generates.</summary>
 public sealed class AvroRandomDataOptions
 {
+    /// <summary>The largest <see cref="MaxCollectionLength"/> and <see cref="MaxStringLength"/>: 1,048,576.</summary>
+    public const int MaxLength = 1 << 20;
+
     /// <summary>Gets the default options.</summary>
     public static AvroRandomDataOptions Default { get; } = new();
 
-    /// <summary>Gets the largest number of items in an array or entries in a map, zero or more. The default is 5.</summary>
+    /// <summary>Gets the largest number of items in an array or entries in a map, from 0 to <see cref="MaxLength"/>. The default is 5.</summary>
     public int MaxCollectionLength
     {
         get;
         init
         {
             ArgumentOutOfRangeException.ThrowIfNegative(value);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, MaxLength);
             field = value;
         }
     } = 5;
 
     /// <summary>
-    /// Gets the longest string, in UTF-16 code units, and the longest <c>bytes</c> value, in bytes, zero or more. Map
+    /// Gets the longest string, in UTF-16 code units, and the longest <c>bytes</c> value, in bytes, from 0 to
+    /// <see cref="MaxLength"/>. Map
     /// keys are at most 8 long, or this when it is shorter. The default is 30.
     /// </summary>
     public int MaxStringLength
@@ -29,6 +34,7 @@ public sealed class AvroRandomDataOptions
         init
         {
             ArgumentOutOfRangeException.ThrowIfNegative(value);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, MaxLength);
             field = value;
         }
     } = 30;
@@ -61,9 +67,10 @@ public sealed class AvroRandomDataOptions
     public bool LogicalValuesInDotNetRange { get; init; } = true;
 
     /// <summary>
-    /// Gets how deep records nest before the generator ends the recursion, at least 1: below it, arrays and maps are
-    /// empty and unions take the branch that ends soonest. A value that holds 10,000 values ends the same way
-    /// sooner. The default is 6.
+    /// Gets how deep records nest before the generator ends the recursion, from 1 to 128 (the writers' default limit,
+    /// <see cref="GenericDatumWriterOptions.DefaultMaxDepth"/>, so every value can be written): below it, arrays and
+    /// maps are empty and unions take the branch that ends soonest. Once a value holds 10,000 values, the arrays and
+    /// maps it starts after that are empty and its unions end as soon as they can. The default is 6.
     /// </summary>
     public int MaxDepth
     {
@@ -71,6 +78,7 @@ public sealed class AvroRandomDataOptions
         init
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, GenericDatumWriterOptions.DefaultMaxDepth);
             field = value;
         }
     } = 6;

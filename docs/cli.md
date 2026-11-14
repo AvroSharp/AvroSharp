@@ -192,7 +192,7 @@ The files `fromjson`, `cat`, `concat`, `recodec`, `random` and `repair` write ar
 
 ## Errors and exit codes
 
-Errors are reported in the compiler's format, `path(line,column): error AVROGEN001: message`, so editors and CI logs link them to the schema.
+Schema errors are reported in the compiler's format, `path(line,column): error AVROGEN001: message`, so editors and CI logs link them to the schema. The `file` commands report theirs as `error: message`. A file a command writes appears only when it succeeds: an existing file is replaced then, and left as it was when the command fails.
 
 | Exit code | Meaning |
 |---|---|
@@ -202,7 +202,7 @@ Errors are reported in the compiler's format, `path(line,column): error AVROGEN0
 | 3 | `schema compat`: partially compatible. The reader can be created, but some values can't be read. |
 | 4 | `schema compat`: incompatible, or warnings with `--warnings-as-errors`. |
 
-Errors go to standard error; results and informational messages go to standard output.
+Errors go to standard error; results and informational messages go to standard output, except that `file repair` reports what it kept, and `file random` the seed it chose, on standard error, so standard output can carry the file (`-o -`). `fromjson`, `repair` and any input given as `-` are read into memory whole.
 
 ## In a build or CI
 

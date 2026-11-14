@@ -26,7 +26,7 @@ internal static class Telemetry
 
     /// <summary>Calls to the registry client when the serde's own caches miss (the client can still answer from its cache).</summary>
     public static readonly Counter<long> RegistryCalls = Meter.CreateCounter<long>(
-        "avrosharp.confluent.registry.calls", "{call}", "Calls to the schema registry client, by operation: register, lookup, get_schema, migrations.");
+        "avrosharp.confluent.registry.calls", "{call}", "Calls to the schema registry client that the serde's caches missed, by operation: register, lookup, get_schema, get_schema_by_guid, migrations.");
 
     /// <summary>Messages that failed to serialize or deserialize.</summary>
     public static readonly Counter<long> Errors = Meter.CreateCounter<long>(

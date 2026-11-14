@@ -8,6 +8,8 @@ AvroSharp.Serialization.IAvroSerializable<TSelf>.Write(ref AvroSharp.IO.AvroWrit
 static AvroSharp.Containers.AvroFileReader.Open<T>(System.IO.Stream! stream, AvroSharp.Containers.AvroFileReaderOptions? options = null) -> AvroSharp.Containers.AvroFileReader<T>!
 static AvroSharp.Containers.AvroFileReader.OpenAsync<T>(System.IO.Stream! stream, AvroSharp.Containers.AvroFileReaderOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Containers.AvroFileReader<T>!>
 static AvroSharp.Containers.AvroFileWriter.Create<T>(System.IO.Stream! stream, AvroSharp.Containers.AvroFileWriterOptions? options = null) -> AvroSharp.Containers.AvroFileWriter<T>!
+static AvroSharp.Containers.AvroFileWriter.OpenAppend<T>(System.IO.Stream! stream, AvroSharp.Containers.AvroFileWriterOptions? options = null) -> AvroSharp.Containers.AvroFileWriter<T>!
+static AvroSharp.Containers.AvroFileWriter.OpenAppendAsync<T>(System.IO.Stream! stream, AvroSharp.Containers.AvroFileWriterOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<AvroSharp.Containers.AvroFileWriter<T>!>
 static AvroSharp.Messages.AvroMessage.ToArray<T>(T value) -> byte[]!
 static AvroSharp.Messages.AvroMessage.Write<T>(System.Buffers.IBufferWriter<byte>! output, T value) -> void
 static AvroSharp.Messages.AvroMessageReader.Create<T>(AvroSharp.Messages.IAvroSchemaResolver! resolver) -> AvroSharp.Messages.AvroMessageReader<T>!

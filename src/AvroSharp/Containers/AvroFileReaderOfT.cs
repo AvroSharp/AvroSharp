@@ -150,6 +150,19 @@ public sealed partial class AvroFileReader<T> : IDisposable, IAsyncDisposable
         while (ReadRawBlock(out var count, out var size))
         {
             ConsumeSyncMarker();
+
+            // As TryRead checks a block: no objects means no data, and, where the stored data is the objects (the null
+            // codec), the count must fit in it.
+            if (count == 0 && size != 0)
+            {
+                throw new AvroDataException($"A block declares no objects but holds {size} bytes.");
+            }
+
+            if (ReferenceEquals(_codec, AvroCodec.Null))
+            {
+                CheckObjectCount(count, size);
+            }
+
             if (count > 0)
             {
                 block = new AvroFileBlock(WriterSchema, _codec, count, _raw.AsSpan(0, size).ToArray());

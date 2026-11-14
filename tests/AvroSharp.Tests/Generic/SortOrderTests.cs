@@ -48,7 +48,9 @@ public class SortOrderTests
         yield return ("\"bytes\"", new byte[] { 1 }, new byte[] { 1, 0 });
 
         // U+E000 is three UTF-8 bytes from EE, U+1F600 four from F0; as UTF-16, U+1F600 starts with D83D, before E000.
-        yield return ("\"string\"", "", "\U0001F600");
+        yield return ("\"string\"", "\uE000", "\U0001F600");
+        yield return ("\"string\"", "\uFFFF", "\U00010000");
+        yield return ("\"string\"", "a\uFFFD", "a\U0001F600");
         yield return ("\"string\"", "Z", "a");
         yield return ("\"string\"", "ab", "abc");
         yield return ("""{"type":"array","items":"int"}""", AvroValue.FromArray([1, 2]), AvroValue.FromArray([1, 2, 0]));

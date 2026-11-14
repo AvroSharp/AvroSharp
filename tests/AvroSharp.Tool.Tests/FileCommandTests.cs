@@ -268,6 +268,64 @@ public class FileCommandTests
         await Assert.That(result.Error).StartsWith("error: ");
     }
 
+    /// <summary>JSON deeper than System.Text.Json's default 64 levels, as tojson writes a long recursive value.</summary>
+    [Test]
+    public async Task FromJson_ReadsDeepValues_AsToJsonWritesThem()
+    {
+        using var tool = new ToolRunner();
+        var schema = tool.Write("node.avsc", """{"type":"record","name":"Node","fields":[{"name":"v","type":"int"},{"name":"next","type":["null","Node"]}]}""");
+        var json = "null";
+        for (var i = 0; i < 60; i++)
+        {
+            json = i == 0 ? "{\"v\":0,\"next\":null}" : "{\"v\":" + i + ",\"next\":{\"Node\":" + json + "}}";
+        }
+
+        var result = ToolRunner.Run("file", "fromjson", tool.Write("deep.json", json), "--schema", schema, "-o", tool.PathOf("deep.avro"));
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(ToolRunner.Run("file", "tojson", tool.PathOf("deep.avro")).Output.Trim()).IsEqualTo(json);
+    }
+
+    /// <summary>A failed command leaves an existing output as it was, even when it is the input (repair x -o x).</summary>
+    [Test]
+    public async Task AFailedCommand_LeavesTheOutputAsItWas()
+    {
+        using var tool = new ToolRunner();
+        var schema = tool.Write("int.avsc", "\"int\"");
+        var output = tool.Write("out.avro", "keep me");
+        var damaged = tool.Write("damaged.avro", "not a container");
+
+        var fromJson = ToolRunner.Run("file", "fromjson", tool.Write("values.json", "1 2 \"three\""), "--schema", schema, "-o", output);
+        var repair = ToolRunner.Run("file", "repair", damaged, "-o", damaged);
+
+        await Assert.That(fromJson.ExitCode).IsEqualTo(1);
+        await Assert.That(File.ReadAllText(output)).IsEqualTo("keep me");
+        await Assert.That(repair.ExitCode).IsEqualTo(1);
+        await Assert.That(File.ReadAllText(damaged)).IsEqualTo("not a container");
+        await Assert.That(Directory.GetFiles(tool.Folder, "*.tmp")).IsEmpty();
+    }
+
+    /// <summary>cat --limit stops at the limit: a damaged block after it is never read.</summary>
+    [Test]
+    public async Task Cat_StopsAtTheLimit()
+    {
+        using var tool = new ToolRunner();
+        var original = tool.CopyTestData("java-avro/many-deflate.avro");
+        var data = File.ReadAllBytes(original);
+        for (var i = data.Length / 2; i < (data.Length / 2) + 40; i++)
+        {
+            data[i] ^= 0x5A;
+        }
+
+        var damaged = tool.PathOf("damaged.avro");
+        File.WriteAllBytes(damaged, data);
+
+        var result = ToolRunner.Run("file", "cat", damaged, "--limit", "10", "-o", tool.PathOf("out.avro"));
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(ReadAll(tool.PathOf("out.avro")).Count).IsEqualTo(10);
+    }
+
     private static List<AvroValue> ReadAll(string path)
     {
         using var reader = AvroFileReader.OpenGeneric(File.OpenRead(path), options: AllCodecs);

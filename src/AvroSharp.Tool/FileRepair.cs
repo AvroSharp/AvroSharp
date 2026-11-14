@@ -74,7 +74,8 @@ internal static class FileRepair
             var count = prefix.ReadLong();
             var size = prefix.ReadLong();
             var start = position + (int)prefix.BytesConsumed;
-            if (count < 1 || size < 0 || size > data.Length - start - sync.Length
+            // A block of no objects is legal when it holds no data.
+            if (count < 0 || (count == 0 && size != 0) || size < 0 || size > data.Length - start - sync.Length
                 || !data.AsSpan(start + (int)size, sync.Length).SequenceEqual(sync))
             {
                 return false;
@@ -111,23 +112,30 @@ internal static class FileRepair
 
         public ReadOnlySpan<byte> WrittenSpan => _inner.WrittenSpan;
 
-        public void Advance(int count) => _inner.Advance(count);
+        // Every write is counted against the limit, whatever size a codec asks for: the memory handed out ends at it.
+        public void Advance(int count)
+        {
+            Check(count);
+            _inner.Advance(count);
+        }
 
         public Memory<byte> GetMemory(int sizeHint = 0)
         {
-            Check(sizeHint);
-            return _inner.GetMemory(sizeHint);
+            Check(Math.Max(sizeHint, 1));
+            var memory = _inner.GetMemory(sizeHint);
+            return memory[..Math.Min(memory.Length, MaxBlockLength - _inner.WrittenCount)];
         }
 
         public Span<byte> GetSpan(int sizeHint = 0)
         {
-            Check(sizeHint);
-            return _inner.GetSpan(sizeHint);
+            Check(Math.Max(sizeHint, 1));
+            var span = _inner.GetSpan(sizeHint);
+            return span[..Math.Min(span.Length, MaxBlockLength - _inner.WrittenCount)];
         }
 
-        private void Check(int sizeHint)
+        private void Check(int count)
         {
-            if ((long)_inner.WrittenCount + sizeHint > MaxBlockLength)
+            if ((long)_inner.WrittenCount + count > MaxBlockLength)
             {
                 throw new InvalidDataException($"A block decompresses to more than {MaxBlockLength} bytes.");
             }

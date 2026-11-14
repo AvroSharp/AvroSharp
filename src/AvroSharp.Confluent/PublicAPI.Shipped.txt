@@ -2,15 +2,22 @@
 AvroSharp.Confluent.AvroSharpDeserializer<T>
 AvroSharp.Confluent.AvroSharpDeserializer<T>.AvroSharpDeserializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> void
 AvroSharp.Confluent.AvroSharpDeserializer<T>.AvroSharpDeserializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Serialization.AvroTypeInfo<T>! type, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> void
+AvroSharp.Confluent.AvroSharpDeserializer<T>.AvroSharpDeserializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, System.Collections.Generic.IEnumerable<System.Type!>! types, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> void
+AvroSharp.Confluent.AvroSharpDeserializer<T>.CustomSubjectNameStrategy.get -> Confluent.SchemaRegistry.AsyncSubjectNameStrategyDelegate!
+AvroSharp.Confluent.AvroSharpDeserializer<T>.CustomSubjectNameStrategy.init -> void
 AvroSharp.Confluent.AvroSharpDeserializer<T>.Deserialize(System.ReadOnlySpan<byte> data, bool isNull, Confluent.Kafka.SerializationContext context) -> T
 AvroSharp.Confluent.AvroSharpDeserializerConfig
 AvroSharp.Confluent.AvroSharpDeserializerConfig.AvroSharpDeserializerConfig() -> void
 AvroSharp.Confluent.AvroSharpDeserializerConfig.AvroSharpDeserializerConfig(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! config) -> void
+AvroSharp.Confluent.AvroSharpDeserializerConfig.FailOnTrailingData.get -> bool?
+AvroSharp.Confluent.AvroSharpDeserializerConfig.FailOnTrailingData.set -> void
 AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames
 AvroSharp.Confluent.AvroSharpDeserializerConfig.SchemaIdStrategy.get -> Confluent.SchemaRegistry.SchemaIdDeserializerStrategy?
 AvroSharp.Confluent.AvroSharpDeserializerConfig.SchemaIdStrategy.set -> void
 AvroSharp.Confluent.AvroSharpDeserializerConfig.SubjectNameStrategy.get -> Confluent.SchemaRegistry.SubjectNameStrategy?
 AvroSharp.Confluent.AvroSharpDeserializerConfig.SubjectNameStrategy.set -> void
+AvroSharp.Confluent.AvroSharpDeserializerConfig.TombstoneBehavior.get -> AvroSharp.Confluent.TombstoneBehavior?
+AvroSharp.Confluent.AvroSharpDeserializerConfig.TombstoneBehavior.set -> void
 AvroSharp.Confluent.AvroSharpDeserializerConfig.UseLatestVersion.get -> bool?
 AvroSharp.Confluent.AvroSharpDeserializerConfig.UseLatestVersion.set -> void
 AvroSharp.Confluent.AvroSharpDeserializerConfig.UseLatestWithMetadata.get -> System.Collections.Generic.IDictionary<string!, string!>?
@@ -23,6 +30,9 @@ AvroSharp.Confluent.AvroSharpSerdeExtensions
 AvroSharp.Confluent.AvroSharpSerializer<T>
 AvroSharp.Confluent.AvroSharpSerializer<T>.AvroSharpSerializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> void
 AvroSharp.Confluent.AvroSharpSerializer<T>.AvroSharpSerializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Serialization.AvroTypeInfo<T>! type, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> void
+AvroSharp.Confluent.AvroSharpSerializer<T>.AvroSharpSerializer(Confluent.SchemaRegistry.ISchemaRegistryClient! client, System.Collections.Generic.IEnumerable<System.Type!>! types, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> void
+AvroSharp.Confluent.AvroSharpSerializer<T>.CustomSubjectNameStrategy.get -> Confluent.SchemaRegistry.AsyncSubjectNameStrategyDelegate!
+AvroSharp.Confluent.AvroSharpSerializer<T>.CustomSubjectNameStrategy.init -> void
 AvroSharp.Confluent.AvroSharpSerializer<T>.Serialize(T data, Confluent.Kafka.SerializationContext context) -> byte[]?
 AvroSharp.Confluent.AvroSharpSerializerConfig
 AvroSharp.Confluent.AvroSharpSerializerConfig.AutoRegisterSchemas.get -> bool?
@@ -31,30 +41,50 @@ AvroSharp.Confluent.AvroSharpSerializerConfig.AvroSharpSerializerConfig() -> voi
 AvroSharp.Confluent.AvroSharpSerializerConfig.AvroSharpSerializerConfig(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! config) -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.BufferBytes.get -> int?
 AvroSharp.Confluent.AvroSharpSerializerConfig.BufferBytes.set -> void
+AvroSharp.Confluent.AvroSharpSerializerConfig.IdCompatibilityStrict.get -> bool?
+AvroSharp.Confluent.AvroSharpSerializerConfig.IdCompatibilityStrict.set -> void
+AvroSharp.Confluent.AvroSharpSerializerConfig.LatestCompatibilityStrict.get -> bool?
+AvroSharp.Confluent.AvroSharpSerializerConfig.LatestCompatibilityStrict.set -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.NormalizeSchemas.get -> bool?
 AvroSharp.Confluent.AvroSharpSerializerConfig.NormalizeSchemas.set -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames
+AvroSharp.Confluent.AvroSharpSerializerConfig.RemoveJavaProperties.get -> bool?
+AvroSharp.Confluent.AvroSharpSerializerConfig.RemoveJavaProperties.set -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.SchemaIdStrategy.get -> Confluent.SchemaRegistry.SchemaIdSerializerStrategy?
 AvroSharp.Confluent.AvroSharpSerializerConfig.SchemaIdStrategy.set -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.SubjectNameStrategy.get -> Confluent.SchemaRegistry.SubjectNameStrategy?
 AvroSharp.Confluent.AvroSharpSerializerConfig.SubjectNameStrategy.set -> void
+AvroSharp.Confluent.AvroSharpSerializerConfig.TombstoneBehavior.get -> AvroSharp.Confluent.TombstoneBehavior?
+AvroSharp.Confluent.AvroSharpSerializerConfig.TombstoneBehavior.set -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.UseLatestVersion.get -> bool?
 AvroSharp.Confluent.AvroSharpSerializerConfig.UseLatestVersion.set -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.UseLatestWithMetadata.get -> System.Collections.Generic.IDictionary<string!, string!>?
 AvroSharp.Confluent.AvroSharpSerializerConfig.UseLatestWithMetadata.set -> void
+AvroSharp.Confluent.AvroSharpSerializerConfig.UseSchemaGuid.get -> string?
+AvroSharp.Confluent.AvroSharpSerializerConfig.UseSchemaGuid.set -> void
 AvroSharp.Confluent.AvroSharpSerializerConfig.UseSchemaId.get -> int?
 AvroSharp.Confluent.AvroSharpSerializerConfig.UseSchemaId.set -> void
+AvroSharp.Confluent.TombstoneBehavior
+AvroSharp.Confluent.TombstoneBehavior.None = 0 -> AvroSharp.Confluent.TombstoneBehavior
+AvroSharp.Confluent.TombstoneBehavior.Strict = 1 -> AvroSharp.Confluent.TombstoneBehavior
+const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.FailOnTrailingData = "avro.deserializer.fail.on.trailing.data" -> string!
 const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.SchemaIdStrategy = "avro.deserializer.schema.id.strategy" -> string!
 const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.SubjectNameStrategy = "avro.deserializer.subject.name.strategy" -> string!
+const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.TombstoneBehavior = "avro.deserializer.tombstone.behavior" -> string!
 const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.UseLatestVersion = "avro.deserializer.use.latest.version" -> string!
 const AvroSharp.Confluent.AvroSharpDeserializerConfig.PropertyNames.UseLatestWithMetadata = "avro.deserializer.use.latest.with.metadata" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.AutoRegisterSchemas = "avro.serializer.auto.register.schemas" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.BufferBytes = "avro.serializer.buffer.bytes" -> string!
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.IdCompatibilityStrict = "avro.serializer.id.compatibility.strict" -> string!
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.LatestCompatibilityStrict = "avro.serializer.latest.compatibility.strict" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.NormalizeSchemas = "avro.serializer.normalize.schemas" -> string!
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.RemoveJavaProperties = "avro.serializer.remove.java.properties" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.SchemaIdStrategy = "avro.serializer.schema.id.strategy" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.SubjectNameStrategy = "avro.serializer.subject.name.strategy" -> string!
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.TombstoneBehavior = "avro.serializer.tombstone.behavior" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.UseLatestVersion = "avro.serializer.use.latest.version" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.UseLatestWithMetadata = "avro.serializer.use.latest.with.metadata" -> string!
+const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.UseSchemaGuid = "avro.serializer.use.schema.guid" -> string!
 const AvroSharp.Confluent.AvroSharpSerializerConfig.PropertyNames.UseSchemaId = "avro.serializer.use.schema.id" -> string!
 override AvroSharp.Confluent.AvroSharpDeserializer<T>.DeserializeAsync(System.ReadOnlyMemory<byte> data, bool isNull, Confluent.Kafka.SerializationContext context) -> System.Threading.Tasks.Task<T>!
 override AvroSharp.Confluent.AvroSharpSerializer<T>.SerializeAsync(T value, Confluent.Kafka.SerializationContext context) -> System.Threading.Tasks.Task<byte[]?>!
@@ -65,5 +95,7 @@ static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpGenericValueDese
 static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpGenericValueSerializer<TKey>(this Confluent.Kafka.ProducerBuilder<TKey, AvroSharp.Generic.AvroValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Schemas.AvroSchema? schema = null, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> Confluent.Kafka.ProducerBuilder<TKey, AvroSharp.Generic.AvroValue>!
 static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpKeyDeserializer<TKey, TValue>(this Confluent.Kafka.ConsumerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> Confluent.Kafka.ConsumerBuilder<TKey, TValue>!
 static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpKeySerializer<TKey, TValue>(this Confluent.Kafka.ProducerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> Confluent.Kafka.ProducerBuilder<TKey, TValue>!
+static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpKeySerializerAsync<TKey, TValue>(this Confluent.Kafka.ProducerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, string! subject, int version, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> System.Threading.Tasks.Task<Confluent.Kafka.ProducerBuilder<TKey, TValue>!>!
 static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpValueDeserializer<TKey, TValue>(this Confluent.Kafka.ConsumerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpDeserializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> Confluent.Kafka.ConsumerBuilder<TKey, TValue>!
 static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpValueSerializer<TKey, TValue>(this Confluent.Kafka.ProducerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> Confluent.Kafka.ProducerBuilder<TKey, TValue>!
+static AvroSharp.Confluent.AvroSharpSerdeExtensions.SetAvroSharpValueSerializerAsync<TKey, TValue>(this Confluent.Kafka.ProducerBuilder<TKey, TValue>! builder, Confluent.SchemaRegistry.ISchemaRegistryClient! client, string! subject, int version, AvroSharp.Confluent.AvroSharpSerializerConfig? config = null, Confluent.SchemaRegistry.RuleRegistry? ruleRegistry = null) -> System.Threading.Tasks.Task<Confluent.Kafka.ProducerBuilder<TKey, TValue>!>!

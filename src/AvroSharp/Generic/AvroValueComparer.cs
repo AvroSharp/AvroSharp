@@ -33,7 +33,8 @@ namespace AvroSharp.Generic;
 /// </para>
 /// <para>
 /// This order is not <see cref="AvroValue.Equals(AvroValue)"/>: values that differ in an ignored field compare as 0,
-/// and 0 and -0 compare as different.
+/// NaNs with different bit patterns compare as 0, and an <c>int</c> and a <c>long</c> of the same number compare as 0
+/// under a <c>long</c> schema, while <see cref="AvroValue.Equals(AvroValue)"/> tells all of these apart.
 /// </para>
 /// </remarks>
 /// <seealso cref="AvroBinaryComparer"/>

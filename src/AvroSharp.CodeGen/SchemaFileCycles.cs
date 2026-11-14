@@ -51,7 +51,10 @@ internal static class SchemaFileCycles
             return null;
         }
 
-        var context = new Context(path, definitions, defined, inlined);
+        // The names this document defines: the file's own types, and later every type in an inlined definition.
+        var own = new Dictionary<string, (string Path, JsonObject Definition)>(StringComparer.Ordinal);
+        Collect(root, enclosingNamespace: null, path, own);
+        var context = new Context(path, definitions, defined, inlined, new HashSet<string>(own.Keys, StringComparer.Ordinal));
         var result = Visit(root, enclosingNamespace: null, typePosition: true, context);
         return inlined.Count == 0 ? null : result!.ToJsonString();
     }
@@ -86,6 +89,10 @@ internal static class SchemaFileCycles
                 }
 
                 return node;
+            // A reference written as an object, {"type": "ns.Other"}: the whole object is the reference.
+            case JsonObject reference when typePosition && reference["type"] is JsonValue type && type.TryGetValue<string>(out var typeName)
+                && Resolve(typeName, enclosingNamespace, context) is { } referenced:
+                return InlineDefinition(referenced, context);
             case JsonObject schema:
                 VisitObject(schema, enclosingNamespace, context);
                 return node;
@@ -139,9 +146,11 @@ internal static class SchemaFileCycles
         var candidates = name.Contains('.', StringComparison.Ordinal) || string.IsNullOrEmpty(enclosingNamespace)
             ? new[] { name }
             : new[] { enclosingNamespace + "." + name, name };
+        // The first candidate that names a type wins, as in the parser: one defined already (by an earlier file, this
+        // file, or an inlined definition) is left as a reference; one only another pending file defines is inlined.
         foreach (var fullName in candidates)
         {
-            if (context.Defined(fullName) || context.Inlined.Contains(fullName, StringComparer.Ordinal))
+            if (context.Defined(fullName) || context.InDocument.Contains(fullName))
             {
                 return null;
             }
@@ -162,6 +171,11 @@ internal static class SchemaFileCycles
         var dot = fullName.LastIndexOf('.');
         copy["name"] = fullName;
         copy["namespace"] = dot < 0 ? string.Empty : fullName[..dot];
+
+        // Every type the copy defines, nested ones too, is defined from here on in this document.
+        var nested = new Dictionary<string, (string Path, JsonObject Definition)>(StringComparer.Ordinal);
+        Collect(copy, enclosingNamespace: null, context.Path, nested);
+        context.InDocument.UnionWith(nested.Keys);
         VisitObject(copy, enclosingNamespace: null, context);
         return copy;
     }
@@ -213,5 +227,5 @@ internal static class SchemaFileCycles
         return string.IsNullOrEmpty(ns) ? name : ns + "." + name;
     }
 
-    private sealed record Context(string Path, Dictionary<string, (string Path, JsonObject Definition)> Definitions, Func<string, bool> Defined, List<string> Inlined);
+    private sealed record Context(string Path, Dictionary<string, (string Path, JsonObject Definition)> Definitions, Func<string, bool> Defined, List<string> Inlined, HashSet<string> InDocument);
 }

@@ -1,9 +1,20 @@
 #nullable enable
 AvroSharp.CodeGen.CSharpCodeGenerator
+AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenAccessibility.Internal = 1 -> AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenAccessibility.Public = 0 -> AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenCollectionType.Array = 1 -> AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenCollectionType.List = 0 -> AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenCollectionType.ReadOnlyList = 2 -> AvroSharp.CodeGen.CodeGenCollectionType
 AvroSharp.CodeGen.CodeGenOptions
+AvroSharp.CodeGen.CodeGenOptions.Accessibility.get -> AvroSharp.CodeGen.CodeGenAccessibility
+AvroSharp.CodeGen.CodeGenOptions.Accessibility.init -> void
 AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.ApacheCompatible.init -> void
 AvroSharp.CodeGen.CodeGenOptions.CodeGenOptions() -> void
+AvroSharp.CodeGen.CodeGenOptions.CollectionType.get -> AvroSharp.CodeGen.CodeGenCollectionType
+AvroSharp.CodeGen.CodeGenOptions.CollectionType.init -> void
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.get -> int
 AvroSharp.CodeGen.CodeGenOptions.LanguageVersion.init -> void
 AvroSharp.CodeGen.CodeGenOptions.LogicalTypes.get -> AvroSharp.CodeGen.LogicalTypeMapping
@@ -16,8 +27,17 @@ AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.NullableAnnotations.init -> void
 AvroSharp.CodeGen.CodeGenOptions.PropertyNames.get -> AvroSharp.CodeGen.PropertyNaming?
 AvroSharp.CodeGen.CodeGenOptions.PropertyNames.init -> void
+AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.get -> bool
+AvroSharp.CodeGen.CodeGenOptions.RequiredMembers.init -> void
+AvroSharp.CodeGen.CodeGenOptions.SealedTypes.get -> bool
+AvroSharp.CodeGen.CodeGenOptions.SealedTypes.init -> void
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.get -> bool
 AvroSharp.CodeGen.CodeGenOptions.TargetHasDateOnly.init -> void
+AvroSharp.CodeGen.CodeGenOptions.TypeKind.get -> AvroSharp.CodeGen.CodeGenTypeKind
+AvroSharp.CodeGen.CodeGenOptions.TypeKind.init -> void
+AvroSharp.CodeGen.CodeGenTypeKind
+AvroSharp.CodeGen.CodeGenTypeKind.Class = 0 -> AvroSharp.CodeGen.CodeGenTypeKind
+AvroSharp.CodeGen.CodeGenTypeKind.Record = 1 -> AvroSharp.CodeGen.CodeGenTypeKind
 AvroSharp.CodeGen.GeneratedSource
 AvroSharp.CodeGen.GeneratedSource.Equals(AvroSharp.CodeGen.GeneratedSource? other) -> bool
 AvroSharp.CodeGen.GeneratedSource.GeneratedSource(string! hintName, string! text) -> void
@@ -43,5 +63,6 @@ override AvroSharp.CodeGen.GeneratedSource.Equals(object? obj) -> bool
 override AvroSharp.CodeGen.GeneratedSource.GetHashCode() -> int
 override AvroSharp.CodeGen.GeneratedSource.ToString() -> string!
 static AvroSharp.CodeGen.CSharpCodeGenerator.Generate(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! schemas, AvroSharp.CodeGen.CodeGenOptions? options = null) -> System.Collections.Generic.IReadOnlyList<AvroSharp.CodeGen.GeneratedSource!>!
+static AvroSharp.CodeGen.CSharpCodeGenerator.Generate(System.Collections.Generic.IEnumerable<AvroSharp.Schemas.AvroSchema!>! schemas, AvroSharp.CodeGen.CodeGenOptions? options, System.Func<AvroSharp.Schemas.NamedSchema!, AvroSharp.CodeGen.CodeGenOptions?>? typeOptions) -> System.Collections.Generic.IReadOnlyList<AvroSharp.CodeGen.GeneratedSource!>!
 static AvroSharp.CodeGen.CodeGenOptions.Default.get -> AvroSharp.CodeGen.CodeGenOptions!
 static AvroSharp.CodeGen.SchemaFileSet.Parse(System.Collections.Generic.IEnumerable<(string! Path, string! Json)>! files, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> AvroSharp.CodeGen.SchemaFileSet!
