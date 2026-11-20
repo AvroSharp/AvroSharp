@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -75,6 +76,7 @@ public class SyncAndConfigTests
     // ID decoders take as memory, and the asynchronous one adds its task instead. A string is measured: the serde's own
     // costs, not those of a type's values (such as Apache.Avro's AvroDecimal, which allocates as it converts).
     [Test]
+    [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits", Justification = "Measures the allocations of an asynchronous call that completes synchronously; awaiting it would add the state machine's.")]
     public async Task AfterWarmUp_SerializeAllocatesOnlyTheMessage_AndAsyncOnlyATaskMore()
     {
         const int TaskSize = 100;
