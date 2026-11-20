@@ -18,6 +18,7 @@
   <ItemGroup>
     <!-- Built against the lowest version of the range. Only Confluent.Kafka's serializer interfaces are used, which
          haven't changed in 2.x. -->
+    <PackageReference Include="AWSSDK.Core" VersionOverride="4.1.1.2" />
     <PackageReference Include="Confluent.Kafka" VersionOverride="[2.0.2, 3.0.0)" />
   </ItemGroup>
 
